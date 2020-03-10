@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "backends/aws-lambda/host",
+    "backends/aws-lambda/clientlib",
+    "core"
+]
+exclude = [
+    "examples/hello-world"
+]

@@ -1,0 +1,15 @@
+[package]
+name = "hello-world"
+version = "0.1.0"
+authors = ["Daniel Cook <daniel@akkoro.io>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+core = { package = "assemblylift-core", path = "../../core", features = ["client"] }
+clientlib = { package = "assemblylift-awslambda-clientlib", path = "../../backends/aws-lambda/clientlib" }
+awsio = { package = "assemblylift-awslambda-io", path = "../../backends/aws-lambda/io", features = ["client"] }
