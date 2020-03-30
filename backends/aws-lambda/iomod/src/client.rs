@@ -6,7 +6,7 @@ pub mod database {
     pub fn aws_dynamodb_list_tables() {
         unsafe {
             __wsw_list_tables();
-            // TODO: where does get_response come frome?
+            // TODO: where does get_response come from?
         }
     }
 }

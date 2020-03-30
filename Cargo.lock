@@ -24,28 +24,28 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "assemblylift-awslambda-clientlib"
-version = "0.1.0"
-dependencies = [
- "assemblylift-core 0.1.0",
-]
-
-[[package]]
 name = "assemblylift-awslambda-host"
 version = "0.1.0"
 dependencies = [
- "assemblylift-awslambda-io 0.1.0",
+ "assemblylift-awslambda-iomod 0.1.0",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.10.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "wasmer-runtime 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
-name = "assemblylift-awslambda-io"
+name = "assemblylift-awslambda-iomod"
 version = "0.1.0"
 dependencies = [
  "rusoto_core 0.42.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusoto_dynamodb 0.42.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "assemblylift-awslambda-widget"
+version = "0.1.0"
+dependencies = [
+ "assemblylift-core 0.1.0",
 ]
 
 [[package]]

@@ -1,5 +1,5 @@
 [package]
-name = "assemblylift-awslambda-io"
+name = "assemblylift-awslambda-iomod"
 version = "0.1.0"
 authors = ["xlem <xlem@akkoro.io>"]
 edition = "2018"

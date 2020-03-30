@@ -1,5 +1,5 @@
 [package]
-name = "assemblylift-awslambda-clientlib"
+name = "assemblylift-awslambda-widget"
 version = "0.1.0"
 authors = ["Daniel Cook <daniel@akkoro.io>"]
 edition = "2018"

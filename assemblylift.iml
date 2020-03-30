@@ -59,21 +59,31 @@
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/io/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/io/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/io/benches" isTestSource="true" />
-      <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/io/target" />
-      <excludeFolder url="file://$MODULE_DIR$/examples/hello-world/target" />
-      <excludeFolder url="file://$MODULE_DIR$/target" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/widget/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/widget/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/widget/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/widget/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/benches" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/client-support/target" />
       <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/clientlib/target" />
       <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/host/target" />
+      <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/io/target" />
+      <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/target" />
+      <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/widget/target" />
       <excludeFolder url="file://$MODULE_DIR$/bootstrap/target" />
       <excludeFolder url="file://$MODULE_DIR$/clientlib/target" />
       <excludeFolder url="file://$MODULE_DIR$/core/target" />
+      <excludeFolder url="file://$MODULE_DIR$/examples/hello-world/target" />
       <excludeFolder url="file://$MODULE_DIR$/executor/target" />
       <excludeFolder url="file://$MODULE_DIR$/lambda-interface/target" />
       <excludeFolder url="file://$MODULE_DIR$/lambda-runtime-api/target" />
       <excludeFolder url="file://$MODULE_DIR$/lambda-runtime/target" />
       <excludeFolder url="file://$MODULE_DIR$/lambda-support/target" />
       <excludeFolder url="file://$MODULE_DIR$/syscalls/target" />
+      <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

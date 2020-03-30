@@ -14,4 +14,4 @@ path = "src/main.rs"
 wasmer-runtime = "0.15.0"
 lazy_static = "1.4.0"
 reqwest = { version = "0.10.4", features = ["blocking"] }
-awsio = {package = "assemblylift-awslambda-io", path = "../io", features = ["host"] }
+awsio = {package = "assemblylift-awslambda-iomod", path = "../iomod", features = ["host"] }

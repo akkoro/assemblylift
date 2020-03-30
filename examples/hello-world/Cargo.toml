@@ -11,5 +11,5 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 core = { package = "assemblylift-core", path = "../../core", features = ["client"] }
-clientlib = { package = "assemblylift-awslambda-clientlib", path = "../../backends/aws-lambda/clientlib" }
-awsio = { package = "assemblylift-awslambda-io", path = "../../backends/aws-lambda/io", features = ["client"] }
+clientlib = { package = "assemblylift-awslambda-clientlib", path = "../../backends/aws-lambda/widget" }
+awsio = { package = "assemblylift-awslambda-iomod", path = "../../backends/aws-lambda/iomod", features = ["client"] }
