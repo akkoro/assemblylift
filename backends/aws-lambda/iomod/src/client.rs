@@ -1,11 +1,11 @@
 pub mod database {
     extern {
-        fn __wsw_list_tables();
+        fn __wsw_list_tables() -> i32;
     }
 
-    pub fn aws_dynamodb_list_tables() {
+    pub fn aws_dynamodb_list_tables() -> i32 {
         unsafe {
-            __wsw_list_tables();
+            __wsw_list_tables()
             // TODO: where does get_response come from?
         }
     }
