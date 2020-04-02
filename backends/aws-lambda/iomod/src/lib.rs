@@ -1,27 +1,38 @@
 #[cfg(feature = "host")]
 pub mod database {
     use rusoto_dynamodb::{DynamoDbClient, DynamoDb, ListTablesInput};
-    use rusoto_core::Region;
+    use rusoto_core::{Region, RusotoFuture};
     use std::future::Future;
 
     extern crate core;
     use assemblylift_core::event::*;
     use assemblylift_core::event::serde::serialize_event;
 
-    // ARCH called from host:main.rs, where it is bound to __wsw_list_tables
+    // MOVE to a separate module
+    struct RusotoEvent(Event);
+
+    impl<O, E> From<RusotoFuture<O, E>> for RusotoEvent {
+        fn from(f: RusotoFuture<O, E>) -> Self {
+            // TODO the rusoto future needs to be bound to the event id somehow
+            //      may need to stub out the event manager - this can bind events to futures in a hashmap
+        }
+    }
+
+    /// called from host:main.rs, where it is bound to __wsw_list_tables
     pub fn aws_dynamodb_list_tables_impl() -> i32 {
         let ddb = DynamoDbClient::new(Region::UsEast1);
-        ddb.list_tables(ListTablesInput {
+        let rusoto_future = ddb.list_tables(ListTablesInput {
             exclusive_start_table_name: None,
             limit: None
         });
 
-        let e = &Event::new();
+        let e = RusotoEvent::from(rusoto_future);
 
         // Write the event into the event buffer, accessible by WASM
-        let event_index = e.state.id;
+        let event_index = e.0.state.id;
         unsafe {
-            serialize_event(event_index, e);
+            // MUSTDO catch errors from unsafe code
+            serialize_event(event_index, &e.0);
         }
 
         event_index as i32
