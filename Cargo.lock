@@ -40,6 +40,7 @@ dependencies = [
  "assemblylift-core 0.1.0",
  "rusoto_core 0.42.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusoto_dynamodb 0.42.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasmer-runtime 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -54,6 +55,7 @@ name = "assemblylift-core"
 version = "0.1.0"
 dependencies = [
  "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasmer-runtime 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

@@ -9,7 +9,7 @@ use std::env;
 use std::error::Error;
 use std::io::ErrorKind;
 use std::cell::Cell;
-use wasmer_runtime::{Array, Ctx, Instance, WasmPtr};
+use wasmer_runtime::{Array, Ctx, Instance, WasmPtr, LikeNamespace};
 use wasmer_runtime::memory::MemoryView;
 use std::ffi::c_void;
 use std::str::Utf8Error;
@@ -33,8 +33,8 @@ fn write_event_buffer(instance: &Instance, event: String) {
     let wasm_instance_memory = wasm_instance_context.memory(0);
 
     let mut get_pointer: Func<(), WasmBufferPtr> = instance
-        .func("__al_get_event_buffer_pointer")
-        .expect("__al_get_event_buffer_pointer");
+        .func("__al_get_aws_event_string_buffer_pointer")
+        .expect("__al_get_aws_event_string_buffer_pointer");
 
     let event_buffer = get_pointer.call().unwrap();
     let memory_writer = event_buffer
@@ -101,12 +101,15 @@ fn main() {
                     "env" => {
                         "__al_console_log" => func!(runtime_console_log),
                         "__al_success" => func!(runtime_success),
-                        // below are would-be dynamic imports
+                        // below are would-be dynamic imports (from iomods)
                         // TODO: is the intent to map an underlying impl to a common api exposed to wasm?
-                        "__wsw_list_tables" => func!(database::aws_dynamodb_list_tables_impl), // TODO: make dynamic somehow
+                        // "__wsw_list_tables" => func!(database::aws_dynamodb_list_tables_impl), // TODO: make dynamic somehow
                     },
                 };
 
+                // BLOCKER Our iomod functions need to know about the instance, in order to know where the event_buffer is.
+                //         Put another way, the event buffer is loaded dynamically FROM the WASM module.
+                //         We need then, to be able to insert ABI functions after instantiation.
                 instantiate(&buffer[..], &import_object)
                     .map_err(to_io_error)
             })

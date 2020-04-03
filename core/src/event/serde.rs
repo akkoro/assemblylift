@@ -2,6 +2,9 @@ use std::io::Read;
 use crate::event::Event;
 use crate::event::constants::EventBuffer;
 
+#[cfg(feature = "host")]
+use wasmer_runtime::Instance;
+
 unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
     ::std::slice::from_raw_parts(
         (p as *const T) as *const u8,
@@ -9,7 +12,7 @@ unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
     )
 }
 
-// FIXME: serde has use outside of unsafe sections - can use inside EventChain::build as well
+#[cfg(feature = "client")]
 pub unsafe fn serialize_event(id: usize, event: &Event) {
     use crate::event::widget::EVENT_BUFFER;
 
@@ -17,8 +20,18 @@ pub unsafe fn serialize_event(id: usize, event: &Event) {
     let mut idx = id * event_size;
     let buffer = any_as_u8_slice(event);
     for b in buffer {
-        // MUSTDO in prod this will use __al_get_event_buffer_pointer()
         EVENT_BUFFER[idx] = *b;
+        idx += 1;
+    }
+}
+
+#[cfg(feature = "host")]
+pub unsafe fn serialize_event_from_host(id: usize, event: &Event, instance: &Instance) {
+    let event_size = std::mem::size_of::<Event>();
+    let mut idx = id * event_size;
+    let buffer = any_as_u8_slice(event);
+    for b in buffer {
+        // TODO get pointer to event buffer
         idx += 1;
     }
 }

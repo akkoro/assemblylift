@@ -7,12 +7,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rusoto_core = { version = "0.42.0", optional = true}
-rusoto_dynamodb = { version = "0.42.0", optional = true}
-assemblylift_core = { package = "assemblylift-core", path = "../../../core" }
+rusoto_core = { version = "0.42.0", optional = true }
+rusoto_dynamodb = { version = "0.42.0", optional = true }
+wasmer-runtime = { version = "0.15.0", optional = true }
+assemblylift_core = { package = "assemblylift-core", path = "../../../core", features=["host"] }
 
 [features]
 default = []
 
-host = ["rusoto_core", "rusoto_dynamodb"]
+host = ["rusoto_core", "rusoto_dynamodb", "wasmer-runtime"]
 client = []

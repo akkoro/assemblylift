@@ -6,6 +6,7 @@ pub mod constants;
 pub mod serde;
 pub mod builder;
 pub mod executor;
+pub mod manager;
 
 #[cfg(feature = "client")]
 pub mod widget;
