@@ -82,12 +82,14 @@ fn main() {
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
 
+    println!("Using Lambda root: {}", lambda_path);
+
     // handler coordinates are expected to be <file name>.<function name>
     let coords =  handler_coordinates.split(".").collect::<Vec<&str>>();
     let file_name = coords[0];
     let handler_name = coords[1];
 
-    let mut lambda_runtime = AwsLambdaRuntime::new();
+    // let mut lambda_runtime = AwsLambdaRuntime::new();
 
     let mut get_instance =
         canonicalize(format!("{}/{}.wasm", lambda_path, file_name))
@@ -100,58 +102,57 @@ fn main() {
             })
             .and_then(|buffer| {
                 use wasmer_runtime::{instantiate, func, imports};
-                let import_object = imports! {
+                let mut import_object = imports! {
                     "env" => {
                         "__al_console_log" => func!(runtime_console_log),
                         "__al_success" => func!(runtime_success),
-                        // below are would-be dynamic imports (from iomods)
-                        // TODO: is the intent to map an underlying impl to a common api exposed to wasm?
-                        // "__wsw_list_tables" => func!(database::aws_dynamodb_list_tables_impl), // TODO: make dynamic somehow
                     },
                 };
 
-                // BLOCKER Our iomod functions need to know about the instance, in order to know where the event_buffer is.
-                //         Put another way, the event buffer is loaded dynamically FROM the WASM module.
-                //         We need then, to be able to insert ABI functions after instantiation.
                 instantiate(&buffer[..], &import_object)
                     .map_err(to_io_error)
-            })
-            .map_err(|err| println!("ERROR: {}", err.to_string()));
-
-    if let Ok(mut instance) = get_instance {
-        use wasmer_runtime::func;
-
-        instance.context_mut().data = &mut lambda_runtime as *mut _ as *mut c_void;
-
-        let params: Vec<Type> = [].iter().cloned().map(|x: Type| x.into()).collect();
-        let returns: Vec<Type> = [Type::I32].iter().cloned().map(|x| x.into()).collect();
-
-        let func = func!(database::aws_dynamodb_list_tables_impl);
-
-        unsafe {
-            instance.maybe_insert("__wsw_list_tables", Export::Function {
-                func: FuncPointer::new(func.get_vm_func().as_ptr()),
-                ctx: Context::Internal,
-                signature: Arc::new(FuncSig::new(params, returns))
             });
-        }
 
-        loop {
-            lambda_runtime
-                .get_next_event()
-                .and_then(|event| {
-                    write_event_buffer(&instance, event.event_body);
+    match get_instance {
+        Ok(mut instance) => {
+            use wasmer_runtime::func;
 
-                    lambda_runtime.current_request_id.replace(event.request_id);
+            // instance.context_mut().data = &mut lambda_runtime as *mut _ as *mut c_void;
 
-                    let value = instance.call(handler_name, &[]);
-                    value
-                        .map(|v| println!("EXIT CODE: {:?}", v))
-                        .map_err(to_io_error)
-                });
+            let params: Vec<Type> = [].iter().cloned().map(|x: Type| x.into()).collect();
+            let returns: Vec<Type> = [Type::I32].iter().cloned().map(|x| x.into()).collect();
+
+            let func = func!(database::aws_dynamodb_list_tables_impl);
+
+            // unsafe {
+            //     instance.maybe_insert("__wsw_list_tables", Export::Function {
+            //         func: FuncPointer::new(func.get_vm_func().as_ptr()),
+            //         ctx: Context::Internal,
+            //         signature: Arc::new(FuncSig::new(params, returns))
+            //     });
+            // }
+
+            // loop {
+            //     lambda_runtime
+            //         .get_next_event()
+            //         .and_then(|event| {
+            //             write_event_buffer(&instance, event.event_body);
+            write_event_buffer(&instance, "{}".to_string());
+
+            // lambda_runtime.current_request_id.replace(event.request_id);
+
+            let value = instance.call(handler_name, &[]);
+            value
+                .map(|v| println!("EXIT CODE: {:?}", v))
+                .map_err(to_io_error);
+            // });
+            // }
+        },
+        Err(error) => {
+            println!("ERROR: {:?}", error);
+        },
+        _ => {
+            panic!("uh oh")
         }
     }
-
-    // skipper's drunk
-    panic!("unable to instantiate Wasmer - fatal");
 }
