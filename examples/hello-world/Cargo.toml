@@ -10,6 +10,6 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-core = { package = "assemblylift-core", path = "../../core", features = ["client"] }
-clientlib = { package = "assemblylift-awslambda-clientlib", path = "../../backends/aws-lambda/widget" }
-awsio = { package = "assemblylift-awslambda-iomod", path = "../../backends/aws-lambda/iomod", features = ["client"] }
+core_guest = { package = "assemblylift-core-guest", path = "../../core/guest" }
+guest = { package = "assemblylift-awslambda-guest", path = "../../backends/aws-lambda/guest" }
+awsio = { package = "assemblylift-awslambda-iomod-guest", path = "../../backends/aws-lambda/iomod/guest" }

@@ -1,6 +1,5 @@
-extern crate assemblylift_core;
-use assemblylift_core::client::*;
-use assemblylift_core::event::widget::*;
+extern crate assemblylift_core_guest;
+use assemblylift_core_guest::*;
 
 const AWS_EVENT_STRING_BUFFER_SIZE: usize = 2048;
 static mut AWS_EVENT_STRING_BUFFER: [u8; AWS_EVENT_STRING_BUFFER_SIZE] = [0; AWS_EVENT_STRING_BUFFER_SIZE];
@@ -21,15 +20,15 @@ pub fn get_lambda_event() -> String {
     unsafe { std::str::from_utf8(&AWS_EVENT_STRING_BUFFER[..AWS_EVENT_STRING_BUFFER_SIZE]).unwrap().to_string() }
 }
 
-pub struct AwsLambdaClient(Client);
+pub struct AwsLambdaClient(Guest);
 
 impl AwsLambdaClient {
     pub fn new() -> AwsLambdaClient {
-        AwsLambdaClient { 0: Client {} }
+        AwsLambdaClient { 0: Guest {} }
     }
 }
 
-impl ClientCore for AwsLambdaClient {
+impl GuestCore for AwsLambdaClient {
     fn console_log(message: String) {
         unsafe { __al_console_log(message.as_ptr(), message.len()) }
     }

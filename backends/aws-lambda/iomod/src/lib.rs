@@ -1,13 +1,12 @@
-#[cfg(feature = "host")]
 pub mod database {
     use rusoto_dynamodb::{DynamoDbClient, DynamoDb, ListTablesInput};
     use rusoto_core::{Region, RusotoFuture};
     use std::future::Future;
 
-    use wasmer_runtime::Instance;
+    use wasmer_runtime::{Instance, Ctx, Func};
 
-    use assemblylift_core::event::*;
-    use assemblylift_core::event::serde::serialize_event_from_host;
+    use assemblylift_core_event::*;
+    use assemblylift_core::serialize_event_from_host;
 
     // MOVE RusotoEvent to a separate module
     struct RusotoEvent(Event);
@@ -21,7 +20,7 @@ pub mod database {
     }
 
     /// called from host:main.rs, where it is bound to __wsw_list_tables
-    pub fn aws_dynamodb_list_tables_impl(instance: Box<Instance>) -> i32 {
+    pub fn aws_dynamodb_list_tables_impl(ctx: &mut Ctx) -> i32 {
         let ddb = DynamoDbClient::new(Region::UsEast1);
         let rusoto_future = ddb.list_tables(ListTablesInput {
             exclusive_start_table_name: None,
@@ -34,13 +33,10 @@ pub mod database {
         let event_index = e.0.state.id;
         unsafe {
             // MUSTDO catch errors from unsafe code
-            serialize_event_from_host(event_index, &e.0, instance.as_ref());
+            serialize_event_from_host(event_index, &e.0, ctx);
         }
 
         event_index as i32
     }
 
 }
-
-#[cfg(feature = "client")]
-pub mod client;

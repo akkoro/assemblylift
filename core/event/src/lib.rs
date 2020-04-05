@@ -3,15 +3,11 @@ use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 
 pub mod constants;
-pub mod serde;
 pub mod builder;
 pub mod executor;
 pub mod manager;
 
-#[cfg(feature = "client")]
-pub mod widget;
-
-use crate::event::constants::*;
+use crate::constants::*;
 
 fn __get_index() -> usize {
     23

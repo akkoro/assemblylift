@@ -1,9 +1,13 @@
 [workspace]
 members = [
     "backends/aws-lambda/host",
-    "backends/aws-lambda/widget",
+    "backends/aws-lambda/guest",
     "backends/aws-lambda/iomod",
-    "core"
+    "backends/aws-lambda/iomod/guest",
+    "core",
+    "core/guest",
+    "core/event",
+    "core/event/guest"
 ]
 exclude = [
     "examples/hello-world"

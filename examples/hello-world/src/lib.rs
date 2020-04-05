@@ -1,12 +1,12 @@
-extern crate clientlib;
-use core::client::*;
-use clientlib::{AwsLambdaClient as Client, get_event};
+extern crate guest;
+use guest::*;
+use core_guest::*;
 
 #[no_mangle]
 pub fn handler() -> i32 {
-    let _client = Client::new();
-    let _event = get_event();
+    let _client = AwsLambdaClient::new();
+    let _event = get_lambda_event();
 
-    Client::success("OK".to_string());
+    AwsLambdaClient::success("OK".to_string());
     return 0;
 }

@@ -1,4 +1,4 @@
-use crate::event::{Event, State};
+use crate::{Event, State};
 
 use std::collections::HashMap;
 use std::borrow::{Borrow, BorrowMut};

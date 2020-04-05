@@ -59,7 +59,7 @@
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/io/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/io/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/io/benches" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/widget/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/guest/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/widget/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/widget/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/widget/benches" isTestSource="true" />
@@ -67,14 +67,38 @@
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/core/guest/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/core/guest/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/core/guest/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/core/guest/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/guest/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/guest/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/guest/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/core/event/guest/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/core/event/guest/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/core/event/guest/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/core/event/guest/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/core/event/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/core/event/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/core/event/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/core/event/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/guest/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/guest/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/guest/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/guest/benches" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/client-support/target" />
       <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/clientlib/target" />
+      <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/guest/target" />
       <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/host/target" />
       <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/io/target" />
+      <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/guest/target" />
       <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/target" />
       <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/widget/target" />
       <excludeFolder url="file://$MODULE_DIR$/bootstrap/target" />
       <excludeFolder url="file://$MODULE_DIR$/clientlib/target" />
+      <excludeFolder url="file://$MODULE_DIR$/core/event/guest/target" />
+      <excludeFolder url="file://$MODULE_DIR$/core/event/target" />
+      <excludeFolder url="file://$MODULE_DIR$/core/guest/target" />
       <excludeFolder url="file://$MODULE_DIR$/core/target" />
       <excludeFolder url="file://$MODULE_DIR$/examples/hello-world/target" />
       <excludeFolder url="file://$MODULE_DIR$/executor/target" />

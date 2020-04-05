@@ -9,11 +9,14 @@ use std::env;
 use std::error::Error;
 use std::io::ErrorKind;
 use std::cell::Cell;
-use wasmer_runtime::{Array, Ctx, Instance, WasmPtr, LikeNamespace};
+use wasmer_runtime::{Array, Ctx, Instance, WasmPtr, LikeNamespace, Export};
 use wasmer_runtime::memory::MemoryView;
 use std::ffi::c_void;
 use std::str::Utf8Error;
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc};
+use wasmer_runtime_core::backend::SigRegistry;
+use wasmer_runtime::types::{FuncSig, Type};
+use wasmer_runtime_core::export::{Context, FuncPointer};
 
 type WasmBufferPtr = WasmPtr<u8, Array>;
 
@@ -116,7 +119,22 @@ fn main() {
             .map_err(|err| println!("ERROR: {}", err.to_string()));
 
     if let Ok(mut instance) = get_instance {
+        use wasmer_runtime::func;
+
         instance.context_mut().data = &mut lambda_runtime as *mut _ as *mut c_void;
+
+        let params: Vec<Type> = [].iter().cloned().map(|x: Type| x.into()).collect();
+        let returns: Vec<Type> = [Type::I32].iter().cloned().map(|x| x.into()).collect();
+
+        let func = func!(database::aws_dynamodb_list_tables_impl);
+
+        unsafe {
+            instance.maybe_insert("__wsw_list_tables", Export::Function {
+                func: FuncPointer::new(func.get_vm_func().as_ptr()),
+                ctx: Context::Internal,
+                signature: Arc::new(FuncSig::new(params, returns))
+            });
+        }
 
         loop {
             lambda_runtime
