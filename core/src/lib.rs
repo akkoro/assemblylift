@@ -1,6 +1,9 @@
 extern crate assemblylift_core_event;
 use assemblylift_core_event::Event;
 
+#[macro_use]
+extern crate lazy_static;
+
 use std::io::Read;
 
 use wasmer_runtime::Instance;

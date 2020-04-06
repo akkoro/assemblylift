@@ -1,6 +1,6 @@
 mod runtime;
 use runtime::AwsLambdaRuntime;
-use awsio::database;
+use assemblylift_core::iomod::*;
 
 use std::io;
 use std::io::prelude::*;
@@ -19,11 +19,6 @@ use wasmer_runtime::types::{FuncSig, Type};
 use wasmer_runtime_core::export::{Context, FuncPointer};
 
 type WasmBufferPtr = WasmPtr<u8, Array>;
-
-// use lazy_static::lazy_static;
-// lazy_static! {
-//     static ref DYNAMODB: Mutex<DynamoDbSys> = Mutex::new(DynamoDbSys::new());
-// }
 
 fn to_io_error<E: Error>(err: E) -> io::Error {
     io::Error::new(ErrorKind::Other, err.to_string())
@@ -84,6 +79,9 @@ fn main() {
 
     println!("Using Lambda root: {}", lambda_path);
 
+    use awsio;
+    awsio::database::Module::register();
+
     // handler coordinates are expected to be <file name>.<function name>
     let coords =  handler_coordinates.split(".").collect::<Vec<&str>>();
     let file_name = coords[0];
@@ -106,8 +104,10 @@ fn main() {
                     "env" => {
                         "__al_console_log" => func!(runtime_console_log),
                         "__al_success" => func!(runtime_success),
+                        "__asml_abi_invoke" => func!(asml_abi_invoke)
                     },
                 };
+                import_object.allow_missing_functions = true;
 
                 instantiate(&buffer[..], &import_object)
                     .map_err(to_io_error)
@@ -119,17 +119,19 @@ fn main() {
 
             // instance.context_mut().data = &mut lambda_runtime as *mut _ as *mut c_void;
 
-            let params: Vec<Type> = [].iter().cloned().map(|x: Type| x.into()).collect();
-            let returns: Vec<Type> = [Type::I32].iter().cloned().map(|x| x.into()).collect();
-
-            let func = func!(database::aws_dynamodb_list_tables_impl);
-
+            // let params: Vec<Type> = [].iter().cloned().map(|x: Type| x.into()).collect();
+            // let returns: Vec<Type> = [Type::I32].iter().cloned().map(|x| x.into()).collect();
+            //
+            // let func = func!(awsio::database::aws_dynamodb_list_tables_impl);
+            //
             // unsafe {
-            //     instance.maybe_insert("__wsw_list_tables", Export::Function {
+            //     if let None = instance.maybe_insert("__wsw_list_tables", Export::Function {
             //         func: FuncPointer::new(func.get_vm_func().as_ptr()),
             //         ctx: Context::Internal,
             //         signature: Arc::new(FuncSig::new(params, returns))
-            //     });
+            //     }) {
+            //         println!("MAYBE_INSERT_ERROR: __wsw_list_tables");
+            //     }
             // }
 
             // loop {

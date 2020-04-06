@@ -1,6 +1,8 @@
 extern crate guest;
+use awsio::*;
 use guest::*;
 use core_guest::*;
+
 
 #[no_mangle]
 pub fn handler() -> i32 {
@@ -9,6 +11,9 @@ pub fn handler() -> i32 {
 
     AwsLambdaClient::console_log("Hello, World!".to_string());
 
+    database::aws_dynamodb_list_tables();
+
     AwsLambdaClient::success("OK".to_string());
+
     return 0;
 }
