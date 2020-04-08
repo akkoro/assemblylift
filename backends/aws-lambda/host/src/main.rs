@@ -17,8 +17,16 @@ use std::sync::{Mutex, Arc};
 use wasmer_runtime_core::backend::SigRegistry;
 use wasmer_runtime::types::{FuncSig, Type};
 use wasmer_runtime_core::export::{Context, FuncPointer};
+use std::borrow::Borrow;
 
 type WasmBufferPtr = WasmPtr<u8, Array>;
+
+#[macro_use]
+extern crate lazy_static;
+
+lazy_static! {
+    pub static ref LAMBDA_RUNTIME: Mutex<AwsLambdaRuntime> = Mutex::new(AwsLambdaRuntime::new());
+}
 
 fn to_io_error<E: Error>(err: E) -> io::Error {
     io::Error::new(ErrorKind::Other, err.to_string())
@@ -65,7 +73,8 @@ fn runtime_console_log(ctx: &mut Ctx, ptr: u32, len: u32) {
 
 fn runtime_success(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<(), io::Error> {
     unsafe {
-        let lambda_runtime = &*ctx.data.cast::<AwsLambdaRuntime>();
+        // let lambda_runtime = &*ctx.data.cast::<AwsLambdaRuntime>();
+        let lambda_runtime = LAMBDA_RUNTIME.lock().unwrap();
         let request_id = lambda_runtime.current_request_id.borrow().clone();
         let response = runtime_ptr_to_string(ctx, ptr, len).unwrap();
         lambda_runtime.respond(request_id, response.to_string())
@@ -78,9 +87,6 @@ fn main() {
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
 
     println!("Using Lambda root: {}", lambda_path);
-
-    use awsio;
-    awsio::database::Module::register();
 
     // handler coordinates are expected to be <file name>.<function name>
     let coords =  handler_coordinates.split(".").collect::<Vec<&str>>();
@@ -117,7 +123,13 @@ fn main() {
         Ok(mut instance) => {
             use wasmer_runtime::func;
 
-            // instance.context_mut().data = &mut lambda_runtime as *mut _ as *mut c_void;
+            let mut module_registry = &mut ModuleRegistry {
+                modules: Default::default()
+            };
+
+            awsio::database::Module::register(module_registry);
+
+            instance.context_mut().data = &mut module_registry as *mut _ as *mut c_void;
 
             // let params: Vec<Type> = [].iter().cloned().map(|x: Type| x.into()).collect();
             // let returns: Vec<Type> = [Type::I32].iter().cloned().map(|x| x.into()).collect();
@@ -135,13 +147,13 @@ fn main() {
             // }
 
             // loop {
-            //     lambda_runtime
+            //     LAMBDA_RUNTIME
             //         .get_next_event()
             //         .and_then(|event| {
             //             write_event_buffer(&instance, event.event_body);
             write_event_buffer(&instance, "{}".to_string());
 
-            // lambda_runtime.current_request_id.replace(event.request_id);
+            // LAMBDA_RUNTIME.current_request_id.replace(event.request_id);
 
             let value = instance.call(handler_name, &[]);
             value

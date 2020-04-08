@@ -77,5 +77,5 @@ impl Future for EventChain {
 }
 
 pub fn when(event: &Event) -> EventChain {
-    EventChain::new(event.state.id)
+    EventChain::new(event.inner.id)
 }

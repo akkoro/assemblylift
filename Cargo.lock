@@ -52,6 +52,7 @@ dependencies = [
  "rusoto_core 0.42.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusoto_dynamodb 0.42.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "wasmer-runtime 0.16.2",
+ "wasmer-runtime-core 0.16.2",
 ]
 
 [[package]]
@@ -63,7 +64,6 @@ name = "assemblylift-core"
 version = "0.1.0"
 dependencies = [
  "assemblylift-core-event 0.1.0",
- "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "wasmer-runtime 0.16.2",
  "wasmer-runtime-core 0.16.2",
 ]
@@ -73,6 +73,7 @@ name = "assemblylift-core-event"
 version = "0.1.0"
 dependencies = [
  "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

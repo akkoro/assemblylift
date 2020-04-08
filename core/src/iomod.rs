@@ -9,37 +9,38 @@ use std::error::Error;
 use std::borrow::Borrow;
 use std::sync::Mutex;
 
-lazy_static! {
-    pub static ref MODULE_REGISTRY: Mutex<ModuleRegistry> = Mutex::new(ModuleRegistry {
-        modules: Default::default()
-    });
-}
-
 fn to_io_error<E: Error>(err: E) -> io::Error {
     io::Error::new(ErrorKind::Other, err.to_string())
 }
 
 pub trait IoModule {
-    fn register(); // MAYBE
+    fn register(registry: &mut ModuleRegistry); // MAYBE
 }
 
 pub struct ModuleRegistry {
-    pub modules: HashMap<String, HashMap<String, HashMap<String, fn()->i32>>>
+    pub modules: HashMap<String, HashMap<String, HashMap<String, fn(&mut vm::Ctx)->i32>>>
 }
 
 pub fn asml_abi_invoke(ctx: &mut vm::Ctx, ptr: u32, len: u32) -> i32 {
+    println!("asml_abi_invoke called");
     if let Ok(coords) = ctx_ptr_to_string(ctx, ptr, len) {
         let coord_vec = coords.split(".").collect::<Vec<&str>>();
         let org = coord_vec[0];
         let namespace = coord_vec[1];
         let name = coord_vec[2];
+        println!("  with coordinates: {:?}", coord_vec);
 
-        if let Ok(reg) = MODULE_REGISTRY.lock() {
-            let modules = &reg.modules;
-            return modules[org][namespace][name]();
+        let mut module_registry: &mut ModuleRegistry;
+        unsafe {
+            module_registry = *ctx.data.cast::<&mut ModuleRegistry>();
         }
+
+        // MUSTDO assert module_registry is valid
+
+        return module_registry.modules[org][namespace][name](ctx);
     }
 
+    println!("asml_abi_invoke error");
     -1i32 // error
 }
 

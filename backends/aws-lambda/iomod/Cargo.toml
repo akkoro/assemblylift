@@ -10,5 +10,6 @@ edition = "2018"
 rusoto_core = { version = "0.42.0" }
 rusoto_dynamodb = { version = "0.42.0" }
 wasmer-runtime = { path = "../../../../../Forks/wasmer/lib/runtime" }
+wasmer-runtime-core = { path = "../../../../../Forks/wasmer/lib/runtime-core" }
 assemblylift_core = { package = "assemblylift-core", path = "../../../core"}
 assemblylift_core_event = { package = "assemblylift-core-event", path = "../../../core/event" }

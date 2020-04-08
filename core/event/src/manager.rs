@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::future::Future;
+use std::sync::Mutex;
 
 pub struct EventManager {
     event_to_future: HashMap<i32, Box<dyn Future<Output=()>>>

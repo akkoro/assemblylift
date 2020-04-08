@@ -2,6 +2,9 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 
+#[macro_use]
+extern crate lazy_static;
+
 pub mod constants;
 pub mod builder;
 pub mod executor;
@@ -33,14 +36,14 @@ pub enum State {
 }
 
 #[repr(C, packed)]
-pub struct EventState {
+pub struct EventInner {
     /// where the event is stored in EVENT_BUFFER
     pub id: usize,
     state: State
 }
 
 pub struct Event {
-    pub state: EventState,
+    pub inner: EventInner,
     waker: Option<Waker>
 }
 
@@ -50,7 +53,7 @@ impl Event {
 
         // the 'thread' corresponding to this event lives in the host
         Event {
-            state: EventState {
+            inner: EventInner {
                 id,
                 state: State::Pending
             },
@@ -65,7 +68,7 @@ impl Future for Event {
     /// poll is called by the Executor
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // The Event state is updated by the host. All we need to do here is query it.
-        match self.state.state {
+        match self.inner.state {
             State::Resolved => Poll::Ready(()),
             State::Failed => Poll::Ready(()),
             _ => {
