@@ -1,6 +1,8 @@
 mod runtime;
 use runtime::AwsLambdaRuntime;
+use assemblylift_core::InstanceData;
 use assemblylift_core::iomod::*;
+use assemblylift_core_event::manager::*;
 
 use std::io;
 use std::io::prelude::*;
@@ -73,7 +75,6 @@ fn runtime_console_log(ctx: &mut Ctx, ptr: u32, len: u32) {
 
 fn runtime_success(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<(), io::Error> {
     unsafe {
-        // let lambda_runtime = &*ctx.data.cast::<AwsLambdaRuntime>();
         let lambda_runtime = LAMBDA_RUNTIME.lock().unwrap();
         let request_id = lambda_runtime.current_request_id.borrow().clone();
         let response = runtime_ptr_to_string(ctx, ptr, len).unwrap();
@@ -92,8 +93,6 @@ fn main() {
     let coords =  handler_coordinates.split(".").collect::<Vec<&str>>();
     let file_name = coords[0];
     let handler_name = coords[1];
-
-    // let mut lambda_runtime = AwsLambdaRuntime::new();
 
     let mut get_instance =
         canonicalize(format!("{}/{}.wasm", lambda_path, file_name))
@@ -127,9 +126,18 @@ fn main() {
                 modules: Default::default()
             };
 
-            awsio::database::Module::register(module_registry);
+            let mut event_manager = &mut EventManager::new();
 
-            instance.context_mut().data = &mut module_registry as *mut _ as *mut c_void;
+            let mut instance_data = &mut InstanceData {
+                module_registry,
+                event_manager
+            };
+
+            // instance.context_mut().data = &mut module_registry as *mut _ as *mut c_void;
+            // instance.context_mut().data = &mut event_manager as *mut _ as *mut c_void;
+            instance.context_mut().data = &mut instance_data as *mut _ as *mut c_void;
+
+            awsio::database::MyModule::register(module_registry);
 
             // let params: Vec<Type> = [].iter().cloned().map(|x: Type| x.into()).collect();
             // let returns: Vec<Type> = [Type::I32].iter().cloned().map(|x| x.into()).collect();
@@ -152,8 +160,6 @@ fn main() {
             //         .and_then(|event| {
             //             write_event_buffer(&instance, event.event_body);
             write_event_buffer(&instance, "{}".to_string());
-
-            // LAMBDA_RUNTIME.current_request_id.replace(event.request_id);
 
             let value = instance.call(handler_name, &[]);
             value

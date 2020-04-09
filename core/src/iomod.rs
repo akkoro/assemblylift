@@ -8,6 +8,7 @@ use std::io::ErrorKind;
 use std::error::Error;
 use std::borrow::Borrow;
 use std::sync::Mutex;
+use crate::InstanceData;
 
 fn to_io_error<E: Error>(err: E) -> io::Error {
     io::Error::new(ErrorKind::Other, err.to_string())
@@ -30,14 +31,14 @@ pub fn asml_abi_invoke(ctx: &mut vm::Ctx, ptr: u32, len: u32) -> i32 {
         let name = coord_vec[2];
         println!("  with coordinates: {:?}", coord_vec);
 
-        let mut module_registry: &mut ModuleRegistry;
+        let mut instance_data: &mut InstanceData;
         unsafe {
-            module_registry = *ctx.data.cast::<&mut ModuleRegistry>();
+            instance_data = *ctx.data.cast::<&mut InstanceData>();
         }
 
-        // MUSTDO assert module_registry is valid
+        // MUSTDO assert instance_data is valid
 
-        return module_registry.modules[org][namespace][name](ctx);
+        return instance_data.module_registry.modules[org][namespace][name](ctx);
     }
 
     println!("asml_abi_invoke error");

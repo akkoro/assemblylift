@@ -17,3 +17,4 @@ lazy_static = "1.4.0"
 reqwest = { version = "0.10.4", features = ["blocking"] }
 awsio = {package = "assemblylift-awslambda-iomod", path = "../iomod" }
 assemblylift_core = { package = "assemblylift-core", path = "../../../core" }
+assemblylift_core_event = { package = "assemblylift-core-event", path = "../../../core/event" }

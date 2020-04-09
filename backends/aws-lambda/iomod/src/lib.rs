@@ -1,5 +1,5 @@
 pub mod database {
-    use rusoto_dynamodb::{DynamoDbClient, DynamoDb, ListTablesInput};
+    use rusoto_dynamodb::{DynamoDbClient, DynamoDb, ListTablesInput, ListTablesOutput, ListTablesError};
     use rusoto_core::{Region, RusotoFuture};
     use std::future::Future;
 
@@ -7,16 +7,16 @@ pub mod database {
     use wasmer_runtime_core::vm;
 
     use assemblylift_core_event::*;
-    use assemblylift_core::serialize_event_from_host;
+    use assemblylift_core::{serialize_event_from_host, InstanceData};
 
-    // MOVE RusotoEvent to a separate module
-    struct RusotoEvent(Event);
+    struct RusotoEvent<O, E>(RusotoFuture<O, E>);
 
-    impl<O, E> From<RusotoFuture<O, E>> for RusotoEvent {
-        fn from(f: RusotoFuture<O, E>) -> Self {
-            // TODO the rusoto future needs to be bound to the event id somehow
-            //      may need to stub out the event manager - this can bind events to futures in a hashmap
-            unimplemented!()
+    impl EventFuture for RusotoEvent<ListTablesOutput, ListTablesError> {
+        fn bind(&self, event_manager: &mut EventManager, event: Event) -> Event {
+            // let event_index: i32 = event.inner.id as i32;
+            // event_manager.event_to_future.entry(event_index).or_insert(Box::new(self));
+            let x = &self as *mut _ as *mut c_void;
+            event
         }
     }
 
@@ -29,34 +29,42 @@ pub mod database {
             limit: None
         });
 
-        // Write the event into the event buffer, accessible by WASM
-        // let event_index = e.0.inner.id;
-        // unsafe {
-            // MUSTDO catch errors from unsafe code
-            // serialize_event_from_host(event_index, &e.0, ctx);
-        // }
+        let mut instance_data: &mut InstanceData;
+        unsafe {
+            instance_data = *ctx.data.cast::<&mut InstanceData>();
+        }
 
-        // event_index as i32
-        0
+        let event = instance_data.event_manager.bind_future_to_event(Box::new(RusotoEvent(rusoto_future)));
+
+        // Write the event into the event buffer, accessible by WASM
+        let event_index = event.inner.id;
+        unsafe {
+            // MUSTDO catch errors from unsafe code
+            serialize_event_from_host(event_index, &event, ctx);
+        }
+
+        event_index as i32
+        // 0
     }
 
     use std::ops::DerefMut;
     use std::collections::HashMap;
     use assemblylift_core::iomod::{ModuleRegistry, IoModule};
     use std::sync::Mutex;
+    use assemblylift_core_event::manager::{EventFuture, EventManager};
+    use futures::task::{Context, Poll};
+    use std::pin::Pin;
+    use std::ffi::c_void;
 
-    pub struct Module {}
+    pub struct MyModule {}
 
-    impl IoModule for Module {
+    impl IoModule for MyModule {
         fn register(registry: &mut ModuleRegistry) {
             // TODO a lot of this can be hidden by a macro
 
             let org = "aws".to_string();
             let namespace = "dynamodb".to_string();
             let list_tables_name = "list_tables".to_string();
-
-            // let mut reg = MODULE_REGISTRY.lock().unwrap();
-            // let mut reg = unsafe { get_module_registry() };
 
             let mut name_map = HashMap::new();
             name_map.entry(list_tables_name).or_insert(aws_dynamodb_list_tables_impl as fn(&mut vm::Ctx) -> i32);
@@ -65,7 +73,6 @@ pub mod database {
             namespace_map.entry(namespace).or_insert(name_map);
 
             registry.modules.entry(org).or_insert(namespace_map);
-            println!("registered module");
         }
     }
 

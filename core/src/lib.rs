@@ -1,5 +1,8 @@
 extern crate assemblylift_core_event;
 use assemblylift_core_event::Event;
+use assemblylift_core_event::manager::EventManager;
+
+use crate::iomod::ModuleRegistry;
 
 use std::io::Read;
 
@@ -7,6 +10,11 @@ use wasmer_runtime::Instance;
 use wasmer_runtime::{Func, Ctx, WasmPtr, Array};
 
 pub mod iomod;
+
+pub struct InstanceData<'a> {
+    pub module_registry: &'a mut ModuleRegistry,
+    pub event_manager: &'a mut EventManager,
+}
 
 /* Cloud interface */
 

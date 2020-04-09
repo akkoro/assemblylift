@@ -13,7 +13,7 @@ pub fn handler() -> i32 {
 
     database::aws_dynamodb_list_tables();
 
-    AwsLambdaClient::success("OK".to_string());
+    // AwsLambdaClient::success("OK".to_string());
 
     return 0;
 }
