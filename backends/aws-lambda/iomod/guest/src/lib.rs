@@ -7,7 +7,6 @@ pub mod database {
         unsafe {
             let name = "aws.dynamodb.list_tables";
             crate::__asml_abi_invoke(name.as_ptr(), name.len())
-            // TODO: where does get_response come from?
         }
     }
 }

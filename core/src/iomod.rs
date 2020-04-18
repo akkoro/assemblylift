@@ -20,20 +20,14 @@ pub trait IoModule {
 
 #[derive(Clone)]
 pub struct ModuleRegistry {
-    pub modules: HashMap<String, HashMap<String, HashMap<String, fn(&mut vm::Ctx)->i32>>>,
-    fn_index_get_event_buffer: Option<TableIndex>
+    pub modules: HashMap<String, HashMap<String, HashMap<String, fn(&mut vm::Ctx)->i32>>>
 }
 
 impl ModuleRegistry {
     pub fn new() -> Self {
         ModuleRegistry {
-            modules: Default::default(),
-            fn_index_get_event_buffer: None
+            modules: Default::default()
         }
-    }
-
-    pub fn get_fn_index_of_get_event_buffer(self) -> Option<TableIndex> {
-        self.fn_index_get_event_buffer
     }
 }
 
@@ -58,19 +52,6 @@ pub fn asml_abi_invoke(ctx: &mut vm::Ctx, ptr: u32, len: u32) -> i32 {
 
     println!("asml_abi_invoke error");
     -1i32 // error
-}
-
-pub fn asml_abi_init(ctx: &mut vm::Ctx, fn_index: u32) -> i32 {
-    println!("asml_abi_init called: {}", fn_index);
-
-    let mut instance_data: &mut InstanceData;
-    unsafe {
-        instance_data = *ctx.data.cast::<&mut InstanceData>();
-    }
-
-    instance_data.module_registry.fn_index_get_event_buffer = Some(TableIndex::new(fn_index as usize));
-
-    0
 }
 
 fn ctx_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Error> {

@@ -27,7 +27,7 @@ pub mod database {
         let mut instance_data: &mut InstanceData;
         unsafe {
             instance_data = *ctx.data.cast::<&mut InstanceData>();
-            serialize_future_from_host(0, Box::new(rusoto_future), ctx);
+            serialize_future_from_host(0, Box::pin(rusoto_future), ctx);
         }
 
         // Write the event into the event buffer, accessible by WASM

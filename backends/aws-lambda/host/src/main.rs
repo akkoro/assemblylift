@@ -109,7 +109,6 @@ fn main() {
                     "env" => {
                         "__al_console_log" => func!(runtime_console_log),
                         "__al_success" => func!(runtime_success),
-                        "__asml_abi_init" => func!(asml_abi_init),
                         "__asml_abi_invoke" => func!(asml_abi_invoke),
                     },
                 };
@@ -126,14 +125,16 @@ fn main() {
             let mut module_registry = &mut ModuleRegistry::new();
             let mut event_manager = &mut EventManager::new();
 
-            let mut instance_data = &mut InstanceData {
-                module_registry,
-                event_manager,
-            };
+            unsafe {
+                let mut instance_data = &mut InstanceData {
+                    // this is accessed via context data, which lives at least as long as `instance`
+                    instance: std::mem::transmute(&instance),
+                    module_registry,
+                    event_manager,
+                };
 
-            // instance.context_mut().data = &mut module_registry as *mut _ as *mut c_void;
-            // instance.context_mut().data = &mut event_manager as *mut _ as *mut c_void;
-            instance.context_mut().data = &mut instance_data as *mut _ as *mut c_void;
+                instance.context_mut().data = &mut instance_data as *mut _ as *mut c_void;
+            }
 
             awsio::database::MyModule::register(module_registry);
 
@@ -158,8 +159,6 @@ fn main() {
             //         .and_then(|event| {
             //             write_event_buffer(&instance, event.event_body);
             write_event_buffer(&instance, "{}".to_string());
-
-            instance.call("__asml_abi_main", &[]);
 
             let value = instance.call(handler_name, &[]);
             value
