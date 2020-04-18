@@ -8,8 +8,19 @@ use std::io::Read;
 
 use wasmer_runtime::Instance;
 use wasmer_runtime::{Func, Ctx, WasmPtr, Array};
+use std::ffi::c_void;
+use std::any::Any;
+use wasmer_runtime_core::module::ExportIndex;
+use wasmer_runtime_core::{structures::TypedIndex, types::TableIndex, DynFunc};
+use wasmer_runtime_core::backend::SigRegistry;
+use std::env::Args;
+use wasmer_runtime_core::typed_func::Wasm;
+use std::borrow::Borrow;
+use std::ops::Deref;
 
 pub mod iomod;
+
+pub type WasmBufferPtr = WasmPtr<u8, Array>;
 
 pub struct InstanceData<'a> {
     pub module_registry: &'a mut ModuleRegistry,
@@ -44,6 +55,29 @@ pub unsafe fn serialize_event_from_host(id: usize, event: &Event, ctx: &mut Ctx)
         }
 
         idx += 1;
+    }
+}
+
+pub unsafe fn serialize_future_from_host(event_id: u32, future: Box<dyn Any>, ctx: &mut Ctx) {
+    use wasmer_runtime_core::{structures::TypedIndex, types::TableIndex};
+
+    let raw = Box::into_raw(future) as *mut _ as *mut c_void;
+    let raw_slice = any_as_u8_slice(&raw);
+
+    let mut instance_data: &mut InstanceData = *ctx.data.cast::<&mut InstanceData>();
+    let registry = instance_data.module_registry.clone();
+
+    let fn_index = registry.get_fn_index_of_get_event_buffer().unwrap();
+    println!("{}", fn_index.index());
+    let ptr = ctx.call_with_table_index(fn_index, &[]).unwrap()[0].clone().to_u128();
+
+    let wasm_instance_memory = ctx.memory(0);
+    let guest_memory = WasmBufferPtr::new(ptr as u32);
+    let memory_writer = guest_memory.deref(wasm_instance_memory, event_id, raw_slice.len() as u32).unwrap();
+
+    for (i, b) in raw_slice.bytes().enumerate() {
+        memory_writer[i].set(b.unwrap());
+        println!("{}", memory_writer[i].get());
     }
 }
 

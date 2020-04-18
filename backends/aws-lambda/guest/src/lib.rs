@@ -1,4 +1,5 @@
 extern crate assemblylift_core_guest;
+extern crate assemblylift_core_event_guest;
 use assemblylift_core_guest::*;
 
 const AWS_EVENT_STRING_BUFFER_SIZE: usize = 2048;

@@ -1,5 +1,16 @@
+use assemblylift_core_event_guest::__al_get_event_buffer_pointer;
+
 const RESPONSE_BUFFER_SIZE: usize = 2048;
 static mut RESPONSE_BUFFER: [u8; RESPONSE_BUFFER_SIZE] = [0; RESPONSE_BUFFER_SIZE];
+
+extern {
+    fn __asml_abi_init(fn_index: u32) -> i32;
+}
+
+#[no_mangle]
+pub fn __asml_abi_main() {
+    // unsafe { __asml_abi_init(__al_get_event_buffer_pointer as usize as u32); }
+}
 
 #[no_mangle]
 pub fn __al_get_response_buffer_pointer() -> *const u8 {

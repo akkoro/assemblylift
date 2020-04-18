@@ -11,8 +11,8 @@ name = "bootstrap"
 path = "src/main.rs"
 
 [dependencies]
-wasmer-runtime = { path = "../../../../../Forks/wasmer/lib/runtime" }
-wasmer-runtime-core = { path = "../../../../../Forks/wasmer/lib/runtime-core" }
+wasmer-runtime = "0.16.2"
+wasmer-runtime-core = "0.16.2"
 lazy_static = "1.4.0"
 reqwest = { version = "0.10.4", features = ["blocking"] }
 awsio = {package = "assemblylift-awslambda-iomod", path = "../iomod" }

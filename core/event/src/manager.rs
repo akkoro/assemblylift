@@ -1,31 +1,19 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::any::*;
 use crate::Event;
 
 use indexmap::IndexMap;
+use std::pin::Pin;
 
-pub struct EventManager {
-    pub event_id_to_future: IndexMap<i32, Box<dyn EventFuture>>
-}
+// TODO: do we need this map? could just serialize the ANY-future to the event buffer (becoming just the rpc buffer).
+//          impls still return an event id which is an offset into the buffer.
+//          structure buffer like [ len, 0..len, len1, 0..len1]
+//          EventManager is then concerned with determining where the dynamically sized Futures can fit in the static buffer
+pub struct EventManager {}
 
 impl EventManager {
     pub fn new() -> Self {
-        EventManager {
-            event_id_to_future: IndexMap::new()
-        }
+        EventManager {}
     }
-
-    // pub fn bind_event_to_future(&mut self, event_id: i32, future: Box<dyn Future<Output=()>>) {
-    //     self.event_to_future.entry(event_id).or_insert(future);
-    // }
-
-    pub fn bind_future_to_event(&mut self, future: Box<dyn EventFuture>) -> Event {
-        let event = Event::new();
-        // future.bind(self, event)
-        self.event_to_future.entry(event_index as i32).or_insert(future);
-    }
-}
-
-pub trait EventFuture {
-    fn bind(&self, event_manager: &mut EventManager, event: Event) -> Event;
 }

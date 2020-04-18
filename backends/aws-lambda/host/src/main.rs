@@ -1,6 +1,6 @@
 mod runtime;
 use runtime::AwsLambdaRuntime;
-use assemblylift_core::InstanceData;
+use assemblylift_core::{InstanceData, WasmBufferPtr};
 use assemblylift_core::iomod::*;
 use assemblylift_core_event::manager::*;
 
@@ -20,8 +20,8 @@ use wasmer_runtime_core::backend::SigRegistry;
 use wasmer_runtime::types::{FuncSig, Type};
 use wasmer_runtime_core::export::{Context, FuncPointer};
 use std::borrow::Borrow;
-
-type WasmBufferPtr = WasmPtr<u8, Array>;
+use wasmer_runtime_core::typed_func::Wasm;
+use wasmer_runtime_core::Func;
 
 #[macro_use]
 extern crate lazy_static;
@@ -109,7 +109,8 @@ fn main() {
                     "env" => {
                         "__al_console_log" => func!(runtime_console_log),
                         "__al_success" => func!(runtime_success),
-                        "__asml_abi_invoke" => func!(asml_abi_invoke)
+                        "__asml_abi_init" => func!(asml_abi_init),
+                        "__asml_abi_invoke" => func!(asml_abi_invoke),
                     },
                 };
                 import_object.allow_missing_functions = true;
@@ -122,15 +123,12 @@ fn main() {
         Ok(mut instance) => {
             use wasmer_runtime::func;
 
-            let mut module_registry = &mut ModuleRegistry {
-                modules: Default::default()
-            };
-
+            let mut module_registry = &mut ModuleRegistry::new();
             let mut event_manager = &mut EventManager::new();
 
             let mut instance_data = &mut InstanceData {
                 module_registry,
-                event_manager
+                event_manager,
             };
 
             // instance.context_mut().data = &mut module_registry as *mut _ as *mut c_void;
@@ -160,6 +158,8 @@ fn main() {
             //         .and_then(|event| {
             //             write_event_buffer(&instance, event.event_body);
             write_event_buffer(&instance, "{}".to_string());
+
+            instance.call("__asml_abi_main", &[]);
 
             let value = instance.call(handler_name, &[]);
             value
