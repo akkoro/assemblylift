@@ -9,44 +9,41 @@ pub mod database {
     use wasmer_runtime_core::vm;
 
     use assemblylift_core_event::*;
-    use assemblylift_core::{serialize_event_from_host, InstanceData, serialize_future_from_host};
+    use assemblylift_core::InstanceData;
 
     lazy_static! {
         static ref DYNAMODB: DynamoDbClient = DynamoDbClient::new(Region::UsEast1);
     }
 
+    async fn __aws_dynamodb_list_tables_impl() -> Vec<u8> {
+        let result = DYNAMODB.list_tables(ListTablesInput {
+            exclusive_start_table_name: None,
+            limit: None,
+        }).await.unwrap();
+
+        println!("{:?}", result);
+        bincode::serialize(&result).unwrap()
+    }
+
     pub fn aws_dynamodb_list_tables_impl(ctx: &mut vm::Ctx) -> i32 {
         println!("TRACE: Called aws_dynamodb_list_tables_impl");
-
-        // let ddb = DynamoDbClient::new(Region::UsEast1);
-        let mut rusoto_future = DYNAMODB.list_tables(ListTablesInput {
-            exclusive_start_table_name: None,
-            limit: None
-        });
 
         let mut instance_data: &mut InstanceData;
         unsafe {
             instance_data = *ctx.data.cast::<&mut InstanceData>();
-            serialize_future_from_host(0, Box::pin(rusoto_future), ctx);
         }
 
-        // Write the event into the event buffer, accessible by WASM
-        // let event_index = event.inner.id;
-        // unsafe {
-            // MUSTDO catch errors from unsafe code
-            // serialize_event_from_host(event_index, &event, ctx);
-        // }
+        let mut func: Box<dyn Fn() -> DynFut<Vec<u8>>>
+            = Box::new(move || Box::pin(__aws_dynamodb_list_tables_impl()));
 
-        // event_index as i32
-        0
+        instance_data.event_manager.add(func) as i32
     }
 
     use std::ops::DerefMut;
     use std::collections::HashMap;
     use assemblylift_core::iomod::{ModuleRegistry, IoModule};
     use std::sync::Mutex;
-    use assemblylift_core_event::manager::EventManager;
-    use futures::task::{Context, Poll};
+    use assemblylift_core_event::manager::{EventManager, DynFut};
     use std::pin::Pin;
     use std::ffi::c_void;
 

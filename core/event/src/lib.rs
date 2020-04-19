@@ -12,10 +12,6 @@ pub mod manager;
 
 use crate::constants::*;
 
-fn __get_index() -> usize {
-    23
-} // STUB to event manager
-
 pub fn event_engine_sanity_check() {
     print!("Sanity check... ");
 
@@ -48,8 +44,7 @@ pub struct Event {
 }
 
 impl Event {
-    pub fn new() -> Self {
-        let id = __get_index();
+    pub fn new(id: usize) -> Self {
 
         // the 'thread' corresponding to this event lives in the host
         Event {
@@ -67,7 +62,9 @@ impl Future for Event {
 
     /// poll is called by the Executor
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        // The Event state is updated by the host. All we need to do here is query it.
+        // TODO call poll() of Future held at EVENT_BUFFER[self.inner.id]
+        // query a host function that takes this event id? __asml_abi_poll_event(self.inner.id)
+
         match self.inner.state {
             State::Resolved => Poll::Ready(()),
             State::Failed => Poll::Ready(()),

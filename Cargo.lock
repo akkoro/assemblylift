@@ -50,6 +50,7 @@ version = "0.1.0"
 dependencies = [
  "assemblylift-core 0.1.0",
  "assemblylift-core-event 0.1.0",
+ "bincode 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusoto_core 0.43.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -61,6 +62,9 @@ dependencies = [
 [[package]]
 name = "assemblylift-awslambda-iomod-guest"
 version = "0.1.0"
+dependencies = [
+ "assemblylift-core-event 0.1.0",
+]
 
 [[package]]
 name = "assemblylift-core"
@@ -205,6 +209,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "bytes"
 version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "serde 1.0.104 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "c2-chacha"

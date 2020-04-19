@@ -54,6 +54,10 @@ pub fn asml_abi_invoke(ctx: &mut vm::Ctx, ptr: u32, len: u32) -> i32 {
     -1i32 // error
 }
 
+pub fn asml_abi_poll_event(ctx: &mut Ctx, event_id: u32) -> i32 {
+    0
+}
+
 fn ctx_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Error> {
     let memory = ctx.memory(0);
     let view: MemoryView<u8> = memory.view();

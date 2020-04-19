@@ -7,10 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bincode = "1.2.1"
 futures = "0.3.4"
 lazy_static = "1.4.0"
 rusoto_core = { version = "0.43.0" }
-rusoto_dynamodb = { version = "0.43.0" }
+rusoto_dynamodb = { version = "0.43.0", features = ["serialize_structs"] }
 wasmer-runtime = "0.16.2"
 wasmer-runtime-core = "0.16.2"
 assemblylift_core = { package = "assemblylift-core", path = "../../../core"}
