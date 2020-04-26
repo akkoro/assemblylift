@@ -16,7 +16,7 @@ pub mod database {
 
         match event_id {
             -1 => None,
-            _ => Some(Event::new(event_id as usize))
+            _ => Some(Event::new(event_id as u32))
         }
     }
 }

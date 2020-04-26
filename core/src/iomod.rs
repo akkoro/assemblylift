@@ -1,13 +1,16 @@
-use wasmer_runtime::Ctx;
-use wasmer_runtime::memory::MemoryView;
-use wasmer_runtime_core::{vm, structures::TypedIndex, types::TableIndex, DynFunc};
-use std::io;
+use std::borrow::Borrow;
 use std::cell::Cell;
 use std::collections::HashMap;
-use std::io::ErrorKind;
 use std::error::Error;
-use std::borrow::Borrow;
+use std::io;
+use std::io::ErrorKind;
 use std::sync::Mutex;
+use std::task::Context;
+
+use wasmer_runtime::Ctx;
+use wasmer_runtime::memory::MemoryView;
+use wasmer_runtime_core::{DynFunc, structures::TypedIndex, types::TableIndex, vm};
+
 use crate::InstanceData;
 
 fn to_io_error<E: Error>(err: E) -> io::Error {
@@ -52,10 +55,6 @@ pub fn asml_abi_invoke(ctx: &mut vm::Ctx, ptr: u32, len: u32) -> i32 {
 
     println!("asml_abi_invoke error");
     -1i32 // error
-}
-
-pub fn asml_abi_poll_event(ctx: &mut Ctx, event_id: u32) -> i32 {
-    0
 }
 
 fn ctx_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Error> {

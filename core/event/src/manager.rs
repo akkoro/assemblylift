@@ -16,7 +16,7 @@ pub struct EventManager {
     futures: IndexMap<u32, StoredFut>
 }
 
-impl<'f> EventManager {
+impl EventManager {
     pub fn new() -> Self {
         EventManager {
             futures: Default::default()
@@ -30,8 +30,11 @@ impl<'f> EventManager {
         event_id
     }
 
+    pub fn get(&self, event_id: u32) -> DynFut<Vec<u8>> {
+        (self.futures.get(&event_id).unwrap())()
+    }
+
     pub async fn run(&mut self, event_id: u32) -> Vec<u8> {
-        // Pin::as_mut(self.futures[&event_id].deref_mut()).poll(cx)
         (self.futures.get_mut(&event_id).unwrap().deref_mut())().await
     }
 }

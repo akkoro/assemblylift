@@ -1,30 +1,33 @@
-mod runtime;
-use runtime::AwsLambdaRuntime;
-use assemblylift_core::{InstanceData, WasmBufferPtr};
-use assemblylift_core::iomod::*;
-use assemblylift_core_event::manager::*;
-
-use std::io;
-use std::io::prelude::*;
-use std::fs::{canonicalize, File};
-use std::env;
-use std::error::Error;
-use std::io::ErrorKind;
-use std::cell::Cell;
-use wasmer_runtime::{Array, Ctx, Instance, WasmPtr, LikeNamespace, Export};
-use wasmer_runtime::memory::MemoryView;
-use std::ffi::c_void;
-use std::str::Utf8Error;
-use std::sync::{Mutex, Arc};
-use wasmer_runtime_core::backend::SigRegistry;
-use wasmer_runtime::types::{FuncSig, Type};
-use wasmer_runtime_core::export::{Context, FuncPointer};
-use std::borrow::Borrow;
-use wasmer_runtime_core::typed_func::Wasm;
-use wasmer_runtime_core::Func;
-
 #[macro_use]
 extern crate lazy_static;
+
+use std::borrow::Borrow;
+use std::cell::Cell;
+use std::env;
+use std::error::Error;
+use std::ffi::c_void;
+use std::fs::{canonicalize, File};
+use std::io;
+use std::io::ErrorKind;
+use std::io::prelude::*;
+use std::str::Utf8Error;
+use std::sync::{Arc, Mutex};
+
+use wasmer_runtime::{Array, Ctx, Export, Instance, LikeNamespace, WasmPtr};
+use wasmer_runtime::memory::MemoryView;
+use wasmer_runtime::types::{FuncSig, Type};
+use wasmer_runtime_core::backend::SigRegistry;
+use wasmer_runtime_core::export::{Context, FuncPointer};
+use wasmer_runtime_core::Func;
+use wasmer_runtime_core::typed_func::Wasm;
+
+use assemblylift_core::{InstanceData, WasmBufferPtr};
+use assemblylift_core::iomod::*;
+use assemblylift_core_event::executor::Executor;
+use assemblylift_core_event::manager::*;
+use runtime::AwsLambdaRuntime;
+
+mod runtime;
 
 lazy_static! {
     pub static ref LAMBDA_RUNTIME: Mutex<AwsLambdaRuntime> = Mutex::new(AwsLambdaRuntime::new());
@@ -123,14 +126,12 @@ fn main() {
             use wasmer_runtime::func;
 
             let mut module_registry = &mut ModuleRegistry::new();
-            let mut event_manager = &mut EventManager::new();
+            let mut event_executor = Box::new(Executor::new());
 
             unsafe {
                 let mut instance_data = &mut InstanceData {
-                    // this is accessed via context data, which lives at least as long as `instance`
-                    instance: std::mem::transmute(&instance),
                     module_registry,
-                    event_manager,
+                    event_executor: event_executor.as_mut(),
                 };
 
                 instance.context_mut().data = &mut instance_data as *mut _ as *mut c_void;
@@ -160,8 +161,14 @@ fn main() {
             //             write_event_buffer(&instance, event.event_body);
             write_event_buffer(&instance, "{}".to_string());
 
-            let value = instance.call(handler_name, &[]);
-            value
+            let executor_thread = std::thread::spawn(move || {
+                event_executor.run()
+            });
+
+            let guest_return_value = instance.call(handler_name, &[]);
+            executor_thread.join();
+
+            guest_return_value
                 .map(|v| println!("EXIT CODE: {:?}", v))
                 .map_err(to_io_error);
             // });

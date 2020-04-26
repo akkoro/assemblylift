@@ -15,7 +15,7 @@ pub mod database {
         static ref DYNAMODB: DynamoDbClient = DynamoDbClient::new(Region::UsEast1);
     }
 
-    async fn __aws_dynamodb_list_tables_impl() -> Vec<u8> {
+    async fn __aws_dynamodb_list_tables_impl(event_id: u32) -> Vec<u8> {
         let result = DYNAMODB.list_tables(ListTablesInput {
             exclusive_start_table_name: None,
             limit: None,
@@ -33,10 +33,21 @@ pub mod database {
             instance_data = *ctx.data.cast::<&mut InstanceData>();
         }
 
-        let mut func: Box<dyn Fn() -> DynFut<Vec<u8>>>
-            = Box::new(move || Box::pin(__aws_dynamodb_list_tables_impl()));
+        // TODO need to track async calls & write their results to a known location in shared mem.
+        //      possible approach using async wrapper as started already:
+        //      1. get an unused event index from the executor
+        //      2. get future from __impl; pass the event index to this impl so it knows where to Wr
+        //      3. spawn this wrapper future w/ instance_data.event_executor.spawner.spawn(func)
+        //      4. return the event index; the id is returned to the guest & wrapped in Event
 
-        instance_data.event_manager.add(func) as i32
+        let executor: &Executor = instance_data.event_executor.borrow();
+        let event = executor.make_event().unwrap();
+        let event_id = event.id.clone();
+        let func = __aws_dynamodb_list_tables_impl(event_id);
+
+        executor.spawn_as_event(func, &event);
+
+        event_id as i32
     }
 
     use std::ops::DerefMut;
@@ -46,6 +57,9 @@ pub mod database {
     use assemblylift_core_event::manager::{EventManager, DynFut};
     use std::pin::Pin;
     use std::ffi::c_void;
+    use futures::TryFutureExt;
+    use std::borrow::Borrow;
+    use assemblylift_core_event::executor::Executor;
 
     pub struct MyModule {}
 

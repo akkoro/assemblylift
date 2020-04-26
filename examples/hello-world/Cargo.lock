@@ -11,6 +11,9 @@ dependencies = [
 [[package]]
 name = "assemblylift-awslambda-iomod-guest"
 version = "0.1.0"
+dependencies = [
+ "assemblylift-core-event",
+]
 
 [[package]]
 name = "assemblylift-core-event"

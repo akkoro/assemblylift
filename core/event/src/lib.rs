@@ -31,27 +31,19 @@ pub enum State {
     Failed
 }
 
-#[repr(C, packed)]
-pub struct EventInner {
-    /// where the event is stored in EVENT_BUFFER
-    pub id: usize,
-    state: State
-}
-
 pub struct Event {
-    pub inner: EventInner,
+    pub id: u32,
+    state: State,
     waker: Option<Waker>
 }
 
 impl Event {
-    pub fn new(id: usize) -> Self {
+    pub fn new(id: u32) -> Self {
 
         // the 'thread' corresponding to this event lives in the host
         Event {
-            inner: EventInner {
-                id,
-                state: State::Pending
-            },
+            id,
+            state: State::Pending,
             waker: None
         }
     }
@@ -65,7 +57,7 @@ impl Future for Event {
         // TODO call poll() of Future held at EVENT_BUFFER[self.inner.id]
         // query a host function that takes this event id? __asml_abi_poll_event(self.inner.id)
 
-        match self.inner.state {
+        match self.state {
             State::Resolved => Poll::Ready(()),
             State::Failed => Poll::Ready(()),
             _ => {
