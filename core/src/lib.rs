@@ -26,6 +26,7 @@ pub mod iomod;
 pub type WasmBufferPtr = WasmPtr<u8, Array>;
 
 pub struct InstanceData<'a> {
+    pub instance: *mut Instance,
     pub module_registry: &'a mut ModuleRegistry,
     pub event_executor: &'a mut Executor,
 }

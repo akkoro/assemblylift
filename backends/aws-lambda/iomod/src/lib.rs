@@ -2,20 +2,32 @@
 extern crate lazy_static;
 
 pub mod database {
-    use rusoto_dynamodb::{DynamoDbClient, DynamoDb, ListTablesInput, ListTablesOutput, ListTablesError};
-    use rusoto_core::Region;
+    use std::borrow::{Borrow, BorrowMut};
+    use std::cell::Cell;
+    use std::collections::HashMap;
+    use std::ffi::c_void;
+    use std::ops::DerefMut;
+    use std::pin::Pin;
+    use std::sync::Mutex;
 
-    use wasmer_runtime::{Instance, Ctx, Func};
+    use futures::TryFutureExt;
+    use rusoto_core::Region;
+    use rusoto_dynamodb::{DynamoDb, DynamoDbClient, ListTablesError, ListTablesInput, ListTablesOutput};
+    use wasmer_runtime::{Ctx, Func, Instance};
     use wasmer_runtime_core::vm;
 
+    use assemblylift_core::{InstanceData, WasmBufferPtr};
+    use assemblylift_core::iomod::{IoModule, ModuleRegistry};
     use assemblylift_core_event::*;
-    use assemblylift_core::InstanceData;
+    use assemblylift_core_event::constants::EVENT_BUFFER_SIZE_BYTES;
+    use assemblylift_core_event::executor::Executor;
+    use assemblylift_core_event::manager::{DynFut, EventManager};
 
     lazy_static! {
         static ref DYNAMODB: DynamoDbClient = DynamoDbClient::new(Region::UsEast1);
     }
 
-    async fn __aws_dynamodb_list_tables_impl(event_id: u32) -> Vec<u8> {
+    async fn __aws_dynamodb_list_tables_impl() -> Vec<u8> {
         let result = DYNAMODB.list_tables(ListTablesInput {
             exclusive_start_table_name: None,
             limit: None,
@@ -29,37 +41,33 @@ pub mod database {
         println!("TRACE: Called aws_dynamodb_list_tables_impl");
 
         let mut instance_data: &mut InstanceData;
+        let instance: &Instance;
         unsafe {
             instance_data = *ctx.data.cast::<&mut InstanceData>();
+            instance = instance_data.instance.as_ref().unwrap();
         }
 
-        // TODO need to track async calls & write their results to a known location in shared mem.
-        //      possible approach using async wrapper as started already:
-        //      1. get an unused event index from the executor
-        //      2. get future from __impl; pass the event index to this impl so it knows where to Wr
-        //      3. spawn this wrapper future w/ instance_data.event_executor.spawner.spawn(func)
-        //      4. return the event index; the id is returned to the guest & wrapped in Event
+        // === temp
+        let wasm_instance_memory = ctx.memory(0);
+        let mut get_pointer: Func<(), WasmBufferPtr> = instance
+            .func("__asml_get_event_buffer_pointer")
+            .expect("__asml_get_event_buffer_pointer");
 
-        let executor: &Executor = instance_data.event_executor.borrow();
-        let event = executor.make_event().unwrap();
-        let event_id = event.id.clone();
-        let func = __aws_dynamodb_list_tables_impl(event_id);
+        let event_buffer = get_pointer.call().unwrap();
+        let memory_writer: &[Cell<u8>] = event_buffer
+            .deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32)
+            .unwrap();
+        let writer = Mutex::new(memory_writer.clone());
+        // === temp
 
-        executor.spawn_as_event(func, &event);
+        let executor: &mut Executor = instance_data.event_executor.borrow_mut();
+        let event_id = executor.next_event_id().unwrap();
+        let func = __aws_dynamodb_list_tables_impl();
+
+        executor.spawn_with_event_id(writer, func, event_id);
 
         event_id as i32
     }
-
-    use std::ops::DerefMut;
-    use std::collections::HashMap;
-    use assemblylift_core::iomod::{ModuleRegistry, IoModule};
-    use std::sync::Mutex;
-    use assemblylift_core_event::manager::{EventManager, DynFut};
-    use std::pin::Pin;
-    use std::ffi::c_void;
-    use futures::TryFutureExt;
-    use std::borrow::Borrow;
-    use assemblylift_core_event::executor::Executor;
 
     pub struct MyModule {}
 

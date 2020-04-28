@@ -1,8 +1,10 @@
+use std::collections::HashMap;
 use std::future::Future;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 
-use futures::FutureExt;
+use futures::{FutureExt, TryFutureExt};
+use indexmap::map::IndexMap;
 
 use {
     futures::{
@@ -16,11 +18,12 @@ use {
     }
 };
 
-use crate::Event;
 use crate::constants::EVENT_BUFFER_SIZE_BYTES;
+use crate::Event;
+use std::cell::Cell;
 
 pub struct Executor {
-    ready_queue: Receiver<Arc<Task>>,
+    ready_queue: Arc<Mutex<Receiver<Arc<Task>>>>,
     spawner: Spawner,
     memory: ExecutorMemory
 }
@@ -30,14 +33,14 @@ impl Executor {
         let (task_sender, ready_queue) = sync_channel(10_000);
 
         Executor {
-            ready_queue,
+            ready_queue: Arc::new(Mutex::new(ready_queue)),
             spawner: Spawner { task_sender },
-            memory: ExecutorMemory {}
+            memory: ExecutorMemory::new()
         }
     }
 
-    pub fn run(&self) {
-        while let Ok(task) = self.ready_queue.recv() {
+    pub fn run(&mut self) {
+        while let Ok(task) = self.ready_queue.as_ref().deref().lock().unwrap().recv() {
             if let Ok(mut guarded_future) = task.future.lock() {
                 if let Some(mut future) = guarded_future.take() {
                     let waker = waker_ref(&task);
@@ -51,16 +54,21 @@ impl Executor {
         }
     }
 
-    pub fn make_event(&self) -> Option<Event> {
-        if let Some(event_id) = self.memory.find_next_block() {
-            return Some(Event::new(event_id));
-        }
-
-        None
+    pub fn next_event_id(&mut self) -> Option<u32> {
+        self.memory.next_id()
     }
 
-    pub fn spawn_as_event(&self, future: impl Future<Output=Vec<u8>> + 'static + Send, event: &Event) {
-            self.spawner.spawn(future, event.id)
+    pub fn spawn_with_event_id(&self, writer: Mutex<&[Cell<u8>]>, future: impl Future<Output=Vec<u8>> + 'static + Send, event_id: u32) {
+        // clone is fine, as long as we're sure that the addresses aren't stale
+        // TODO not sure of performance of clone here though
+        let memory = self.memory.clone();
+
+        let with_writer = async move {
+            let serialized = future.await;
+            memory.write_vec_at(writer, serialized, event_id)
+        };
+
+        self.spawner.spawn(with_writer, event_id)
     }
 }
 
@@ -70,7 +78,7 @@ struct Spawner {
 }
 
 impl Spawner {
-    pub fn spawn(&self, future: impl Future<Output=Vec<u8>> + 'static + Send, event_id: u32) {
+    pub fn spawn(&self, future: impl Future<Output=()> + 'static + Send, event_id: u32) {
         let boxed_future = future.boxed();
         let task = Arc::new(Task {
             future: Mutex::new(Some(boxed_future)),
@@ -83,7 +91,7 @@ impl Spawner {
 }
 
 pub struct Task {
-    future: Mutex<Option<BoxFuture<'static, Vec<u8>>>>,
+    future: Mutex<Option<BoxFuture<'static, ()>>>,
     task_sender: SyncSender<Arc<Task>>,
     event_id: u32
 }
@@ -95,12 +103,45 @@ impl ArcWake for Task {
     }
 }
 
-struct ExecutorMemory {}
+#[derive(Clone)]
+struct Document {
+    start: usize,
+    length: usize
+}
+
+#[derive(Clone)]
+struct ExecutorMemory {
+    _next_id: u32,
+    document_map: IndexMap<usize, Document>
+}
 
 impl ExecutorMemory {
-    pub fn find_next_block(&self) -> Option<u32> {
-        // event id corresponds to _starting_ block
-        // each block may need a small header
-        None
+    pub fn new() -> Self {
+        ExecutorMemory {
+            _next_id: 0,
+            document_map: Default::default()
+        }
+    }
+    pub fn next_id(&mut self) -> Option<u32> {
+        let next_id = self._next_id.clone();
+        self._next_id += 1;
+
+        Some(next_id)
+    }
+
+    pub fn write_vec_at(&self, writer: Mutex<&[Cell<u8>]>, vec: Vec<u8>, event_id: u32) {
+        let index = event_id as usize;
+        let required_length = vec.len();
+
+        let start = self.find_with_length(required_length);
+        if let Ok(wr) = writer.lock() {
+            for i in start..(start + required_length) {
+                wr[i].set(vec[i]);
+            }
+        }
+    }
+
+    fn find_with_length(&self, length: usize) -> usize {
+        0usize
     }
 }

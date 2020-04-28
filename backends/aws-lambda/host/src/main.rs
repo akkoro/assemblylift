@@ -48,7 +48,7 @@ fn write_event_buffer(instance: &Instance, event: String) {
         .expect("__al_get_aws_event_string_buffer_pointer");
 
     let event_buffer = get_pointer.call().unwrap();
-    let memory_writer = event_buffer
+    let memory_writer: &[Cell<u8>] = event_buffer
         .deref(wasm_instance_memory, 0, event.len() as u32)
         .unwrap();
 
@@ -130,6 +130,7 @@ fn main() {
 
             unsafe {
                 let mut instance_data = &mut InstanceData {
+                    instance: unsafe { std::mem::transmute(&instance) },
                     module_registry,
                     event_executor: event_executor.as_mut(),
                 };
