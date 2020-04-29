@@ -47,24 +47,10 @@ pub mod database {
             instance = instance_data.instance.as_ref().unwrap();
         }
 
-        // === temp
-        let wasm_instance_memory = ctx.memory(0);
-        let mut get_pointer: Func<(), WasmBufferPtr> = instance
-            .func("__asml_get_event_buffer_pointer")
-            .expect("__asml_get_event_buffer_pointer");
-
-        let event_buffer = get_pointer.call().unwrap();
-        let memory_writer: &[Cell<u8>] = event_buffer
-            .deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32)
-            .unwrap();
-        let writer = Mutex::new(memory_writer.clone());
-        // === temp
-
         let executor: &mut Executor = instance_data.event_executor.borrow_mut();
         let event_id = executor.next_event_id().unwrap();
-        let func = __aws_dynamodb_list_tables_impl();
 
-        executor.spawn_with_event_id(writer, func, event_id);
+        executor.spawn_with_event_id((*instance_data.memory_writer).clone(), __aws_dynamodb_list_tables_impl(), event_id);
 
         event_id as i32
     }

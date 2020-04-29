@@ -26,6 +26,7 @@ use assemblylift_core::iomod::*;
 use assemblylift_core_event::executor::Executor;
 use assemblylift_core_event::manager::*;
 use runtime::AwsLambdaRuntime;
+use std::sync::mpsc::sync_channel;
 
 mod runtime;
 
@@ -128,32 +129,20 @@ fn main() {
             let mut module_registry = &mut ModuleRegistry::new();
             let mut event_executor = Box::new(Executor::new());
 
+            let (sender, receiver) = sync_channel(10_000);
+
             unsafe {
                 let mut instance_data = &mut InstanceData {
                     instance: unsafe { std::mem::transmute(&instance) },
                     module_registry,
                     event_executor: event_executor.as_mut(),
+                    memory_writer: &sender
                 };
 
                 instance.context_mut().data = &mut instance_data as *mut _ as *mut c_void;
             }
 
             awsio::database::MyModule::register(module_registry);
-
-            // let params: Vec<Type> = [].iter().cloned().map(|x: Type| x.into()).collect();
-            // let returns: Vec<Type> = [Type::I32].iter().cloned().map(|x| x.into()).collect();
-            //
-            // let func = func!(awsio::database::aws_dynamodb_list_tables_impl);
-            //
-            // unsafe {
-            //     if let None = instance.maybe_insert("__wsw_list_tables", Export::Function {
-            //         func: FuncPointer::new(func.get_vm_func().as_ptr()),
-            //         ctx: Context::Internal,
-            //         signature: Arc::new(FuncSig::new(params, returns))
-            //     }) {
-            //         println!("MAYBE_INSERT_ERROR: __wsw_list_tables");
-            //     }
-            // }
 
             // loop {
             //     LAMBDA_RUNTIME
@@ -167,11 +156,14 @@ fn main() {
             });
 
             let guest_return_value = instance.call(handler_name, &[]);
+
+            // while let.. {}
+
             executor_thread.join();
 
-            guest_return_value
-                .map(|v| println!("EXIT CODE: {:?}", v))
-                .map_err(to_io_error);
+            // guest_return_value
+            //     .map(|v| println!("GUEST EXIT CODE: {:?}", v))
+            //     .map_err(to_io_error);
             // });
             // }
         },

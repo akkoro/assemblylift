@@ -40,7 +40,7 @@ impl Executor {
     }
 
     pub fn run(&mut self) {
-        while let Ok(task) = self.ready_queue.as_ref().deref().lock().unwrap().recv() {
+        while let Ok(task) = (&*self.ready_queue).lock().unwrap().recv() {
             if let Ok(mut guarded_future) = task.future.lock() {
                 if let Some(mut future) = guarded_future.take() {
                     let waker = waker_ref(&task);
@@ -58,7 +58,7 @@ impl Executor {
         self.memory.next_id()
     }
 
-    pub fn spawn_with_event_id(&self, writer: Mutex<&[Cell<u8>]>, future: impl Future<Output=Vec<u8>> + 'static + Send, event_id: u32) {
+    pub fn spawn_with_event_id(&self, writer: SyncSender<Arc<(usize, u8)>>, future: impl Future<Output=Vec<u8>> + 'static + Send, event_id: u32) {
         // clone is fine, as long as we're sure that the addresses aren't stale
         // TODO not sure of performance of clone here though
         let memory = self.memory.clone();
@@ -122,6 +122,7 @@ impl ExecutorMemory {
             document_map: Default::default()
         }
     }
+
     pub fn next_id(&mut self) -> Option<u32> {
         let next_id = self._next_id.clone();
         self._next_id += 1;
@@ -129,15 +130,14 @@ impl ExecutorMemory {
         Some(next_id)
     }
 
-    pub fn write_vec_at(&self, writer: Mutex<&[Cell<u8>]>, vec: Vec<u8>, event_id: u32) {
+    pub fn write_vec_at(&self, writer: SyncSender<Arc<(usize, u8)>>, vec: Vec<u8>, event_id: u32) {
         let index = event_id as usize;
         let required_length = vec.len();
 
         let start = self.find_with_length(required_length);
-        if let Ok(wr) = writer.lock() {
-            for i in start..(start + required_length) {
-                wr[i].set(vec[i]);
-            }
+        let end = start + required_length;
+        for i in start..end {
+            writer.send(Arc::new((i, vec[i])));
         }
     }
 

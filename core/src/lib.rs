@@ -20,6 +20,8 @@ use assemblylift_core_event::executor::Executor;
 use assemblylift_core_event::manager::EventManager;
 
 use crate::iomod::ModuleRegistry;
+use std::sync::mpsc::SyncSender;
+use std::sync::Arc;
 
 pub mod iomod;
 
@@ -29,6 +31,7 @@ pub struct InstanceData<'a> {
     pub instance: *mut Instance,
     pub module_registry: &'a mut ModuleRegistry,
     pub event_executor: &'a mut Executor,
+    pub memory_writer: &'a SyncSender<Arc<(usize, u8)>>
 }
 
 /* Cloud interface */
