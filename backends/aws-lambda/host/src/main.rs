@@ -12,7 +12,9 @@ use std::io::ErrorKind;
 use std::io::prelude::*;
 use std::str::Utf8Error;
 use std::sync::{Arc, Mutex};
+use std::sync::mpsc::sync_channel;
 
+use crossbeam_utils::thread::scope;
 use wasmer_runtime::{Array, Ctx, Export, Instance, LikeNamespace, WasmPtr};
 use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime::types::{FuncSig, Type};
@@ -26,7 +28,6 @@ use assemblylift_core::iomod::*;
 use assemblylift_core_event::executor::Executor;
 use assemblylift_core_event::manager::*;
 use runtime::AwsLambdaRuntime;
-use std::sync::mpsc::sync_channel;
 
 mod runtime;
 
@@ -122,56 +123,59 @@ fn main() {
                     .map_err(to_io_error)
             });
 
-    match get_instance {
-        Ok(mut instance) => {
-            use wasmer_runtime::func;
+    let mut module_registry = &mut ModuleRegistry::new();
+    let mut event_executor = Box::new(Executor::new());
 
-            let mut module_registry = &mut ModuleRegistry::new();
-            let mut event_executor = Box::new(Executor::new());
+    let (sender, receiver) = sync_channel(10_000);
 
-            let (sender, receiver) = sync_channel(10_000);
+    let mut guarded_instance: Option<Arc<Mutex<Instance>>> = None;
+    if let Ok(mut instance) = get_instance {
+        unsafe {
+            let mut instance_data = &mut InstanceData {
+                instance: std::mem::transmute(&instance),
+                module_registry,
+                event_executor: event_executor.as_mut(),
+                memory_writer: &sender
+            };
 
-            unsafe {
-                let mut instance_data = &mut InstanceData {
-                    instance: unsafe { std::mem::transmute(&instance) },
-                    module_registry,
-                    event_executor: event_executor.as_mut(),
-                    memory_writer: &sender
-                };
-
-                instance.context_mut().data = &mut instance_data as *mut _ as *mut c_void;
-            }
-
-            awsio::database::MyModule::register(module_registry);
-
-            // loop {
-            //     LAMBDA_RUNTIME
-            //         .get_next_event()
-            //         .and_then(|event| {
-            //             write_event_buffer(&instance, event.event_body);
-            write_event_buffer(&instance, "{}".to_string());
-
-            let executor_thread = std::thread::spawn(move || {
-                event_executor.run()
-            });
-
-            let guest_return_value = instance.call(handler_name, &[]);
-
-            // while let.. {}
-
-            executor_thread.join();
-
-            // guest_return_value
-            //     .map(|v| println!("GUEST EXIT CODE: {:?}", v))
-            //     .map_err(to_io_error);
-            // });
-            // }
-        },
-        Err(error) => {
-            println!("ERROR: {:?}", error);
-        },
-        _ => {
-            panic!("uh oh")
+            instance.context_mut().data = &mut instance_data as *mut _ as *mut c_void;
         }
+
+        guarded_instance = Some(Arc::new(Mutex::new(instance)));
     }
+
+    if let None = guarded_instance {
+        panic!("unable to create mutex for instance")
+    }
+
+    // init modules -- these will eventually be plugins
+    awsio::database::MyModule::register(module_registry);
+
+    let executor_thread = std::thread::spawn(move || {
+        event_executor.run()
+    });
+
+    let instance = guarded_instance.unwrap();
+    loop {
+        LAMBDA_RUNTIME
+            .lock().unwrap()
+            .get_next_event()
+            .and_then(|event| {
+                // write_event_buffer(&guarded_instance.unwrap().lock().unwrap(), event.event_body);
+                // write_event_buffer(&instance, "{}".to_string());
+
+                scope(|s| {
+                    s.spawn(|_| {
+                        instance.lock().unwrap().call(handler_name, &[])
+                    });
+
+                    // TODO receiver
+                    // while let.. {}
+                });
+
+                Ok(())
+            });
+    }
+
+    executor_thread.join();
 }
