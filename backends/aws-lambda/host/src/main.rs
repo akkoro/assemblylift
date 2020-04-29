@@ -151,7 +151,7 @@ fn main() {
     // init modules -- these will eventually be plugins
     awsio::database::MyModule::register(module_registry);
 
-    let executor_thread = std::thread::spawn(move || {
+    std::thread::spawn(move || {
         event_executor.run()
     });
 
@@ -161,21 +161,22 @@ fn main() {
             .lock().unwrap()
             .get_next_event()
             .and_then(|event| {
-                // write_event_buffer(&guarded_instance.unwrap().lock().unwrap(), event.event_body);
-                // write_event_buffer(&instance, "{}".to_string());
-
                 scope(|s| {
                     s.spawn(|_| {
-                        instance.lock().unwrap().call(handler_name, &[])
+                        let locked = instance.lock().unwrap();
+                        write_event_buffer(&locked, "{}".to_string() /* event.event_body */);
+                        locked.call(handler_name, &[]);
                     });
 
                     // TODO receiver
                     // while let.. {}
                 });
 
+                // all threads spawned in the scope join here automatically
+                // the side-effect of which is that a hang in the handler will block the lambda
+                // runtime loop
+
                 Ok(())
             });
     }
-
-    executor_thread.join();
 }
