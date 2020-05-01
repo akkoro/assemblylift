@@ -12,8 +12,8 @@ path = "src/main.rs"
 
 [dependencies]
 crossbeam-utils = "0.7.2"
-wasmer-runtime = "0.16.2"
-wasmer-runtime-core = "0.16.2"
+wasmer-runtime = { path = "../../../../../Forks/wasmer/lib/runtime" }
+wasmer-runtime-core = { path = "../../../../../Forks/wasmer/lib/runtime-core" }
 lazy_static = "1.4.0"
 reqwest = { version = "0.10.4", features = ["blocking"] }
 awsio = {package = "assemblylift-awslambda-iomod", path = "../iomod" }

@@ -30,8 +30,7 @@ pub type WasmBufferPtr = WasmPtr<u8, Array>;
 pub struct InstanceData<'a> {
     pub instance: *mut Instance,
     pub module_registry: &'a mut ModuleRegistry,
-    pub event_executor: &'a mut Executor,
-    pub memory_writer: &'a SyncSender<Arc<(usize, u8)>>
+    pub event_executor: &'a mut Executor
 }
 
 /* Cloud interface */

@@ -10,9 +10,11 @@ edition = "2018"
 bincode = "1.2.1"
 futures = "0.3.4"
 lazy_static = "1.4.0"
+crossbeam-utils = "0.7.2"
+async-std = "1.5.0"
 rusoto_core = { version = "0.43.0" }
 rusoto_dynamodb = { version = "0.43.0", features = ["serialize_structs"] }
-wasmer-runtime = "0.16.2"
-wasmer-runtime-core = "0.16.2"
+wasmer-runtime = { path = "../../../../../Forks/wasmer/lib/runtime" }
+wasmer-runtime-core = { path = "../../../../../Forks/wasmer/lib/runtime-core" }
 assemblylift_core = { package = "assemblylift-core", path = "../../../core"}
 assemblylift_core_event = { package = "assemblylift-core-event", path = "../../../core/event" }

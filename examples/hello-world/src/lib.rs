@@ -11,6 +11,7 @@ pub fn handler() -> i32 {
 
     AwsLambdaClient::console_log("Hello, World!".to_string());
 
+    // TODO await
     database::aws_dynamodb_list_tables();
 
     // AwsLambdaClient::success("OK".to_string());

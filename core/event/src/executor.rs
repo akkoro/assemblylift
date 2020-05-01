@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::ops::{Deref, DerefMut};
-use std::pin::Pin;
 
 use futures::{FutureExt, TryFutureExt};
 use indexmap::map::IndexMap;
@@ -20,7 +19,7 @@ use {
 
 use crate::constants::EVENT_BUFFER_SIZE_BYTES;
 use crate::Event;
-use std::cell::Cell;
+use crossbeam_utils::atomic::AtomicCell;
 
 pub struct Executor {
     ready_queue: Arc<Mutex<Receiver<Arc<Task>>>>,
@@ -41,13 +40,19 @@ impl Executor {
 
     pub fn run(&mut self) {
         while let Ok(task) = (&*self.ready_queue).lock().unwrap().recv() {
+            println!("Got task with event_id: {}", task.event_id);
+
             if let Ok(mut guarded_future) = task.future.lock() {
                 if let Some(mut future) = guarded_future.take() {
                     let waker = waker_ref(&task);
                     let context  = &mut Context::from_waker(&*waker);
 
+                    println!("Polling {}...", task.event_id);
                     if let Poll::Pending = future.as_mut().poll(context) {
+                        println!("TRACE: future still pending");
                         *guarded_future = Some(future);
+                    } else {
+                        println!("TRACE: future ready")
                     }
                 }
             }
@@ -58,14 +63,21 @@ impl Executor {
         self.memory.next_id()
     }
 
-    pub fn spawn_with_event_id(&self, writer: SyncSender<Arc<(usize, u8)>>, future: impl Future<Output=Vec<u8>> + 'static + Send, event_id: u32) {
+    pub fn spawn_with_event_id(&self, writer: Arc<*const AtomicCell<u8>>, future: impl Future<Output=Vec<u8>> + 'static + Send, event_id: u32) {
+        println!("TRACE: spawn_with_event_id");
+
         // clone is fine, as long as we're sure that the addresses aren't stale
         // TODO not sure of performance of clone here though
         let memory = self.memory.clone();
 
+        let mut wr = writer.clone();
+        // FIXME this is suuuuper kludgy
+        let slc = unsafe { std::slice::from_raw_parts(*wr, EVENT_BUFFER_SIZE_BYTES) };
         let with_writer = async move {
+            println!("TRACE: awaiting IO...");
             let serialized = future.await;
-            memory.write_vec_at(writer, serialized, event_id)
+            memory.write_vec_at(slc, serialized, event_id);
+            println!("TRACE: wrote to WASM memory");
         };
 
         self.spawner.spawn(with_writer, event_id)
@@ -79,6 +91,8 @@ struct Spawner {
 
 impl Spawner {
     pub fn spawn(&self, future: impl Future<Output=()> + 'static + Send, event_id: u32) {
+        println!("TRACE: spawn");
+
         let boxed_future = future.boxed();
         let task = Arc::new(Task {
             future: Mutex::new(Some(boxed_future)),
@@ -130,14 +144,16 @@ impl ExecutorMemory {
         Some(next_id)
     }
 
-    pub fn write_vec_at(&self, writer: SyncSender<Arc<(usize, u8)>>, vec: Vec<u8>, event_id: u32) {
+    pub fn write_vec_at(&self, writer: &[AtomicCell<u8>], vec: Vec<u8>, event_id: u32) {
+        println!("TRACE: write_vec_at");
+
         let index = event_id as usize;
         let required_length = vec.len();
 
         let start = self.find_with_length(required_length);
         let end = start + required_length;
         for i in start..end {
-            writer.send(Arc::new((i, vec[i])));
+            writer[i].store(vec[i - start]);
         }
     }
 

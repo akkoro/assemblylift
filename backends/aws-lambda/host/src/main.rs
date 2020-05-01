@@ -14,6 +14,7 @@ use std::str::Utf8Error;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::sync_channel;
 
+use crossbeam_utils::atomic::AtomicCell;
 use crossbeam_utils::thread::scope;
 use wasmer_runtime::{Array, Ctx, Export, Instance, LikeNamespace, WasmPtr};
 use wasmer_runtime::memory::MemoryView;
@@ -50,12 +51,12 @@ fn write_event_buffer(instance: &Instance, event: String) {
         .expect("__al_get_aws_event_string_buffer_pointer");
 
     let event_buffer = get_pointer.call().unwrap();
-    let memory_writer: &[Cell<u8>] = event_buffer
+    let memory_writer: &[AtomicCell<u8>] = event_buffer
         .deref(wasm_instance_memory, 0, event.len() as u32)
         .unwrap();
 
     for (i, b) in event.bytes().enumerate() {
-        memory_writer[i].set(b);
+        memory_writer[i].store(b);
     }
 }
 
@@ -117,7 +118,6 @@ fn main() {
                         "__asml_abi_invoke" => func!(asml_abi_invoke),
                     },
                 };
-                import_object.allow_missing_functions = true;
 
                 instantiate(&buffer[..], &import_object)
                     .map_err(to_io_error)
@@ -126,8 +126,6 @@ fn main() {
     let mut module_registry = &mut ModuleRegistry::new();
     let mut event_executor = Box::new(Executor::new());
 
-    let (sender, receiver) = sync_channel(10_000);
-
     let mut guarded_instance: Option<Arc<Mutex<Instance>>> = None;
     if let Ok(mut instance) = get_instance {
         unsafe {
@@ -135,7 +133,6 @@ fn main() {
                 instance: std::mem::transmute(&instance),
                 module_registry,
                 event_executor: event_executor.as_mut(),
-                memory_writer: &sender
             };
 
             instance.context_mut().data = &mut instance_data as *mut _ as *mut c_void;
@@ -151,32 +148,31 @@ fn main() {
     // init modules -- these will eventually be plugins
     awsio::database::MyModule::register(module_registry);
 
-    std::thread::spawn(move || {
+    let executor_thread = std::thread::spawn(move || {
         event_executor.run()
     });
 
     let instance = guarded_instance.unwrap();
-    loop {
-        LAMBDA_RUNTIME
-            .lock().unwrap()
-            .get_next_event()
-            .and_then(|event| {
+    // loop {
+    //     LAMBDA_RUNTIME
+    //         .lock().unwrap()
+    //         .get_next_event()
+    //         .and_then(|event| {
                 scope(|s| {
                     s.spawn(|_| {
                         let locked = instance.lock().unwrap();
                         write_event_buffer(&locked, "{}".to_string() /* event.event_body */);
                         locked.call(handler_name, &[]);
                     });
-
-                    // TODO receiver
-                    // while let.. {}
                 });
 
                 // all threads spawned in the scope join here automatically
                 // the side-effect of which is that a hang in the handler will block the lambda
                 // runtime loop
 
-                Ok(())
-            });
-    }
+                // Ok(())
+            // });
+    // }
+
+    executor_thread.join();
 }
