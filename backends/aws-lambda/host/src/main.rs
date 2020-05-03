@@ -26,7 +26,7 @@ use wasmer_runtime_core::typed_func::Wasm;
 
 use assemblylift_core::{InstanceData, WasmBufferPtr};
 use assemblylift_core::iomod::*;
-use assemblylift_core_event::executor::Executor;
+use assemblylift_core_event::threader::Threader;
 use assemblylift_core_event::manager::*;
 use runtime::AwsLambdaRuntime;
 
@@ -124,7 +124,7 @@ fn main() {
             });
 
     let mut module_registry = &mut ModuleRegistry::new();
-    let mut event_executor = Box::new(Executor::new());
+    let mut threader = Box::new(Threader::new());
 
     let mut guarded_instance: Option<Arc<Mutex<Instance>>> = None;
     if let Ok(mut instance) = get_instance {
@@ -132,7 +132,7 @@ fn main() {
             let mut instance_data = &mut InstanceData {
                 instance: std::mem::transmute(&instance),
                 module_registry,
-                event_executor: event_executor.as_mut(),
+                threader: threader.as_mut(),
             };
 
             instance.context_mut().data = &mut instance_data as *mut _ as *mut c_void;
@@ -148,8 +148,11 @@ fn main() {
     // init modules -- these will eventually be plugins
     awsio::database::MyModule::register(module_registry);
 
-    let executor_thread = std::thread::spawn(move || {
-        event_executor.run()
+    // how many threads can your threader thread thread?
+    let threader_thread = std::thread::spawn(move || {
+        threader.run_with(async {
+            loop {}
+        })
     });
 
     let instance = guarded_instance.unwrap();
@@ -163,6 +166,7 @@ fn main() {
                         let locked = instance.lock().unwrap();
                         write_event_buffer(&locked, "{}".to_string() /* event.event_body */);
                         locked.call(handler_name, &[]);
+                        println!("TRACE: handler returned");
                     });
                 });
 
@@ -174,5 +178,5 @@ fn main() {
             // });
     // }
 
-    executor_thread.join();
+    threader_thread.join();
 }

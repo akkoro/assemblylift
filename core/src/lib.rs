@@ -16,7 +16,7 @@ use wasmer_runtime_core::module::ExportIndex;
 use wasmer_runtime_core::typed_func::Wasm;
 
 use assemblylift_core_event::Event;
-use assemblylift_core_event::executor::Executor;
+use assemblylift_core_event::threader::Threader;
 use assemblylift_core_event::manager::EventManager;
 
 use crate::iomod::ModuleRegistry;
@@ -30,7 +30,7 @@ pub type WasmBufferPtr = WasmPtr<u8, Array>;
 pub struct InstanceData<'a> {
     pub instance: *mut Instance,
     pub module_registry: &'a mut ModuleRegistry,
-    pub event_executor: &'a mut Executor
+    pub threader: &'a mut Threader
 }
 
 /* Cloud interface */

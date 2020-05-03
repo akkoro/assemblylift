@@ -19,7 +19,7 @@ pub mod database {
     use assemblylift_core::iomod::{IoModule, ModuleRegistry};
     use assemblylift_core_event::*;
     use assemblylift_core_event::constants::EVENT_BUFFER_SIZE_BYTES;
-    use assemblylift_core_event::executor::Executor;
+    use assemblylift_core_event::threader::Threader;
     use assemblylift_core_event::manager::{DynFut, EventManager};
 
     lazy_static! {
@@ -36,7 +36,7 @@ pub mod database {
             limit: None,
         }).await.unwrap();
         //
-        // println!("{:?}", result);
+        println!("{:?}", result);
         vec!['h' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8]
         // bincode::serialize(&result).unwrap()
     }
@@ -51,8 +51,8 @@ pub mod database {
             instance = instance_data.instance.as_ref().unwrap();
         }
 
-        let executor: &mut Executor = instance_data.event_executor.borrow_mut();
-        let event_id = executor.next_event_id().unwrap();
+        let threader: &mut Threader = instance_data.threader.borrow_mut();
+        let event_id = threader.next_event_id().unwrap();
 
         let mut __asml_get_event_buffer_pointer_func: Func<(), WasmBufferPtr> = instance
             .func("__asml_get_event_buffer_pointer")
@@ -64,7 +64,7 @@ pub mod database {
             .deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32)
             .unwrap();
 
-        executor.spawn_with_event_id(Arc::from(&memory_writer[0] as *const AtomicCell<u8>), __aws_dynamodb_list_tables_impl(), event_id);
+        threader.spawn_with_event_id(Arc::from(&memory_writer[0] as *const AtomicCell<u8>), __aws_dynamodb_list_tables_impl(), event_id);
 
         event_id as i32
     }

@@ -7,7 +7,7 @@ extern crate lazy_static;
 
 pub mod constants;
 pub mod builder;
-pub mod executor;
+pub mod threader;
 pub mod manager;
 
 use crate::constants::*;
