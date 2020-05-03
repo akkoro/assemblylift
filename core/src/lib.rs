@@ -15,9 +15,7 @@ use wasmer_runtime_core::backend::SigRegistry;
 use wasmer_runtime_core::module::ExportIndex;
 use wasmer_runtime_core::typed_func::Wasm;
 
-use assemblylift_core_event::Event;
 use assemblylift_core_event::threader::Threader;
-use assemblylift_core_event::manager::EventManager;
 
 use crate::iomod::ModuleRegistry;
 use std::sync::mpsc::SyncSender;

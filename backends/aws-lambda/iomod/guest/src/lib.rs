@@ -1,11 +1,11 @@
-use assemblylift_core_event::*;
+use assemblylift_core_event_guest::*;
 
 extern {
     fn __asml_abi_invoke(ptr: *const u8, len: usize) -> i32;
 }
 
 pub mod database {
-    use assemblylift_core_event::Event;
+    use assemblylift_core_event_guest::Event;
 
     pub fn aws_dynamodb_list_tables() -> Option<Event> {
         let event_id: i32;

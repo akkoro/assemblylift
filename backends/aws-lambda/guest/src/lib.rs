@@ -37,8 +37,4 @@ impl GuestCore for AwsLambdaClient {
     fn success(response: String) {
         unsafe { __al_success(response.as_ptr(), response.len()) }
     }
-
-    fn test(&self) {
-        self.0.get_response();
-    }
 }

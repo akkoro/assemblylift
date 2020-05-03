@@ -27,7 +27,6 @@ use wasmer_runtime_core::typed_func::Wasm;
 use assemblylift_core::{InstanceData, WasmBufferPtr};
 use assemblylift_core::iomod::*;
 use assemblylift_core_event::threader::Threader;
-use assemblylift_core_event::manager::*;
 use runtime::AwsLambdaRuntime;
 
 mod runtime;

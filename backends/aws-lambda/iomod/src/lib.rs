@@ -20,7 +20,6 @@ pub mod database {
     use assemblylift_core_event::*;
     use assemblylift_core_event::constants::EVENT_BUFFER_SIZE_BYTES;
     use assemblylift_core_event::threader::Threader;
-    use assemblylift_core_event::manager::{DynFut, EventManager};
 
     lazy_static! {
         static ref DYNAMODB: DynamoDbClient = DynamoDbClient::new(Region::UsEast1);

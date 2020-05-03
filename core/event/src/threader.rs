@@ -10,7 +10,6 @@ use tokio::prelude::*;
 use tokio::runtime::Runtime;
 
 use crate::constants::EVENT_BUFFER_SIZE_BYTES;
-use crate::Event;
 
 pub struct Threader {
     memory: ExecutorMemory,
@@ -96,6 +95,6 @@ impl ExecutorMemory {
     }
 
     fn find_with_length(&self, length: usize) -> usize {
-        0usize
+        1usize
     }
 }
