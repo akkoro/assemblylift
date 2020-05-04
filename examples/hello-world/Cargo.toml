@@ -10,6 +10,7 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+wasm-bindgen-futures = "0.4.12"
 core_guest = { package = "assemblylift-core-guest", path = "../../core/guest" }
 core_event_guest = { package = "assemblylift-core-event-guest", path = "../../core/event/guest" }
 guest = { package = "assemblylift-awslambda-guest", path = "../../backends/aws-lambda/guest" }

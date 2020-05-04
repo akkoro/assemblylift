@@ -1,5 +1,5 @@
 [package]
-name = "assemblylift-core-event-guest"
+name = "assemblylift-core-event-common"
 version = "0.1.0"
 authors = ["Daniel Cook <xlem@akkoro.io>"]
 edition = "2018"
@@ -7,5 +7,4 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bincode = "1.2.1"
-assemblylift-core-event-common = { path = "../common" }
+serde = { version = "1.0", features = ["derive"]}

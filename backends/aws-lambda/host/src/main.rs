@@ -177,5 +177,5 @@ fn main() {
             // });
     // }
 
-    threader_thread.join();
+    // threader_thread.join();
 }

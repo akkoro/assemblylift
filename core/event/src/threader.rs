@@ -11,6 +11,8 @@ use serde::Serialize;
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
 
+use assemblylift_core_event_common::{EventHandles, EventStatus, NUM_EVENT_HANDLES};
+
 use crate::constants::EVENT_BUFFER_SIZE_BYTES;
 
 pub struct Threader {
@@ -62,11 +64,6 @@ struct Document {
     length: usize
 }
 
-#[derive(Clone, Serialize)]
-struct EventStatus {
-    pub events: [(u32, bool); 20] // this should be sorted by id (u32)
-}
-
 #[derive(Clone)]
 struct ExecutorMemory {
     _next_id: u32,
@@ -79,7 +76,7 @@ impl ExecutorMemory {
         ExecutorMemory {
             _next_id: 1, // id 0 is reserved (null)
             document_map: Default::default(),
-            event_status: EventStatus { events: [(0, false); 20] }
+            event_status: EventStatus([(0, false); NUM_EVENT_HANDLES])
         }
     }
 
@@ -95,6 +92,7 @@ impl ExecutorMemory {
         println!("TRACE: write_vec_at");
 
         let required_length = vec.len();
+        println!("DEBUG: response is {} bytes", required_length);
 
         let start = self.find_with_length(required_length);
         let end = start + required_length;
@@ -102,9 +100,9 @@ impl ExecutorMemory {
             writer[i].store(vec[i - start]);
         }
 
-        for (idx, e) in self.event_status.events.iter().enumerate() {
+        for (idx, e) in self.event_status.0.iter().enumerate() {
             if e.0 == 0 {
-                self.event_status.events[idx] = (event_id, true);
+                self.event_status.0[idx] = (event_id, true);
                 break;
             }
         }
@@ -112,11 +110,14 @@ impl ExecutorMemory {
         if let Ok(serialized_event_status) = serialize(&self.event_status) {
             for i in 0..serialized_event_status.len() {
                 writer[i].store(serialized_event_status[i]);
+                println!("DEBUG: wrote {}", writer[i].load());
             }
         }
     }
 
     fn find_with_length(&self, length: usize) -> usize {
-        1000usize
+        let offset = std::mem::size_of::<EventHandles>();
+        println!("DEBUG: status table is {} bytes", offset);
+        offset
     }
 }

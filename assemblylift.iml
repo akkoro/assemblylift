@@ -86,6 +86,7 @@
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/guest/examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/guest/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/guest/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/core/event/common/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/client-support/target" />
       <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/clientlib/target" />
       <excludeFolder url="file://$MODULE_DIR$/backends/aws-lambda/guest/target" />

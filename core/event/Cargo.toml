@@ -13,4 +13,5 @@ lazy_static = "1.4.0"
 indexmap = "1.3.2"
 crossbeam-utils = "0.7.2"
 bincode = "1.2.1"
-serde = "1.0.106"
+serde = { version = "1.0.106", features = ["derive"]}
+assemblylift-core-event-common = { path = "../../core/event/common" }
