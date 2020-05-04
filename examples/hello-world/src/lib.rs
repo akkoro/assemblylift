@@ -13,7 +13,7 @@ pub fn handler() -> i32 {
     let mut rt = Runtime::new().unwrap();
     rt.block_on(async {
         let ret = database::aws_dynamodb_list_tables().unwrap().await;
-        // AwsLambdaClient::console_log("Tables:".to_string());
+        AwsLambdaClient::console_log("Tables:".to_string());
     });
 
     0

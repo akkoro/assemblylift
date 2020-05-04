@@ -34,10 +34,9 @@ pub mod database {
             exclusive_start_table_name: None,
             limit: None,
         }).await.unwrap();
-        //
+
         println!("{:?}", result);
-        vec!['h' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8]
-        // bincode::serialize(&result).unwrap()
+        bincode::serialize(&result).unwrap()
     }
 
     pub fn aws_dynamodb_list_tables_impl(ctx: &mut vm::Ctx) -> i32 {

@@ -3,9 +3,11 @@ use std::future::Future;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
+use bincode::serialize;
 use crossbeam_utils::atomic::AtomicCell;
 use futures::{FutureExt, TryFutureExt};
 use indexmap::map::IndexMap;
+use serde::Serialize;
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
 
@@ -37,10 +39,10 @@ impl Threader {
 
         // clone is fine, as long as we're sure that the addresses aren't stale
         // TODO not sure of performance of clone here though
-        let memory = self.memory.clone();
+        let mut memory = self.memory.clone();
 
-        let mut wr = writer.clone();
         // FIXME this is suuuuper kludgy
+        let mut wr = writer.clone();
         let slc = unsafe { std::slice::from_raw_parts(*wr, EVENT_BUFFER_SIZE_BYTES) };
 
         self.runtime.spawn(async move {
@@ -60,20 +62,28 @@ struct Document {
     length: usize
 }
 
+#[derive(Clone, Serialize)]
+struct EventStatus {
+    pub events: [(u32, bool); 20] // this should be sorted by id (u32)
+}
+
 #[derive(Clone)]
 struct ExecutorMemory {
     _next_id: u32,
-    document_map: IndexMap<usize, Document>
+    document_map: IndexMap<usize, Document>,
+    event_status: EventStatus,
 }
 
 impl ExecutorMemory {
     pub fn new() -> Self {
         ExecutorMemory {
-            _next_id: 0,
-            document_map: Default::default()
+            _next_id: 1, // id 0 is reserved (null)
+            document_map: Default::default(),
+            event_status: EventStatus { events: [(0, false); 20] }
         }
     }
 
+    // TODO this needs to be smarter if there's going to be a finite number of handles
     pub fn next_id(&mut self) -> Option<u32> {
         let next_id = self._next_id.clone();
         self._next_id += 1;
@@ -81,10 +91,9 @@ impl ExecutorMemory {
         Some(next_id)
     }
 
-    pub fn write_vec_at(&self, writer: &[AtomicCell<u8>], vec: Vec<u8>, event_id: u32) {
+    pub fn write_vec_at(&mut self, writer: &[AtomicCell<u8>], vec: Vec<u8>, event_id: u32) {
         println!("TRACE: write_vec_at");
 
-        let index = event_id as usize;
         let required_length = vec.len();
 
         let start = self.find_with_length(required_length);
@@ -92,9 +101,22 @@ impl ExecutorMemory {
         for i in start..end {
             writer[i].store(vec[i - start]);
         }
+
+        for (idx, e) in self.event_status.events.iter().enumerate() {
+            if e.0 == 0 {
+                self.event_status.events[idx] = (event_id, true);
+                break;
+            }
+        }
+
+        if let Ok(serialized_event_status) = serialize(&self.event_status) {
+            for i in 0..serialized_event_status.len() {
+                writer[i].store(serialized_event_status[i]);
+            }
+        }
     }
 
     fn find_with_length(&self, length: usize) -> usize {
-        1usize
+        1000usize
     }
 }

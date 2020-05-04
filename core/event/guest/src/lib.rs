@@ -42,6 +42,6 @@ impl Future for Event {
         //     }
         // }
         self.waker = Some(cx.waker().clone());
-        Poll::Pending
+        Poll::Ready(())
     }
 }
