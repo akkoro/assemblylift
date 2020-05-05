@@ -8,4 +8,8 @@ edition = "2018"
 
 [dependencies]
 bincode = "1.2.1"
+futures = "0.3.4"
+lazy_static = "1.4.0"
+embedded-executor = { path = "../../../../../Forks/embedded-executor" }
+lock_api = "0.3.4"
 assemblylift-core-event-common = { path = "../common" }

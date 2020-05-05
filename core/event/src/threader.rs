@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{SyncSender, Receiver, sync_channel};
 
 use bincode::serialize;
 use crossbeam_utils::atomic::AtomicCell;
@@ -14,6 +15,7 @@ use tokio::runtime::Runtime;
 use assemblylift_core_event_common::{EventHandles, EventStatus, NUM_EVENT_HANDLES};
 
 use crate::constants::EVENT_BUFFER_SIZE_BYTES;
+use std::borrow::Borrow;
 
 pub struct Threader {
     memory: ExecutorMemory,
@@ -28,19 +30,17 @@ impl Threader {
         }
     }
 
-    pub fn run_with(&mut self, root: impl Future<Output=()>) {
-        self.runtime.block_on(root)
-    }
-
     pub fn next_event_id(&mut self) -> Option<u32> {
         self.memory.next_id()
     }
 
-    pub fn spawn_with_event_id(&self, writer: Arc<*const AtomicCell<u8>>, future: impl Future<Output=Vec<u8>> + 'static + Send, event_id: u32) {
+    pub fn is_event_ready(&self, event_id: u32) -> bool {
+        self.memory.is_ready(event_id)
+    }
+
+    pub fn spawn_with_event_id(&mut self, writer: Arc<*const AtomicCell<u8>>, future: impl Future<Output=Vec<u8>> + 'static + Send, event_id: u32) {
         println!("TRACE: spawn_with_event_id");
 
-        // clone is fine, as long as we're sure that the addresses aren't stale
-        // TODO not sure of performance of clone here though
         let mut memory = self.memory.clone();
 
         // FIXME this is suuuuper kludgy
@@ -50,8 +50,9 @@ impl Threader {
         self.runtime.spawn(async move {
             println!("TRACE: awaiting IO...");
             let serialized = future.await;
+            println!("TRACE: IO complete");
+
             memory.write_vec_at(slc, serialized, event_id);
-            println!("TRACE: wrote to WASM memory");
         });
 
         ()
@@ -88,6 +89,16 @@ impl ExecutorMemory {
         Some(next_id)
     }
 
+    pub fn is_ready(&self, event_id: u32) -> bool {
+        for evt in self.event_status.0.iter() {
+            if evt.0 == event_id {
+                return evt.1;
+            }
+        }
+
+        false
+    }
+
     pub fn write_vec_at(&mut self, writer: &[AtomicCell<u8>], vec: Vec<u8>, event_id: u32) {
         println!("TRACE: write_vec_at");
 
@@ -110,7 +121,6 @@ impl ExecutorMemory {
         if let Ok(serialized_event_status) = serialize(&self.event_status) {
             for i in 0..serialized_event_status.len() {
                 writer[i].store(serialized_event_status[i]);
-                println!("DEBUG: wrote {}", writer[i].load());
             }
         }
     }

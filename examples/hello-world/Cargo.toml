@@ -10,12 +10,8 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-wasm-bindgen-futures = "0.4.12"
+direct-executor = "0.3.0"
 core_guest = { package = "assemblylift-core-guest", path = "../../core/guest" }
 core_event_guest = { package = "assemblylift-core-event-guest", path = "../../core/event/guest" }
 guest = { package = "assemblylift-awslambda-guest", path = "../../backends/aws-lambda/guest" }
 awsio = { package = "assemblylift-awslambda-iomod-guest", path = "../../backends/aws-lambda/iomod/guest" }
-
-[dependencies.tokio]
-version = "0.2.20"
-features = ["rt-core", "rt-util"]

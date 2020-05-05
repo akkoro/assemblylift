@@ -1,9 +1,10 @@
 extern crate guest;
+extern crate core_event_guest;
 use awsio::*;
 use guest::*;
 use core_guest::*;
 
-use wasm_bindgen_futures::spawn_local;
+use direct_executor::run_spinning;
 
 #[no_mangle]
 pub fn handler() -> i32 {
@@ -12,9 +13,19 @@ pub fn handler() -> i32 {
     let _client = AwsLambdaClient::new();
     let _event = get_lambda_event();
 
-    spawn_local(async {
+    // let mut exec = EventExecutor::new();
+
+    // exec.spawn(async {
+    //     AwsLambdaClient::console_log("Calling...".to_string());
+    //     database::aws_dynamodb_list_tables().unwrap().await;
+    //     AwsLambdaClient::console_log("IO complete!".to_string());
+    // });
+
+    // exec.run();
+
+    run_spinning(async {
         AwsLambdaClient::console_log("Calling...".to_string());
-        let ret = database::aws_dynamodb_list_tables().unwrap().await;
+        database::aws_dynamodb_list_tables().unwrap().await;
         AwsLambdaClient::console_log("IO complete!".to_string());
     });
 

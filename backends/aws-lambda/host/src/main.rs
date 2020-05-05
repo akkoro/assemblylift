@@ -28,6 +28,7 @@ use assemblylift_core::{InstanceData, WasmBufferPtr};
 use assemblylift_core::iomod::*;
 use assemblylift_core_event::threader::Threader;
 use runtime::AwsLambdaRuntime;
+use assemblylift_core_event::constants::EVENT_BUFFER_SIZE_BYTES;
 
 mod runtime;
 
@@ -115,6 +116,7 @@ fn main() {
                         "__al_console_log" => func!(runtime_console_log),
                         "__al_success" => func!(runtime_success),
                         "__asml_abi_invoke" => func!(asml_abi_invoke),
+                        "__asml_abi_poll" => func!(asml_abi_poll),
                     },
                 };
 
@@ -122,11 +124,10 @@ fn main() {
                     .map_err(to_io_error)
             });
 
-    let mut module_registry = &mut ModuleRegistry::new();
-    let mut threader = Box::new(Threader::new());
-
-    let mut guarded_instance: Option<Arc<Mutex<Instance>>> = None;
     if let Ok(mut instance) = get_instance {
+        let mut module_registry = &mut ModuleRegistry::new();
+        let mut threader = Box::new(Threader::new());
+
         unsafe {
             let mut instance_data = &mut InstanceData {
                 instance: std::mem::transmute(&instance),
@@ -137,45 +138,30 @@ fn main() {
             instance.context_mut().data = &mut instance_data as *mut _ as *mut c_void;
         }
 
-        guarded_instance = Some(Arc::new(Mutex::new(instance)));
+        let guarded_instance = Mutex::new(instance);
+
+        // init modules -- these will eventually be plugins
+        awsio::database::MyModule::register(module_registry);
+        // loop {
+        //     LAMBDA_RUNTIME
+        //         .lock().unwrap()
+        //         .get_next_event()
+        //         .and_then(|event| {
+        scope(|s| {
+            s.spawn(|_| {
+                let locked = guarded_instance.lock().unwrap();
+                write_event_buffer(&locked, "{}".to_string() /* event.event_body */);
+                locked.call(handler_name, &[]);
+                println!("TRACE: handler returned");
+            });
+        });
+
+        // all threads spawned in the scope join here automatically
+        // the side-effect of which is that a hang in the handler will block the lambda
+        // runtime loop
+
+        // Ok(())
+        // });
+        // }
     }
-
-    if let None = guarded_instance {
-        panic!("unable to create mutex for instance")
-    }
-
-    // init modules -- these will eventually be plugins
-    awsio::database::MyModule::register(module_registry);
-
-    // how many threads can your threader thread thread?
-    let threader_thread = std::thread::spawn(move || {
-        threader.run_with(async {
-            loop {}
-        })
-    });
-
-    let instance = guarded_instance.unwrap();
-    // loop {
-    //     LAMBDA_RUNTIME
-    //         .lock().unwrap()
-    //         .get_next_event()
-    //         .and_then(|event| {
-                scope(|s| {
-                    s.spawn(|_| {
-                        let locked = instance.lock().unwrap();
-                        write_event_buffer(&locked, "{}".to_string() /* event.event_body */);
-                        locked.call(handler_name, &[]);
-                        println!("TRACE: handler returned");
-                    });
-                });
-
-                // all threads spawned in the scope join here automatically
-                // the side-effect of which is that a hang in the handler will block the lambda
-                // runtime loop
-
-                // Ok(())
-            // });
-    // }
-
-    // threader_thread.join();
 }
