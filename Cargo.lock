@@ -75,6 +75,7 @@ name = "assemblylift-core"
 version = "0.1.0"
 dependencies = [
  "assemblylift-core-event 0.1.0",
+ "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "wasmer-runtime 0.16.2",
  "wasmer-runtime-core 0.16.2",
 ]

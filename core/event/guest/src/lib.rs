@@ -67,9 +67,9 @@ impl<'a, R: Deserialize<'a>> Future for Event<'_, R> {
 
 unsafe fn read_response<'a, R: Deserialize<'a>>(id: u32) -> Option<R> {
     let ptr = __asml_abi_event_ptr(id) as usize;
-    let len = ptr + __asml_abi_event_len(id) as usize;
+    let end = __asml_abi_event_len(id) as usize + ptr;
 
-    if let Ok(response) = deserialize::<R>(&EVENT_BUFFER[ptr..len]) {
+    if let Ok(response) = deserialize::<R>(&EVENT_BUFFER[ptr..end]) {
         return Some(response);
     }
 

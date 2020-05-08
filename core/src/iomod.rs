@@ -13,6 +13,10 @@ use wasmer_runtime_core::{DynFunc, structures::TypedIndex, types::TableIndex, vm
 
 use crate::InstanceData;
 
+lazy_static! {
+    pub static ref MODULE_REGISTRY: Mutex<ModuleRegistry> = Mutex::new(ModuleRegistry::new());
+}
+
 fn to_io_error<E: Error>(err: E) -> io::Error {
     io::Error::new(ErrorKind::Other, err.to_string())
 }
@@ -43,14 +47,9 @@ pub fn asml_abi_invoke(ctx: &mut vm::Ctx, ptr: u32, len: u32) -> i32 {
         let name = coord_vec[2];
         println!("  with coordinates: {:?}", coord_vec);
 
-        let mut instance_data: &mut InstanceData;
-        unsafe {
-            instance_data = *ctx.data.cast::<&mut InstanceData>();
-        }
-
         // MUSTDO assert instance_data is valid
 
-        return instance_data.module_registry.modules[org][namespace][name](ctx);
+        return MODULE_REGISTRY.lock().unwrap().modules[org][namespace][name](ctx);
     }
 
     println!("ERROR: asml_abi_invoke error");

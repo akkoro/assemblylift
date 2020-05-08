@@ -26,18 +26,15 @@ use wasmer_runtime_core::typed_func::Wasm;
 
 use assemblylift_core::{InstanceData, WasmBufferPtr};
 use assemblylift_core::iomod::*;
+use assemblylift_core_event::constants::EVENT_BUFFER_SIZE_BYTES;
 use assemblylift_core_event::threader::Threader;
 use runtime::AwsLambdaRuntime;
-use assemblylift_core_event::constants::EVENT_BUFFER_SIZE_BYTES;
 
 mod runtime;
+mod wasm;
 
 lazy_static! {
     pub static ref LAMBDA_RUNTIME: Mutex<AwsLambdaRuntime> = Mutex::new(AwsLambdaRuntime::new());
-}
-
-fn to_io_error<E: Error>(err: E) -> io::Error {
-    io::Error::new(ErrorKind::Other, err.to_string())
 }
 
 fn write_event_buffer(instance: &Instance, event: String) {
@@ -60,34 +57,6 @@ fn write_event_buffer(instance: &Instance, event: String) {
     }
 }
 
-fn runtime_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Error> {
-    let memory = ctx.memory(0);
-    let view: MemoryView<u8> = memory.view();
-
-    let mut str_vec: Vec<u8> = Vec::new();
-    for byte in view[ptr as usize .. (ptr + len) as usize].iter().map(Cell::get) {
-        str_vec.push(byte);
-    }
-
-    std::str::from_utf8(str_vec.as_slice())
-        .map(String::from)
-        .map_err(to_io_error)
-}
-
-fn runtime_console_log(ctx: &mut Ctx, ptr: u32, len: u32) {
-    let string = runtime_ptr_to_string(ctx, ptr, len).unwrap();
-    println!("LOG: {}", string);
-}
-
-fn runtime_success(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<(), io::Error> {
-    unsafe {
-        let lambda_runtime = LAMBDA_RUNTIME.lock().unwrap();
-        let request_id = lambda_runtime.current_request_id.borrow().clone();
-        let response = runtime_ptr_to_string(ctx, ptr, len).unwrap();
-        lambda_runtime.respond(request_id, response.to_string())
-    }
-}
-
 fn main() {
     // let panic if these aren't set
     let handler_coordinates = env::var("_HANDLER").unwrap();
@@ -97,53 +66,11 @@ fn main() {
 
     // handler coordinates are expected to be <file name>.<function name>
     let coords =  handler_coordinates.split(".").collect::<Vec<&str>>();
-    let file_name = coords[0];
     let handler_name = coords[1];
 
-    let mut get_instance =
-        canonicalize(format!("{}/{}.wasm", lambda_path, file_name))
-            .and_then(|path| File::open(path))
-            .and_then(|mut file: File| {
-                let mut buffer = Vec::new();
-                file.read_to_end(&mut buffer)
-                    .map(move |_| buffer)
-                    .map_err(to_io_error)
-            })
-            .and_then(|buffer| {
-                use wasmer_runtime::{instantiate, func, imports};
-                let mut import_object = imports! {
-                    "env" => {
-                        "__asml_abi_console_log" => func!(runtime_console_log),
-                        "__asml_abi_success" => func!(runtime_success),
-                        "__asml_abi_invoke" => func!(asml_abi_invoke),
-                        "__asml_abi_poll" => func!(asml_abi_poll),
-                        "__asml_abi_event_ptr" => func!(asml_abi_event_ptr),
-                        "__asml_abi_event_len" => func!(asml_abi_event_len),
-                    },
-                };
-
-                instantiate(&buffer[..], &import_object)
-                    .map_err(to_io_error)
-            });
-
-    if let Ok(mut instance) = get_instance {
-        let mut module_registry = &mut ModuleRegistry::new();
-        let mut threader = &mut Threader::new();
-
-        unsafe {
-            let mut instance_data = &mut InstanceData {
-                instance: std::mem::transmute(&instance),
-                module_registry,
-                threader,
-            };
-
-            instance.context_mut().data = &mut instance_data as *mut _ as *mut c_void;
-        }
-
-        let guarded_instance = Mutex::new(instance);
-
+    if let Ok(mut instance) = wasm::build_instance() {
         // init modules -- these will eventually be plugins
-        awsio::database::MyModule::register(module_registry);
+        awsio::database::MyModule::register(&mut MODULE_REGISTRY.lock().unwrap());
 
         // loop {
         //     LAMBDA_RUNTIME
@@ -152,7 +79,8 @@ fn main() {
         //         .and_then(|event| {
         scope(|s| {
             s.spawn(|_| {
-                let locked = guarded_instance.lock().unwrap();
+                let locked = instance.lock().unwrap();
+
                 write_event_buffer(&locked, "{}".to_string() /* event.event_body */);
                 locked.call(handler_name, &[]);
                 println!("TRACE: handler returned");

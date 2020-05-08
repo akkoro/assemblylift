@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate lazy_static;
 extern crate assemblylift_core_event;
 
 use std::any::Any;
@@ -26,7 +28,7 @@ pub mod iomod;
 pub type WasmBufferPtr = WasmPtr<u8, Array>;
 
 pub struct InstanceData<'a> {
-    pub instance: *mut Instance,
+    pub instance: *mut c_void,
     pub module_registry: &'a mut ModuleRegistry,
     pub threader: &'a mut Threader
 }
