@@ -13,8 +13,8 @@ pub fn __al_get_aws_event_string_buffer_pointer() -> *const u8 {
 
 // these are provided BY the wasm runtime (host)
 extern {
-    fn __al_console_log(ptr: *const u8, len: usize);
-    fn __al_success(ptr: *const u8, len: usize);
+    fn __asml_abi_console_log(ptr: *const u8, len: usize);
+    fn __asml_abi_success(ptr: *const u8, len: usize);
 }
 
 pub fn get_lambda_event() -> String {
@@ -31,10 +31,10 @@ impl AwsLambdaClient {
 
 impl GuestCore for AwsLambdaClient {
     fn console_log(message: String) {
-        unsafe { __al_console_log(message.as_ptr(), message.len()) }
+        unsafe { __asml_abi_console_log(message.as_ptr(), message.len()) }
     }
 
     fn success(response: String) {
-        unsafe { __al_success(response.as_ptr(), response.len()) }
+        unsafe { __asml_abi_success(response.as_ptr(), response.len()) }
     }
 }

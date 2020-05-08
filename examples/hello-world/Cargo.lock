@@ -13,6 +13,7 @@ name = "assemblylift-awslambda-iomod-guest"
 version = "0.1.0"
 dependencies = [
  "assemblylift-core-event-guest",
+ "serde",
 ]
 
 [[package]]
@@ -28,10 +29,9 @@ version = "0.1.0"
 dependencies = [
  "assemblylift-core-event-common",
  "bincode",
- "embedded-executor",
  "futures",
  "lazy_static",
- "lock_api",
+ "serde",
 ]
 
 [[package]]
@@ -55,27 +55,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08c48aae112d48ed9f069b33538ea9e3e90aa263cfa3d1c24309612b1f7472de"
 
 [[package]]
-name = "cfg-if"
-version = "0.1.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
-
-[[package]]
 name = "direct-executor"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ef2a1d8bd8587501e47ad4462e0f8f4df40d127091c6f9f57bdbd59f8fbbf8d"
 dependencies = [
  "pin-utils",
-]
-
-[[package]]
-name = "embedded-executor"
-version = "0.5.0"
-dependencies = [
- "futures",
- "generational-arena",
- "lock_api",
 ]
 
 [[package]]
@@ -170,15 +155,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "generational-arena"
-version = "0.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e40d0cee2e2fb4fba18b55a27bf96faf49fa86d49f178695bd3bf4500b156b4"
-dependencies = [
- "cfg-if",
-]
-
-[[package]]
 name = "hello-world"
 version = "0.1.0"
 dependencies = [
@@ -194,15 +170,6 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
-
-[[package]]
-name = "lock_api"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4da24a77a3d8a6d4862d95f72e6fdb9c09a643ecdb402d754004a557f2bec75"
-dependencies = [
- "scopeguard",
-]
 
 [[package]]
 name = "memchr"
@@ -245,12 +212,6 @@ checksum = "4c1f4b0efa5fc5e8ceb705136bfee52cfdb6a4e3509f770b478cd6ed434232a7"
 dependencies = [
  "proc-macro2",
 ]
-
-[[package]]
-name = "scopeguard"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "serde"

@@ -113,10 +113,12 @@ fn main() {
                 use wasmer_runtime::{instantiate, func, imports};
                 let mut import_object = imports! {
                     "env" => {
-                        "__al_console_log" => func!(runtime_console_log),
-                        "__al_success" => func!(runtime_success),
+                        "__asml_abi_console_log" => func!(runtime_console_log),
+                        "__asml_abi_success" => func!(runtime_success),
                         "__asml_abi_invoke" => func!(asml_abi_invoke),
                         "__asml_abi_poll" => func!(asml_abi_poll),
+                        "__asml_abi_event_ptr" => func!(asml_abi_event_ptr),
+                        "__asml_abi_event_len" => func!(asml_abi_event_len),
                     },
                 };
 
@@ -126,13 +128,13 @@ fn main() {
 
     if let Ok(mut instance) = get_instance {
         let mut module_registry = &mut ModuleRegistry::new();
-        let mut threader = Box::new(Threader::new());
+        let mut threader = &mut Threader::new();
 
         unsafe {
             let mut instance_data = &mut InstanceData {
                 instance: std::mem::transmute(&instance),
                 module_registry,
-                threader: threader.as_mut(),
+                threader,
             };
 
             instance.context_mut().data = &mut instance_data as *mut _ as *mut c_void;
@@ -142,6 +144,7 @@ fn main() {
 
         // init modules -- these will eventually be plugins
         awsio::database::MyModule::register(module_registry);
+
         // loop {
         //     LAMBDA_RUNTIME
         //         .lock().unwrap()

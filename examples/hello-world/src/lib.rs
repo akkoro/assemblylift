@@ -13,20 +13,11 @@ pub fn handler() -> i32 {
     let _client = AwsLambdaClient::new();
     let _event = get_lambda_event();
 
-    // let mut exec = EventExecutor::new();
-
-    // exec.spawn(async {
-    //     AwsLambdaClient::console_log("Calling...".to_string());
-    //     database::aws_dynamodb_list_tables().unwrap().await;
-    //     AwsLambdaClient::console_log("IO complete!".to_string());
-    // });
-
-    // exec.run();
-
     run_spinning(async {
         AwsLambdaClient::console_log("Calling...".to_string());
-        database::aws_dynamodb_list_tables().unwrap().await;
+        let ret = database::aws_dynamodb_list_tables().await;
         AwsLambdaClient::console_log("IO complete!".to_string());
+        AwsLambdaClient::console_log(format!("Got {:?}", ret).to_string());
     });
 
     0

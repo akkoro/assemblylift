@@ -28,14 +28,11 @@ pub mod database {
     async fn __aws_dynamodb_list_tables_impl() -> Vec<u8> {
         println!("TRACE: __aws_dynamodb_list_tables_impl");
 
-        // async_std::task::sleep(std::time::Duration::from_secs(1)).await;
-
         let result = DYNAMODB.list_tables(ListTablesInput {
             exclusive_start_table_name: None,
             limit: None,
         }).await.unwrap();
 
-        println!("{:?}", result);
         bincode::serialize(&result).unwrap()
     }
 

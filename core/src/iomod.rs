@@ -35,7 +35,7 @@ impl ModuleRegistry {
 }
 
 pub fn asml_abi_invoke(ctx: &mut vm::Ctx, ptr: u32, len: u32) -> i32 {
-    println!("asml_abi_invoke called");
+    println!("TRACE: asml_abi_invoke called");
     if let Ok(coords) = ctx_ptr_to_string(ctx, ptr, len) {
         let coord_vec = coords.split(".").collect::<Vec<&str>>();
         let org = coord_vec[0];
@@ -53,17 +53,34 @@ pub fn asml_abi_invoke(ctx: &mut vm::Ctx, ptr: u32, len: u32) -> i32 {
         return instance_data.module_registry.modules[org][namespace][name](ctx);
     }
 
-    println!("asml_abi_invoke error");
+    println!("ERROR: asml_abi_invoke error");
     -1i32 // error
 }
 
 pub fn asml_abi_poll(ctx: &mut vm::Ctx, id: u32) -> i32 {
+    let mut instance_data = get_instance_data(ctx);
+    instance_data.threader.is_event_ready(id) as i32
+}
+
+pub fn asml_abi_event_ptr(ctx: &mut vm::Ctx, id: u32) -> u32 {
+    let mut instance_data = get_instance_data(ctx);
+    instance_data.threader.get_event_memory_document(id).unwrap().start as u32
+}
+
+pub fn asml_abi_event_len(ctx: &mut vm::Ctx, id: u32) -> u32 {
+    let mut instance_data = get_instance_data(ctx);
+    instance_data.threader.get_event_memory_document(id).unwrap().length as u32
+}
+
+#[inline]
+fn get_instance_data(ctx: &mut vm::Ctx) -> &mut InstanceData {
+    // TODO check null and return option or result
     let mut instance_data: &mut InstanceData;
     unsafe {
         instance_data = *ctx.data.cast::<&mut InstanceData>();
     }
 
-    instance_data.threader.is_event_ready(id) as i32
+    instance_data
 }
 
 fn ctx_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Error> {

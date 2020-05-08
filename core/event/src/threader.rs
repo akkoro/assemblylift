@@ -1,8 +1,9 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::future::Future;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
-use std::sync::mpsc::{SyncSender, Receiver, sync_channel};
+use std::sync::mpsc::{Receiver, sync_channel, SyncSender};
 
 use bincode::serialize;
 use crossbeam_utils::atomic::AtomicCell;
@@ -12,36 +13,60 @@ use serde::Serialize;
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
 
-use assemblylift_core_event_common::{EventHandles, EventStatus, NUM_EVENT_HANDLES};
+use assemblylift_core_event_common::{EventHandles, EventMemoryDocument, EventStatus, NUM_EVENT_HANDLES};
 
 use crate::constants::EVENT_BUFFER_SIZE_BYTES;
-use std::borrow::Borrow;
+use std::collections::hash_map::Entry::Occupied;
+use std::time::Duration;
+
+lazy_static! {
+    static ref EVENT_MEMORY: Mutex<EventMemory> = Mutex::new(EventMemory::new());
+}
 
 pub struct Threader {
-    memory: ExecutorMemory,
+    memory: Arc<Mutex<EventMemory>>,
     runtime: Runtime,
 }
 
 impl Threader {
     pub fn new() -> Self {
         Threader {
-            memory: ExecutorMemory::new(),
+            memory: Arc::new(Mutex::new(EventMemory::new())),
             runtime: Runtime::new().unwrap(),
         }
     }
 
     pub fn next_event_id(&mut self) -> Option<u32> {
-        self.memory.next_id()
+        match EVENT_MEMORY.lock() {
+            Ok(mut memory) => memory.next_id(),
+            Err(_) => None
+        }
     }
 
     pub fn is_event_ready(&self, event_id: u32) -> bool {
-        self.memory.is_ready(event_id)
+        match EVENT_MEMORY.lock() {
+            Ok(mut memory) => memory.is_ready(event_id),
+            Err(_) => false
+        }
+    }
+
+    pub fn get_event_memory_document(&mut self, event_id: u32) -> Option<EventMemoryDocument> {
+        println!("TRACE: get_event_memory_document event_id={}", event_id);
+        match EVENT_MEMORY.lock() {
+            Ok(mut memory) => {
+                println!("DEBUG: num keys in document map: {}", memory.document_map.keys().len());
+                match memory.document_map.get(&event_id) {
+                    Some(doc) => Some(doc.clone()),
+                    None => None
+                }
+            },
+            Err(_) => None
+        }
+
     }
 
     pub fn spawn_with_event_id(&mut self, writer: Arc<*const AtomicCell<u8>>, future: impl Future<Output=Vec<u8>> + 'static + Send, event_id: u32) {
         println!("TRACE: spawn_with_event_id");
-
-        let mut memory = self.memory.clone();
 
         // FIXME this is suuuuper kludgy
         let mut wr = writer.clone();
@@ -52,36 +77,26 @@ impl Threader {
             let serialized = future.await;
             println!("TRACE: IO complete");
 
-            memory.write_vec_at(slc, serialized, event_id);
+            EVENT_MEMORY.lock().unwrap().write_vec_at(slc, serialized, event_id);
         });
-
-        ()
     }
 }
 
-#[derive(Clone)]
-struct Document {
-    start: usize,
-    length: usize
-}
-
-#[derive(Clone)]
-struct ExecutorMemory {
+struct EventMemory {
     _next_id: u32,
-    document_map: IndexMap<usize, Document>,
+    document_map: HashMap<u32, EventMemoryDocument>,
     event_status: EventStatus,
 }
 
-impl ExecutorMemory {
+impl EventMemory {
     pub fn new() -> Self {
-        ExecutorMemory {
+        EventMemory {
             _next_id: 1, // id 0 is reserved (null)
             document_map: Default::default(),
-            event_status: EventStatus([(0, false); NUM_EVENT_HANDLES])
+            event_status: EventStatus([(0, false); NUM_EVENT_HANDLES]) // TODO I think this can be a map now
         }
     }
 
-    // TODO this needs to be smarter if there's going to be a finite number of handles
     pub fn next_id(&mut self) -> Option<u32> {
         let next_id = self._next_id.clone();
         self._next_id += 1;
@@ -102,6 +117,7 @@ impl ExecutorMemory {
     pub fn write_vec_at(&mut self, writer: &[AtomicCell<u8>], vec: Vec<u8>, event_id: u32) {
         println!("TRACE: write_vec_at");
 
+        // Serialize the response
         let required_length = vec.len();
         println!("DEBUG: response is {} bytes", required_length);
 
@@ -110,24 +126,22 @@ impl ExecutorMemory {
         for i in start..end {
             writer[i].store(vec[i - start]);
         }
+        println!("TRACE: stored response");
 
+        // Update document map
+        self.document_map.insert(event_id, EventMemoryDocument { start, length: end });
+        println!("TRACE: updated document map id={} start={} end={}", event_id, start, end);
+
+        // Update event status table
         for (idx, e) in self.event_status.0.iter().enumerate() {
             if e.0 == 0 {
                 self.event_status.0[idx] = (event_id, true);
                 break;
             }
         }
-
-        if let Ok(serialized_event_status) = serialize(&self.event_status) {
-            for i in 0..serialized_event_status.len() {
-                writer[i].store(serialized_event_status[i]);
-            }
-        }
     }
 
     fn find_with_length(&self, length: usize) -> usize {
-        let offset = std::mem::size_of::<EventHandles>();
-        println!("DEBUG: status table is {} bytes", offset);
-        offset
+        0
     }
 }
