@@ -43,19 +43,19 @@ pub mod database {
         println!("TRACE: Called aws_dynamodb_list_tables_impl");
 
         let mut instance_data: &mut InstanceData;
-        let mut instance: Box<Instance>;
+        let memory_writer: Arc<*const AtomicCell<u8>>;
         unsafe {
             instance_data = *ctx.data.cast::<&mut InstanceData>();
-            instance = std::mem::transmute(instance_data.instance);
+            // memory_writer = instance_data.memory_writer;
         }
 
-        let threader: &mut Threader = instance_data.threader.borrow_mut();
+        let mut threader = unsafe { instance_data.threader.as_mut().unwrap() };
         let event_id = threader.next_event_id().unwrap();
 
-        println!("TRACE: building wasm memory writer");
-        let mut __asml_get_event_buffer_pointer_func: Func<(), WasmBufferPtr> = instance
-            .func("__asml_get_event_buffer_pointer")
-            .expect("__asml_get_event_buffer_pointer");
+        // println!("TRACE: building wasm memory writer");
+        // let mut __asml_get_event_buffer_pointer_func: Func<(), WasmBufferPtr> = instance.exports
+        //     .get("__asml_get_event_buffer_pointer")
+        //     .expect("__asml_get_event_buffer_pointer");
 
         // let wasm_instance_memory = ctx.memory(0);
         // let event_buffer = __asml_get_event_buffer_pointer_func.call().unwrap();
@@ -65,6 +65,10 @@ pub mod database {
 
         println!("TRACE: spawning event for aws_dynamodb_list_tables_impl");
         // threader.spawn_with_event_id(Arc::from(&memory_writer[0] as *const AtomicCell<u8>), __aws_dynamodb_list_tables_impl(), event_id);
+        threader.spawn_with_event_id(instance_data.memory_writer, __aws_dynamodb_list_tables_impl(), event_id);
+
+        // (*instance_data.memory_writer.clone() as &[AtomicCell<u8>])[0].store(42u8);
+        // println!("VALUE: {}", (*instance_data.memory_writer as &[AtomicCell<u8>])[0].load());
 
         event_id as i32
     }

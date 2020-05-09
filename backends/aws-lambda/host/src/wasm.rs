@@ -8,11 +8,14 @@ use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime_core::Instance;
 use wasmer_runtime_core::vm::Ctx;
 
-use assemblylift_core::InstanceData;
+use assemblylift_core::{InstanceData, WasmBufferPtr};
 use assemblylift_core::iomod::*;
 use assemblylift_core_event::threader::Threader;
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc};
 use std::ffi::c_void;
+use assemblylift_core_event::constants::EVENT_BUFFER_SIZE_BYTES;
+use crossbeam_utils::atomic::AtomicCell;
+use wasmer_runtime::Func;
 
 pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
     // let panic if these aren't set
@@ -50,19 +53,24 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
 
     match get_instance {
         Ok(mut instance) => {
-            let mut module_registry = &mut ModuleRegistry::new();
             let mut threader = &mut Threader::new();
 
             let mut boxed_instance = Box::new(instance);
 
-            unsafe {
-                let mut instance_data = &mut InstanceData {
-                    // instance: std::mem::transmute(&instance),
-                    instance: &mut boxed_instance as *mut _ as *mut c_void,
-                    module_registry,
-                    threader,
-                };
+            println!("TRACE: building wasm memory writer");
+            let mut __asml_get_event_buffer_pointer_func: Func<(), WasmBufferPtr> = boxed_instance.exports
+                .get("__asml_get_event_buffer_pointer")
+                .expect("__asml_get_event_buffer_pointer");
 
+            let ctx = boxed_instance.context();
+            let wasm_instance_memory = ctx.memory(0);
+            let event_buffer = __asml_get_event_buffer_pointer_func.call().unwrap();
+            let memory_writer: &[AtomicCell<u8>] = event_buffer
+                .deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32)
+                .unwrap();
+
+            unsafe {
+                let mut instance_data = &mut InstanceData { threader, memory_writer: &memory_writer[0] as *const AtomicCell<u8> };
                 boxed_instance.context_mut().data = &mut instance_data as *mut _ as *mut c_void;
             }
 

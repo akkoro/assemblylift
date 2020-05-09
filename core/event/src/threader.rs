@@ -65,12 +65,12 @@ impl Threader {
 
     }
 
-    pub fn spawn_with_event_id(&mut self, writer: Arc<*const AtomicCell<u8>>, future: impl Future<Output=Vec<u8>> + 'static + Send, event_id: u32) {
+    pub fn spawn_with_event_id(&mut self, writer: *const AtomicCell<u8>, future: impl Future<Output=Vec<u8>> + 'static + Send, event_id: u32) {
         println!("TRACE: spawn_with_event_id");
 
         // FIXME this is suuuuper kludgy
-        let mut wr = writer.clone();
-        let slc = unsafe { std::slice::from_raw_parts(*wr, EVENT_BUFFER_SIZE_BYTES) };
+        // let mut wr = writer.clone();
+        let slc = unsafe { std::slice::from_raw_parts(writer, EVENT_BUFFER_SIZE_BYTES) };
 
         self.runtime.spawn(async move {
             println!("TRACE: awaiting IO...");
