@@ -16,6 +16,7 @@ use std::ffi::c_void;
 use assemblylift_core_event::constants::EVENT_BUFFER_SIZE_BYTES;
 use crossbeam_utils::atomic::AtomicCell;
 use wasmer_runtime::Func;
+use std::borrow::BorrowMut;
 
 pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
     // let panic if these aren't set
@@ -53,13 +54,14 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
 
     match get_instance {
         Ok(mut instance) => {
-            let mut threader = &mut Threader::new();
+            let threader = Box::into_raw(Box::from(Threader::new()));
+            let mut boxed_threader = Box::new(Mutex::new(threader));
 
             let mut boxed_instance = Box::new(instance);
 
             unsafe {
-                let mut instance_data = &mut InstanceData { threader };
-                boxed_instance.context_mut().data = &mut instance_data as *mut _ as *mut c_void;
+                // let mut instance_data = Box::into_raw(Box::new(InstanceData { threader: boxed_threader }));
+                boxed_instance.context_mut().data = threader as *mut _ as *mut c_void;
             }
 
             let guarded_instance = Mutex::new(boxed_instance);

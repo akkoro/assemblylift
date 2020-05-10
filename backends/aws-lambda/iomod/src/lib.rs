@@ -8,7 +8,7 @@ pub mod database {
     use std::borrow::{Borrow, BorrowMut};
     use std::collections::HashMap;
     use std::ffi::c_void;
-    use std::ops::DerefMut;
+    use std::ops::{DerefMut, Deref};
     use std::sync::{Arc, Mutex};
 
     use crossbeam_utils::atomic::AtomicCell;
@@ -42,15 +42,17 @@ pub mod database {
     pub fn aws_dynamodb_list_tables_impl(ctx: &mut vm::Ctx, mem: WasmBufferPtr) -> i32 {
         println!("TRACE: Called aws_dynamodb_list_tables_impl");
 
-        let mut instance_data: &mut InstanceData;
-        let mut threader: &mut Threader;
+        // let mut instance_data: *mut InstanceData;
+        let mut threader: *mut Threader;
         unsafe {
-            instance_data = *ctx.data.cast::<&mut InstanceData>();
-            threader = (*instance_data.threader).borrow_mut();
+            threader = ctx.data.cast();
+            // instance_data = *ctx.data.cast::<&mut InstanceData>();
+            // threader = (*(*instance_data).threader).lock().unwrap().to_owned()
         }
+        let mut threader_ref = unsafe { threader.as_mut().unwrap() };
 
         // let mut threader = unsafe { instance_data.threader.as_mut().unwrap() };
-        let event_id = threader.next_event_id().unwrap();
+        let event_id = threader_ref.next_event_id().unwrap();
         println!("DEBUG: event_id={}", event_id);
 
         println!("TRACE: building wasm memory writer");
@@ -61,7 +63,7 @@ pub mod database {
 
         println!("TRACE: spawning event for aws_dynamodb_list_tables_impl");
         // threader.spawn_with_event_id(Arc::from(&memory_writer[0] as *const AtomicCell<u8>), __aws_dynamodb_list_tables_impl(), event_id);
-        threader.spawn_with_event_id(memory_writer.as_ptr(), __aws_dynamodb_list_tables_impl(), event_id);
+        threader_ref.spawn_with_event_id(memory_writer.as_ptr(), __aws_dynamodb_list_tables_impl(), event_id);
 
         event_id as i32
     }

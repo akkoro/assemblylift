@@ -30,7 +30,7 @@ pub struct Threader {
 impl Threader {
     pub fn new() -> Self {
         let runtime = Builder::new()
-            .threaded_scheduler()
+            .basic_scheduler()
             .build()
             .unwrap();
 
@@ -72,9 +72,9 @@ impl Threader {
         println!("TRACE: spawn_with_event_id");
 
         // FIXME this is suuuuper kludgy
-        // let mut wr = writer.clone();
         let slc = unsafe { std::slice::from_raw_parts(writer, EVENT_BUFFER_SIZE_BYTES) };
 
+        println!("TRACE: spawning on tokio runtime");
         self.runtime.spawn(async move {
             println!("TRACE: awaiting IO...");
             let serialized = future.await;
@@ -82,6 +82,7 @@ impl Threader {
 
             EVENT_MEMORY.lock().unwrap().write_vec_at(slc, serialized, event_id);
         });
+        println!("TRACE: spawned");
     }
 }
 

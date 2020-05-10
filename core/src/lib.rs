@@ -9,7 +9,7 @@ use std::ffi::c_void;
 use std::io::Read;
 use std::ops::Deref;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::mpsc::SyncSender;
 
 use crossbeam_utils::atomic::AtomicCell;
@@ -30,7 +30,7 @@ pub type WasmBufferPtr = WasmPtr<u8, Array>;
 
 #[repr(C)]
 pub struct InstanceData {
-    pub threader: *mut Threader
+    pub threader: Box<Mutex<*mut Threader>>
 }
 
 /* Cloud interface */

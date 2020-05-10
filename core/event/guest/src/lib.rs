@@ -26,8 +26,8 @@ extern {
     fn __asml_abi_event_len(id: u32) -> u32;
 }
 
-const MAX_EVENTS: usize              = 1024;
-const EVENT_SIZE_BYTES: usize        = 32;
+const MAX_EVENTS: usize              = 50;
+const EVENT_SIZE_BYTES: usize        = 512;
 const EVENT_BUFFER_SIZE_BYTES: usize = MAX_EVENTS * EVENT_SIZE_BYTES;
 
 // Raw buffer holding serialized Event-Future's
