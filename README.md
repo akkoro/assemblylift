@@ -8,7 +8,7 @@ Highlight reel:
  * ["IO Modules"](backends/aws-lambda/iomod) (eventually to be shipped as packages/plugins) provide an interface for both the host and WASM guest, 
     allowing guests to __safely__ make calls to the outside world without needing elevated access.
  * Currently focusing on support for guests written in __Rust__, but other languages targeting WASM are possible. PR's welcome!
- * IO mods are __asynchronous__ (using [tokio](github.com/tokio-rs/tokio)), and guests written using Rust fully support __async/await__.
+ * IO mods are __asynchronous__ (using [tokio](https://github.com/tokio-rs/tokio)), and guests written using Rust fully support __async/await__.
  * Planned support for multiple backends, but the focus is currently on _AWS Lambda_
  * Built using the [Wasmer](https://wasmer.io) interpreter
 
