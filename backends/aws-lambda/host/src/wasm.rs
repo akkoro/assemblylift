@@ -57,20 +57,8 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
 
             let mut boxed_instance = Box::new(instance);
 
-            println!("TRACE: building wasm memory writer");
-            let mut __asml_get_event_buffer_pointer_func: Func<(), WasmBufferPtr> = boxed_instance.exports
-                .get("__asml_get_event_buffer_pointer")
-                .expect("__asml_get_event_buffer_pointer");
-
-            let ctx = boxed_instance.context();
-            let wasm_instance_memory = ctx.memory(0);
-            let event_buffer = __asml_get_event_buffer_pointer_func.call().unwrap();
-            let memory_writer: &[AtomicCell<u8>] = event_buffer
-                .deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32)
-                .unwrap();
-
             unsafe {
-                let mut instance_data = &mut InstanceData { threader, memory_writer: &memory_writer[0] as *const AtomicCell<u8> };
+                let mut instance_data = &mut InstanceData { threader };
                 boxed_instance.context_mut().data = &mut instance_data as *mut _ as *mut c_void;
             }
 

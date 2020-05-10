@@ -28,8 +28,8 @@ pub mod iomod;
 
 pub type WasmBufferPtr = WasmPtr<u8, Array>;
 
+#[repr(C)]
 pub struct InstanceData {
-    pub memory_writer: *const AtomicCell<u8>,
     pub threader: *mut Threader
 }
 

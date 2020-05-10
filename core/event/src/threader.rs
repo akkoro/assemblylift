@@ -1,9 +1,11 @@
 use std::borrow::Borrow;
+use std::collections::hash_map::Entry::Occupied;
 use std::collections::HashMap;
 use std::future::Future;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{Receiver, sync_channel, SyncSender};
+use std::time::Duration;
 
 use bincode::serialize;
 use crossbeam_utils::atomic::AtomicCell;
@@ -11,28 +13,29 @@ use futures::{FutureExt, TryFutureExt};
 use indexmap::map::IndexMap;
 use serde::Serialize;
 use tokio::prelude::*;
-use tokio::runtime::Runtime;
+use tokio::runtime::{Builder, Runtime};
 
 use assemblylift_core_event_common::{EventHandles, EventMemoryDocument, EventStatus, NUM_EVENT_HANDLES};
 
 use crate::constants::EVENT_BUFFER_SIZE_BYTES;
-use std::collections::hash_map::Entry::Occupied;
-use std::time::Duration;
 
 lazy_static! {
     static ref EVENT_MEMORY: Mutex<EventMemory> = Mutex::new(EventMemory::new());
 }
 
 pub struct Threader {
-    memory: Arc<Mutex<EventMemory>>,
     runtime: Runtime,
 }
 
 impl Threader {
     pub fn new() -> Self {
+        let runtime = Builder::new()
+            .threaded_scheduler()
+            .build()
+            .unwrap();
+
         Threader {
-            memory: Arc::new(Mutex::new(EventMemory::new())),
-            runtime: Runtime::new().unwrap(),
+            runtime
         }
     }
 

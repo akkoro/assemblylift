@@ -11,7 +11,7 @@ use wasmer_runtime::Ctx;
 use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime_core::{DynFunc, structures::TypedIndex, types::TableIndex, vm};
 
-use crate::InstanceData;
+use crate::{InstanceData, WasmBufferPtr};
 use assemblylift_core_event::threader::Threader;
 
 lazy_static! {
@@ -26,9 +26,11 @@ pub trait IoModule {
     fn register(registry: &mut ModuleRegistry); // MAYBE
 }
 
+pub type AsmlAbiFn = fn(&mut vm::Ctx, WasmBufferPtr) -> i32;
+
 #[derive(Clone)]
 pub struct ModuleRegistry {
-    pub modules: HashMap<String, HashMap<String, HashMap<String, fn(&mut vm::Ctx)->i32>>>
+    pub modules: HashMap<String, HashMap<String, HashMap<String, AsmlAbiFn>>>
 }
 
 impl ModuleRegistry {
@@ -39,7 +41,7 @@ impl ModuleRegistry {
     }
 }
 
-pub fn asml_abi_invoke(ctx: &mut vm::Ctx, ptr: u32, len: u32) -> i32 {
+pub fn asml_abi_invoke(ctx: &mut vm::Ctx, mem: WasmBufferPtr, ptr: u32, len: u32) -> i32 {
     println!("TRACE: asml_abi_invoke called");
     if let Ok(coords) = ctx_ptr_to_string(ctx, ptr, len) {
         let coord_vec = coords.split(".").collect::<Vec<&str>>();
@@ -50,7 +52,7 @@ pub fn asml_abi_invoke(ctx: &mut vm::Ctx, ptr: u32, len: u32) -> i32 {
 
         // MUSTDO assert instance_data is valid
 
-        return MODULE_REGISTRY.lock().unwrap().modules[org][namespace][name](ctx);
+        return MODULE_REGISTRY.lock().unwrap().modules[org][namespace][name](ctx, mem);
     }
 
     println!("ERROR: asml_abi_invoke error");

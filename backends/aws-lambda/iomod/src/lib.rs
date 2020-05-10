@@ -19,7 +19,7 @@ pub mod database {
     use wasmer_runtime_core::vm;
 
     use assemblylift_core::{InstanceData, WasmBufferPtr};
-    use assemblylift_core::iomod::{IoModule, ModuleRegistry};
+    use assemblylift_core::iomod::{IoModule, ModuleRegistry, AsmlAbiFn};
     use assemblylift_core_event::*;
     use assemblylift_core_event::constants::EVENT_BUFFER_SIZE_BYTES;
     use assemblylift_core_event::threader::Threader;
@@ -39,36 +39,29 @@ pub mod database {
         bincode::serialize(&result).unwrap()
     }
 
-    pub fn aws_dynamodb_list_tables_impl(ctx: &mut vm::Ctx) -> i32 {
+    pub fn aws_dynamodb_list_tables_impl(ctx: &mut vm::Ctx, mem: WasmBufferPtr) -> i32 {
         println!("TRACE: Called aws_dynamodb_list_tables_impl");
 
         let mut instance_data: &mut InstanceData;
-        let memory_writer: Arc<*const AtomicCell<u8>>;
+        let mut threader: &mut Threader;
         unsafe {
             instance_data = *ctx.data.cast::<&mut InstanceData>();
-            // memory_writer = instance_data.memory_writer;
+            threader = (*instance_data.threader).borrow_mut();
         }
 
-        let mut threader = unsafe { instance_data.threader.as_mut().unwrap() };
+        // let mut threader = unsafe { instance_data.threader.as_mut().unwrap() };
         let event_id = threader.next_event_id().unwrap();
+        println!("DEBUG: event_id={}", event_id);
 
-        // println!("TRACE: building wasm memory writer");
-        // let mut __asml_get_event_buffer_pointer_func: Func<(), WasmBufferPtr> = instance.exports
-        //     .get("__asml_get_event_buffer_pointer")
-        //     .expect("__asml_get_event_buffer_pointer");
-
-        // let wasm_instance_memory = ctx.memory(0);
-        // let event_buffer = __asml_get_event_buffer_pointer_func.call().unwrap();
-        // let memory_writer: &[AtomicCell<u8>] = event_buffer
-        //     .deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32)
-        //     .unwrap();
+        println!("TRACE: building wasm memory writer");
+        let wasm_instance_memory = ctx.memory(0);
+        let mut memory_writer: &[AtomicCell<u8>] = mem
+            .deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32)
+            .unwrap();
 
         println!("TRACE: spawning event for aws_dynamodb_list_tables_impl");
         // threader.spawn_with_event_id(Arc::from(&memory_writer[0] as *const AtomicCell<u8>), __aws_dynamodb_list_tables_impl(), event_id);
-        threader.spawn_with_event_id(instance_data.memory_writer, __aws_dynamodb_list_tables_impl(), event_id);
-
-        // (*instance_data.memory_writer.clone() as &[AtomicCell<u8>])[0].store(42u8);
-        // println!("VALUE: {}", (*instance_data.memory_writer as &[AtomicCell<u8>])[0].load());
+        threader.spawn_with_event_id(memory_writer.as_ptr(), __aws_dynamodb_list_tables_impl(), event_id);
 
         event_id as i32
     }
@@ -84,7 +77,7 @@ pub mod database {
             let list_tables_name = "list_tables".to_string();
 
             let mut name_map = HashMap::new();
-            name_map.entry(list_tables_name).or_insert(aws_dynamodb_list_tables_impl as fn(&mut vm::Ctx) -> i32);
+            name_map.entry(list_tables_name).or_insert(aws_dynamodb_list_tables_impl as AsmlAbiFn);
 
             let mut namespace_map = HashMap::new();
             namespace_map.entry(namespace).or_insert(name_map);
