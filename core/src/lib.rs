@@ -28,11 +28,6 @@ pub mod iomod;
 
 pub type WasmBufferPtr = WasmPtr<u8, Array>;
 
-#[repr(C)]
-pub struct InstanceData {
-    pub threader: Box<Mutex<*mut Threader>>
-}
-
 /* Cloud interface */
 
 pub trait Database {

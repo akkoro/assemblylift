@@ -11,7 +11,7 @@ use wasmer_runtime::Ctx;
 use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime_core::{DynFunc, structures::TypedIndex, types::TableIndex, vm};
 
-use crate::{InstanceData, WasmBufferPtr};
+use crate::WasmBufferPtr;
 use assemblylift_core_event::threader::Threader;
 use std::ops::Deref;
 

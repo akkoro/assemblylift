@@ -8,7 +8,7 @@ use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime_core::Instance;
 use wasmer_runtime_core::vm::Ctx;
 
-use assemblylift_core::{InstanceData, WasmBufferPtr};
+use assemblylift_core::WasmBufferPtr;
 use assemblylift_core::iomod::*;
 use assemblylift_core_event::threader::Threader;
 use std::sync::{Mutex, Arc};
@@ -56,10 +56,7 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
         Ok(mut instance) => {
             let threader = Box::into_raw(Box::from(Threader::new()));
             let mut boxed_instance = Box::new(instance);
-
-            unsafe {
-                boxed_instance.context_mut().data = threader as *mut _ as *mut c_void;
-            }
+            boxed_instance.context_mut().data = threader as *mut _ as *mut c_void;
 
             let guarded_instance = Mutex::new(boxed_instance);
 
