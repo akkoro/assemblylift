@@ -55,12 +55,9 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
     match get_instance {
         Ok(mut instance) => {
             let threader = Box::into_raw(Box::from(Threader::new()));
-            let mut boxed_threader = Box::new(Mutex::new(threader));
-
             let mut boxed_instance = Box::new(instance);
 
             unsafe {
-                // let mut instance_data = Box::into_raw(Box::new(InstanceData { threader: boxed_threader }));
                 boxed_instance.context_mut().data = threader as *mut _ as *mut c_void;
             }
 

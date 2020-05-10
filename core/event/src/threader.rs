@@ -30,7 +30,8 @@ pub struct Threader {
 impl Threader {
     pub fn new() -> Self {
         let runtime = Builder::new()
-            .basic_scheduler()
+            .threaded_scheduler()
+            .enable_all()
             .build()
             .unwrap();
 
