@@ -65,7 +65,7 @@ fn main() {
     println!("Using Lambda root: {}", lambda_path);
 
     // handler coordinates are expected to be <file name>.<function name>
-    let coords =  handler_coordinates.split(".").collect::<Vec<&str>>();
+    let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
     let handler_name = coords[1];
 
     if let Ok(mut instance) = wasm::build_instance() {
@@ -82,8 +82,10 @@ fn main() {
                 let locked = instance.lock().unwrap();
 
                 write_event_buffer(&locked, "{}".to_string() /* event.event_body */);
-                locked.call(handler_name, &[]);
-                println!("TRACE: handler returned");
+                match locked.call(handler_name, &[]) {
+                    Ok(result) =>  println!("TRACE: handler returned Ok()"),
+                    Err(error) => println!("ERROR: {}", error.to_string())
+                }
             });
         });
 

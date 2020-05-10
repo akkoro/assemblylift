@@ -34,9 +34,7 @@ impl Threader {
             .build()
             .unwrap();
 
-        Threader {
-            runtime
-        }
+        Threader { runtime }
     }
 
     pub fn next_event_id(&mut self) -> Option<u32> {
@@ -118,11 +116,11 @@ impl EventMemory {
         println!("TRACE: write_vec_at");
 
         // Serialize the response
-        let required_length = vec.len();
-        println!("DEBUG: response is {} bytes", required_length);
+        let response_len = vec.len();
+        println!("DEBUG: response is {} bytes", response_len);
 
-        let start = self.find_with_length(required_length);
-        let end = start + required_length;
+        let start = self.find_with_length(response_len);
+        let end = start + response_len;
         for i in start..end {
             writer[i].store(vec[i - start]);
         }
@@ -137,6 +135,13 @@ impl EventMemory {
     }
 
     fn find_with_length(&self, length: usize) -> usize {
-        0
+        // TODO this less stupidly
+        let mut max_end = 0usize;
+        for doc in self.document_map.values().into_iter() {
+            if doc.start + doc.length > max_end {
+                max_end = doc.start + doc.length
+            }
+        }
+        max_end
     }
 }

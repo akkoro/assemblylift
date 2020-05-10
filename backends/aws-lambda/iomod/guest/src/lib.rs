@@ -8,6 +8,9 @@ pub mod database {
     use serde::{Deserialize, Serialize};
     use assemblylift_core_event_guest::{Event, EVENT_BUFFER};
 
+    // FIXME these structs are copied from rusoto -- we can't pull it in as a dependency
+    //   since we get a bunch of wasm-incompatible stuff with the generated structs
+
     #[derive(Debug, Serialize, Deserialize)]
     pub struct ListTablesOutput {
         #[serde(rename = "LastEvaluatedTableName")]
@@ -23,7 +26,7 @@ pub mod database {
         let event_id: i32;
         unsafe {
             let name = "aws.dynamodb.list_tables";
-            event_id = crate::__asml_abi_invoke(EVENT_BUFFER.as_ptr(), name.as_ptr(), name.len())
+            event_id = crate::__asml_abi_invoke(EVENT_BUFFER.as_ptr(), name.as_ptr(), name.len());
         }
 
         match event_id {

@@ -9,6 +9,6 @@ edition = "2018"
 [dependencies]
 crossbeam-utils = "0.7.2"
 lazy_static = "1.4.0"
-wasmer-runtime = { path = "../../../Forks/wasmer/lib/runtime" }
-wasmer-runtime-core = { path = "../../../Forks/wasmer/lib/runtime-core" }
+wasmer-runtime = { git = "https://github.com/dotxlem/wasmer", branch="atomic_cell" }
+wasmer-runtime-core = { git = "https://github.com/dotxlem/wasmer", branch="atomic_cell" }
 assemblylift_core_event = { package = "assemblylift-core-event", path = "./event" }
