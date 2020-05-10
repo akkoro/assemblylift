@@ -69,32 +69,32 @@ fn main() {
     let handler_name = coords[1];
 
     if let Ok(mut instance) = wasm::build_instance() {
-        // init modules -- these will eventually be plugins
+        // init modules -- these will eventually be plugins specified in a manifest of some kind
         awsio::database::MyModule::register(&mut MODULE_REGISTRY.lock().unwrap());
 
-        // loop {
-        //     LAMBDA_RUNTIME
-        //         .lock().unwrap()
-        //         .get_next_event()
-        //         .and_then(|event| {
-        scope(|s| {
-            s.spawn(|_| {
-                let locked = instance.lock().unwrap();
+        loop {
+            LAMBDA_RUNTIME
+                .lock().unwrap()
+                .get_next_event()
+                .and_then(|event| {
+                    scope(|s| {
+                        s.spawn(|_| {
+                            let locked = instance.lock().unwrap();
 
-                write_event_buffer(&locked, "{}".to_string() /* event.event_body */);
-                match locked.call(handler_name, &[]) {
-                    Ok(result) =>  println!("TRACE: handler returned Ok()"),
-                    Err(error) => println!("ERROR: {}", error.to_string())
-                }
-            });
-        });
+                            write_event_buffer(&locked, event.event_body);
+                            match locked.call(handler_name, &[]) {
+                                Ok(result) =>  println!("TRACE: handler returned Ok()"),
+                                Err(error) => println!("ERROR: {}", error.to_string())
+                            }
+                        });
+                    });
 
-        // all threads spawned in the scope join here automatically
-        // the side-effect of which is that a hang in the handler will block the lambda
-        // runtime loop
+                    // all threads spawned in the scope join here automatically
+                    // the side-effect of which is that a hang in the handler will block the lambda
+                    // runtime loop
 
-        // Ok(())
-        // });
-        // }
+                    Ok(())
+                });
+        }
     }
 }
