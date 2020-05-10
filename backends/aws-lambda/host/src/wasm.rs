@@ -1,22 +1,22 @@
 use std::{env, io};
+use std::borrow::BorrowMut;
 use std::cell::Cell;
 use std::error::Error;
+use std::ffi::c_void;
 use std::fs::{canonicalize, File};
 use std::io::{ErrorKind, Read};
+use std::sync::{Arc, Mutex};
 
+use crossbeam_utils::atomic::AtomicCell;
+use wasmer_runtime::Func;
 use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime_core::Instance;
 use wasmer_runtime_core::vm::Ctx;
 
-use assemblylift_core::WasmBufferPtr;
 use assemblylift_core::iomod::*;
+use assemblylift_core::WasmBufferPtr;
 use assemblylift_core_event::threader::Threader;
-use std::sync::{Mutex, Arc};
-use std::ffi::c_void;
-use assemblylift_core_event::constants::EVENT_BUFFER_SIZE_BYTES;
-use crossbeam_utils::atomic::AtomicCell;
-use wasmer_runtime::Func;
-use std::borrow::BorrowMut;
+use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 
 pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
     // let panic if these aren't set

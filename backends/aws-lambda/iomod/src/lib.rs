@@ -8,7 +8,7 @@ pub mod database {
     use std::borrow::{Borrow, BorrowMut};
     use std::collections::HashMap;
     use std::ffi::c_void;
-    use std::ops::{DerefMut, Deref};
+    use std::ops::{Deref, DerefMut};
     use std::sync::{Arc, Mutex};
 
     use crossbeam_utils::atomic::AtomicCell;
@@ -18,11 +18,11 @@ pub mod database {
     use wasmer_runtime::{Ctx, Func, Instance};
     use wasmer_runtime_core::vm;
 
+    use assemblylift_core::iomod::{AsmlAbiFn, IoModule, ModuleRegistry};
     use assemblylift_core::WasmBufferPtr;
-    use assemblylift_core::iomod::{IoModule, ModuleRegistry, AsmlAbiFn};
     use assemblylift_core_event::*;
-    use assemblylift_core_event::constants::EVENT_BUFFER_SIZE_BYTES;
     use assemblylift_core_event::threader::Threader;
+    use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 
     lazy_static! {
         static ref DYNAMODB: DynamoDbClient = DynamoDbClient::new(Region::UsEast1);

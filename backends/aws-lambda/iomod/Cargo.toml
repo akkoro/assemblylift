@@ -18,3 +18,4 @@ wasmer-runtime = { path = "../../../../../Forks/wasmer/lib/runtime" }
 wasmer-runtime-core = { path = "../../../../../Forks/wasmer/lib/runtime-core" }
 assemblylift_core = { package = "assemblylift-core", path = "../../../core"}
 assemblylift_core_event = { package = "assemblylift-core-event", path = "../../../core/event" }
+assemblylift_core_event_common = { package = "assemblylift-core-event-common", path = "../../../core/event/common" }

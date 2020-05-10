@@ -24,10 +24,10 @@ use wasmer_runtime_core::export::{Context, FuncPointer};
 use wasmer_runtime_core::Func;
 use wasmer_runtime_core::typed_func::Wasm;
 
-use assemblylift_core::WasmBufferPtr;
 use assemblylift_core::iomod::*;
-use assemblylift_core_event::constants::EVENT_BUFFER_SIZE_BYTES;
+use assemblylift_core::WasmBufferPtr;
 use assemblylift_core_event::threader::Threader;
+use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 use runtime::AwsLambdaRuntime;
 
 mod runtime;

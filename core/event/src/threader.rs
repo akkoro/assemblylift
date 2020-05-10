@@ -15,9 +15,8 @@ use serde::Serialize;
 use tokio::prelude::*;
 use tokio::runtime::{Builder, Runtime};
 
-use assemblylift_core_event_common::{EventHandles, EventMemoryDocument, EventStatus, NUM_EVENT_HANDLES};
-
-use crate::constants::EVENT_BUFFER_SIZE_BYTES;
+use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
+use assemblylift_core_event_common::EventMemoryDocument;
 
 lazy_static! {
     static ref EVENT_MEMORY: Mutex<EventMemory> = Mutex::new(EventMemory::new());
@@ -72,7 +71,7 @@ impl Threader {
     pub fn spawn_with_event_id(&mut self, writer: *const AtomicCell<u8>, future: impl Future<Output=Vec<u8>> + 'static + Send, event_id: u32) {
         println!("TRACE: spawn_with_event_id");
 
-        // FIXME this is suuuuper kludgy
+        // FIXME this is a kludge -- I feel like the raw pointer shouldn't be needed
         let slc = unsafe { std::slice::from_raw_parts(writer, EVENT_BUFFER_SIZE_BYTES) };
 
         println!("TRACE: spawning on tokio runtime");
@@ -90,7 +89,7 @@ impl Threader {
 struct EventMemory {
     _next_id: u32,
     document_map: HashMap<u32, EventMemoryDocument>,
-    event_status: EventStatus,
+    event_map: HashMap<u32, bool>,
 }
 
 impl EventMemory {
@@ -98,7 +97,7 @@ impl EventMemory {
         EventMemory {
             _next_id: 1, // id 0 is reserved (null)
             document_map: Default::default(),
-            event_status: EventStatus([(0, false); NUM_EVENT_HANDLES]) // TODO I think this can be a map now
+            event_map: Default::default()
         }
     }
 
@@ -106,17 +105,13 @@ impl EventMemory {
         let next_id = self._next_id.clone();
         self._next_id += 1;
 
+        self.event_map.insert(next_id, false);
+
         Some(next_id)
     }
 
     pub fn is_ready(&self, event_id: u32) -> bool {
-        for evt in self.event_status.0.iter() {
-            if evt.0 == event_id {
-                return evt.1;
-            }
-        }
-
-        false
+        *self.event_map.get(&event_id).unwrap()
     }
 
     pub fn write_vec_at(&mut self, writer: &[AtomicCell<u8>], vec: Vec<u8>, event_id: u32) {
@@ -138,12 +133,7 @@ impl EventMemory {
         println!("TRACE: updated document map id={} start={} end={}", event_id, start, end);
 
         // Update event status table
-        for (idx, e) in self.event_status.0.iter().enumerate() {
-            if e.0 == 0 {
-                self.event_status.0[idx] = (event_id, true);
-                break;
-            }
-        }
+        self.event_map.insert(event_id, true);
     }
 
     fn find_with_length(&self, length: usize) -> usize {
