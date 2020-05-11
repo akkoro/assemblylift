@@ -38,3 +38,28 @@ impl GuestCore for AwsLambdaClient {
         unsafe { __asml_abi_success(response.as_ptr(), response.len()) }
     }
 }
+
+pub struct LambdaContext {
+    pub client: AwsLambdaClient,
+    pub event: String,
+}
+
+#[macro_export]
+macro_rules! handler {
+    ($context:ident, $async_handler:expr) => {
+        #[no_mangle]
+        pub fn handler() -> i32 {
+            use direct_executor::run_spinning;
+
+            AwsLambdaClient::console_log("Started handler...".to_string());
+
+            let client = AwsLambdaClient::new();
+            let event = get_lambda_event();
+            let $context = LambdaContext { client, event };
+
+            run_spinning($async_handler);
+
+            0
+        }
+    }
+}

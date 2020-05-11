@@ -33,6 +33,7 @@ version = "0.1.0"
 dependencies = [
  "assemblylift-core-event-guest",
  "assemblylift-core-guest",
+ "direct-executor",
 ]
 
 [[package]]
@@ -485,6 +486,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3d0c8c8752312f9713efd397ff63acb9f85585afbf179282e720e7704954dd5"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "direct-executor"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ef2a1d8bd8587501e47ad4462e0f8f4df40d127091c6f9f57bdbd59f8fbbf8d"
+dependencies = [
+ "pin-utils",
 ]
 
 [[package]]

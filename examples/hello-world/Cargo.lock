@@ -6,6 +6,7 @@ version = "0.1.0"
 dependencies = [
  "assemblylift-core-event-guest",
  "assemblylift-core-guest",
+ "direct-executor",
 ]
 
 [[package]]
