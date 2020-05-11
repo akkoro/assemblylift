@@ -12,6 +12,8 @@ Highlight reel:
  * Planned support for multiple backends, but the focus is currently on _AWS Lambda_
  * Built using the [Wasmer](https://wasmer.io) interpreter
 
+__Examples__ can be found [here](/examples).  
+
 # Overview
 The three primary aims of this project, are to provide you with an _ergonomic_ development framework for building serverless applications 
 which are both _efficient_, and _safe_.

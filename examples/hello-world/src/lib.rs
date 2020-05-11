@@ -11,5 +11,5 @@ handler!(context, async {
     AwsLambdaClient::console_log("Calling...".to_string());
     let ret = database::aws_dynamodb_list_tables().await;
     AwsLambdaClient::console_log("IO complete!".to_string());
-    AwsLambdaClient::console_log(format!("Got {:?}", ret).to_string());
+    AwsLambdaClient::console_log(format!("Got response {:?}", ret).to_string());
 });
