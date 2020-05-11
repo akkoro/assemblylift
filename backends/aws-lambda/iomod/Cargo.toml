@@ -11,9 +11,8 @@ bincode = "1.2.1"
 futures = "0.3.4"
 lazy_static = "1.4.0"
 crossbeam-utils = "0.7.2"
-async-std = "1.5.0"
 rusoto_core = { version = "0.43.0" }
-rusoto_dynamodb = { version = "0.43.0", features = ["serialize_structs"] }
+rusoto_dynamodb = { version = "0.43.0", features = ["serialize_structs", "deserialize_structs"] }
 wasmer-runtime = { git = "https://github.com/dotxlem/wasmer", branch="atomic_cell" }
 wasmer-runtime-core = { git = "https://github.com/dotxlem/wasmer", branch="atomic_cell" }
 assemblylift_core = { package = "assemblylift-core", path = "../../../core"}

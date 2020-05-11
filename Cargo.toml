@@ -11,5 +11,6 @@ members = [
     "core/event/common"
 ]
 exclude = [
-    "examples/hello-world"
+    "examples/hello-world",
+    "examples/todo"
 ]
