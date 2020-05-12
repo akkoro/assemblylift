@@ -29,7 +29,7 @@ pub trait IoModule {
     fn register(registry: &mut ModuleRegistry); // MAYBE
 }
 
-pub type AsmlAbiFn = fn(&mut vm::Ctx, WasmBufferPtr, WasmBufferPtr) -> i32;
+pub type AsmlAbiFn = fn(&mut vm::Ctx, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
 
 #[derive(Clone)]
 pub struct ModuleRegistry {
@@ -54,7 +54,7 @@ pub fn asml_abi_invoke(ctx: &mut vm::Ctx, mem: WasmBufferPtr, name_ptr: u32, nam
         println!("  with coordinates: {:?}", coord_vec);
 
         println!("DEBUG: input_len={}", input_len);
-        return MODULE_REGISTRY.lock().unwrap().modules[org][namespace][name](ctx, mem, input);
+        return MODULE_REGISTRY.lock().unwrap().modules[org][namespace][name](ctx, mem, input, input_len);
     }
 
     println!("ERROR: asml_abi_invoke error");

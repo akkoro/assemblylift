@@ -8,7 +8,7 @@ extern {
 }
 
 pub mod database {
-    use bincode;
+    use serde_json;
 
     use assemblylift_core_event_guest::{Event, EVENT_BUFFER};
 
@@ -33,7 +33,7 @@ pub mod database {
     pub fn aws_dynamodb_put_item<'a>(input: PutItemInput) -> Event<'a, PutItemOutput> {
         let event_id: i32;
         unsafe {
-            let serialized: Box<Vec<u8>> = Box::from(bincode::serialize(&input).unwrap());
+            let serialized: Box<Vec<u8>> = Box::from(serde_json::to_vec(&input).unwrap());
 
 
             let name = "aws.dynamodb.put_item";

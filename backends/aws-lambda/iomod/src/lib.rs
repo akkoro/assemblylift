@@ -16,6 +16,7 @@ pub mod database {
     use futures::TryFutureExt;
     use rusoto_core::Region;
     use rusoto_dynamodb::{DynamoDb, DynamoDbClient, ListTablesError, ListTablesInput, ListTablesOutput, PutItemInput};
+    use serde_json;
     use wasmer_runtime::{Ctx, Func, Instance};
     use wasmer_runtime_core::vm;
 
@@ -39,10 +40,10 @@ pub mod database {
             limit: None,
         }).await.unwrap();
 
-        bincode::serialize(&result).unwrap()
+        serde_json::to_vec(&result).unwrap()
     }
 
-    pub fn aws_dynamodb_list_tables_impl(ctx: &mut vm::Ctx, mem: WasmBufferPtr, _input: WasmBufferPtr) -> i32 {
+    pub fn aws_dynamodb_list_tables_impl(ctx: &mut vm::Ctx, mem: WasmBufferPtr, _input: WasmBufferPtr, _input_len: u32) -> i32 {
         println!("TRACE: aws_dynamodb_list_tables_impl");
         spawn_event(ctx, mem, __aws_dynamodb_list_tables_impl())
     }
@@ -52,17 +53,17 @@ pub mod database {
     async fn __aws_dynamodb_put_item_impl(input: Vec<u8>) -> Vec<u8> {
         println!("TRACE: __aws_dynamodb_put_item_impl");
 
-        let deserialized = bincode::deserialize::<PutItemInput>(input.as_slice()).unwrap();
+        let deserialized = serde_json::from_slice(input.as_slice()).unwrap();
         let result = DYNAMODB.put_item(deserialized).await.unwrap();
-        bincode::serialize(&result).unwrap()
+        serde_json::to_vec(&result).unwrap()
     }
 
-    pub fn aws_dynamodb_put_item_impl(ctx: &mut vm::Ctx, mem: WasmBufferPtr, input: WasmBufferPtr) -> i32 {
+    pub fn aws_dynamodb_put_item_impl(ctx: &mut vm::Ctx, mem: WasmBufferPtr, input: WasmBufferPtr, input_len: u32) -> i32 {
         println!("TRACE: aws_dynamodb_put_item_impl");
 
         let wasm_instance_memory = ctx.memory(0);
         let input_deref: &[AtomicCell<u8>] = input
-            .deref(wasm_instance_memory, 0, 55 as u32)
+            .deref(wasm_instance_memory, 0, input_len as u32)
             .unwrap();
 
         let mut as_vec: Vec<u8> = Vec::new();

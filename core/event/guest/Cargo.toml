@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bincode = "1.2.1"
+serde_json = "1.0.53"
 futures = "0.3.4"
 lazy_static = "1.4.0"
 serde = "1.0.106"
