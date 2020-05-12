@@ -9,6 +9,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 direct-executor = "0.3.0"
+serde_json = "1.0.53"
 asml_core = { package = "assemblylift-core-guest", path = "../../../core/guest" }
 asml_core_event = { package = "assemblylift-core-event-guest", path = "../../../core/event/guest" }
 asml_awslambda = { package = "assemblylift-awslambda-guest", path = "../../../backends/aws-lambda/guest" }

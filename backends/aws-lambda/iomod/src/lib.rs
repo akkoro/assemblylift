@@ -71,8 +71,6 @@ pub mod database {
             as_vec.insert(idx, b.load());
         }
 
-        println!("DEBUG: {:?}", as_vec);
-
         spawn_event(ctx, mem, __aws_dynamodb_put_item_impl(as_vec))
     }
 
