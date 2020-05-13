@@ -1,6 +1,9 @@
-extern crate assemblylift_core_guest;
 extern crate assemblylift_core_event_guest;
+extern crate assemblylift_core_guest;
+
 use assemblylift_core_guest::*;
+use serde::{Deserialize, Serialize};
+use serde_json;
 
 const AWS_EVENT_STRING_BUFFER_SIZE: usize = 2048;
 static mut AWS_EVENT_STRING_BUFFER: [u8; AWS_EVENT_STRING_BUFFER_SIZE] = [0; AWS_EVENT_STRING_BUFFER_SIZE];
@@ -39,25 +42,29 @@ impl GuestCore for AwsLambdaClient {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, std::fmt::Debug)]
+pub struct ApiGatewayEvent {
+    body: Option<String>
+}
+
 pub struct LambdaContext {
     pub client: AwsLambdaClient,
-    pub event: String,
+    pub event: ApiGatewayEvent,
 }
 
 #[macro_export]
 macro_rules! handler {
-    ($context:ident, $async_handler:expr) => {
+    ($context:ident: $type:ty, $async_handler:expr) => {
         #[no_mangle]
         pub fn handler() -> i32 {
-            use direct_executor::run_spinning;
 
             AwsLambdaClient::console_log("Started handler...".to_string());
 
             let client = AwsLambdaClient::new();
-            let event = get_lambda_event();
-            let $context = LambdaContext { client, event };
+            let event: ApiGatewayEvent = serde_json::from_str(&get_lambda_event()).unwrap();
+            let $context: $type = LambdaContext { client, event };
 
-            run_spinning($async_handler);
+            direct_executor::run_spinning($async_handler);
 
             0
         }

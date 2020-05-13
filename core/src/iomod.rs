@@ -14,6 +14,8 @@ use wasmer_runtime_core::{DynFunc, structures::TypedIndex, types::TableIndex, vm
 use crate::WasmBufferPtr;
 use assemblylift_core_event::threader::Threader;
 use std::ops::Deref;
+use serde::Deserialize;
+use crossbeam_utils::atomic::AtomicCell;
 
 lazy_static! {
     pub static ref MODULE_REGISTRY: Mutex<ModuleRegistry> = Mutex::new(ModuleRegistry::new());
@@ -27,7 +29,7 @@ pub trait IoModule {
     fn register(registry: &mut ModuleRegistry); // MAYBE
 }
 
-pub type AsmlAbiFn = fn(&mut vm::Ctx, WasmBufferPtr) -> i32;
+pub type AsmlAbiFn = fn(&mut vm::Ctx, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
 
 #[derive(Clone)]
 pub struct ModuleRegistry {
@@ -42,18 +44,17 @@ impl ModuleRegistry {
     }
 }
 
-pub fn asml_abi_invoke(ctx: &mut vm::Ctx, mem: WasmBufferPtr, ptr: u32, len: u32) -> i32 {
+pub fn asml_abi_invoke(ctx: &mut vm::Ctx, mem: WasmBufferPtr, name_ptr: u32, name_len: u32, input: WasmBufferPtr, input_len: u32) -> i32 {
     println!("TRACE: asml_abi_invoke called");
-    if let Ok(coords) = ctx_ptr_to_string(ctx, ptr, len) {
+    if let Ok(coords) = ctx_ptr_to_string(ctx, name_ptr, name_len) {
         let coord_vec = coords.split(".").collect::<Vec<&str>>();
         let org = coord_vec[0];
         let namespace = coord_vec[1];
         let name = coord_vec[2];
         println!("  with coordinates: {:?}", coord_vec);
 
-        // MUSTDO assert instance_data is valid
-
-        return MODULE_REGISTRY.lock().unwrap().modules[org][namespace][name](ctx, mem);
+        println!("DEBUG: input_len={}", input_len);
+        return MODULE_REGISTRY.lock().unwrap().modules[org][namespace][name](ctx, mem, input, input_len);
     }
 
     println!("ERROR: asml_abi_invoke error");
@@ -86,6 +87,7 @@ fn get_threader(ctx: &mut vm::Ctx) -> *mut Threader {
     threader
 }
 
+#[inline]
 fn ctx_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Error> {
     let memory = ctx.memory(0);
     let view: MemoryView<u8> = memory.view();
@@ -98,4 +100,17 @@ fn ctx_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Er
     std::str::from_utf8(str_vec.as_slice())
         .map(String::from)
         .map_err(to_io_error)
+}
+
+#[inline]
+fn ctx_ptr_to_vec_u8(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<Vec<u8>, io::Error> {
+    let memory = ctx.memory(0);
+    let view: MemoryView<u8> = memory.view();
+
+    let mut str_vec: Vec<u8> = Vec::new();
+    for byte in view[ptr as usize .. (ptr + len) as usize].iter().map(Cell::get) {
+        str_vec.push(byte);
+    }
+
+    Ok(str_vec)
 }

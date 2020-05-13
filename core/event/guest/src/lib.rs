@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::task::{Context, Poll, Waker};
 
-use bincode::deserialize;
+use serde_json;
 use futures::FutureExt;
 use futures::task::{ArcWake, waker_ref};
 use serde::Deserialize;
@@ -69,7 +69,7 @@ unsafe fn read_response<'a, R: Deserialize<'a>>(id: u32) -> Option<R> {
     let ptr = __asml_abi_event_ptr(id) as usize;
     let end = __asml_abi_event_len(id) as usize + ptr;
 
-    if let Ok(response) = deserialize::<R>(&EVENT_BUFFER[ptr..end]) {
+    if let Ok(response) = serde_json::from_slice::<R>(&EVENT_BUFFER[ptr..end]) {
         return Some(response);
     }
 
