@@ -39,9 +39,9 @@ plans in this area, I intend for the tooling to abstract away as much of the und
 # Roadmap
 
 ## 0.1
- [ ] Build system incl. Docker  
- [ ] Unit tests  
- [ ] Start the CLI  
+ [ ] Build system incl. Docker (#2)  
+ [ ] Unit tests (#3)  
+ [ ] Start the CLI (#4)  
  [ ] Set up a CI/CD pipeline  
  [ ] Handle more of those `unwrap`s  
  [ ] Clean up warnings  
