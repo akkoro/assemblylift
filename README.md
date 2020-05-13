@@ -39,9 +39,9 @@ plans in this area, I intend for the tooling to abstract away as much of the und
 # Roadmap
 
 ## 0.1
- [ ] Build system incl. Docker (#2)  
- [ ] Unit tests (#3)  
- [ ] Start the CLI (#4)  
+ [ ] Build system incl. Docker [#2](https://github.com/akkoro/assemblylift/issues/2)  
+ [ ] Unit tests [#3](https://github.com/akkoro/assemblylift/issues/3)    
+ [ ] Start the CLI [#4](https://github.com/akkoro/assemblylift/issues/4)  
  [ ] Set up a CI/CD pipeline  
  [ ] Handle more of those `unwrap`s  
  [ ] Clean up warnings  
