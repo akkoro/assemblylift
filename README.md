@@ -37,11 +37,27 @@ It's still early days, so there's nothing in this repo right now which I would c
 plans in this area, I intend for the tooling to abstract away as much of the underlying backend as possible (ie AWS vs Azure).
 
 # Roadmap
-TODO
+
+## 0.1
+ [ ] Build system incl. Docker  
+ [ ] Unit tests  
+ [ ] Start the CLI  
+ [ ] Set up a CI/CD pipeline  
+ [ ] Handle more of those `unwrap`s  
+ [ ] Clean up warnings  
+
+## 0.2
+ [ ] Async memory manager  
+ [ ] Macros  
+ [ ] Project init via CLI  
+ [ ] More examples  
 
 
 # Contributing
-TODO
+
+I'd like to figure this part out collaboratively. Just in terms of getting code merged though,
+ I'm a big fan of [forking workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/forking-workflow), 
+ so let's start there 🙂.
 
 # License
 [Apache 2](/LICENSE)
