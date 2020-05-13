@@ -27,9 +27,3 @@ use crate::iomod::ModuleRegistry;
 pub mod iomod;
 
 pub type WasmBufferPtr = WasmPtr<u8, Array>;
-
-/* Cloud interface */
-
-pub trait Database {
-    // TODO: general-purpose database api ?
-}
