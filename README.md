@@ -9,7 +9,7 @@ Highlight reel:
 - ["IO Modules"](backends/aws-lambda/iomod) (eventually to be shipped as packages/plugins) provide an interface for both the host and WASM guest,
   allowing guests to **safely** make calls to the outside world without needing elevated access.
 - Currently focusing on support for guests written in **Rust**, but other languages targeting WASM are possible. PR's welcome!
-- IO mods are **asynchronous** (using [tokio](https://github.com/tokio-rs/tokio)), and guests written using Rust fully support **async/await**.
+- IOmods are **asynchronous** (using [tokio](https://github.com/tokio-rs/tokio)), and guests written using Rust fully support **async/await**.
 - Planned support for multiple backends, but the focus is currently on _AWS Lambda_
 - Built using the [Wasmer](https://wasmer.io) interpreter
 
@@ -41,6 +41,16 @@ your dependency supply chain.
 It's still early days, so there's nothing in this repo right now which I would characterize as ergonomic. In terms of
 plans in this area, I intend for the tooling to abstract away as much of the underlying backend as possible (ie AWS vs Azure).
 
+# Building
+
+To build using your local Cargo installation, run  
+`./build.rb build local {optional Cargo build args}`
+
+To generate a build of `bootstrap` to deploy to AWS Lambda, run  
+`./build.rb build deploy (optional Cargo build args}`
+
+If using Ruby as a build front-end is problematic in your environment, please [file an issue](https://github.com/akkoro/assemblylift/issues/new?labels=bug)!
+
 # Roadmap
 
 ## 0.1
@@ -54,10 +64,9 @@ plans in this area, I intend for the tooling to abstract away as much of the und
 
 ## 0.2
 
-- [ ] Async memory manager
-  - [ ] Macros
-  - [ ] Project init via CLI
-  - [ ] More examples
+- [ ] Proper implementation of [Threader](core/event/src/threader.rs) memory manager
+- [ ] Macros for iomod implementation
+- [ ] More examples
 
 # Contributing
 
