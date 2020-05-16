@@ -6,19 +6,18 @@
 
 require 'shellwords'
 
+
 # Check environment
 # Need: docker, cargo, rustc
-#
-
 def check_exists(executable)
   `#{executable} &> /dev/null`
 
   if $?.exitstatus != 0
     puts "Could not exec #{executable}"
-    return false
+    false
   else
     puts "Found #{executable}!"
-    return true
+    true
   end
 end
 
@@ -27,20 +26,16 @@ def die(message)
   exit(-1)
 end
 
-has_docker = check_exists("docker")
-has_cargo = check_exists("cargo")
-has_rustc = check_exists("rustc")
-
-if not has_docker or not has_cargo or not has_rustc
-  die("Missing build dependency, exiting...")
-end
+env_has_docker = check_exists("docker")
+env_has_cargo = check_exists("cargo")
+env_has_rustc = check_exists("rustc")
 
 DOCKER = "docker"
 CARGO = "cargo"
 RUSTC = "rustc"
 
-# Check first argument
 
+# Check that a command was given
 args = %w[build test]
 arg_error_string = "build.rb must be run with one of #{args} as an argument"
 
@@ -53,6 +48,7 @@ cmd = ARGV[0]
 unless args.include?(cmd)
   die(arg_error_string)
 end
+
 
 # Switch on commands
 case cmd
@@ -68,11 +64,25 @@ when "build"
 
   case build_cmd
   when "local"
+    unless env_has_cargo and env_has_rustc
+      die("Missing build dependency, exiting...")
+    end
+
+    puts "Building local build..."
     super_args = ARGV[2..ARGV.length].map{|arg| Shellwords.escape arg}.join(' ')
     `#{CARGO} build #{super_args}`
 
   when "deploy"
-    die("deploy-mode build is not yet implemented")
+    unless env_has_docker and env_has_cargo and env_has_rustc
+      die("Missing build dependency, exiting...")
+    end
+
+    version = "0.1.0" # TODO load from Cargo.toml
+    tag = "assemblylift:#{version}"
+
+    puts "Building deployment-ready build..."
+    `#{DOCKER} build . --tag #{tag}`
+    `#{DOCKER} run --rm --entrypoint cat #{tag}  /usr/src/assembly-lift/target/release/bootstrap > ./bootstrap`
 
   else
     die(build_arg_error_string)
