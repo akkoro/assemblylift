@@ -64,7 +64,7 @@ If using Ruby as a build front-end is problematic in your environment, please [f
 
 ## 0.2
 
-- [ ] Proper implementation of [Threader](core/event/src/threader.rs) memory manager
+- [ ] Proper implementation of [Threader](/core/event/src/threader.rs) memory manager
 - [ ] Macros for iomod implementation
 - [ ] More examples
 

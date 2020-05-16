@@ -83,6 +83,7 @@ when "build"
     puts "Building deployment-ready build..."
     `#{DOCKER} build . --tag #{tag}`
     `#{DOCKER} run --rm --entrypoint cat #{tag}  /usr/src/assembly-lift/target/release/bootstrap > ./bootstrap`
+    puts "Done! Build artifact copied to project root."
 
   else
     die(build_arg_error_string)
