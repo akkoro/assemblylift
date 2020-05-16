@@ -11,4 +11,4 @@ name = "asml"
 path = "src/main.rs"
 
 [dependencies]
-clap = "3.0.0-beta.1"
+clap = "2.33.1"
