@@ -13,6 +13,7 @@
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/guest/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/host/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/examples/todo/create/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cli/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
