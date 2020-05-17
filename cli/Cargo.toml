@@ -1,5 +1,5 @@
 [package]
-name = "cli"
+name = "assemblylift-cli"
 version = "0.1.0"
 authors = ["xlem <xlem@akkoro.io>"]
 edition = "2018"
