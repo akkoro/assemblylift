@@ -1,4 +1,4 @@
-use clap::{crate_version, Arg, App, SubCommand};
+use clap::{crate_version, Arg, App};
 use crate::commands::init::init;
 use std::collections::HashMap;
 use crate::commands::CommandFn;
@@ -13,7 +13,15 @@ fn main() {
                 .arg(
                     Arg::with_name("language")
                         .short("l")
+                        .long("lang")
                         .default_value("rust")
+                        .takes_value(true)
+                )
+                .arg(
+                    Arg::with_name("name")
+                        .short("n")
+                        .long("name")
+                        .required(true)
                         .takes_value(true)
                 )
         );
@@ -23,7 +31,6 @@ fn main() {
     command_map.insert("init", init);
 
     match matches.subcommand() {
-        (name, matches) => command_map[name](matches),
-        _ => {}
+        (name, matches) => command_map[name](matches)
     }
 }
