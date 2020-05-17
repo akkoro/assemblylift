@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate serde_json;
+
 use clap::{crate_version, Arg, App};
 use crate::commands::init::init;
 use std::collections::HashMap;
@@ -18,7 +21,7 @@ fn main() {
                         .takes_value(true)
                 )
                 .arg(
-                    Arg::with_name("name")
+                    Arg::with_name("project_name")
                         .short("n")
                         .long("name")
                         .required(true)
