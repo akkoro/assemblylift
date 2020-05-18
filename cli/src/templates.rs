@@ -6,7 +6,7 @@ name = "{{project_name}}"
 version = "0.1.0"
 
 [services]
-my_first_service = { name = "my_first_service" }
+default = { name = "{{default_service_name}}" }
 "#;
 
 pub(crate) static SERVICE_TOML: &str =

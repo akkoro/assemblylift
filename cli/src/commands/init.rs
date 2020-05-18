@@ -21,14 +21,14 @@ pub fn init(matches: Option<&ArgMatches>) {
     let project_name = matches.value_of("project_name").unwrap();
 
     projectfs::initialize_project_directories(project_name,
-                                                     default_service_name,
-                                                     default_function_name).unwrap();
+                                              default_service_name,
+                                              default_function_name).unwrap();
 
     let canonical_project_path =
         &fs::canonicalize(path::Path::new(&format!("./{}", project_name)))
             .unwrap();
 
-    projectfs::write_project_manifest(canonical_project_path, project_name).unwrap();
+    projectfs::write_project_manifest(canonical_project_path, project_name, default_service_name).unwrap();
     projectfs::write_service_manifest(canonical_project_path, default_service_name).unwrap();
 
     match matches.value_of("language") {

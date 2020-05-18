@@ -23,7 +23,7 @@ pub fn initialize_project_directories(project_name: &str, default_service_name: 
     Ok(())
 }
 
-pub fn write_project_manifest(canonical_project_path: &PathBuf, project_name: &str) -> Result<(), io::Error> {
+pub fn write_project_manifest(canonical_project_path: &PathBuf, project_name: &str, default_service_name: &str) -> Result<(), io::Error> {
     let file_name = "assemblylift.toml";
 
     let mut reg = Handlebars::new();
@@ -31,6 +31,7 @@ pub fn write_project_manifest(canonical_project_path: &PathBuf, project_name: &s
 
     let mut data = Map::<String, Json>::new();
     data.insert("project_name".to_string(), to_json(project_name.to_string()));
+    data.insert("default_service_name".to_string(), to_json(default_service_name.to_string()));
     data.insert("asml_version".to_string(), to_json(crate_version!()));
 
     let render = reg.render(file_name, &data).unwrap();
