@@ -67,6 +67,7 @@ If using Ruby as a build front-end is problematic in your environment, please [f
 - [ ] Proper implementation of [Threader](/core/event/src/threader.rs) memory manager
 - [ ] Macros for iomod implementation
 - [ ] More examples
+- [ ] Logging system
 
 # Contributing
 

@@ -8,7 +8,8 @@ members = [
     "core/guest",
     "core/event",
     "core/event/guest",
-    "core/event/common"
+    "core/event/common",
+    "cli"
 ]
 exclude = [
     "examples/hello-world",
