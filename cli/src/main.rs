@@ -7,6 +7,8 @@ use std::collections::HashMap;
 use crate::commands::CommandFn;
 
 mod commands;
+mod projectfs;
+mod templates;
 
 fn main() {
     let app = App::new("asml")

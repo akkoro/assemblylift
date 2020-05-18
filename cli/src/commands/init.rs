@@ -1,14 +1,14 @@
-use std::process;
-use std::fs;
-use std::path;
-use std::io;
-
-use clap::{crate_version, ArgMatches};
-use handlebars::{to_json, Handlebars};
-use serde_json::value::{Map, Value as Json};
 use std::error::Error;
+use std::fs;
+use std::io;
 use std::io::Write;
+use std::path;
 use std::path::PathBuf;
+use std::process;
+
+use clap::ArgMatches;
+
+use crate::projectfs;
 
 pub fn init(matches: Option<&ArgMatches>) {
     let matches = match matches {
@@ -16,35 +16,49 @@ pub fn init(matches: Option<&ArgMatches>) {
         _ => panic!("could not get matches for init")
     };
 
+    let default_service_name = "my-service";
+    let default_function_name = "my-function";
+    let project_name = matches.value_of("project_name").unwrap();
+
+    projectfs::initialize_project_directories(project_name,
+                                                     default_service_name,
+                                                     default_function_name).unwrap();
+
+    let canonical_project_path =
+        &fs::canonicalize(path::Path::new(&format!("./{}", project_name)))
+            .unwrap();
+
+    projectfs::write_project_manifest(canonical_project_path, project_name).unwrap();
+    projectfs::write_service_manifest(canonical_project_path, default_service_name).unwrap();
+
     match matches.value_of("language") {
         Some("rust") => {
             assert_prereqs();
 
-            let project_name = matches.value_of("project_name").unwrap();
-            fs::create_dir(path::Path::new(&format!("./{}", project_name)));
-            fs::create_dir(path::Path::new(&format!("./{}/services", project_name)));
-
-            let canonical_project_path =
-                &fs::canonicalize(path::Path::new(&format!("./{}", project_name)))
-                    .unwrap();
-
-            write_manifest(canonical_project_path, project_name).unwrap();
+            projectfs::write_function_manifest(canonical_project_path,
+                                                      default_service_name,
+                                                      default_function_name).unwrap();
+            projectfs::write_function_cargo_config(canonical_project_path,
+                                                          default_service_name,
+                                                          default_function_name).unwrap();
+            projectfs::write_function_lib(canonical_project_path,
+                                                 default_service_name,
+                                                 default_function_name).unwrap();
         }
         Some(unknown) => panic!("unsupported language: {}", unknown),
         _ => {}
     }
+
+    println!("\r\n✅  Done! Your project root is: {}", canonical_project_path.display())
 }
 
-fn check_prereqs() -> bool {
+fn check_rust_prereqs() -> bool {
     let cargo_version = process::Command::new("cargo")
         .arg("--version")
         .output();
 
     match cargo_version {
-        Ok(version) => {
-            println!("Found Cargo: {}", String::from_utf8_lossy(&version.stdout));
-            true
-        },
+        Ok(version) => true,
         Err(_) => {
             println!("ERROR: missing Cargo!");
             false
@@ -53,47 +67,7 @@ fn check_prereqs() -> bool {
 }
 
 fn assert_prereqs() {
-    if !check_prereqs() {
+    if !check_rust_prereqs() {
         panic!("missing system dependencies")
     }
-}
-
-fn write_to_file(path: &path::Path, contents: String) -> Result<(), io::Error> {
-    let mut file = match fs::File::create(path) {
-        Err(why) => panic!("couldn't create file {}: {}", path.display(), why.to_string()),
-        Ok(file) => file
-    };
-
-    file.write_all(contents.as_bytes())
-}
-
-fn write_manifest(canonical_project_path: &PathBuf, project_name: &str) -> Result<(), io::Error> {
-    let mut reg = Handlebars::new();
-    reg.register_template_string("assemblylift.toml",
-                                 templates::ASSEMBLYLIFT_TOML).unwrap();
-
-    let mut assemblylift_toml_data = Map::<String, Json>::new();
-    assemblylift_toml_data.insert("project_name".to_string(),
-                                  to_json(project_name.to_string()));
-    assemblylift_toml_data.insert("asml_version".to_string(), to_json(crate_version!()));
-
-    let assemblylift_toml_render = reg.render("assemblylift.toml",
-                                              &assemblylift_toml_data).unwrap();
-
-    let path_str = &format!("{}/assemblylift.toml", canonical_project_path.display());
-    let path = path::Path::new(path_str);
-    write_to_file(&path, assemblylift_toml_render);
-    println!("Wrote {}", path_str);
-
-    Ok(())
-}
-
-mod templates {
-    pub(crate) static ASSEMBLYLIFT_TOML: &str =
-r#"# Generated with assemblylift-cli {{asml_version}}
-
-[project]
-name = "{{project_name}}"
-version = "0.1.0"
-"#;
 }
