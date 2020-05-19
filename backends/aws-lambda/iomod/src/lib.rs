@@ -61,9 +61,67 @@ pub mod database {
     pub fn aws_dynamodb_put_item_impl(ctx: &mut vm::Ctx, mem: WasmBufferPtr, input: WasmBufferPtr, input_len: u32) -> i32 {
         println!("TRACE: aws_dynamodb_put_item_impl");
 
+        let input_vec = wasm_buffer_as_vec(ctx, input, input_len);
+        spawn_event(ctx, mem, __aws_dynamodb_put_item_impl(input_vec))
+    }
+
+    // aws.dynamodb.get_item
+
+    async fn __aws_dynamodb_get_item_impl(input: Vec<u8>) -> Vec<u8> {
+        println!("TRACE: __aws_dynamodb_get_item_impl");
+
+        let deserialized = serde_json::from_slice(input.as_slice()).unwrap();
+        let result = DYNAMODB.get_item(deserialized).await.unwrap();
+        serde_json::to_vec(&result).unwrap()
+    }
+    
+    pub fn aws_dynamodb_get_item_impl(ctx: &mut vm::Ctx, mem: WasmBufferPtr, input: WasmBufferPtr, input_len: u32) -> i32 {
+        println!("TRACE: aws_dynamodb_get_item_impl");
+
+        let input_vec = wasm_buffer_as_vec(ctx, input, input_len);
+        spawn_event(ctx, mem, __aws_dynamodb_get_item_impl(input_vec))
+    }
+
+    // aws.dynamodb.delete_item
+
+    async fn __aws_dynamodb_delete_item_impl(input: Vec<u8>) -> Vec<u8> {
+        println!("TRACE: __aws_dynamodb_delete_item_impl");
+
+        let deserialized = serde_json::from_slice(input.as_slice()).unwrap();
+        let result = DYNAMODB.delete_item(deserialized).await.unwrap();
+        serde_json::to_vec(&result).unwrap()
+    }
+
+    pub fn aws_dynamodb_delete_item_impl(ctx: &mut vm::Ctx, mem: WasmBufferPtr, input: WasmBufferPtr, input_len: u32) -> i32 {
+        println!("TRACE: aws_dynamodb_delete_item_impl");
+
+        let input_vec = wasm_buffer_as_vec(ctx, input, input_len);
+        spawn_event(ctx, mem, __aws_dynamodb_delete_item_impl(input_vec))
+    }
+
+    // aws.dynamodb.update_item
+
+    async fn __aws_dynamodb_update_item_impl(input: Vec<u8>) -> Vec<u8> {
+        println!("TRACE: __aws_dynamodb_update_item_impl");
+
+        let deserialized = serde_json::from_slice(input.as_slice()).unwrap();
+        let result = DYNAMODB.update_item(deserialized).await.unwrap();
+        serde_json::to_vec(&result).unwrap()
+    }
+
+    pub fn aws_dynamodb_update_item_impl(ctx: &mut vm::Ctx, mem: WasmBufferPtr, input: WasmBufferPtr, input_len: u32) -> i32 {
+        println!("TRACE: aws_dynamodb_update_item_impl");
+
+        let input_vec = wasm_buffer_as_vec(ctx, input, input_len);
+        spawn_event(ctx, mem, __aws_dynamodb_update_item_impl(input_vec))
+    }
+
+    // helpers
+
+    fn wasm_buffer_as_vec(ctx: &mut vm::Ctx, input: WasmBufferPtr, input_len: u32) -> Vec<u8> {
         let wasm_instance_memory = ctx.memory(0);
         let input_deref: &[AtomicCell<u8>] = input
-            .deref(wasm_instance_memory, 0, input_len as u32)
+            .deref(wasm_instance_memory, 0, input_len)
             .unwrap();
 
         let mut as_vec: Vec<u8> = Vec::new();
@@ -71,7 +129,7 @@ pub mod database {
             as_vec.insert(idx, b.load());
         }
 
-        spawn_event(ctx, mem, __aws_dynamodb_put_item_impl(as_vec))
+        as_vec
     }
 
     fn spawn_event(ctx: &mut vm::Ctx, mem: WasmBufferPtr, future: impl Future<Output=Vec<u8>> + 'static + Send) -> i32 {
@@ -91,20 +149,29 @@ pub mod database {
         event_id as i32
     }
 
+    // iomod interface
+
     pub struct MyModule {}
 
     impl IoModule for MyModule {
         fn register(registry: &mut ModuleRegistry) {
-            // TODO a lot of this can be hidden by a macro
+            // TODO a lot of this can be hidden by a macro.
+            //      not just this, but the above *_impls as well
 
             let org = "aws".to_string();
             let namespace = "dynamodb".to_string();
             let list_tables_name = "list_tables".to_string();
             let put_item_name = "put_item".to_string();
+            let get_item_name = "get_item".to_string();
+            let delete_item_name = "delete_item".to_string();
+            let update_item_name = "update_item".to_string();
 
             let mut name_map = HashMap::new();
             name_map.entry(list_tables_name).or_insert(aws_dynamodb_list_tables_impl as AsmlAbiFn);
             name_map.entry(put_item_name).or_insert(aws_dynamodb_put_item_impl as AsmlAbiFn);
+            name_map.entry(get_item_name).or_insert(aws_dynamodb_get_item_impl as AsmlAbiFn);
+            name_map.entry(delete_item_name).or_insert(aws_dynamodb_delete_item_impl as AsmlAbiFn);
+            name_map.entry(update_item_name).or_insert(aws_dynamodb_update_item_impl as AsmlAbiFn);
 
             let mut namespace_map = HashMap::new();
             namespace_map.entry(namespace).or_insert(name_map);
