@@ -44,7 +44,7 @@ impl GuestCore for AwsLambdaClient {
 
 #[derive(Serialize, Deserialize, Clone, std::fmt::Debug)]
 pub struct ApiGatewayEvent {
-    body: Option<String>
+    pub body: Option<String>
 }
 
 pub struct LambdaContext {
