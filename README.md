@@ -61,11 +61,12 @@ If using Ruby as a build front-end is problematic in your environment, please [f
 - [ ] Set up a CI/CD pipeline
 - [ ] Handle more of those `unwrap`s
 - [ ] Clean up warnings
+- [ ] Macros for iomod implementation
 
 ## 0.2
 
 - [ ] Proper implementation of [Threader](/core/event/src/threader.rs) memory manager
-- [ ] Macros for iomod implementation
+- [ ] Plugin framework for IOmods
 - [ ] More examples
 - [ ] Logging system
 
