@@ -98,4 +98,29 @@ pub mod database {
             _ => Event::<UpdateItemOutput>::new(event_id as u32)
         }
     }
+
+    #[macro_export]
+    macro_rules! val {
+        (B => $val:expr) => (
+            {
+                let mut attr = AttributeValue::default();
+                attr.b = Some($val);
+                attr
+            }
+        );
+        (S => $val:expr) => (
+            {
+                let mut attr = AttributeValue::default();
+                attr.s = Some($val.to_string());
+                attr
+            }
+        );
+        (N => $val:expr) => (
+            {
+                let mut attr = AttributeValue::default();
+                attr.n = Some($val.to_string());
+                attr
+            }
+        );
+    }
 }
