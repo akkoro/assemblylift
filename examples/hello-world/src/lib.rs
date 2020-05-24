@@ -1,6 +1,6 @@
-#[macro_use]
 extern crate guest;
 extern crate core_event_guest;
+use serde_json;
 use awsio::*;
 use guest::*;
 use core_guest::GuestCore;
@@ -8,7 +8,7 @@ use core_guest::GuestCore;
 use std::collections::HashMap;
 
 handler!(context: LambdaContext, async {
-    AwsLambdaClient::console_log(format!("Got event: {}", context.event));
+    AwsLambdaClient::console_log(format!("Got event: {:?}", context.event));
 
     AwsLambdaClient::console_log("Calling...".to_string());
 
