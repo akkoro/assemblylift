@@ -61,7 +61,7 @@ If using Ruby as a build front-end is problematic in your environment, please [f
 - [ ] Set up a CI/CD pipeline
 - [ ] Handle more of those `unwrap`s
 - [ ] Clean up warnings
-- [ ] Macros for iomod implementation
+- [ ] Macros for iomod implementation [#10](https://github.com/akkoro/assemblylift/pull/10)
 
 ## 0.2
 
