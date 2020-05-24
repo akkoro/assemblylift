@@ -16,8 +16,10 @@ name = "assemblylift-awslambda-iomod-guest"
 version = "0.1.0"
 dependencies = [
  "assemblylift-core-event-guest",
+ "assemblylift-core-guest",
  "base64",
  "bytes",
+ "paste",
  "serde",
  "serde_json",
 ]
@@ -43,6 +45,9 @@ dependencies = [
 [[package]]
 name = "assemblylift-core-guest"
 version = "0.1.0"
+dependencies = [
+ "paste",
+]
 
 [[package]]
 name = "base64"
@@ -185,6 +190,28 @@ name = "memchr"
 version = "2.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3728d817d99e5ac407411fa471ff9800a778d88a24685968b36824eaf4bee400"
+
+[[package]]
+name = "paste"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a229b1c58c692edcaa5b9b0948084f130f55d2dcc15b02fcc5340b2b4521476"
+dependencies = [
+ "paste-impl",
+ "proc-macro-hack",
+]
+
+[[package]]
+name = "paste-impl"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e0bf239e447e67ff6d16a8bb5e4d4bd2343acf5066061c0e8e06ac5ba8ca68c"
+dependencies = [
+ "proc-macro-hack",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "pin-utils"

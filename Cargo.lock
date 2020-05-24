@@ -85,8 +85,10 @@ name = "assemblylift-awslambda-iomod-guest"
 version = "0.1.0"
 dependencies = [
  "assemblylift-core-event-guest",
+ "assemblylift-core-guest",
  "base64 0.12.1",
  "bytes",
+ "paste",
  "serde",
  "serde_json",
 ]
@@ -149,6 +151,9 @@ dependencies = [
 [[package]]
 name = "assemblylift-core-guest"
 version = "0.1.0"
+dependencies = [
+ "paste",
+]
 
 [[package]]
 name = "async-trait"
