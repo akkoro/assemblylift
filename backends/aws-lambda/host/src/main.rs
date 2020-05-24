@@ -1,33 +1,15 @@
 #[macro_use]
 extern crate lazy_static;
 
-use std::borrow::Borrow;
-use std::cell::Cell;
 use std::env;
-use std::error::Error;
-use std::ffi::c_void;
-use std::fs::{canonicalize, File};
-use std::io;
-use std::io::ErrorKind;
-use std::io::prelude::*;
-use std::str::Utf8Error;
-use std::sync::{Arc, Mutex};
-use std::sync::mpsc::sync_channel;
+use std::sync::Mutex;
 
 use crossbeam_utils::atomic::AtomicCell;
 use crossbeam_utils::thread::scope;
-use wasmer_runtime::{Array, Ctx, Export, Instance, LikeNamespace, WasmPtr};
-use wasmer_runtime::memory::MemoryView;
-use wasmer_runtime::types::{FuncSig, Type};
-use wasmer_runtime_core::backend::SigRegistry;
-use wasmer_runtime_core::export::{Context, FuncPointer};
-use wasmer_runtime_core::Func;
-use wasmer_runtime_core::typed_func::Wasm;
+use wasmer_runtime::Instance;
 
 use assemblylift_core::iomod::*;
 use assemblylift_core::WasmBufferPtr;
-use assemblylift_core_event::threader::Threader;
-use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 use runtime::AwsLambdaRuntime;
 
 mod runtime;

@@ -1,21 +1,16 @@
-use std::borrow::{Borrow, BorrowMut};
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::error::Error;
 use std::io;
 use std::io::ErrorKind;
-use std::sync::{Mutex, Arc};
-use std::task::Context;
+use std::sync::Mutex;
 
 use wasmer_runtime::Ctx;
 use wasmer_runtime::memory::MemoryView;
-use wasmer_runtime_core::{DynFunc, structures::TypedIndex, types::TableIndex, vm};
+use wasmer_runtime_core::vm;
 
 use crate::WasmBufferPtr;
 use assemblylift_core_event::threader::Threader;
-use std::ops::Deref;
-use serde::Deserialize;
-use crossbeam_utils::atomic::AtomicCell;
 
 lazy_static! {
     pub static ref MODULE_REGISTRY: Mutex<ModuleRegistry> = Mutex::new(ModuleRegistry::new());
@@ -30,10 +25,11 @@ pub trait IoModule {
 }
 
 pub type AsmlAbiFn = fn(&mut vm::Ctx, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
+pub type ModuleMap = HashMap<String, HashMap<String, HashMap<String, AsmlAbiFn>>>;
 
 #[derive(Clone)]
 pub struct ModuleRegistry {
-    pub modules: HashMap<String, HashMap<String, HashMap<String, AsmlAbiFn>>>
+    pub modules: ModuleMap
 }
 
 impl ModuleRegistry {
@@ -54,7 +50,8 @@ pub fn asml_abi_invoke(ctx: &mut vm::Ctx, mem: WasmBufferPtr, name_ptr: u32, nam
         println!("  with coordinates: {:?}", coord_vec);
 
         println!("DEBUG: input_len={}", input_len);
-        return MODULE_REGISTRY.lock().unwrap().modules[org][namespace][name](ctx, mem, input, input_len);
+        let registry = MODULE_REGISTRY.lock().unwrap();
+        return registry.modules[org][namespace][name](ctx, mem, input, input_len);
     }
 
     println!("ERROR: asml_abi_invoke error");
@@ -79,11 +76,7 @@ pub fn asml_abi_event_len(ctx: &mut vm::Ctx, id: u32) -> u32 {
 #[inline]
 fn get_threader(ctx: &mut vm::Ctx) -> *mut Threader {
     // TODO check null and return option or result
-    let mut threader: *mut Threader;
-    unsafe {
-        threader = ctx.data.cast();
-    }
-
+    let threader: *mut Threader = ctx.data.cast();
     threader
 }
 
@@ -102,15 +95,35 @@ fn ctx_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Er
         .map_err(to_io_error)
 }
 
-#[inline]
-fn ctx_ptr_to_vec_u8(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<Vec<u8>, io::Error> {
-    let memory = ctx.memory(0);
-    let view: MemoryView<u8> = memory.view();
+#[macro_export]
+macro_rules! register_calls {
+    ($reg:expr, $($org_name:ident => {
+        $ns_name:ident => $ns:tt
+    }),* $(,)?) 
+    => {{
+        let org_name = String::from("$org_name");
+        let ns_name = String::from("$ns_name");
 
-    let mut str_vec: Vec<u8> = Vec::new();
-    for byte in view[ptr as usize .. (ptr + len) as usize].iter().map(Cell::get) {
-        str_vec.push(byte);
-    }
+        let mut namespace_map = HashMap::new();
 
-    Ok(str_vec)
+        $({
+            let mut name_map = __register_calls!($ns);
+            namespace_map.entry(ns_name).or_insert(name_map);
+        })*
+
+        $reg.modules.entry(org_name).or_insert(namespace_map);
+    }};
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __register_calls {
+    ({ $( $call_name:ident => $call:expr ),* $(,)? }) => {{
+        let mut name_map = HashMap::new();
+        $(
+            let call_name = String::from("$call_name");
+            name_map.entry(call_name).or_insert($call as AsmlAbiFn);
+        )*
+        name_map
+    }};
 }

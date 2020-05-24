@@ -1,28 +1,20 @@
 #[macro_use]
 extern crate lazy_static;
-
-use std::ffi::c_void;
-use std::sync::Mutex;
+#[macro_use]
+extern crate assemblylift_core;
 
 pub mod database {
-    use std::borrow::{Borrow, BorrowMut};
     use std::collections::HashMap;
-    use std::ffi::c_void;
     use std::future::Future;
-    use std::ops::{Deref, DerefMut};
-    use std::sync::{Arc, Mutex};
 
     use crossbeam_utils::atomic::AtomicCell;
-    use futures::TryFutureExt;
     use rusoto_core::Region;
-    use rusoto_dynamodb::{DynamoDb, DynamoDbClient, ListTablesError, ListTablesInput, ListTablesOutput, PutItemInput};
+    use rusoto_dynamodb::{DynamoDb, DynamoDbClient, ListTablesInput};
     use serde_json;
-    use wasmer_runtime::{Ctx, Func, Instance};
     use wasmer_runtime_core::vm;
 
     use assemblylift_core::iomod::{AsmlAbiFn, IoModule, ModuleRegistry};
     use assemblylift_core::WasmBufferPtr;
-    use assemblylift_core_event::*;
     use assemblylift_core_event::threader::Threader;
     use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 
@@ -133,14 +125,14 @@ pub mod database {
     }
 
     fn spawn_event(ctx: &mut vm::Ctx, mem: WasmBufferPtr, future: impl Future<Output=Vec<u8>> + 'static + Send) -> i32 {
-        let mut threader: *mut Threader = ctx.data.cast();
-        let mut threader_ref = unsafe { threader.as_mut().unwrap() };
+        let threader: *mut Threader = ctx.data.cast();
+        let threader_ref = unsafe { threader.as_mut().unwrap() };
 
         let event_id = threader_ref.next_event_id().unwrap();
         println!("DEBUG: event_id={}", event_id);
 
         let wasm_instance_memory = ctx.memory(0);
-        let mut memory_writer: &[AtomicCell<u8>] = mem
+        let memory_writer: &[AtomicCell<u8>] = mem
             .deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32)
             .unwrap();
 
@@ -155,28 +147,17 @@ pub mod database {
 
     impl IoModule for MyModule {
         fn register(registry: &mut ModuleRegistry) {
-            // TODO a lot of this can be hidden by a macro.
-            //      not just this, but the above *_impls as well
-
-            let org = "aws".to_string();
-            let namespace = "dynamodb".to_string();
-            let list_tables_name = "list_tables".to_string();
-            let put_item_name = "put_item".to_string();
-            let get_item_name = "get_item".to_string();
-            let delete_item_name = "delete_item".to_string();
-            let update_item_name = "update_item".to_string();
-
-            let mut name_map = HashMap::new();
-            name_map.entry(list_tables_name).or_insert(aws_dynamodb_list_tables_impl as AsmlAbiFn);
-            name_map.entry(put_item_name).or_insert(aws_dynamodb_put_item_impl as AsmlAbiFn);
-            name_map.entry(get_item_name).or_insert(aws_dynamodb_get_item_impl as AsmlAbiFn);
-            name_map.entry(delete_item_name).or_insert(aws_dynamodb_delete_item_impl as AsmlAbiFn);
-            name_map.entry(update_item_name).or_insert(aws_dynamodb_update_item_impl as AsmlAbiFn);
-
-            let mut namespace_map = HashMap::new();
-            namespace_map.entry(namespace).or_insert(name_map);
-
-            registry.modules.entry(org).or_insert(namespace_map);
+            register_calls!(registry, 
+                aws => {
+                    dynamodb => {
+                        list_tables => aws_dynamodb_list_tables_impl,
+                        put_item => aws_dynamodb_put_item_impl,
+                        get_item => aws_dynamodb_get_item_impl,
+                        delete_item => aws_dynamodb_delete_item_impl,
+                        update_item => aws_dynamodb_update_item_impl
+                    }
+                }
+            );
         }
     }
 
