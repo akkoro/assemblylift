@@ -4,6 +4,9 @@ use std::error::Error;
 use std::io;
 use std::io::ErrorKind;
 use std::sync::Mutex;
+use std::future::Future;
+
+use crossbeam_utils::atomic::AtomicCell;
 
 use wasmer_runtime::Ctx;
 use wasmer_runtime::memory::MemoryView;
@@ -11,6 +14,7 @@ use wasmer_runtime_core::vm;
 
 use crate::WasmBufferPtr;
 use assemblylift_core_event::threader::Threader;
+use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 
 lazy_static! {
     pub static ref MODULE_REGISTRY: Mutex<ModuleRegistry> = Mutex::new(ModuleRegistry::new());
@@ -95,6 +99,24 @@ fn ctx_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Er
         .map_err(to_io_error)
 }
 
+#[inline(always)]
+pub fn spawn_event(ctx: &mut vm::Ctx, mem: WasmBufferPtr, future: impl Future<Output=Vec<u8>> + 'static + Send) -> i32 {
+    let threader: *mut Threader = ctx.data.cast();
+    let threader_ref = unsafe { threader.as_mut().unwrap() };
+
+    let event_id = threader_ref.next_event_id().unwrap();
+    println!("DEBUG: event_id={}", event_id);
+
+    let wasm_instance_memory = ctx.memory(0);
+    let memory_writer: &[AtomicCell<u8>] = mem
+        .deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32)
+        .unwrap();
+
+    threader_ref.spawn_with_event_id(memory_writer.as_ptr(), future, event_id);
+
+    event_id as i32
+}
+
 #[macro_export]
 macro_rules! register_calls {
     ($reg:expr, $($org_name:ident => {
@@ -125,5 +147,39 @@ macro_rules! __register_calls {
             name_map.entry(call_name).or_insert($call as AsmlAbiFn);
         )*
         name_map
+    }};
+}
+
+#[macro_export]
+macro_rules! call {
+    ($call_name:ident => $call:item) => {
+        $call 
+
+        pub fn $call_name (ctx: &mut vm::Ctx, mem: WasmBufferPtr, input: WasmBufferPtr, input_len: u32) -> i32 {
+            use assemblylift_core::iomod::spawn_event;
+
+            println!("TRACE: $call_name");
+            let input_vec = __wasm_buffer_as_vec!(ctx, input, input_len);
+            let call = paste::expr! { [<$call_name _impl>] }(input_vec);
+            spawn_event(ctx, mem, call)
+        }
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __wasm_buffer_as_vec {
+    ($ctx:ident, $input:ident, $input_len:ident) => {{
+        let wasm_instance_memory = $ctx.memory(0);
+        let input_deref: &[AtomicCell<u8>] = $input
+            .deref(wasm_instance_memory, 0, $input_len)
+            .unwrap();
+
+        let mut as_vec: Vec<u8> = Vec::new();
+        for (idx, b) in input_deref.iter().enumerate() {
+            as_vec.insert(idx, b.load());
+        }
+
+        as_vec
     }};
 }
