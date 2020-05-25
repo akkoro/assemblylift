@@ -1,22 +1,17 @@
 use std::{env, io};
-use std::borrow::BorrowMut;
 use std::cell::Cell;
 use std::error::Error;
 use std::ffi::c_void;
 use std::fs::{canonicalize, File};
 use std::io::{ErrorKind, Read};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
-use crossbeam_utils::atomic::AtomicCell;
-use wasmer_runtime::Func;
 use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime_core::Instance;
 use wasmer_runtime_core::vm::Ctx;
 
 use assemblylift_core::iomod::*;
-use assemblylift_core::WasmBufferPtr;
 use assemblylift_core_event::threader::Threader;
-use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 
 pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
     // let panic if these aren't set
@@ -37,7 +32,7 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
         })
         .and_then(|buffer| {
             use wasmer_runtime::{instantiate, func, imports};
-            let mut import_object = imports! {
+            let import_object = imports! {
                 "env" => {
                     "__asml_abi_console_log" => func!(runtime_console_log),
                     "__asml_abi_success" => func!(runtime_success),
@@ -53,7 +48,7 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
         });
 
     match get_instance {
-        Ok(mut instance) => {
+        Ok(instance) => {
             let threader = Box::into_raw(Box::from(Threader::new()));
             let mut boxed_instance = Box::new(instance);
             boxed_instance.context_mut().data = threader as *mut _ as *mut c_void;
@@ -76,12 +71,10 @@ fn runtime_console_log(ctx: &mut Ctx, ptr: u32, len: u32) {
 }
 
 fn runtime_success(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<(), io::Error> {
-    unsafe {
-        let lambda_runtime = crate::LAMBDA_RUNTIME.lock().unwrap();
-        let request_id = lambda_runtime.current_request_id.borrow().clone();
-        let response = runtime_ptr_to_string(ctx, ptr, len).unwrap();
-        lambda_runtime.respond(request_id, response.to_string())
-    }
+    let lambda_runtime = crate::LAMBDA_RUNTIME.lock().unwrap();
+    let request_id = lambda_runtime.current_request_id.borrow().clone();
+    let response = runtime_ptr_to_string(ctx, ptr, len).unwrap();
+    lambda_runtime.respond(request_id, response.to_string())
 }
 
 fn runtime_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Error> {

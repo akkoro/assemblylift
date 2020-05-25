@@ -1,6 +1,7 @@
 extern crate assemblylift_core_event;
 #[macro_use]
 extern crate lazy_static;
+extern crate paste;
 
 use std::any::Any;
 use std::borrow::Borrow;

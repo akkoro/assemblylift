@@ -173,6 +173,21 @@ pub struct GetItemOutput {
     pub item: Option<::std::collections::HashMap<String, AttributeValue>>,
 }
 
+/// <p>Represents the input of a <code>ListTables</code> operation.</p>
+
+#[derive(Default, Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct ListTablesInput {
+    /// <p>The first table name that this operation will evaluate. Use the value that was returned for <code>LastEvaluatedTableName</code> in a previous operation, so that you can obtain the next page of results.</p>
+    #[serde(rename = "ExclusiveStartTableName")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exclusive_start_table_name: Option<String>,
+
+    /// <p>A maximum number of table names to return. If this parameter is not specified, the limit is 100.</p>
+    #[serde(rename = "Limit")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<i64>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ListTablesOutput {
     #[serde(rename = "LastEvaluatedTableName")]

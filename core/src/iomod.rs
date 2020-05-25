@@ -1,21 +1,20 @@
-use std::borrow::{Borrow, BorrowMut};
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::error::Error;
 use std::io;
 use std::io::ErrorKind;
-use std::sync::{Mutex, Arc};
-use std::task::Context;
+use std::sync::Mutex;
+use std::future::Future;
+
+use crossbeam_utils::atomic::AtomicCell;
 
 use wasmer_runtime::Ctx;
 use wasmer_runtime::memory::MemoryView;
-use wasmer_runtime_core::{DynFunc, structures::TypedIndex, types::TableIndex, vm};
+use wasmer_runtime_core::vm;
 
 use crate::WasmBufferPtr;
 use assemblylift_core_event::threader::Threader;
-use std::ops::Deref;
-use serde::Deserialize;
-use crossbeam_utils::atomic::AtomicCell;
+use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 
 lazy_static! {
     pub static ref MODULE_REGISTRY: Mutex<ModuleRegistry> = Mutex::new(ModuleRegistry::new());
@@ -30,10 +29,11 @@ pub trait IoModule {
 }
 
 pub type AsmlAbiFn = fn(&mut vm::Ctx, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
+pub type ModuleMap = HashMap<String, HashMap<String, HashMap<String, AsmlAbiFn>>>;
 
 #[derive(Clone)]
 pub struct ModuleRegistry {
-    pub modules: HashMap<String, HashMap<String, HashMap<String, AsmlAbiFn>>>
+    pub modules: ModuleMap
 }
 
 impl ModuleRegistry {
@@ -54,7 +54,8 @@ pub fn asml_abi_invoke(ctx: &mut vm::Ctx, mem: WasmBufferPtr, name_ptr: u32, nam
         println!("  with coordinates: {:?}", coord_vec);
 
         println!("DEBUG: input_len={}", input_len);
-        return MODULE_REGISTRY.lock().unwrap().modules[org][namespace][name](ctx, mem, input, input_len);
+        let registry = MODULE_REGISTRY.lock().unwrap();
+        return registry.modules[org][namespace][name](ctx, mem, input, input_len);
     }
 
     println!("ERROR: asml_abi_invoke error");
@@ -79,11 +80,7 @@ pub fn asml_abi_event_len(ctx: &mut vm::Ctx, id: u32) -> u32 {
 #[inline]
 fn get_threader(ctx: &mut vm::Ctx) -> *mut Threader {
     // TODO check null and return option or result
-    let mut threader: *mut Threader;
-    unsafe {
-        threader = ctx.data.cast();
-    }
-
+    let threader: *mut Threader = ctx.data.cast();
     threader
 }
 
@@ -102,15 +99,87 @@ fn ctx_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Er
         .map_err(to_io_error)
 }
 
-#[inline]
-fn ctx_ptr_to_vec_u8(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<Vec<u8>, io::Error> {
-    let memory = ctx.memory(0);
-    let view: MemoryView<u8> = memory.view();
+#[inline(always)]
+pub fn spawn_event(ctx: &mut vm::Ctx, mem: WasmBufferPtr, future: impl Future<Output=Vec<u8>> + 'static + Send) -> i32 {
+    let threader: *mut Threader = ctx.data.cast();
+    let threader_ref = unsafe { threader.as_mut().unwrap() };
 
-    let mut str_vec: Vec<u8> = Vec::new();
-    for byte in view[ptr as usize .. (ptr + len) as usize].iter().map(Cell::get) {
-        str_vec.push(byte);
-    }
+    let event_id = threader_ref.next_event_id().unwrap();
+    println!("DEBUG: event_id={}", event_id);
 
-    Ok(str_vec)
+    let wasm_instance_memory = ctx.memory(0);
+    let memory_writer: &[AtomicCell<u8>] = mem
+        .deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32)
+        .unwrap();
+
+    threader_ref.spawn_with_event_id(memory_writer.as_ptr(), future, event_id);
+
+    event_id as i32
+}
+
+#[macro_export]
+macro_rules! register_calls {
+    ($reg:expr, $($org_name:ident => {
+        $ns_name:ident => $ns:tt
+    }),* $(,)?) 
+    => {{
+        let org_name = String::from("$org_name");
+        let ns_name = String::from("$ns_name");
+
+        let mut namespace_map = HashMap::new();
+
+        $({
+            let mut name_map = __register_calls!($ns);
+            namespace_map.entry(ns_name).or_insert(name_map);
+        })*
+
+        $reg.modules.entry(org_name).or_insert(namespace_map);
+    }};
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __register_calls {
+    ({ $( $call_name:ident => $call:expr ),* $(,)? }) => {{
+        let mut name_map = HashMap::new();
+        $(
+            let call_name = String::from("$call_name");
+            name_map.entry(call_name).or_insert($call as AsmlAbiFn);
+        )*
+        name_map
+    }};
+}
+
+#[macro_export]
+macro_rules! call {
+    ($call_name:ident => $call:item) => {
+        $call 
+
+        pub fn $call_name (ctx: &mut vm::Ctx, mem: WasmBufferPtr, input: WasmBufferPtr, input_len: u32) -> i32 {
+            use assemblylift_core::iomod::spawn_event;
+
+            println!("TRACE: $call_name");
+            let input_vec = __wasm_buffer_as_vec!(ctx, input, input_len);
+            let call = paste::expr! { [<$call_name _impl>] }(input_vec);
+            spawn_event(ctx, mem, call)
+        }
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __wasm_buffer_as_vec {
+    ($ctx:ident, $input:ident, $input_len:ident) => {{
+        let wasm_instance_memory = $ctx.memory(0);
+        let input_deref: &[AtomicCell<u8>] = $input
+            .deref(wasm_instance_memory, 0, $input_len)
+            .unwrap();
+
+        let mut as_vec: Vec<u8> = Vec::new();
+        for (idx, b) in input_deref.iter().enumerate() {
+            as_vec.insert(idx, b.load());
+        }
+
+        as_vec
+    }};
 }

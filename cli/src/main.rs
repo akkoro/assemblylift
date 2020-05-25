@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate serde_json;
 
 use clap::{crate_version, Arg, App};
