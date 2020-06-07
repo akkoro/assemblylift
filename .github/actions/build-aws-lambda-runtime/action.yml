@@ -1,0 +1,5 @@
+name: 'Build AWS Lambda Runtime'
+
+runs:
+    using: 'docker'
+    image: 'Dockerfile'

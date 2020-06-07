@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: AssemblyLift CI
 
 on:
   push:
@@ -14,5 +14,4 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag assemblylift:$(date +%s)
+    - uses: ./.github/actions/build-aws-lambda-runtime
