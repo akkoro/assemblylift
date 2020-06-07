@@ -9,7 +9,7 @@ on:
 jobs:
 
   build:
-
+    name: 'AWS Lambda Runtime'
     runs-on: ubuntu-latest
 
     steps:
