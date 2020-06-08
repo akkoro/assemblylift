@@ -17,4 +17,4 @@ jobs:
     - name: 'build'
       uses: ./.github/actions/build-aws-lambda-runtime
     - name: 'copy artifact'
-      run: ls -l $GITHUB_WORKSPACE 
+      run: ls -l . && cargo --version
