@@ -7,4 +7,4 @@ WORKDIR /usr/src/assemblylift
 COPY . .
 
 RUN $HOME/.cargo/bin/cargo build --release
-RUN cp /usr/src/assemblylift/target/release/bootstrap $GITHUB_WORKSPACE
+RUN cp /usr/src/assemblylift/target/release/bootstrap /github/workspace
