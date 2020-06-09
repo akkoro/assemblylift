@@ -2,6 +2,8 @@
   <img width="600" src="./docs/AssemblyLift_logo_with_text.png">
 </p>
 
+![AssemblyLift CI](https://github.com/akkoro/assemblylift/workflows/AssemblyLift%20CI/badge.svg)
+
 AssemblyLift is a framework for building serverless applications with WebAssembly (WASM).
 
 Highlight reel:
@@ -55,13 +57,13 @@ If using Ruby as a build front-end is problematic in your environment, please [f
 
 ## 0.1
 
-- [ ] Build system incl. Docker [#2](https://github.com/akkoro/assemblylift/issues/2)
+- [x] Build system incl. Docker [#2](https://github.com/akkoro/assemblylift/issues/2)
 - [ ] Unit tests [#3](https://github.com/akkoro/assemblylift/issues/3)
 - [ ] Start the CLI [#4](https://github.com/akkoro/assemblylift/issues/4)
-- [ ] Set up a CI/CD pipeline
+- [x] Set up a CI/CD pipeline [#2](https://github.com/akkoro/assemblylift/issues/2) [#11](https://github.com/akkoro/assemblylift/pull/11)
 - [ ] Handle more of those `unwrap`s
 - [ ] Clean up warnings
-- [ ] Macros for iomod implementation [#10](https://github.com/akkoro/assemblylift/pull/10)
+- [x] Macros for iomod implementation [#10](https://github.com/akkoro/assemblylift/pull/10)
 
 ## 0.2
 
