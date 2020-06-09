@@ -18,3 +18,5 @@ jobs:
       run: docker build . --tag assemblylift-aws-lambda:$GITHUB_SHA
     - name: 'copy bootstrap to HOME'
       run: docker run --rm --entrypoint cat assemblylift-aws-lambda:$GITHUB_SHA /usr/src/assemblylift/target/release/bootstrap > $HOME/bootstrap
+    - name: 'copy artifact'
+      run: ls -l $HOME
