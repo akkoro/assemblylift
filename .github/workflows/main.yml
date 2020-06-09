@@ -15,6 +15,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: 'build'
-      uses: ./.github/actions/build-aws-lambda-runtime
-    - name: 'copy artifact'
-      run: ls -l . && cargo --version
+      run: docker build . --tag assemblylift-aws-lambda:$GITHUB_SHA
+    - name: 'copy bootstrap to HOME'
+      run: docker run --rm --entrypoint cat assemblylift-aws-lambda:$GITHUB_SHA /usr/src/assemblylift/target/release/bootstrap > $HOME/bootstrap
