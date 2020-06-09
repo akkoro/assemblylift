@@ -2,6 +2,7 @@ extern crate serde_json;
 
 use clap::{crate_version, Arg, App};
 use crate::commands::init::init;
+use crate::commands::compile::compile;
 use std::collections::HashMap;
 use crate::commands::CommandFn;
 
@@ -29,11 +30,15 @@ fn main() {
                         .takes_value(true)
                 )
                 // TODO this is going to need an argument to specify the backend (ie aws-lambda, azure, etc)
+        )
+        .subcommand(
+            App::new("compile")
         );
     let matches = app.get_matches();
 
     let mut command_map = HashMap::<&str, CommandFn>::new();
     command_map.insert("init", init);
+    command_map.insert("compile", compile);
 
     match matches.subcommand() {
         (name, matches) => command_map[name](matches)
