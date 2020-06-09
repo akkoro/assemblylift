@@ -1,0 +1,25 @@
+name: AssemblyLift CI
+
+on:
+  push:
+    branches: [ research ]
+  pull_request:
+    branches: [ research ]
+
+jobs:
+
+  build:
+    name: 'AWS Lambda Runtime'
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: 'build'
+      run: docker build . --file Dockerfile_aws-lambda --tag assemblylift-aws-lambda:$GITHUB_SHA
+    - name: 'copy bootstrap to HOME'
+      run: docker run --rm --entrypoint cat assemblylift-aws-lambda:$GITHUB_SHA /usr/src/assemblylift/target/release/bootstrap > $HOME/bootstrap
+    - uses: actions/upload-artifact@v2
+      name: 'upload artifact'
+      with:
+        name: bootstrap
+        path: ~/bootstrap
