@@ -22,4 +22,4 @@ jobs:
       name: 'upload artifact'
       with:
         name: bootstrap
-        path: $HOME/bootstrap
+        path: ~/bootstrap
