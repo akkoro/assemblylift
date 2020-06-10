@@ -80,4 +80,4 @@ so let's start there 🙂.
 
 # License
 
-[Apache 2](/LICENSE)
+[Hippocratic License 2.1](/LICENSE.md)
