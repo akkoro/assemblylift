@@ -66,9 +66,11 @@ pub fn compile(matches: Option<&ArgMatches>) {
             let canonical_function_path = &fs::canonicalize(
                 path::Path::new(&format!("{}/Cargo.toml", function_path))).unwrap();
 
+            let mode = "release"; // TODO should this really be the default?
+
             let mut cargo_build = process::Command::new("cargo")
                 .arg("build")
-                .arg("--release") // TODO should this really be default?
+                .arg(format!("--{}", mode)) 
                 .arg("--manifest-path")
                 .arg(canonical_function_path)
                 .arg("--target")
@@ -85,7 +87,7 @@ pub fn compile(matches: Option<&ArgMatches>) {
 
             let function_name_snaked = function.name.replace("-", "_");
             let copy_result = fs::copy(
-                format!("{}/target/wasm32-unknown-unknown/release/{}.wasm", function_path, function_name_snaked), 
+                format!("{}/target/wasm32-unknown-unknown/{}/{}.wasm", function_path, mode, function_name_snaked), 
                 format!("{}/{}.wasm", function_path, function_name_snaked)
             );
 
