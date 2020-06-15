@@ -1,9 +1,5 @@
-use std::error::Error;
 use std::fs;
-use std::io;
-use std::io::Write;
 use std::path;
-use std::path::PathBuf;
 use std::process;
 
 use clap::ArgMatches;
@@ -36,14 +32,17 @@ pub fn init(matches: Option<&ArgMatches>) {
             assert_prereqs();
 
             projectfs::write_function_manifest(canonical_project_path,
-                                                      default_service_name,
-                                                      default_function_name).unwrap();
+                                               default_service_name,
+                                               default_function_name).unwrap();
             projectfs::write_function_cargo_config(canonical_project_path,
-                                                          default_service_name,
-                                                          default_function_name).unwrap();
+                                                   default_service_name,
+                                                   default_function_name).unwrap();
             projectfs::write_function_lib(canonical_project_path,
-                                                 default_service_name,
-                                                 default_function_name).unwrap();
+                                          default_service_name,
+                                          default_function_name).unwrap();
+            projectfs::write_function_gitignore(canonical_project_path, 
+                                                default_service_name, 
+                                                default_function_name).unwrap();
         }
         Some(unknown) => panic!("unsupported language: {}", unknown),
         _ => {}
@@ -58,7 +57,7 @@ fn check_rust_prereqs() -> bool {
         .output();
 
     match cargo_version {
-        Ok(version) => true,
+        Ok(_version) => true,
         Err(_) => {
             println!("ERROR: missing Cargo!");
             false
