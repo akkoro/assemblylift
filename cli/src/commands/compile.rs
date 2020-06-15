@@ -45,10 +45,6 @@ pub fn compile(matches: Option<&ArgMatches>) {
         _ => panic!("could not get matches for compile")
     };
 
-    // TODO 1) read assemblylift.toml to find functions ✅ 
-    //      2) run appropriate build command for each function ✅ 
-    //      3) aggregate build output for deployment
-
     let asml_config_contents = fs::read_to_string("./assemblylift.toml").unwrap();
     let asml_config: AssemblyLiftConfig = toml::from_str(&asml_config_contents).unwrap();
     for (_sid, service) in asml_config.services {

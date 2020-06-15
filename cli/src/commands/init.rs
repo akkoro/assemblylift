@@ -32,14 +32,17 @@ pub fn init(matches: Option<&ArgMatches>) {
             assert_prereqs();
 
             projectfs::write_function_manifest(canonical_project_path,
-                                                      default_service_name,
-                                                      default_function_name).unwrap();
+                                               default_service_name,
+                                               default_function_name).unwrap();
             projectfs::write_function_cargo_config(canonical_project_path,
-                                                          default_service_name,
-                                                          default_function_name).unwrap();
+                                                   default_service_name,
+                                                   default_function_name).unwrap();
             projectfs::write_function_lib(canonical_project_path,
-                                                 default_service_name,
-                                                 default_function_name).unwrap();
+                                          default_service_name,
+                                          default_function_name).unwrap();
+            projectfs::write_function_gitignore(canonical_project_path, 
+                                                default_service_name, 
+                                                default_function_name).unwrap();
         }
         Some(unknown) => panic!("unsupported language: {}", unknown),
         _ => {}

@@ -125,6 +125,26 @@ pub fn write_function_lib(canonical_project_path: &PathBuf, service_name: &str, 
     Ok(())
 }
 
+pub fn write_function_gitignore(canonical_project_path: &PathBuf, service_name: &str, function_name: &str) -> Result<(), io::Error> {
+    let file_name = ".gitignore";
+
+    let mut reg = Handlebars::new();
+    reg.register_template_string(file_name, templates::FUNCTION_GITIGNORE).unwrap();
+
+    let mut data = Map::<String, Json>::new();
+    data.insert("asml_version".to_string(), to_json(crate_version!()));
+
+    let render = reg.render(file_name, &data).unwrap();
+
+    let path_str = &format!("{}/services/{}/{}/.gitignore",
+                            canonical_project_path.display(),
+                            service_name, function_name);
+    let path = path::Path::new(path_str);
+    write_to_file(&path, render);
+
+    Ok(())
+}
+
 fn write_to_file(path: &path::Path, contents: String) -> Result<(), io::Error> {
     let mut file = match fs::File::create(path) {
         Err(why) => panic!("couldn't create file {}: {}", path.display(), why.to_string()),

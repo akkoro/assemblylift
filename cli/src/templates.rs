@@ -63,3 +63,11 @@ handler!(context: LambdaContext, async {
     AwsLambdaClient::success("OK".to_string());
 });
 "#;
+
+pub(crate) static FUNCTION_GITIGNORE: &str = 
+r#"// Generated with assemblylift-cli {{asml_version}}
+.DS_Store
+*.wasm
+target/
+build/
+"#;
