@@ -70,4 +70,5 @@ r#"// Generated with assemblylift-cli {{asml_version}}
 *.wasm
 target/
 build/
+compiled/
 "#;

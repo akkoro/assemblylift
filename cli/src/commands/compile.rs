@@ -58,6 +58,11 @@ pub fn compile(matches: Option<&ArgMatches>) {
         }
 
         for (_fid, function) in service_config.api.functions {
+            let function_artifact_path = format!("./compiled/services/{}/{}", service.name, function.name);
+            if let Err(err) = fs::create_dir_all(path::Path::new(&function_artifact_path)) {
+                panic!(err)
+            }
+            
             let function_path = format!("./services/{}/{}", service.name, function.name);
             let canonical_function_path = &fs::canonicalize(
                 path::Path::new(&format!("{}/Cargo.toml", function_path))).unwrap();
@@ -84,7 +89,7 @@ pub fn compile(matches: Option<&ArgMatches>) {
             let function_name_snaked = function.name.replace("-", "_");
             let copy_result = fs::copy(
                 format!("{}/target/wasm32-unknown-unknown/{}/{}.wasm", function_path, mode, function_name_snaked), 
-                format!("{}/{}.wasm", function_path, function_name_snaked)
+                format!("{}/{}.wasm", function_artifact_path, function_name_snaked)
             );
 
             if copy_result.is_err() {
