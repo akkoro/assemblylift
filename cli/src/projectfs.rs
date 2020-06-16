@@ -43,6 +43,24 @@ pub fn write_project_manifest(canonical_project_path: &PathBuf, project_name: &s
     Ok(())
 }
 
+pub fn write_project_gitignore(canonical_project_path: &PathBuf, project_name: &str, default_service_name: &str) -> Result<(), io::Error> {
+    let file_name = ".gitignore";
+
+    let mut reg = Handlebars::new();
+    reg.register_template_string(file_name, templates::ROOT_GITIGNORE).unwrap();
+
+    let mut data = Map::<String, Json>::new();
+    data.insert("asml_version".to_string(), to_json(crate_version!()));
+
+    let render = reg.render(file_name, &data).unwrap();
+
+    let path_str = &format!("{}/{}", canonical_project_path.display(), file_name);
+    let path = path::Path::new(path_str);
+    write_to_file(&path, render);
+
+    Ok(())
+}
+
 pub fn write_service_manifest(canonical_project_path: &PathBuf, service_name: &str) -> Result<(), io::Error> {
     let file_name = "service.toml";
 

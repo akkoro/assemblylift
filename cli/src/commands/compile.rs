@@ -42,7 +42,7 @@ struct AssemblyLiftServiceConfigApiFunction {
 pub fn compile(matches: Option<&ArgMatches>) {
     let matches = match matches {
         Some(matches) => matches,
-        _ => panic!("could not get matches for compile")
+        _ => panic!("could not get matches for compile command")
     };
 
     let asml_config_contents = fs::read_to_string("./assemblylift.toml").unwrap();

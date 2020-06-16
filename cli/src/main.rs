@@ -3,6 +3,7 @@ extern crate serde_json;
 use clap::{crate_version, Arg, App};
 use crate::commands::init::init;
 use crate::commands::compile::compile;
+use crate::commands::deploy::deploy;
 use std::collections::HashMap;
 use crate::commands::CommandFn;
 
@@ -33,12 +34,16 @@ fn main() {
         )
         .subcommand(
             App::new("compile")
+        )
+        .subcommand(
+            App::new("deploy")
         );
     let matches = app.get_matches();
 
     let mut command_map = HashMap::<&str, CommandFn>::new();
     command_map.insert("init", init);
     command_map.insert("compile", compile);
+    command_map.insert("deploy", deploy);
 
     match matches.subcommand() {
         (name, matches) => command_map[name](matches)

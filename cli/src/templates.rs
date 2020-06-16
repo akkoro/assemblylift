@@ -1,3 +1,7 @@
+pub(crate) static ROOT_GITIGNORE: &str = 
+r#".asml/
+"#;
+
 pub(crate) static ASSEMBLYLIFT_TOML: &str =
 r#"# Generated with assemblylift-cli {{asml_version}}
 
