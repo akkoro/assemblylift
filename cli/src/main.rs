@@ -1,15 +1,16 @@
 extern crate serde_json;
 
 use clap::{crate_version, Arg, App};
-use crate::commands::init::init;
-use crate::commands::compile::compile;
-use crate::commands::deploy::deploy;
+use crate::commands::init;
+use crate::commands::cast;
+use crate::commands::bind;
 use std::collections::HashMap;
 use crate::commands::CommandFn;
 
 mod commands;
 mod projectfs;
 mod templates;
+mod terraform;
 
 fn main() {
     let app = App::new("asml")
@@ -33,17 +34,17 @@ fn main() {
                 // TODO this is going to need an argument to specify the backend (ie aws-lambda, azure, etc)
         )
         .subcommand(
-            App::new("compile")
+            App::new("cast")
         )
         .subcommand(
-            App::new("deploy")
+            App::new("bind")
         );
     let matches = app.get_matches();
 
     let mut command_map = HashMap::<&str, CommandFn>::new();
-    command_map.insert("init", init);
-    command_map.insert("compile", compile);
-    command_map.insert("deploy", deploy);
+    command_map.insert("init", init::command);
+    command_map.insert("cast", cast::command);
+    command_map.insert("bind", bind::command);
 
     match matches.subcommand() {
         (name, matches) => command_map[name](matches)

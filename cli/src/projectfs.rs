@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use clap::crate_version;
 use handlebars::{Handlebars, to_json};
+
 use serde_json::value::{Map, Value as Json};
 
 use crate::templates;
@@ -163,7 +164,7 @@ pub fn write_function_gitignore(canonical_project_path: &PathBuf, service_name: 
     Ok(())
 }
 
-fn write_to_file(path: &path::Path, contents: String) -> Result<(), io::Error> {
+pub(crate) fn write_to_file(path: &path::Path, contents: String) -> Result<(), io::Error> {
     let mut file = match fs::File::create(path) {
         Err(why) => panic!("couldn't create file {}: {}", path.display(), why.to_string()),
         Ok(file) => file

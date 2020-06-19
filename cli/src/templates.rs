@@ -1,5 +1,6 @@
 pub(crate) static ROOT_GITIGNORE: &str = 
 r#".asml/
+net/
 "#;
 
 pub(crate) static ASSEMBLYLIFT_TOML: &str =
@@ -22,6 +23,10 @@ version = ""
 
 [api]
 name = "{{service_name}}-api"
+
+[api.functions.my-function]
+name = "my-function"
+handler_name = "handler"
 "#;
 
 pub(crate) static FUNCTION_CARGO_TOML: &str =
@@ -74,5 +79,46 @@ r#"// Generated with assemblylift-cli {{asml_version}}
 *.wasm
 target/
 build/
-compiled/
+"#;
+
+pub(crate) static TERRAFORM_ROOT: &str = 
+r#"# Generated with assemblylift-cli {{asml_version}}
+
+provider "aws" {
+    region = "{{aws_region}}"
+}
+
+resource "aws_iam_role" "lambda_iam_role" {
+    name = "lambda_iam_role"
+  
+    assume_role_policy = <<EOF
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Action": "sts:AssumeRole",
+        "Principal": {
+          "Service": "lambda.amazonaws.com"
+        },
+        "Effect": "Allow",
+        "Sid": ""
+      }
+    ]
+  }
+  EOF
+  }
+"#;
+
+pub(crate) static TERRAFORM_FUNCTION: &str = 
+r#"# Generated with assemblylift-cli {{asml_version}}
+
+resource "aws_lambda_function" "{{name}}_lambda" {
+    function_name = "{{name}}"
+    role          = aws_iam_role.lambda_iam_role.arn
+    runtime       = "provided"
+    handler       = "{{name}}.{{handler_name}}"
+    filename      = "{{name}}.zip"
+
+    source_code_hash = filebase64sha256("{{file_path}}")
+}
 "#;
