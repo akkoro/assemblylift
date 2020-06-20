@@ -13,8 +13,6 @@ pub fn command(matches: Option<&ArgMatches>) {
         _ => panic!("could not get matches for init command")
     };
 
-    terraform::extract();
-
     let default_service_name = "my-service";
     let default_function_name = "my-function";
     let project_name = matches.value_of("project_name").unwrap();
@@ -26,6 +24,8 @@ pub fn command(matches: Option<&ArgMatches>) {
     let canonical_project_path =
         &fs::canonicalize(path::Path::new(&format!("./{}", project_name)))
             .unwrap();
+
+    terraform::extract(canonical_project_path);
 
     projectfs::write_project_gitignore(canonical_project_path, project_name, default_service_name).unwrap();
     projectfs::write_project_manifest(canonical_project_path, project_name, default_service_name).unwrap();
