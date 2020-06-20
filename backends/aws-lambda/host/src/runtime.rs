@@ -21,7 +21,7 @@ impl AwsLambdaRuntime {
     pub fn new() -> AwsLambdaRuntime {
         AwsLambdaRuntime {
             client: blocking::Client::new(),
-            api_endpoint: env::var("AWS_LAMBDA_RUNTIME_API_ENDPOINT").unwrap(),
+            api_endpoint: env::var("AWS_LAMBDA_RUNTIME_API").unwrap(),
             current_request_id: RefCell::new(String::new()),
         }
     }

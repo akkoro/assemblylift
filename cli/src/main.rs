@@ -46,6 +46,7 @@ fn main() {
     command_map.insert("init", init::command);
     command_map.insert("cast", cast::command);
     command_map.insert("bind", bind::command);
+    // command_map.insert("burn", burn::command);
 
     match matches.subcommand() {
         (name, matches) => command_map[name](matches)

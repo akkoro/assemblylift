@@ -16,7 +16,8 @@ pub fn zip_files(files_in: Vec<&Path>, file_out: &Path) {
 
     let mut zip = zip::ZipWriter::new(file);
     let options = FileOptions::default()
-        .compression_method(zip::CompressionMethod::Stored);
+        .compression_method(zip::CompressionMethod::Stored)
+        .unix_permissions(0o777); // full access
 
     for path in files_in {
         let mut file_bytes = fs::read(path).unwrap();
