@@ -42,6 +42,7 @@ impl AwsLambdaRuntime {
 
     pub fn respond(&self, request_id: String, response: String) -> Result<(), Error> {
         let url = &format!("http://{}/2018-06-01/runtime/invocation/{}/response", self.api_endpoint, request_id).to_string();
+        println!("Responding to APIGW endpoint: {}", url);
         self.client
             .post(url)
             .body(response)
