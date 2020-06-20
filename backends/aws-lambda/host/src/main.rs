@@ -54,29 +54,22 @@ fn main() {
         // init modules -- these will eventually be plugins specified in a manifest of some kind
         awsio::database::MyModule::register(&mut MODULE_REGISTRY.lock().unwrap());
 
-        loop {
-            LAMBDA_RUNTIME
-                .lock().unwrap()
-                .get_next_event()
-                .and_then(|event| {
-                    scope(|s| {
-                        s.spawn(|_| {
-                            let locked = instance.lock().unwrap();
+        while let Ok(event) = LAMBDA_RUNTIME.lock().unwrap().get_next_event() {
+            scope(|s| {
+                s.spawn(|_| {
+                    let locked = instance.lock().unwrap();
 
-                            write_event_buffer(&locked, /*event.event_body*/ "{}".to_string());
-                            match locked.call(handler_name, &[]) {
-                                Ok(result) =>  println!("TRACE: handler returned Ok()"),
-                                Err(error) => println!("ERROR: {}", error.to_string())
-                            }
-                        });
-                    });
-
-                    // all threads spawned in the scope join here automatically
-                    // the side-effect of which is that a hang in the handler will block the lambda
-                    // runtime loop
-
-                    Ok(())
+                    write_event_buffer(&locked, event.event_body);
+                    match locked.call(handler_name, &[]) {
+                        Ok(result) =>  println!("TRACE: handler returned Ok()"),
+                        Err(error) => println!("ERROR: {}", error.to_string())
+                    }
                 });
+            });
+
+            // all threads spawned in the scope join here automatically
+            // the side-effect of which is that a hang in the handler will block the lambda
+            // runtime loop
         }
     }
 }
