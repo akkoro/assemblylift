@@ -95,7 +95,8 @@ pub fn command(matches: Option<&ArgMatches>) {
         Err(why) => panic!("unable to build canonical project path: {}", why.to_string())
     };
 
-    terraform::write_root_terraform(&canonical_project_path);
+    let mut functions: Vec<TerraformFunction> = Vec::new();
+    // let mut services = Vec::new();
 
     for (_sid, service) in asml_config.services {
         let service_path = format!("./services/{}/service.toml", service.name);
@@ -149,13 +150,19 @@ pub fn command(matches: Option<&ArgMatches>) {
             artifact::zip_files(vec![path::Path::new(&format!("{}/{}.wasm", function_artifact_path, &function.name))], 
                                 &path::Path::new(&format!("{}/{}.zip", function_artifact_path, &function.name)));
 
-            terraform::write_function_terraform(&canonical_project_path, &service.name, &TerraformFunction {
+            let tf_function = TerraformFunction {
                 name: function.name.clone(),
-                handler_name: function.handler_name
-            });
+                handler_name: function.handler_name,
+                service: service.name.clone()
+            };
 
-            terraform::run_terraform_init();
-            terraform::run_terraform_plan();
+            terraform::write_function_terraform(&canonical_project_path, &tf_function);
+            functions.push(tf_function.clone());
         }
     }
+
+    terraform::write_root_terraform(&canonical_project_path, functions);
+
+    terraform::run_terraform_init();
+    terraform::run_terraform_plan();
 }

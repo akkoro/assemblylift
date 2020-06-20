@@ -55,6 +55,7 @@ pub fn run_terraform_init() {
 pub fn run_terraform_plan() {
     let mut terraform_result = process::Command::new(get_relative_path())
         .arg("plan")
+        .arg("-out=./net/plan")
         .arg("./net")
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
@@ -67,13 +68,29 @@ pub fn run_terraform_plan() {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct TerraformFunction {
-    pub name: String,
-    pub handler_name: String
+pub fn run_terraform_apply() {
+    let mut terraform_result = process::Command::new(get_relative_path())
+        .arg("apply")
+        .arg("./net/plan")
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .unwrap();
+    
+    match terraform_result.wait() {
+        Ok(_) => {},
+        Err(_) => {}
+    }
 }
 
-pub fn write_root_terraform(canonical_project_path: &PathBuf) 
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TerraformFunction {
+    pub name: String,
+    pub handler_name: String,
+    pub service: String
+}
+
+pub fn write_root_terraform(canonical_project_path: &PathBuf, functions: Vec<TerraformFunction>) 
     -> Result<(), io::Error> 
 {
     let file_name = "main.tf";
@@ -84,6 +101,7 @@ pub fn write_root_terraform(canonical_project_path: &PathBuf)
     let mut data = Map::<String, Json>::new();
     data.insert("asml_version".to_string(), to_json(crate_version!()));
     data.insert("aws_region".to_string(), to_json("us-east-1"));
+    data.insert("functions".to_string(), to_json(functions));
 
     let render = reg.render(file_name, &data).unwrap();
 
@@ -93,7 +111,7 @@ pub fn write_root_terraform(canonical_project_path: &PathBuf)
     projectfs::write_to_file(&path, render)
 }
 
-pub fn write_function_terraform(canonical_project_path: &PathBuf, service_name: &str, function: &TerraformFunction) 
+pub fn write_function_terraform(canonical_project_path: &PathBuf, function: &TerraformFunction) 
     -> Result<(), io::Error> 
 {
     let file_name = "function.tf";
@@ -105,10 +123,11 @@ pub fn write_function_terraform(canonical_project_path: &PathBuf, service_name: 
     data.insert("asml_version".to_string(), to_json(crate_version!()));
     data.insert("name".to_string(), to_json(&function.name));
     data.insert("handler_name".to_string(), to_json(&function.handler_name));
+    data.insert("service".to_string(), to_json(&function.service));
 
     let render = reg.render(file_name, &data).unwrap();
 
-    let path_str = &format!("{}/net/services/{}/{}/{}", canonical_project_path.display(), service_name, function.name, file_name);
+    let path_str = &format!("{}/net/services/{}/{}/{}", canonical_project_path.display(), function.service, function.name, file_name);
     let path = path::Path::new(path_str);
 
     projectfs::write_to_file(&path, render)

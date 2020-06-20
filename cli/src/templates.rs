@@ -89,43 +89,61 @@ provider "aws" {
 }
 
 resource "aws_iam_role" "lambda_iam_role" {
-    name = "lambda_iam_role"
+    name = "asml_lambda_iam_role"
   
     assume_role_policy = <<EOF
-  {
-    "Version": "2012-10-17",
-    "Statement": [
-      {
-        "Action": "sts:AssumeRole",
-        "Principal": {
-          "Service": "lambda.amazonaws.com"
-        },
-        "Effect": "Allow",
-        "Sid": ""
-      }
-    ]
-  }
-  EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "lambda.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
 }
 
 resource "aws_lambda_layer_version" "asml_runtime_layer" {
-  filename   = "../.asml/runtime/bootstrap.zip"
-  layer_name = "assemblylift-runtime-{{asml_version}}"
-
-  compatible_runtimes = ["provided"]
+  filename   = "${path.module}/../.asml/runtime/bootstrap.zip"
+  layer_name = "assemblylift-runtime"
 }
+
+{{#each functions}}
+module "{{this.name}}" {
+  source = "./services/{{this.service}}/{{this.name}}"
+
+  lambda_role_arn   = aws_iam_role.lambda_iam_role.arn
+  runtime_layer_arn = aws_lambda_layer_version.asml_runtime_layer.arn
+}
+{{/each}}
+
 "#;
 
 pub(crate) static TERRAFORM_FUNCTION: &str = 
 r#"# Generated with assemblylift-cli {{asml_version}}
 
+variable "runtime_layer_arn" {
+  type = string
+}
+
+variable "lambda_role_arn" {
+  type = string
+}
+
 resource "aws_lambda_function" "{{name}}_lambda" {
     function_name = "{{name}}"
-    role          = aws_iam_role.lambda_iam_role.arn
+    role          = var.lambda_role_arn
     runtime       = "provided"
     handler       = "{{name}}.{{handler_name}}"
-    filename      = "{{name}}.zip"
+    filename      = "${path.module}/{{name}}.zip"
 
-    source_code_hash = filebase64sha256("{{name}}.zip")
+    layers = [var.runtime_layer_arn]
+
+    source_code_hash = filebase64sha256("${path.module}/{{name}}.zip")
 }
 "#;
