@@ -58,11 +58,23 @@ struct AssemblyLiftServiceConfigApiFunction {
 }
 
 pub fn command(matches: Option<&ArgMatches>) {
+    use std::io::Read;
+
     let matches = match matches {
         Some(matches) => matches,
         _ => panic!("could not get matches for cast command")
     };
 
+
+    // Download the latest runtime binary
+    // TODO in the future we should check if we already have the same version
+    // TODO argument to specify which version -- default to 'latest'
+    let mut response = reqwest::blocking::get("http://runtime.assemblylift.akkoro.io/aws-lambda/latest/bootstrap.zip").unwrap();
+    let mut response_buffer = Vec::new();
+    response.read_to_end(&mut response_buffer);
+
+    fs::create_dir_all("./.asml/runtime");
+    fs::write("./.asml/runtime/bootstrap.zip", response_buffer);
     
 
     // Compile function source

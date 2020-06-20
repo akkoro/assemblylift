@@ -109,7 +109,7 @@ resource "aws_iam_role" "lambda_iam_role" {
 }
 
 resource "aws_lambda_layer_version" "asml_runtime_layer" {
-  filename   = "bootstrap.zip"
+  filename   = "../.asml/runtime/bootstrap.zip"
   layer_name = "assemblylift-runtime-{{asml_version}}"
 
   compatible_runtimes = ["provided"]
@@ -126,6 +126,6 @@ resource "aws_lambda_function" "{{name}}_lambda" {
     handler       = "{{name}}.{{handler_name}}"
     filename      = "{{name}}.zip"
 
-    source_code_hash = filebase64sha256("{{file_path}}")
+    source_code_hash = filebase64sha256("{{name}}.zip")
 }
 "#;
