@@ -1,16 +1,20 @@
 #[macro_use]
 extern crate lazy_static;
 
+use std::cell::RefCell;
 use std::env;
 use std::sync::Mutex;
 
 use crossbeam_utils::atomic::AtomicCell;
 use crossbeam_utils::thread::scope;
+use once_cell::sync::Lazy;
 use wasmer_runtime::Instance;
 
 use assemblylift_core::iomod::*;
 use assemblylift_core::WasmBufferPtr;
 use runtime::AwsLambdaRuntime;
+
+use crate::runtime::SendString;
 
 mod runtime;
 mod wasm;
@@ -18,6 +22,10 @@ mod wasm;
 lazy_static! {
     pub static ref LAMBDA_RUNTIME: AwsLambdaRuntime = AwsLambdaRuntime::new();
 }
+
+pub static LAMBDA_REQUEST_ID: Lazy<Mutex<RefCell<String>>> = Lazy::new(|| {
+    Mutex::new(RefCell::new(String::new()))
+});
 
 fn write_event_buffer(instance: &Instance, event: String) {
     use wasmer_runtime::{Func};
@@ -55,11 +63,17 @@ fn main() {
         awsio::database::MyModule::register(&mut MODULE_REGISTRY.lock().unwrap());
 
         while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
+            scope(|_| {
+                let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
+                ref_cell.replace(event.request_id.clone());
+            });
+
             scope(|s| {
                 s.spawn(|_| {
                     let locked = instance.lock().unwrap();
 
                     write_event_buffer(&locked, event.event_body);
+
                     match locked.call(handler_name, &[]) {
                         Ok(result) =>  println!("TRACE: handler returned Ok()"),
                         Err(error) => println!("ERROR: {}", error.to_string())
