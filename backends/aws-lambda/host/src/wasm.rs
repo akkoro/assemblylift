@@ -71,9 +71,9 @@ fn runtime_console_log(ctx: &mut Ctx, ptr: u32, len: u32) {
 }
 
 fn runtime_success(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<(), io::Error> {
-    let lambda_runtime = crate::LAMBDA_RUNTIME.lock().unwrap();
+    let lambda_runtime = &crate::LAMBDA_RUNTIME;
     println!("DEBUG: got runtime mutex");
-    let request_id = lambda_runtime.current_request_id.borrow().clone();
+    let request_id = &lambda_runtime.current_request_id;
     let response = runtime_ptr_to_string(ctx, ptr, len).unwrap();
     lambda_runtime.respond(request_id, response.to_string())
 }

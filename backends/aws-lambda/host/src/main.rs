@@ -16,7 +16,7 @@ mod runtime;
 mod wasm;
 
 lazy_static! {
-    pub static ref LAMBDA_RUNTIME: Mutex<AwsLambdaRuntime> = Mutex::new(AwsLambdaRuntime::new());
+    pub static ref LAMBDA_RUNTIME: AwsLambdaRuntime = AwsLambdaRuntime::new();
 }
 
 fn write_event_buffer(instance: &Instance, event: String) {
@@ -54,7 +54,7 @@ fn main() {
         // init modules -- these will eventually be plugins specified in a manifest of some kind
         awsio::database::MyModule::register(&mut MODULE_REGISTRY.lock().unwrap());
 
-        while let Ok(event) = LAMBDA_RUNTIME.lock().unwrap().get_next_event() {
+        while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
             scope(|s| {
                 s.spawn(|_| {
                     let locked = instance.lock().unwrap();

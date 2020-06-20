@@ -1,7 +1,13 @@
+use std::cell::RefCell;
 use std::env;
 use std::io::{Error, ErrorKind};
+
+use crossbeam_utils::atomic::AtomicCell;
 use reqwest::blocking;
-use std::cell::RefCell;
+
+// FIXME this is a kludge -- I have no real idea if this is safe
+pub struct SendString(String);
+unsafe impl Send for SendString {}
 
 // https://docs.aws.amazon.com/lambda/latest/dg/runtimes-api.html
 
@@ -14,7 +20,7 @@ pub struct AwsLambdaRuntime {
     client: blocking::Client,
     api_endpoint: String,
 
-    pub current_request_id: RefCell<String>,
+    pub current_request_id: SendString,
 }
 
 impl AwsLambdaRuntime {
@@ -22,7 +28,7 @@ impl AwsLambdaRuntime {
         AwsLambdaRuntime {
             client: blocking::Client::new(),
             api_endpoint: env::var("AWS_LAMBDA_RUNTIME_API").unwrap(),
-            current_request_id: RefCell::new(String::new()),
+            current_request_id: SendString { 0: String::new() },
         }
     }
 
@@ -40,8 +46,8 @@ impl AwsLambdaRuntime {
             .map_err(|err| Error::new(ErrorKind::Other, err.to_string()))
     }
 
-    pub fn respond(&self, request_id: String, response: String) -> Result<(), Error> {
-        let url = &format!("http://{}/2018-06-01/runtime/invocation/{}/response", self.api_endpoint, request_id).to_string();
+    pub fn respond(&self, request_id: &SendString, response: String) -> Result<(), Error> {
+        let url = &format!("http://{}/2018-06-01/runtime/invocation/{}/response", self.api_endpoint, request_id.0).to_string();
         println!("Responding to APIGW endpoint: {}", url);
         self.client
             .post(url)
