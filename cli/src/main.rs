@@ -11,6 +11,7 @@ mod commands;
 mod projectfs;
 mod templates;
 mod terraform;
+mod artifact;
 
 fn main() {
     let app = App::new("asml")

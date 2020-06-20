@@ -106,7 +106,14 @@ resource "aws_iam_role" "lambda_iam_role" {
     ]
   }
   EOF
-  }
+}
+
+resource "aws_lambda_layer_version" "asml_runtime_layer" {
+  filename   = ""
+  layer_name = "assemblylift-runtime-{{asml_version}}"
+
+  compatible_runtimes = ["provided"]
+}
 "#;
 
 pub(crate) static TERRAFORM_FUNCTION: &str = 

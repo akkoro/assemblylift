@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use clap::ArgMatches;
 use serde_derive::Deserialize;
 
+use crate::artifact;
 use crate::terraform;
 use crate::terraform::TerraformFunction;
 
@@ -133,11 +134,15 @@ pub fn command(matches: Option<&ArgMatches>) {
                 println!("{:?}", copy_result.err());
             }
 
+            artifact::zip_files(vec![path::Path::new(&format!("{}/{}.wasm", function_artifact_path, &function.name))], 
+                                &path::Path::new(&format!("{}/{}.zip", function_artifact_path, &function.name)));
+
             terraform::write_function_terraform(&canonical_project_path, &service.name, &TerraformFunction {
                 name: function.name.clone(),
                 handler_name: function.handler_name
             });
 
+            terraform::run_terraform_init();
             terraform::run_terraform_plan();
         }
     }
