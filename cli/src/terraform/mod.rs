@@ -89,6 +89,21 @@ pub fn run_terraform_apply() {
     }
 }
 
+pub fn run_terraform_destroy() {
+    let mut terraform_result = process::Command::new(get_relative_path())
+        .arg("destroy")
+        .arg("./net")
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .unwrap();
+
+    match terraform_result.wait() {
+        Ok(_) => {},
+        Err(_) => {}
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TerraformFunction {
     pub name: String,
