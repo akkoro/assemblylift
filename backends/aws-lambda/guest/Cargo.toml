@@ -1,8 +1,12 @@
 [package]
 name = "assemblylift-awslambda-guest"
 version = "0.1.0"
-authors = ["Daniel Cook <daniel@akkoro.io>"]
+description = "AssemblyLift AWS Lambda WASM guest library"
+authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
+license = "Hippocratic-2.1"
+repository = "https://github.com/akkoro/assemblylift"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
