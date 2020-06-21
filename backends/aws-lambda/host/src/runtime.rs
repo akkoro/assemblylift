@@ -7,10 +7,6 @@ use reqwest::blocking;
 
 use crate::LAMBDA_REQUEST_ID;
 
-// FIXME this is a kludge -- I have no real idea if this is safe
-pub struct SendString(String);
-unsafe impl Send for SendString {}
-
 // https://docs.aws.amazon.com/lambda/latest/dg/runtimes-api.html
 
 pub struct AwsLambdaEvent {

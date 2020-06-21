@@ -14,8 +14,6 @@ use assemblylift_core::iomod::*;
 use assemblylift_core::WasmBufferPtr;
 use runtime::AwsLambdaRuntime;
 
-use crate::runtime::SendString;
-
 mod runtime;
 mod wasm;
 

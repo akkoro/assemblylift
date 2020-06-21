@@ -25,9 +25,9 @@ pub fn extract(canonical_project_path: &PathBuf) {
     println!("Extracting terraform to {}", terraform_path);
 
     #[cfg(target_os = "linux")]
-    let terraform: &'static [u8] = include_bytes!("../../resources/bin/linux64/terraform");
+        let terraform: &'static [u8] = include_bytes!("../../resources/bin/linux64/terraform");
     #[cfg(target_os = "macos")]
-    let terraform: &'static [u8] = include_bytes!("../../resources/bin/macos/terraform");
+        let terraform: &'static [u8] = include_bytes!("../../resources/bin/macos/terraform");
 
     if let Err(_) = fs::create_dir_all(terraform_path.replace("/terraform", ""))
         .and_then(|_| fs::write(&terraform_path, terraform))
@@ -50,14 +50,13 @@ pub fn run_terraform_init() {
         .stderr(Stdio::inherit())
         .spawn()
         .unwrap();
-    
+
     match terraform_result.wait() {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(_) => {}
     }
 }
 
-// TODO return Result
 pub fn run_terraform_plan() {
     let mut terraform_result = process::Command::new(get_relative_path())
         .arg("plan")
@@ -67,9 +66,9 @@ pub fn run_terraform_plan() {
         .stderr(Stdio::inherit())
         .spawn()
         .unwrap();
-    
+
     match terraform_result.wait() {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(_) => {}
     }
 }
@@ -82,9 +81,9 @@ pub fn run_terraform_apply() {
         .stderr(Stdio::inherit())
         .spawn()
         .unwrap();
-    
+
     match terraform_result.wait() {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(_) => {}
     }
 }
@@ -99,7 +98,7 @@ pub fn run_terraform_destroy() {
         .unwrap();
 
     match terraform_result.wait() {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(_) => {}
     }
 }
@@ -108,11 +107,11 @@ pub fn run_terraform_destroy() {
 pub struct TerraformFunction {
     pub name: String,
     pub handler_name: String,
-    pub service: String
+    pub service: String,
 }
 
-pub fn write_root_terraform(canonical_project_path: &PathBuf, functions: Vec<TerraformFunction>) 
-    -> Result<(), io::Error> 
+pub fn write_root_terraform(canonical_project_path: &PathBuf, functions: Vec<TerraformFunction>)
+    -> Result<(), io::Error>
 {
     let file_name = "main.tf";
 
@@ -132,8 +131,8 @@ pub fn write_root_terraform(canonical_project_path: &PathBuf, functions: Vec<Ter
     projectfs::write_to_file(&path, render)
 }
 
-pub fn write_function_terraform(canonical_project_path: &PathBuf, function: &TerraformFunction) 
-    -> Result<(), io::Error> 
+pub fn write_function_terraform(canonical_project_path: &PathBuf, function: &TerraformFunction)
+    -> Result<(), io::Error>
 {
     let file_name = "function.tf";
 
@@ -148,7 +147,8 @@ pub fn write_function_terraform(canonical_project_path: &PathBuf, function: &Ter
 
     let render = reg.render(file_name, &data).unwrap();
 
-    let path_str = &format!("{}/net/services/{}/{}/{}", canonical_project_path.display(), function.service, function.name, file_name);
+    let path_str = &format!("{}/net/services/{}/{}/{}", canonical_project_path.display(),
+                            function.service, function.name, file_name);
     let path = path::Path::new(path_str);
 
     projectfs::write_to_file(&path, render)
