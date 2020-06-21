@@ -59,10 +59,10 @@ If using Ruby as a build front-end is problematic in your environment, please [f
 
 - [x] Build system incl. Docker [#2](https://github.com/akkoro/assemblylift/issues/2)
 - [ ] Unit tests [#3](https://github.com/akkoro/assemblylift/issues/3)
-- [ ] Start the CLI [#4](https://github.com/akkoro/assemblylift/issues/4)
+- [x] Start the CLI [#13](https://github.com/akkoro/assemblylift/pull/13) [#14](https://github.com/akkoro/assemblylift/issues/14)
 - [x] Set up a CI/CD pipeline [#2](https://github.com/akkoro/assemblylift/issues/2) [#11](https://github.com/akkoro/assemblylift/pull/11)
-- [ ] Handle more of those `unwrap`s
-- [ ] Clean up warnings
+- [x] Handle more of those `unwrap`s
+- [x] Clean up warnings
 - [x] Macros for iomod implementation [#10](https://github.com/akkoro/assemblylift/pull/10)
 
 ## 0.2

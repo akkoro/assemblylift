@@ -1,14 +1,14 @@
-use std::{env, io};
 use std::cell::Cell;
 use std::error::Error;
 use std::ffi::c_void;
 use std::fs::{canonicalize, File};
 use std::io::{ErrorKind, Read};
 use std::sync::Mutex;
+use std::{env, io};
 
 use wasmer_runtime::memory::MemoryView;
-use wasmer_runtime_core::Instance;
 use wasmer_runtime_core::vm::Ctx;
+use wasmer_runtime_core::Instance;
 
 use assemblylift_core::iomod::*;
 use assemblylift_core_event::threader::Threader;
@@ -19,7 +19,7 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
 
     // handler coordinates are expected to be <file name>.<function name>
-    let coords =  handler_coordinates.split(".").collect::<Vec<&str>>();
+    let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
     let file_name = coords[0];
 
     let get_instance = canonicalize(format!("{}/{}.wasm", lambda_path, file_name))
@@ -31,7 +31,7 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
                 .map_err(to_io_error)
         })
         .and_then(|buffer| {
-            use wasmer_runtime::{instantiate, func, imports};
+            use wasmer_runtime::{func, imports, instantiate};
             let import_object = imports! {
                 "env" => {
                     "__asml_abi_console_log" => func!(runtime_console_log),
@@ -43,8 +43,7 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
                 },
             };
 
-            instantiate(&buffer[..], &import_object)
-                .map_err(to_io_error)
+            instantiate(&buffer[..], &import_object).map_err(to_io_error)
         });
 
     match get_instance {
@@ -56,8 +55,8 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
             let guarded_instance = Mutex::new(boxed_instance);
 
             Ok(guarded_instance)
-        },
-        Err(error) => Err(to_io_error(error))
+        }
+        Err(error) => Err(to_io_error(error)),
     }
 }
 
@@ -81,7 +80,10 @@ fn runtime_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io
     let view: MemoryView<u8> = memory.view();
 
     let mut str_vec: Vec<u8> = Vec::new();
-    for byte in view[ptr as usize .. (ptr + len) as usize].iter().map(Cell::get) {
+    for byte in view[ptr as usize..(ptr + len) as usize]
+        .iter()
+        .map(Cell::get)
+    {
         str_vec.push(byte);
     }
 

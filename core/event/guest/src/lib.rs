@@ -1,33 +1,21 @@
-#[macro_use]
 extern crate lazy_static;
 
-use std::collections::hash_map::Entry::Occupied;
-use std::collections::HashMap;
-use std::ffi::c_void;
 use std::future::Future;
-use std::io::Read;
 use std::marker::PhantomData;
-use std::ops::Deref;
 use std::pin::Pin;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::task::{Context, Poll, Waker};
 
-use serde_json;
-use futures::FutureExt;
-use futures::task::{ArcWake, waker_ref};
 use serde::Deserialize;
+use serde_json;
 
-use assemblylift_core_event_common::EventMemoryDocument;
-
-extern {
+extern "C" {
     fn __asml_abi_poll(id: u32) -> i32;
     fn __asml_abi_event_ptr(id: u32) -> u32;
     fn __asml_abi_event_len(id: u32) -> u32;
 }
 
-const MAX_EVENTS: usize              = 50;
-const EVENT_SIZE_BYTES: usize        = 512;
+const MAX_EVENTS: usize = 50;
+const EVENT_SIZE_BYTES: usize = 512;
 const EVENT_BUFFER_SIZE_BYTES: usize = MAX_EVENTS * EVENT_SIZE_BYTES;
 
 // Raw buffer holding serialized Event-Future data
@@ -47,7 +35,11 @@ pub struct Event<'a, R> {
 
 impl<'a, R: Deserialize<'a>> Event<'_, R> {
     pub fn new(id: u32) -> Self {
-        Event { id, waker: Box::new(None), _phantom: PhantomData }
+        Event {
+            id,
+            waker: Box::new(None),
+            _phantom: PhantomData,
+        }
     }
 }
 

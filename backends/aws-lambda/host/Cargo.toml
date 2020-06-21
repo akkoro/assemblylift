@@ -1,8 +1,12 @@
 [package]
 name = "assemblylift-awslambda-host"
 version = "0.1.0"
-authors = ["Daniel Cook <daniel@akkoro.io>"]
+description = "AssemblyLift AWS Lambda runtime"
+authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
+license = "Hippocratic-2.1"
+repository = "https://github.com/akkoro/assemblylift"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,8 +20,9 @@ wasmer-runtime = { git = "https://github.com/dotxlem/wasmer", branch="atomic_cel
 wasmer-runtime-core = { git = "https://github.com/dotxlem/wasmer", branch="atomic_cell" }
 lazy_static = "1.4.0"
 once_cell = "1.4.0"
+clap = "3.0.0-beta.1"
 reqwest = { version = "0.10.4", features = ["blocking"] }
-awsio = {package = "assemblylift-awslambda-iomod", path = "../iomod" }
+awsio = { package = "assemblylift-awslambda-iomod", path = "../iomod" }
 assemblylift_core = { package = "assemblylift-core", path = "../../../core" }
 assemblylift_core_event = { package = "assemblylift-core-event", path = "../../../core/event" }
 assemblylift_core_event_common = { package = "assemblylift-core-event-common", path = "../../../core/event/common" }

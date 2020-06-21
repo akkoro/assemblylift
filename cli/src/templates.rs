@@ -1,10 +1,8 @@
-pub(crate) static ROOT_GITIGNORE: &str = 
-r#".asml/
+pub(crate) static ROOT_GITIGNORE: &str = r#".asml/
 net/
 "#;
 
-pub(crate) static ASSEMBLYLIFT_TOML: &str =
-r#"# Generated with assemblylift-cli {{asml_version}}
+pub(crate) static ASSEMBLYLIFT_TOML: &str = r#"# Generated with assemblylift-cli {{asml_version}}
 
 [project]
 name = "{{project_name}}"
@@ -14,8 +12,7 @@ version = "0.1.0"
 default = { name = "{{default_service_name}}" }
 "#;
 
-pub(crate) static SERVICE_TOML: &str =
-r#"# Generated with assemblylift-cli {{asml_version}}
+pub(crate) static SERVICE_TOML: &str = r#"# Generated with assemblylift-cli {{asml_version}}
 
 [service]
 name = "{{service_name}}"
@@ -29,8 +26,7 @@ name = "my-function"
 handler_name = "handler"
 "#;
 
-pub(crate) static FUNCTION_CARGO_TOML: &str =
-r#"# Generated with assemblylift-cli {{asml_version}}
+pub(crate) static FUNCTION_CARGO_TOML: &str = r#"# Generated with assemblylift-cli {{asml_version}}
 
 [package]
 name = "{{function_name}}"
@@ -49,15 +45,13 @@ asml_awslambda = { package = "assemblylift-awslambda-guest", git = "https://gith
 asml_awslambda_iomod = { package = "assemblylift-awslambda-iomod-guest", git = "https://github.com/akkoro/assemblylift", branch="research" }
 "#;
 
-pub(crate) static FUNCTION_CARGO_CONFIG: &str =
-r#"# Generated with assemblylift-cli {{asml_version}}
+pub(crate) static FUNCTION_CARGO_CONFIG: &str = r#"# Generated with assemblylift-cli {{asml_version}}
 
 [build]
 target = "wasm32-unknown-unknown"
 "#;
 
-pub(crate) static FUNCTION_LIB_RS: &str =
-r#"// Generated with assemblylift-cli {{asml_version}}
+pub(crate) static FUNCTION_LIB_RS: &str = r#"// Generated with assemblylift-cli {{asml_version}}
 
 extern crate asml_awslambda;
 
@@ -73,16 +67,14 @@ handler!(context: LambdaContext, async {
 });
 "#;
 
-pub(crate) static FUNCTION_GITIGNORE: &str = 
-r#"// Generated with assemblylift-cli {{asml_version}}
+pub(crate) static FUNCTION_GITIGNORE: &str = r#"// Generated with assemblylift-cli {{asml_version}}
 .DS_Store
 *.wasm
 target/
 build/
 "#;
 
-pub(crate) static TERRAFORM_ROOT: &str = 
-r#"# Generated with assemblylift-cli {{asml_version}}
+pub(crate) static TERRAFORM_ROOT: &str = r#"# Generated with assemblylift-cli {{asml_version}}
 
 provider "aws" {
     region = "{{aws_region}}"
@@ -127,8 +119,7 @@ module "{{this.name}}" {
 
 "#;
 
-pub(crate) static TERRAFORM_FUNCTION: &str = 
-r#"# Generated with assemblylift-cli {{asml_version}}
+pub(crate) static TERRAFORM_FUNCTION: &str = r#"# Generated with assemblylift-cli {{asml_version}}
 
 variable "runtime_layer_arn" {
   type = string
