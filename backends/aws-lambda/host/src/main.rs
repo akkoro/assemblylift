@@ -1,6 +1,4 @@
 #[macro_use]
-extern crate git_version;
-#[macro_use]
 extern crate lazy_static;
 
 use std::cell::RefCell;
@@ -49,7 +47,7 @@ fn write_event_buffer(instance: &Instance, event: String) {
 }
 
 fn main() {
-    println!("Starting AssemblyLift AWS Lambda runtime {}-{}", crate_version!(), git_version!());
+    println!("Starting AssemblyLift AWS Lambda runtime {}", crate_version!());
 
     // let panic if these aren't set
     let handler_coordinates = env::var("_HANDLER").unwrap();
