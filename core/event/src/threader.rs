@@ -3,7 +3,7 @@ use std::future::Future;
 use std::sync::Mutex;
 
 use crossbeam_utils::atomic::AtomicCell;
-use tokio::runtime::{Builder, Runtime};
+use tokio::runtime::Runtime;
 
 use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 use assemblylift_core_event_common::EventMemoryDocument;
@@ -18,6 +18,8 @@ pub struct Threader {
 
 impl Threader {
     pub fn new() -> Self {
+        use tokio::runtime::Builder;
+
         let runtime = Builder::new()
             .threaded_scheduler()
             .enable_all()
