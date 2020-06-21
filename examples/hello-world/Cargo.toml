@@ -12,7 +12,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 direct-executor = "0.3.0"
 serde_json = "1.0"
-core_guest = { package = "assemblylift-core-guest", path = "../../core/guest" }
-core_event_guest = { package = "assemblylift-core-event-guest", path = "../../core/event/guest" }
-guest = { package = "assemblylift-awslambda-guest", path = "../../backends/aws-lambda/guest" }
-awsio = { package = "assemblylift-awslambda-iomod-guest", path = "../../backends/aws-lambda/iomod/guest" }
+core_guest = { version = "0.1.0", package = "assemblylift-core-guest", path = "../../core/guest" }
+core_event_guest = { version = "0.1.0", package = "assemblylift-core-event-guest", path = "../../core/event/guest" }
+guest = { version = "0.1.0", package = "assemblylift-awslambda-guest", path = "../../backends/aws-lambda/guest" }
+awsio = { version = "0.1.0", package = "assemblylift-awslambda-iomod-guest", path = "../../backends/aws-lambda/iomod/guest" }
