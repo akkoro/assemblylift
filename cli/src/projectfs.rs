@@ -44,7 +44,7 @@ pub fn write_project_manifest(canonical_project_path: &PathBuf, project_name: &s
     Ok(())
 }
 
-pub fn write_project_gitignore(canonical_project_path: &PathBuf, project_name: &str, default_service_name: &str) -> Result<(), io::Error> {
+pub fn write_project_gitignore(canonical_project_path: &PathBuf) -> Result<(), io::Error> {
     let file_name = ".gitignore";
 
     let mut reg = Handlebars::new();
@@ -170,6 +170,6 @@ pub(crate) fn write_to_file(path: &path::Path, contents: String) -> Result<(), i
         Ok(file) => file
     };
 
-    println!("📄 Wrote {}", path.display());
+    println!("📄 > Wrote {}", path.display());
     file.write_all(contents.as_bytes())
 }

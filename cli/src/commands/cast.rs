@@ -60,7 +60,7 @@ struct AssemblyLiftServiceConfigApiFunction {
 pub fn command(matches: Option<&ArgMatches>) {
     use std::io::Read;
 
-    let matches = match matches {
+    let _matches = match matches {
         Some(matches) => matches,
         _ => panic!("could not get matches for cast command")
     };

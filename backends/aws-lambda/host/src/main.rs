@@ -31,8 +31,8 @@ fn write_event_buffer(instance: &Instance, event: String) {
     let wasm_instance_context = instance.context();
     let wasm_instance_memory = wasm_instance_context.memory(0);
 
-    let mut get_pointer: Func<(), WasmBufferPtr> = instance
-        .func("__al_get_aws_event_string_buffer_pointer")
+    let get_pointer: Func<(), WasmBufferPtr> = instance
+        .exports.get("__al_get_aws_event_string_buffer_pointer")
         .expect("__al_get_aws_event_string_buffer_pointer");
 
     let event_buffer = get_pointer.call().unwrap();
@@ -56,7 +56,7 @@ fn main() {
     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
     let handler_name = coords[1];
 
-    if let Ok(mut instance) = wasm::build_instance() {
+    if let Ok(instance) = wasm::build_instance() {
         // init modules -- these will eventually be plugins specified in a manifest of some kind
         awsio::database::MyModule::register(&mut MODULE_REGISTRY.lock().unwrap());
 
@@ -72,7 +72,7 @@ fn main() {
                     write_event_buffer(&locked, event.event_body);
 
                     match locked.call(handler_name, &[]) {
-                        Ok(result) =>  println!("TRACE: handler returned Ok()"),
+                        Ok(_result) =>  println!("TRACE: handler returned Ok()"),
                         Err(error) => println!("ERROR: {}", error.to_string())
                     }
                 });

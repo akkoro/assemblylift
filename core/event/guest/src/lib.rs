@@ -1,24 +1,12 @@
-#[macro_use]
 extern crate lazy_static;
 
-use std::collections::hash_map::Entry::Occupied;
-use std::collections::HashMap;
-use std::ffi::c_void;
 use std::future::Future;
-use std::io::Read;
 use std::marker::PhantomData;
-use std::ops::Deref;
 use std::pin::Pin;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::task::{Context, Poll, Waker};
 
 use serde_json;
-use futures::FutureExt;
-use futures::task::{ArcWake, waker_ref};
 use serde::Deserialize;
-
-use assemblylift_core_event_common::EventMemoryDocument;
 
 extern {
     fn __asml_abi_poll(id: u32) -> i32;

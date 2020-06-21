@@ -1,8 +1,6 @@
-use std::cell::RefCell;
 use std::env;
 use std::io::{Error, ErrorKind};
 
-use crossbeam_utils::atomic::AtomicCell;
 use reqwest::blocking;
 
 use crate::LAMBDA_REQUEST_ID;

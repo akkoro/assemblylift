@@ -1,18 +1,8 @@
-use std::borrow::Borrow;
-use std::collections::hash_map::Entry::Occupied;
 use std::collections::HashMap;
 use std::future::Future;
-use std::ops::{Deref, DerefMut};
-use std::sync::{Arc, Mutex};
-use std::sync::mpsc::{Receiver, sync_channel, SyncSender};
-use std::time::Duration;
+use std::sync::Mutex;
 
-use bincode::serialize;
 use crossbeam_utils::atomic::AtomicCell;
-use futures::{FutureExt, TryFutureExt};
-use indexmap::map::IndexMap;
-use serde::Serialize;
-use tokio::prelude::*;
 use tokio::runtime::{Builder, Runtime};
 
 use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
@@ -46,7 +36,7 @@ impl Threader {
 
     pub fn is_event_ready(&self, event_id: u32) -> bool {
         match EVENT_MEMORY.lock() {
-            Ok(mut memory) => memory.is_ready(event_id),
+            Ok(memory) => memory.is_ready(event_id),
             Err(_) => false
         }
     }
@@ -54,7 +44,7 @@ impl Threader {
     pub fn get_event_memory_document(&mut self, event_id: u32) -> Option<EventMemoryDocument> {
         println!("TRACE: get_event_memory_document event_id={}", event_id);
         match EVENT_MEMORY.lock() {
-            Ok(mut memory) => {
+            Ok(memory) => {
                 println!("DEBUG: num keys in document map: {}", memory.document_map.keys().len());
                 match memory.document_map.get(&event_id) {
                     Some(doc) => Some(doc.clone()),
@@ -134,7 +124,7 @@ impl EventMemory {
         self.event_map.insert(event_id, true);
     }
 
-    fn find_with_length(&self, length: usize) -> usize {
+    fn find_with_length(&self, _length: usize) -> usize {
         // TODO this less stupidly
         let mut max_end = 0usize;
         for doc in self.document_map.values().into_iter() {

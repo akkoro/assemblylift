@@ -27,7 +27,7 @@ pub fn command(matches: Option<&ArgMatches>) {
 
     terraform::extract(canonical_project_path);
 
-    projectfs::write_project_gitignore(canonical_project_path, project_name, default_service_name).unwrap();
+    projectfs::write_project_gitignore(canonical_project_path).unwrap();
     projectfs::write_project_manifest(canonical_project_path, project_name, default_service_name).unwrap();
     projectfs::write_service_manifest(canonical_project_path, default_service_name).unwrap();
 

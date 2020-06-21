@@ -3,7 +3,6 @@ extern crate assemblylift_core_guest;
 
 use assemblylift_core_guest::*;
 use serde::{Deserialize, Serialize};
-use serde_json;
 
 pub const AWS_EVENT_STRING_BUFFER_SIZE: usize = 2048;
 pub static mut AWS_EVENT_STRING_BUFFER: [u8; AWS_EVENT_STRING_BUFFER_SIZE] = [0; AWS_EVENT_STRING_BUFFER_SIZE];

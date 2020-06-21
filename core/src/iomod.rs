@@ -79,8 +79,11 @@ pub fn asml_abi_event_len(ctx: &mut vm::Ctx, id: u32) -> u32 {
 
 #[inline]
 fn get_threader(ctx: &mut vm::Ctx) -> *mut Threader {
-    // TODO check null and return option or result
     let threader: *mut Threader = ctx.data.cast();
+    if threader.is_null() {
+        panic!("Threader instance is NULL in asml_abi_poll")
+    }
+
     threader
 }
 
@@ -102,15 +105,20 @@ fn ctx_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Er
 #[inline(always)]
 pub fn spawn_event(ctx: &mut vm::Ctx, mem: WasmBufferPtr, future: impl Future<Output=Vec<u8>> + 'static + Send) -> i32 {
     let threader: *mut Threader = ctx.data.cast();
+    if threader.is_null() {
+        panic!("Threader instance is NULL in spawn_event")
+    }
+
     let threader_ref = unsafe { threader.as_mut().unwrap() };
 
     let event_id = threader_ref.next_event_id().unwrap();
     println!("DEBUG: event_id={}", event_id);
 
     let wasm_instance_memory = ctx.memory(0);
-    let memory_writer: &[AtomicCell<u8>] = mem
-        .deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32)
-        .unwrap();
+    let memory_writer: &[AtomicCell<u8>] = match mem.deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32) {
+        Some(memory) => memory,
+        None => panic!("could not dereference WASM guest memory in spawn_event")
+    };
 
     threader_ref.spawn_with_event_id(memory_writer.as_ptr(), future, event_id);
 
@@ -171,9 +179,10 @@ macro_rules! call {
 macro_rules! __wasm_buffer_as_vec {
     ($ctx:ident, $input:ident, $input_len:ident) => {{
         let wasm_instance_memory = $ctx.memory(0);
-        let input_deref: &[AtomicCell<u8>] = $input
-            .deref(wasm_instance_memory, 0, $input_len)
-            .unwrap();
+        let input_deref: &[AtomicCell<u8>] = match $input.deref(wasm_instance_memory, 0, $input_len) {
+            Some(memory) => memory,
+            None => panic!("could not dereference WASM guest memory in __wasm_buffer_as_vec")
+        };
 
         let mut as_vec: Vec<u8> = Vec::new();
         for (idx, b) in input_deref.iter().enumerate() {
