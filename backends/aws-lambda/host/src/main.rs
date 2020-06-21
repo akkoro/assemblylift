@@ -1,10 +1,13 @@
 #[macro_use]
+extern crate git_version;
+#[macro_use]
 extern crate lazy_static;
 
 use std::cell::RefCell;
 use std::env;
 use std::sync::Mutex;
 
+use clap::crate_version;
 use crossbeam_utils::atomic::AtomicCell;
 use crossbeam_utils::thread::scope;
 use once_cell::sync::Lazy;
@@ -46,6 +49,8 @@ fn write_event_buffer(instance: &Instance, event: String) {
 }
 
 fn main() {
+    println!("Starting AssemblyLift AWS Lambda runtime {}-{}", crate_version!(), git_version!());
+
     // let panic if these aren't set
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();

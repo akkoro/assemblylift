@@ -16,6 +16,8 @@ wasmer-runtime = { git = "https://github.com/dotxlem/wasmer", branch="atomic_cel
 wasmer-runtime-core = { git = "https://github.com/dotxlem/wasmer", branch="atomic_cell" }
 lazy_static = "1.4.0"
 once_cell = "1.4.0"
+clap = "3.0.0-beta.1"
+git-version = "0.3.4"
 reqwest = { version = "0.10.4", features = ["blocking"] }
 awsio = {package = "assemblylift-awslambda-iomod", path = "../iomod" }
 assemblylift_core = { package = "assemblylift-core", path = "../../../core" }
