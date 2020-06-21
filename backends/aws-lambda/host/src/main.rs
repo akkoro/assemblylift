@@ -63,10 +63,9 @@ fn main() {
         awsio::database::MyModule::register(&mut MODULE_REGISTRY.lock().unwrap());
 
         while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
-            scope(|_| {
-                let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
-                ref_cell.replace(event.request_id.clone());
-            });
+            let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
+            ref_cell.replace(event.request_id.clone());
+            std::mem::drop(ref_cell);
 
             scope(|s| {
                 s.spawn(|_| {
