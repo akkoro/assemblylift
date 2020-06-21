@@ -1,11 +1,13 @@
 #[macro_use]
 extern crate lazy_static;
 
+use std::cell::RefCell;
 use std::env;
 use std::sync::Mutex;
 
 use crossbeam_utils::atomic::AtomicCell;
 use crossbeam_utils::thread::scope;
+use once_cell::sync::Lazy;
 use wasmer_runtime::Instance;
 
 use assemblylift_core::iomod::*;
@@ -16,8 +18,12 @@ mod runtime;
 mod wasm;
 
 lazy_static! {
-    pub static ref LAMBDA_RUNTIME: Mutex<AwsLambdaRuntime> = Mutex::new(AwsLambdaRuntime::new());
+    pub static ref LAMBDA_RUNTIME: AwsLambdaRuntime = AwsLambdaRuntime::new();
 }
+
+pub static LAMBDA_REQUEST_ID: Lazy<Mutex<RefCell<String>>> = Lazy::new(|| {
+    Mutex::new(RefCell::new(String::new()))
+});
 
 fn write_event_buffer(instance: &Instance, event: String) {
     use wasmer_runtime::{Func};
@@ -54,29 +60,27 @@ fn main() {
         // init modules -- these will eventually be plugins specified in a manifest of some kind
         awsio::database::MyModule::register(&mut MODULE_REGISTRY.lock().unwrap());
 
-        // loop {
-        //     LAMBDA_RUNTIME
-        //         .lock().unwrap()
-        //         .get_next_event()
-        //         .and_then(|event| {
-                    scope(|s| {
-                        s.spawn(|_| {
-                            let locked = instance.lock().unwrap();
+        while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
+            let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
+            ref_cell.replace(event.request_id.clone());
+            std::mem::drop(ref_cell);
 
-                            write_event_buffer(&locked, "{}".to_string() /*event.event_body*/);
-                            match locked.call(handler_name, &[]) {
-                                Ok(result) =>  println!("TRACE: handler returned Ok()"),
-                                Err(error) => println!("ERROR: {}", error.to_string())
-                            }
-                        });
-                    });
+            scope(|s| {
+                s.spawn(|_| {
+                    let locked = instance.lock().unwrap();
 
-                    // all threads spawned in the scope join here automatically
-                    // the side-effect of which is that a hang in the handler will block the lambda
-                    // runtime loop
+                    write_event_buffer(&locked, event.event_body);
 
-                    // Ok(())
-                // });
-        // }
+                    match locked.call(handler_name, &[]) {
+                        Ok(result) =>  println!("TRACE: handler returned Ok()"),
+                        Err(error) => println!("ERROR: {}", error.to_string())
+                    }
+                });
+            });
+
+            // all threads spawned in the scope join here automatically
+            // the side-effect of which is that a hang in the handler will block the lambda
+            // runtime loop
+        }
     }
 }

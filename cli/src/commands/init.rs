@@ -5,11 +5,12 @@ use std::process;
 use clap::ArgMatches;
 
 use crate::projectfs;
+use crate::terraform;
 
-pub fn init(matches: Option<&ArgMatches>) {
+pub fn command(matches: Option<&ArgMatches>) {
     let matches = match matches {
         Some(matches) => matches,
-        _ => panic!("could not get matches for init")
+        _ => panic!("could not get matches for init command")
     };
 
     let default_service_name = "my-service";
@@ -24,6 +25,9 @@ pub fn init(matches: Option<&ArgMatches>) {
         &fs::canonicalize(path::Path::new(&format!("./{}", project_name)))
             .unwrap();
 
+    terraform::extract(canonical_project_path);
+
+    projectfs::write_project_gitignore(canonical_project_path, project_name, default_service_name).unwrap();
     projectfs::write_project_manifest(canonical_project_path, project_name, default_service_name).unwrap();
     projectfs::write_service_manifest(canonical_project_path, default_service_name).unwrap();
 

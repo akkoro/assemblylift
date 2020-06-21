@@ -81,7 +81,7 @@ when "build"
     tag = "assemblylift:#{version}"
 
     puts "Building deployment-ready build..."
-    `#{DOCKER} build . --tag #{tag}`
+    `#{DOCKER} build . --file Dockerfile_aws-lambda --tag #{tag}`
     `#{DOCKER} run --rm --entrypoint cat #{tag} /usr/src/assembly-lift/target/release/bootstrap > ./bootstrap`
     puts "Done! Build artifact copied to project root."
 

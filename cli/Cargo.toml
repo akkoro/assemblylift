@@ -14,6 +14,11 @@ path = "src/main.rs"
 toml = "0.5.6"
 clap = "2.33.1"
 handlebars = "3.0.1"
+zip = "0.5.6"
 serde = "1.0.111"
 serde_json = "1.0.53"
 serde_derive = "1.0.111"
+
+[dependencies.reqwest]
+version = "0.10.6"
+features = ["blocking"]

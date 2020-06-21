@@ -67,8 +67,8 @@ If using Ruby as a build front-end is problematic in your environment, please [f
 
 ## 0.2
 
-- [ ] Proper implementation of [Threader](/core/event/src/threader.rs) memory manager
-- [ ] Plugin framework for IOmods
+- [ ] ❗ Proper implementation of [Threader](/core/event/src/threader.rs) memory manager
+- [ ] ❗ Plugin framework for IOmods
 - [ ] More examples
 - [ ] Logging system
 
@@ -80,4 +80,5 @@ so let's start there 🙂.
 
 # License
 
-[Hippocratic License 2.1](/LICENSE.md)
+The AssemblyLift source code is licensed under the [Hippocratic License 2.1](/LICENSE.md).  
+The AssemblyLift CLI embeds [HashiCorp Terraform](https://terraform.io), which is licensed under the [Mozilla Public License 2.0](https://www.mozilla.org/en-US/MPL/2.0/).

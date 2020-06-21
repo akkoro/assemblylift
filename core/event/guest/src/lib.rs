@@ -30,7 +30,7 @@ const MAX_EVENTS: usize              = 50;
 const EVENT_SIZE_BYTES: usize        = 512;
 const EVENT_BUFFER_SIZE_BYTES: usize = MAX_EVENTS * EVENT_SIZE_BYTES;
 
-// Raw buffer holding serialized Event-Future's
+// Raw buffer holding serialized Event-Future data
 pub static mut EVENT_BUFFER: [u8; EVENT_BUFFER_SIZE_BYTES] = [0; EVENT_BUFFER_SIZE_BYTES];
 
 #[no_mangle]

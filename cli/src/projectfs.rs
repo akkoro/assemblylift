@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use clap::crate_version;
 use handlebars::{Handlebars, to_json};
+
 use serde_json::value::{Map, Value as Json};
 
 use crate::templates;
@@ -37,6 +38,24 @@ pub fn write_project_manifest(canonical_project_path: &PathBuf, project_name: &s
     let render = reg.render(file_name, &data).unwrap();
 
     let path_str = &format!("{}/assemblylift.toml", canonical_project_path.display());
+    let path = path::Path::new(path_str);
+    write_to_file(&path, render);
+
+    Ok(())
+}
+
+pub fn write_project_gitignore(canonical_project_path: &PathBuf, project_name: &str, default_service_name: &str) -> Result<(), io::Error> {
+    let file_name = ".gitignore";
+
+    let mut reg = Handlebars::new();
+    reg.register_template_string(file_name, templates::ROOT_GITIGNORE).unwrap();
+
+    let mut data = Map::<String, Json>::new();
+    data.insert("asml_version".to_string(), to_json(crate_version!()));
+
+    let render = reg.render(file_name, &data).unwrap();
+
+    let path_str = &format!("{}/{}", canonical_project_path.display(), file_name);
     let path = path::Path::new(path_str);
     write_to_file(&path, render);
 
@@ -145,7 +164,7 @@ pub fn write_function_gitignore(canonical_project_path: &PathBuf, service_name: 
     Ok(())
 }
 
-fn write_to_file(path: &path::Path, contents: String) -> Result<(), io::Error> {
+pub(crate) fn write_to_file(path: &path::Path, contents: String) -> Result<(), io::Error> {
     let mut file = match fs::File::create(path) {
         Err(why) => panic!("couldn't create file {}: {}", path.display(), why.to_string()),
         Ok(file) => file

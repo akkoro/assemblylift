@@ -71,10 +71,9 @@ fn runtime_console_log(ctx: &mut Ctx, ptr: u32, len: u32) {
 }
 
 fn runtime_success(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<(), io::Error> {
-    let lambda_runtime = crate::LAMBDA_RUNTIME.lock().unwrap();
-    let request_id = lambda_runtime.current_request_id.borrow().clone();
+    let lambda_runtime = &crate::LAMBDA_RUNTIME;
     let response = runtime_ptr_to_string(ctx, ptr, len).unwrap();
-    lambda_runtime.respond(request_id, response.to_string())
+    lambda_runtime.respond(response.to_string())
 }
 
 fn runtime_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Error> {
