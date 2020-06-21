@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "AssemblyLift AWS Lambda IOmod host library"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
-license = "Hippocratic-2.1"
+license-file = "../../../LICENSE.md"
 repository = "https://github.com/akkoro/assemblylift"
 readme = "README.md"
 
