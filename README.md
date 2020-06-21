@@ -4,7 +4,7 @@
 
 ![AssemblyLift CI](https://github.com/akkoro/assemblylift/workflows/AssemblyLift%20CI/badge.svg)
 
-AssemblyLift is a framework for building serverless applications with WebAssembly (WASM).
+AssemblyLift is a framework for building serverless applications powered by WebAssembly (WASM).
 
 Highlight reel:
 
