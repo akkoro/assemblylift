@@ -2,16 +2,16 @@ extern crate serde_json;
 
 use std::collections::HashMap;
 
-use clap::{App, Arg, crate_version};
+use clap::{crate_version, App, Arg};
 
-use crate::commands::{bind, burn, cast, init};
 use crate::commands::CommandFn;
+use crate::commands::{bind, burn, cast, init};
 
+mod artifact;
 mod commands;
 mod projectfs;
 mod templates;
 mod terraform;
-mod artifact;
 
 fn main() {
     let app = App::new("asml")
@@ -24,30 +24,26 @@ fn main() {
                         .short("l")
                         .long("lang")
                         .default_value("rust")
-                        .takes_value(true)
+                        .takes_value(true),
                 )
                 .arg(
                     Arg::with_name("project_name")
                         .short("n")
                         .long("name")
                         .required(true)
-                        .takes_value(true)
-                )
-                // TODO this is going to need an argument to specify the backend (ie aws-lambda, azure, etc)
+                        .takes_value(true),
+                ), // TODO this is going to need an argument to specify the backend (ie aws-lambda, azure, etc)
         )
-        .subcommand(
-            App::new("cast")
-                .about("Build the AssemblyLift application")
-        )
+        .subcommand(App::new("cast").about("Build the AssemblyLift application"))
         .subcommand(
             App::new("bind")
                 .about("Bind the application to the cloud backend")
-                .alias("sync")
+                .alias("sync"),
         )
         .subcommand(
             App::new("burn")
                 .about("Destroy all infrastructure created by 'bind'")
-                .after_help("Equivalent to 'terraform destroy'")
+                .after_help("Equivalent to 'terraform destroy'"),
         );
     let matches = app.get_matches();
 
@@ -58,6 +54,6 @@ fn main() {
     command_map.insert("burn", burn::command);
 
     match matches.subcommand() {
-        (name, matches) => command_map[name](matches)
+        (name, matches) => command_map[name](matches),
     }
 }

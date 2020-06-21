@@ -5,7 +5,8 @@ use assemblylift_core_guest::*;
 use serde::{Deserialize, Serialize};
 
 pub const AWS_EVENT_STRING_BUFFER_SIZE: usize = 2048;
-pub static mut AWS_EVENT_STRING_BUFFER: [u8; AWS_EVENT_STRING_BUFFER_SIZE] = [0; AWS_EVENT_STRING_BUFFER_SIZE];
+pub static mut AWS_EVENT_STRING_BUFFER: [u8; AWS_EVENT_STRING_BUFFER_SIZE] =
+    [0; AWS_EVENT_STRING_BUFFER_SIZE];
 
 // provided TO the wasm runtime (host)
 #[no_mangle]
@@ -14,7 +15,7 @@ pub fn __al_get_aws_event_string_buffer_pointer() -> *const u8 {
 }
 
 // these are provided BY the wasm runtime (host)
-extern {
+extern "C" {
     fn __asml_abi_console_log(ptr: *const u8, len: usize);
     fn __asml_abi_success(ptr: *const u8, len: usize);
 }
@@ -39,7 +40,7 @@ impl GuestCore for AwsLambdaClient {
 
 #[derive(Serialize, Deserialize, Clone, std::fmt::Debug)]
 pub struct ApiGatewayEvent {
-    pub body: Option<String>
+    pub body: Option<String>,
 }
 
 pub struct LambdaContext {
@@ -72,7 +73,10 @@ macro_rules! handler {
             let event: ApiGatewayEvent = match serde_json::from_slice(slice) {
                 Ok(event) => event,
                 Err(why) => {
-                    AwsLambdaClient::console_log(format!("ERROR deserializing Lambda Event: {}", why.to_string()));
+                    AwsLambdaClient::console_log(format!(
+                        "ERROR deserializing Lambda Event: {}",
+                        why.to_string()
+                    ));
                     panic!("!!!!");
                 }
             };
@@ -83,5 +87,5 @@ macro_rules! handler {
 
             0
         }
-    }
+    };
 }

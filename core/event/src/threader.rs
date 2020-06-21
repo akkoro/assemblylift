@@ -30,14 +30,14 @@ impl Threader {
     pub fn next_event_id(&mut self) -> Option<u32> {
         match EVENT_MEMORY.lock() {
             Ok(mut memory) => memory.next_id(),
-            Err(_) => None
+            Err(_) => None,
         }
     }
 
     pub fn is_event_ready(&self, event_id: u32) -> bool {
         match EVENT_MEMORY.lock() {
             Ok(memory) => memory.is_ready(event_id),
-            Err(_) => false
+            Err(_) => false,
         }
     }
 
@@ -45,18 +45,25 @@ impl Threader {
         println!("TRACE: get_event_memory_document event_id={}", event_id);
         match EVENT_MEMORY.lock() {
             Ok(memory) => {
-                println!("DEBUG: num keys in document map: {}", memory.document_map.keys().len());
+                println!(
+                    "DEBUG: num keys in document map: {}",
+                    memory.document_map.keys().len()
+                );
                 match memory.document_map.get(&event_id) {
                     Some(doc) => Some(doc.clone()),
-                    None => None
+                    None => None,
                 }
-            },
-            Err(_) => None
+            }
+            Err(_) => None,
         }
-
     }
 
-    pub fn spawn_with_event_id(&mut self, writer: *const AtomicCell<u8>, future: impl Future<Output=Vec<u8>> + 'static + Send, event_id: u32) {
+    pub fn spawn_with_event_id(
+        &mut self,
+        writer: *const AtomicCell<u8>,
+        future: impl Future<Output = Vec<u8>> + 'static + Send,
+        event_id: u32,
+    ) {
         println!("TRACE: spawn_with_event_id");
 
         // FIXME this is a kludge -- I feel like the raw pointer shouldn't be needed
@@ -68,7 +75,10 @@ impl Threader {
             let serialized = future.await;
             println!("TRACE: IO complete");
 
-            EVENT_MEMORY.lock().unwrap().write_vec_at(slc, serialized, event_id);
+            EVENT_MEMORY
+                .lock()
+                .unwrap()
+                .write_vec_at(slc, serialized, event_id);
         });
         println!("TRACE: spawned");
     }
@@ -85,7 +95,7 @@ impl EventMemory {
         EventMemory {
             _next_id: 1, // id 0 is reserved (null)
             document_map: Default::default(),
-            event_map: Default::default()
+            event_map: Default::default(),
         }
     }
 
@@ -117,8 +127,12 @@ impl EventMemory {
         println!("TRACE: stored response");
 
         // Update document map
-        self.document_map.insert(event_id, EventMemoryDocument { start, length: end });
-        println!("TRACE: updated document map id={} start={} end={}", event_id, start, end);
+        self.document_map
+            .insert(event_id, EventMemoryDocument { start, length: end });
+        println!(
+            "TRACE: updated document map id={} start={} end={}",
+            event_id, start, end
+        );
 
         // Update event status table
         self.event_map.insert(event_id, true);

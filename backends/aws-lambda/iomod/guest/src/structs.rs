@@ -296,9 +296,9 @@ pub struct AttributeValue {
     /// <p>An attribute of type Binary. For example:</p> <p> <code>"B": "dGhpcyB0ZXh0IGlzIGJhc2U2NC1lbmNvZGVk"</code> </p>
     #[serde(rename = "B")]
     #[serde(
-    deserialize_with = "crate::serialization::SerdeBlob::deserialize_blob",
-    serialize_with = "crate::serialization::SerdeBlob::serialize_blob",
-    default
+        deserialize_with = "crate::serialization::SerdeBlob::deserialize_blob",
+        serialize_with = "crate::serialization::SerdeBlob::serialize_blob",
+        default
     )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub b: Option<bytes::Bytes>,
@@ -309,9 +309,9 @@ pub struct AttributeValue {
     /// <p>An attribute of type Binary Set. For example:</p> <p> <code>"BS": ["U3Vubnk=", "UmFpbnk=", "U25vd3k="]</code> </p>
     #[serde(rename = "BS")]
     #[serde(
-    deserialize_with = "crate::serialization::SerdeBlobList::deserialize_blob_list",
-    serialize_with = "crate::serialization::SerdeBlobList::serialize_blob_list",
-    default
+        deserialize_with = "crate::serialization::SerdeBlobList::deserialize_blob_list",
+        serialize_with = "crate::serialization::SerdeBlobList::serialize_blob_list",
+        default
     )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bs: Option<Vec<bytes::Bytes>>,

@@ -9,7 +9,7 @@ use zip::write::FileOptions;
 pub fn zip_files(files_in: Vec<&Path>, file_out: &Path) {
     let file = match fs::File::create(file_out) {
         Ok(file) => file,
-        Err(why) => panic!("could not create zip archive: {}", why.to_string())
+        Err(why) => panic!("could not create zip archive: {}", why.to_string()),
     };
 
     let mut zip = zip::ZipWriter::new(file);
@@ -20,7 +20,7 @@ pub fn zip_files(files_in: Vec<&Path>, file_out: &Path) {
     for path in files_in {
         let mut file_bytes = match fs::read(path) {
             Ok(bytes) => bytes,
-            Err(why) => panic!("could not create zip archive: {}", why.to_string())
+            Err(why) => panic!("could not create zip archive: {}", why.to_string()),
         };
 
         // unwrap: path always has a file name at this point

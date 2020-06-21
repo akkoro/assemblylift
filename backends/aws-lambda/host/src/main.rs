@@ -21,18 +21,18 @@ lazy_static! {
     pub static ref LAMBDA_RUNTIME: AwsLambdaRuntime = AwsLambdaRuntime::new();
 }
 
-pub static LAMBDA_REQUEST_ID: Lazy<Mutex<RefCell<String>>> = Lazy::new(|| {
-    Mutex::new(RefCell::new(String::new()))
-});
+pub static LAMBDA_REQUEST_ID: Lazy<Mutex<RefCell<String>>> =
+    Lazy::new(|| Mutex::new(RefCell::new(String::new())));
 
 fn write_event_buffer(instance: &Instance, event: String) {
-    use wasmer_runtime::{Func};
+    use wasmer_runtime::Func;
 
     let wasm_instance_context = instance.context();
     let wasm_instance_memory = wasm_instance_context.memory(0);
 
     let get_pointer: Func<(), WasmBufferPtr> = instance
-        .exports.get("__al_get_aws_event_string_buffer_pointer")
+        .exports
+        .get("__al_get_aws_event_string_buffer_pointer")
         .expect("__al_get_aws_event_string_buffer_pointer");
 
     let event_buffer = get_pointer.call().unwrap();
@@ -72,8 +72,8 @@ fn main() {
                     write_event_buffer(&locked, event.event_body);
 
                     match locked.call(handler_name, &[]) {
-                        Ok(_result) =>  println!("TRACE: handler returned Ok()"),
-                        Err(error) => println!("ERROR: {}", error.to_string())
+                        Ok(_result) => println!("TRACE: handler returned Ok()"),
+                        Err(error) => println!("ERROR: {}", error.to_string()),
                     }
                 });
             });

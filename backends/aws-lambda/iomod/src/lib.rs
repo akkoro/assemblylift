@@ -66,7 +66,7 @@ pub mod database {
     );
 
     // aws.dynamodb.update_item
-    call!(aws_dynamodb_update_item => 
+    call!(aws_dynamodb_update_item =>
         pub async fn aws_dynamodb_update_item_impl(input: Vec<u8>) -> Vec<u8> {
             use rusoto_dynamodb::*;
 
@@ -82,7 +82,7 @@ pub mod database {
 
     impl IoModule for MyModule {
         fn register(registry: &mut ModuleRegistry) {
-            register_calls!(registry, 
+            register_calls!(registry,
                 aws => {
                     dynamodb => {
                         list_tables => aws_dynamodb_list_tables,
@@ -95,5 +95,4 @@ pub mod database {
             );
         }
     }
-
 }

@@ -30,5 +30,5 @@ macro_rules! call {
                 }
             };
         }
-    }
+    };
 }

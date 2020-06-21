@@ -1,15 +1,15 @@
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::error::Error;
+use std::future::Future;
 use std::io;
 use std::io::ErrorKind;
 use std::sync::Mutex;
-use std::future::Future;
 
 use crossbeam_utils::atomic::AtomicCell;
 
-use wasmer_runtime::Ctx;
 use wasmer_runtime::memory::MemoryView;
+use wasmer_runtime::Ctx;
 use wasmer_runtime_core::vm;
 
 use crate::WasmBufferPtr;
@@ -33,18 +33,25 @@ pub type ModuleMap = HashMap<String, HashMap<String, HashMap<String, AsmlAbiFn>>
 
 #[derive(Clone)]
 pub struct ModuleRegistry {
-    pub modules: ModuleMap
+    pub modules: ModuleMap,
 }
 
 impl ModuleRegistry {
     pub fn new() -> Self {
         ModuleRegistry {
-            modules: Default::default()
+            modules: Default::default(),
         }
     }
 }
 
-pub fn asml_abi_invoke(ctx: &mut vm::Ctx, mem: WasmBufferPtr, name_ptr: u32, name_len: u32, input: WasmBufferPtr, input_len: u32) -> i32 {
+pub fn asml_abi_invoke(
+    ctx: &mut vm::Ctx,
+    mem: WasmBufferPtr,
+    name_ptr: u32,
+    name_len: u32,
+    input: WasmBufferPtr,
+    input_len: u32,
+) -> i32 {
     println!("TRACE: asml_abi_invoke called");
     if let Ok(coords) = ctx_ptr_to_string(ctx, name_ptr, name_len) {
         let coord_vec = coords.split(".").collect::<Vec<&str>>();
@@ -69,12 +76,26 @@ pub fn asml_abi_poll(ctx: &mut vm::Ctx, id: u32) -> i32 {
 
 pub fn asml_abi_event_ptr(ctx: &mut vm::Ctx, id: u32) -> u32 {
     let threader = get_threader(ctx);
-    unsafe { threader.as_mut().unwrap().get_event_memory_document(id).unwrap().start as u32 }
+    unsafe {
+        threader
+            .as_mut()
+            .unwrap()
+            .get_event_memory_document(id)
+            .unwrap()
+            .start as u32
+    }
 }
 
 pub fn asml_abi_event_len(ctx: &mut vm::Ctx, id: u32) -> u32 {
     let threader = get_threader(ctx);
-    unsafe { threader.as_mut().unwrap().get_event_memory_document(id).unwrap().length as u32 }
+    unsafe {
+        threader
+            .as_mut()
+            .unwrap()
+            .get_event_memory_document(id)
+            .unwrap()
+            .length as u32
+    }
 }
 
 #[inline]
@@ -93,7 +114,10 @@ fn ctx_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Er
     let view: MemoryView<u8> = memory.view();
 
     let mut str_vec: Vec<u8> = Vec::new();
-    for byte in view[ptr as usize .. (ptr + len) as usize].iter().map(Cell::get) {
+    for byte in view[ptr as usize..(ptr + len) as usize]
+        .iter()
+        .map(Cell::get)
+    {
         str_vec.push(byte);
     }
 
@@ -103,7 +127,11 @@ fn ctx_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Er
 }
 
 #[inline(always)]
-pub fn spawn_event(ctx: &mut vm::Ctx, mem: WasmBufferPtr, future: impl Future<Output=Vec<u8>> + 'static + Send) -> i32 {
+pub fn spawn_event(
+    ctx: &mut vm::Ctx,
+    mem: WasmBufferPtr,
+    future: impl Future<Output = Vec<u8>> + 'static + Send,
+) -> i32 {
     let threader: *mut Threader = ctx.data.cast();
     if threader.is_null() {
         panic!("Threader instance is NULL in spawn_event")
@@ -115,10 +143,11 @@ pub fn spawn_event(ctx: &mut vm::Ctx, mem: WasmBufferPtr, future: impl Future<Ou
     println!("DEBUG: event_id={}", event_id);
 
     let wasm_instance_memory = ctx.memory(0);
-    let memory_writer: &[AtomicCell<u8>] = match mem.deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32) {
-        Some(memory) => memory,
-        None => panic!("could not dereference WASM guest memory in spawn_event")
-    };
+    let memory_writer: &[AtomicCell<u8>] =
+        match mem.deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32) {
+            Some(memory) => memory,
+            None => panic!("could not dereference WASM guest memory in spawn_event"),
+        };
 
     threader_ref.spawn_with_event_id(memory_writer.as_ptr(), future, event_id);
 
@@ -129,7 +158,7 @@ pub fn spawn_event(ctx: &mut vm::Ctx, mem: WasmBufferPtr, future: impl Future<Ou
 macro_rules! register_calls {
     ($reg:expr, $($org_name:ident => {
         $ns_name:ident => $ns:tt
-    }),* $(,)?) 
+    }),* $(,)?)
     => {{
         let org_name = String::from("$org_name");
         let ns_name = String::from("$ns_name");
@@ -161,7 +190,7 @@ macro_rules! __register_calls {
 #[macro_export]
 macro_rules! call {
     ($call_name:ident => $call:item) => {
-        $call 
+        $call
 
         pub fn $call_name (ctx: &mut vm::Ctx, mem: WasmBufferPtr, input: WasmBufferPtr, input_len: u32) -> i32 {
             use assemblylift_core::iomod::spawn_event;
@@ -179,9 +208,10 @@ macro_rules! call {
 macro_rules! __wasm_buffer_as_vec {
     ($ctx:ident, $input:ident, $input_len:ident) => {{
         let wasm_instance_memory = $ctx.memory(0);
-        let input_deref: &[AtomicCell<u8>] = match $input.deref(wasm_instance_memory, 0, $input_len) {
+        let input_deref: &[AtomicCell<u8>] = match $input.deref(wasm_instance_memory, 0, $input_len)
+        {
             Some(memory) => memory,
-            None => panic!("could not dereference WASM guest memory in __wasm_buffer_as_vec")
+            None => panic!("could not dereference WASM guest memory in __wasm_buffer_as_vec"),
         };
 
         let mut as_vec: Vec<u8> = Vec::new();
