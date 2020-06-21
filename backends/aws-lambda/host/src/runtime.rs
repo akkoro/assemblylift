@@ -31,6 +31,7 @@ impl AwsLambdaRuntime {
             self.api_endpoint
         )
         .to_string();
+
         self.client
             .get(url)
             .send()
@@ -56,7 +57,9 @@ impl AwsLambdaRuntime {
             self.api_endpoint, request_id
         )
         .to_string();
+
         println!("Responding to APIGW endpoint: {}", url);
+
         self.client
             .post(url)
             .body(response)
