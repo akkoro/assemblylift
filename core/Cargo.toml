@@ -17,5 +17,5 @@ serde = "1.0.106"
 paste = "0.1.12"
 wasmer-runtime = { git = "https://github.com/dotxlem/wasmer", branch="atomic_cell" }
 wasmer-runtime-core = { git = "https://github.com/dotxlem/wasmer", branch="atomic_cell" }
-assemblylift_core_event = { package = "assemblylift-core-event", path = "./event" }
-assemblylift_core_event_common = { package = "assemblylift-core-event-common", path = "./event/common" }
+assemblylift_core_event = { version = "0.1.0", package = "assemblylift-core-event", path = "./event" }
+assemblylift_core_event_common = { version = "0.1.0", package = "assemblylift-core-event-common", path = "./event/common" }
