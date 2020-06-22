@@ -66,8 +66,8 @@ dependencies = [
  "lazy_static",
  "once_cell",
  "reqwest",
- "wasmer-runtime",
- "wasmer-runtime-core 0.16.2 (git+https://github.com/dotxlem/wasmer?branch=atomic_cell)",
+ "wasmer-runtime-asml-fork",
+ "wasmer-runtime-core-asml-fork",
 ]
 
 [[package]]
@@ -84,8 +84,8 @@ dependencies = [
  "rusoto_core",
  "rusoto_dynamodb",
  "serde_json",
- "wasmer-runtime",
- "wasmer-runtime-core 0.16.2 (git+https://github.com/dotxlem/wasmer?branch=atomic_cell)",
+ "wasmer-runtime-asml-fork",
+ "wasmer-runtime-core-asml-fork",
 ]
 
 [[package]]
@@ -2499,31 +2499,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc9f36ad51f25b0219a3d4d13b90eb44cd075dff8b6280cca015775d7acaddd8"
 
 [[package]]
-name = "wasmer-clif-backend"
-version = "0.16.2"
-source = "git+https://github.com/dotxlem/wasmer?branch=atomic_cell#9ff40d39377c8e9c9be0e70a9f3504c27d1424a0"
-dependencies = [
- "byteorder",
- "cranelift-codegen",
- "cranelift-entity",
- "cranelift-native",
- "libc",
- "nix",
- "rayon",
- "serde",
- "serde-bench",
- "serde_bytes",
- "serde_derive",
- "target-lexicon 0.10.0",
- "wasmer-clif-fork-frontend",
- "wasmer-clif-fork-wasm",
- "wasmer-runtime-core 0.16.2 (git+https://github.com/dotxlem/wasmer?branch=atomic_cell)",
- "wasmer-win-exception-handler 0.16.2 (git+https://github.com/dotxlem/wasmer?branch=atomic_cell)",
- "wasmparser",
- "winapi 0.3.8",
-]
-
-[[package]]
 name = "wasmer-clif-backend-asml-fork"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2544,7 +2519,7 @@ dependencies = [
  "wasmer-clif-fork-frontend",
  "wasmer-clif-fork-wasm",
  "wasmer-runtime-core-asml-fork",
- "wasmer-win-exception-handler 0.16.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasmer-win-exception-handler",
  "wasmparser",
  "winapi 0.3.8",
 ]
@@ -2576,19 +2551,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wasmer-runtime"
-version = "0.16.2"
-source = "git+https://github.com/dotxlem/wasmer?branch=atomic_cell#9ff40d39377c8e9c9be0e70a9f3504c27d1424a0"
-dependencies = [
- "lazy_static",
- "memmap",
- "serde",
- "serde_derive",
- "wasmer-clif-backend",
- "wasmer-runtime-core 0.16.2 (git+https://github.com/dotxlem/wasmer?branch=atomic_cell)",
-]
-
-[[package]]
 name = "wasmer-runtime-asml-fork"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2600,35 +2562,6 @@ dependencies = [
  "serde_derive",
  "wasmer-clif-backend-asml-fork",
  "wasmer-runtime-core-asml-fork",
-]
-
-[[package]]
-name = "wasmer-runtime-core"
-version = "0.16.2"
-source = "git+https://github.com/dotxlem/wasmer?branch=atomic_cell#9ff40d39377c8e9c9be0e70a9f3504c27d1424a0"
-dependencies = [
- "bincode",
- "blake3 0.3.3",
- "cc",
- "crossbeam-utils",
- "digest",
- "errno",
- "hex",
- "indexmap",
- "lazy_static",
- "libc",
- "nix",
- "page_size",
- "parking_lot",
- "rustc_version",
- "serde",
- "serde-bench",
- "serde_bytes",
- "serde_derive",
- "smallvec 1.2.0",
- "target-lexicon 0.10.0",
- "wasmparser",
- "winapi 0.3.8",
 ]
 
 [[package]]
@@ -2693,23 +2626,12 @@ dependencies = [
 [[package]]
 name = "wasmer-win-exception-handler"
 version = "0.16.2"
-source = "git+https://github.com/dotxlem/wasmer?branch=atomic_cell#9ff40d39377c8e9c9be0e70a9f3504c27d1424a0"
-dependencies = [
- "cc",
- "libc",
- "wasmer-runtime-core 0.16.2 (git+https://github.com/dotxlem/wasmer?branch=atomic_cell)",
- "winapi 0.3.8",
-]
-
-[[package]]
-name = "wasmer-win-exception-handler"
-version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d9ddd20d076ab9eb3d5b4ccca19d691dfda89e2ac0ff79f4ecf0e4cac0a1b8d"
 dependencies = [
  "cmake",
  "libc",
- "wasmer-runtime-core 0.16.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasmer-runtime-core",
  "winapi 0.3.8",
 ]
 

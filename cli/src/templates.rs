@@ -39,10 +39,10 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 direct-executor = "0.3.0"
 serde_json = "1.0.53"
-asml_core = "0.1.0"
-asml_core_event = "0.1.0"
-asml_awslambda = "0.1.0"
-asml_awslambda_iomod = "0.1.0"
+asml_core = { version = "0.1.0", package = "assemblylift-core-guest" }
+asml_core_event = { version = "0.1.0", package = "assemblylift-core-event-guest" }
+asml_awslambda = { version = "0.1.0", package = "assemblylift-awslambda-guest" }
+asml_awslambda_iomod = { version = "0.1.0", package = "assemblylift-awslambda-iomod-guest" }
 "#;
 
 pub(crate) static FUNCTION_CARGO_CONFIG: &str = r#"# Generated with assemblylift-cli {{asml_version}}

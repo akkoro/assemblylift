@@ -1,10 +1,31 @@
 use std::io::prelude::*;
 
 use std::fs;
+use std::fmt;
+use std::io;
 use std::path::Path;
 
 use zip;
 use zip::write::FileOptions;
+
+#[derive(Debug)]
+pub struct ArtifactError {
+    why: String
+}
+
+impl ArtifactError {
+    pub fn new(why: String) -> Self {
+        ArtifactError { why }
+    }
+}
+
+impl std::error::Error for ArtifactError {}
+
+impl fmt::Display for ArtifactError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.why)
+    }
+}
 
 pub fn zip_files(files_in: Vec<&Path>, file_out: &Path) {
     let file = match fs::File::create(file_out) {
@@ -36,4 +57,16 @@ pub fn zip_files(files_in: Vec<&Path>, file_out: &Path) {
     }
 
     println!("🗜 > Wrote zip artifact {}", file_out.display());
+}
+
+pub fn unzip_to(bytes_in: Vec<u8>, out_dir: &str) -> Result<(), ArtifactError> {
+    let mut reader = std::io::Cursor::new(bytes_in);
+    let mut archive = zip::ZipArchive::new(reader).unwrap();
+    let mut file_out = archive.by_name("terraform").unwrap();
+
+    let mut outfile = fs::File::create(out_dir).unwrap();
+    match io::copy(&mut file_out, &mut outfile) {
+        Ok(_) => Ok(()),
+        Err(why) => Err(ArtifactError::new(why.to_string())),
+    }
 }

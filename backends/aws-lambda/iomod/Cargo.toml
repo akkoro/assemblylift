@@ -18,8 +18,8 @@ paste = "0.1.12"
 crossbeam-utils = "0.7.2"
 rusoto_core = { version = "0.43.0" }
 rusoto_dynamodb = { version = "0.43.0", features = ["serialize_structs", "deserialize_structs"] }
-wasmer-runtime = { git = "https://github.com/dotxlem/wasmer", branch="atomic_cell" }
-wasmer-runtime-core = { git = "https://github.com/dotxlem/wasmer", branch="atomic_cell" }
+wasmer_runtime = { version = "0.1.1", package = "wasmer-runtime-asml-fork" }
+wasmer_runtime_core = { version = "0.1.1", package = "wasmer-runtime-core-asml-fork" }
 assemblylift_core = { version = "0.1.0", package = "assemblylift-core", path = "../../../core"}
 assemblylift_core_event = { version = "0.1.0", package = "assemblylift-core-event", path = "../../../core/event" }
 assemblylift_core_event_common = { version = "0.1.0", package = "assemblylift-core-event-common", path = "../../../core/event/common" }

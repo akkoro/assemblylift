@@ -13,12 +13,15 @@ use serde_json::value::{Map, Value as Json};
 
 use crate::projectfs;
 use crate::templates;
+use crate::artifact;
 
 fn get_relative_path() -> &'static str {
     ".asml/bin/terraform"
 }
 
 pub fn extract(canonical_project_path: &PathBuf) {
+    use std::io::Read;
+
     // TODO check first if file is present
 
     let terraform_path = format!(
@@ -28,16 +31,25 @@ pub fn extract(canonical_project_path: &PathBuf) {
     );
     println!("Extracting terraform to {}", terraform_path);
 
+    let mut terraform_zip = Vec::new();
+
     #[cfg(target_os = "linux")]
-    let terraform: &'static [u8] = include_bytes!("../../resources/bin/linux64/terraform");
+        let mut response = reqwest::blocking::get(
+            "https://releases.hashicorp.com/terraform/0.12.26/terraform_0.12.26_linux_amd64.zip"
+        ).unwrap();
     #[cfg(target_os = "macos")]
-    let terraform: &'static [u8] = include_bytes!("../../resources/bin/macos/terraform");
+        let mut response = reqwest::blocking::get(
+            "https://releases.hashicorp.com/terraform/0.12.26/terraform_0.12.26_darwin_amd64.zip"
+        ).unwrap();
+
+    response.read_to_end(&mut terraform_zip);
 
     if let Err(_) = fs::create_dir_all(terraform_path.replace("/terraform", ""))
-        .and_then(|_| fs::write(&terraform_path, terraform))
     {
-        panic!("could not copy terraform binary to ./.asml/bin")
+        panic!("could not create directory ./.asml/bin")
     }
+
+    artifact::unzip_to(terraform_zip, &terraform_path);
 
     let mut perms = fs::metadata(&terraform_path).unwrap().permissions();
     perms.set_mode(0o755);
