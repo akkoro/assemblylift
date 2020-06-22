@@ -67,7 +67,7 @@ dependencies = [
  "once_cell",
  "reqwest",
  "wasmer-runtime",
- "wasmer-runtime-core",
+ "wasmer-runtime-core 0.16.2 (git+https://github.com/dotxlem/wasmer?branch=atomic_cell)",
 ]
 
 [[package]]
@@ -85,7 +85,7 @@ dependencies = [
  "rusoto_dynamodb",
  "serde_json",
  "wasmer-runtime",
- "wasmer-runtime-core",
+ "wasmer-runtime-core 0.16.2 (git+https://github.com/dotxlem/wasmer?branch=atomic_cell)",
 ]
 
 [[package]]
@@ -125,8 +125,8 @@ dependencies = [
  "lazy_static",
  "paste",
  "serde",
- "wasmer-runtime",
- "wasmer-runtime-core",
+ "wasmer-runtime-asml-fork",
+ "wasmer-runtime-core-asml-fork",
 ]
 
 [[package]]
@@ -245,6 +245,21 @@ dependencies = [
  "arrayref",
  "arrayvec",
  "constant_time_eq",
+]
+
+[[package]]
+name = "blake3"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46080006c1505f12f64dd2a09264b343381ed3190fa02c8005d5d662ac571c63"
+dependencies = [
+ "arrayref",
+ "arrayvec",
+ "cc",
+ "cfg-if",
+ "constant_time_eq",
+ "crypto-mac",
+ "digest",
 ]
 
 [[package]]
@@ -421,6 +436,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cmake"
+version = "0.1.44"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e56268c17a6248366d66d4a47a3381369d068cce8409bb1716ed77ea32163bb"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "constant_time_eq"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -464,8 +488,8 @@ dependencies = [
  "cranelift-entity",
  "gimli",
  "log",
- "smallvec",
- "target-lexicon",
+ "smallvec 1.2.0",
+ "target-lexicon 0.10.0",
  "thiserror",
 ]
 
@@ -499,7 +523,7 @@ checksum = "32daf082da21c0c05d93394ff4842c2ab7c4991b1f3186a1d952f8ac660edd0b"
 dependencies = [
  "cranelift-codegen",
  "raw-cpuid",
- "target-lexicon",
+ "target-lexicon 0.10.0",
 ]
 
 [[package]]
@@ -1065,6 +1089,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ffc5c5338469d4d3ea17d269fa8ea3512ad247247c30bd2df69e68309ed0a08"
 
 [[package]]
+name = "maybe-uninit"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
+
+[[package]]
 name = "md5"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1336,7 +1366,7 @@ dependencies = [
  "cloudabi",
  "libc",
  "redox_syscall",
- "smallvec",
+ "smallvec 1.2.0",
  "winapi 0.3.8",
 ]
 
@@ -1972,6 +2002,15 @@ checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
 
 [[package]]
 name = "smallvec"
+version = "0.6.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7b0758c52e15a8b5e3691eae6cc559f08eee9406e548a4477ba4e67770a82b6"
+dependencies = [
+ "maybe-uninit",
+]
+
+[[package]]
+name = "smallvec"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c2fb2ec9bcd216a5b0d0ccf31ab17b5ed1d627960edff65bbe95d3ce221cefc"
@@ -2082,6 +2121,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "target-lexicon"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f4c118a7a38378f305a9e111fcb2f7f838c0be324bfb31a77ea04f7f6e684b4"
 
 [[package]]
 name = "target-lexicon"
@@ -2313,7 +2358,7 @@ version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5479532badd04e128284890390c1e876ef7a993d0570b3597ae43dfa1d59afa4"
 dependencies = [
- "smallvec",
+ "smallvec 1.2.0",
 ]
 
 [[package]]
@@ -2469,11 +2514,37 @@ dependencies = [
  "serde-bench",
  "serde_bytes",
  "serde_derive",
- "target-lexicon",
+ "target-lexicon 0.10.0",
  "wasmer-clif-fork-frontend",
  "wasmer-clif-fork-wasm",
- "wasmer-runtime-core",
- "wasmer-win-exception-handler",
+ "wasmer-runtime-core 0.16.2 (git+https://github.com/dotxlem/wasmer?branch=atomic_cell)",
+ "wasmer-win-exception-handler 0.16.2 (git+https://github.com/dotxlem/wasmer?branch=atomic_cell)",
+ "wasmparser",
+ "winapi 0.3.8",
+]
+
+[[package]]
+name = "wasmer-clif-backend-asml-fork"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf4c9332f210a791619ae577dc5b3e58268a93e85ec8b87fb78b2a19b4632d7e"
+dependencies = [
+ "byteorder",
+ "cranelift-codegen",
+ "cranelift-entity",
+ "cranelift-native",
+ "libc",
+ "nix",
+ "rayon",
+ "serde",
+ "serde-bench",
+ "serde_bytes",
+ "serde_derive",
+ "target-lexicon 0.10.0",
+ "wasmer-clif-fork-frontend",
+ "wasmer-clif-fork-wasm",
+ "wasmer-runtime-core-asml-fork",
+ "wasmer-win-exception-handler 0.16.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "wasmparser",
  "winapi 0.3.8",
 ]
@@ -2486,8 +2557,8 @@ checksum = "c23f2824f354a00a77e4b040eef6e1d4c595a8a3e9013bad65199cc8dade9a5a"
 dependencies = [
  "cranelift-codegen",
  "log",
- "smallvec",
- "target-lexicon",
+ "smallvec 1.2.0",
+ "target-lexicon 0.10.0",
 ]
 
 [[package]]
@@ -2514,7 +2585,21 @@ dependencies = [
  "serde",
  "serde_derive",
  "wasmer-clif-backend",
- "wasmer-runtime-core",
+ "wasmer-runtime-core 0.16.2 (git+https://github.com/dotxlem/wasmer?branch=atomic_cell)",
+]
+
+[[package]]
+name = "wasmer-runtime-asml-fork"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "91ae0ca07c44cbdcc7fafa34e3ff9b9da54766415f613800f8c0b8a355c0da3f"
+dependencies = [
+ "lazy_static",
+ "memmap",
+ "serde",
+ "serde_derive",
+ "wasmer-clif-backend-asml-fork",
+ "wasmer-runtime-core-asml-fork",
 ]
 
 [[package]]
@@ -2523,7 +2608,7 @@ version = "0.16.2"
 source = "git+https://github.com/dotxlem/wasmer?branch=atomic_cell#9ff40d39377c8e9c9be0e70a9f3504c27d1424a0"
 dependencies = [
  "bincode",
- "blake3",
+ "blake3 0.3.3",
  "cc",
  "crossbeam-utils",
  "digest",
@@ -2540,8 +2625,67 @@ dependencies = [
  "serde-bench",
  "serde_bytes",
  "serde_derive",
- "smallvec",
- "target-lexicon",
+ "smallvec 1.2.0",
+ "target-lexicon 0.10.0",
+ "wasmparser",
+ "winapi 0.3.8",
+]
+
+[[package]]
+name = "wasmer-runtime-core"
+version = "0.16.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e32bdb04d008eb136c88a12c0fdfb7e5d7ff30b208af4bef1d292d863eb1ba2"
+dependencies = [
+ "bincode",
+ "blake3 0.1.5",
+ "cc",
+ "digest",
+ "errno",
+ "hex",
+ "indexmap",
+ "lazy_static",
+ "libc",
+ "nix",
+ "page_size",
+ "parking_lot",
+ "rustc_version",
+ "serde",
+ "serde-bench",
+ "serde_bytes",
+ "serde_derive",
+ "smallvec 0.6.13",
+ "target-lexicon 0.9.0",
+ "wasmparser",
+ "winapi 0.3.8",
+]
+
+[[package]]
+name = "wasmer-runtime-core-asml-fork"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c19420d30e78bc4284b698ecb109424d3c6d0b87b58fd1f33735693e124518c2"
+dependencies = [
+ "bincode",
+ "blake3 0.3.3",
+ "cc",
+ "crossbeam-utils",
+ "digest",
+ "errno",
+ "hex",
+ "indexmap",
+ "lazy_static",
+ "libc",
+ "nix",
+ "page_size",
+ "parking_lot",
+ "rustc_version",
+ "serde",
+ "serde-bench",
+ "serde_bytes",
+ "serde_derive",
+ "smallvec 1.2.0",
+ "target-lexicon 0.10.0",
  "wasmparser",
  "winapi 0.3.8",
 ]
@@ -2553,7 +2697,19 @@ source = "git+https://github.com/dotxlem/wasmer?branch=atomic_cell#9ff40d39377c8
 dependencies = [
  "cc",
  "libc",
- "wasmer-runtime-core",
+ "wasmer-runtime-core 0.16.2 (git+https://github.com/dotxlem/wasmer?branch=atomic_cell)",
+ "winapi 0.3.8",
+]
+
+[[package]]
+name = "wasmer-win-exception-handler"
+version = "0.16.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d9ddd20d076ab9eb3d5b4ccca19d691dfda89e2ac0ff79f4ecf0e4cac0a1b8d"
+dependencies = [
+ "cmake",
+ "libc",
+ "wasmer-runtime-core 0.16.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.8",
 ]
 
