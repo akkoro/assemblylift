@@ -18,7 +18,11 @@ macro_rules! call {
                 unsafe {
                     let serialized: Box<Vec<u8>> = Box::from(serde_json::to_vec(&input).unwrap());
 
-                    let name = "$org.$ns.$name";
+                    let name = format!("{}.{}.{}",
+                        std::stringify!($org),
+                        std::stringify!($ns),
+                        std::stringify!($name));
+
                     event_id = crate::__asml_abi_invoke(EVENT_BUFFER.as_ptr(),
                                                         name.as_ptr(), name.len(),
                                                         serialized.as_ptr(), serialized.len());

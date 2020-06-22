@@ -1,6 +1,6 @@
 [package]
 name = "assemblylift-core-guest"
-version = "0.1.0"
+version = "0.1.1"
 description = "AssemblyLift core WASM guest library"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
