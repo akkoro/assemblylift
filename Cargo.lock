@@ -55,7 +55,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-awslambda-host"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "assemblylift-awslambda-iomod",
  "assemblylift-core",
@@ -72,7 +72,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-awslambda-iomod"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "assemblylift-core",
  "assemblylift-core-event",
@@ -103,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "clap 2.33.1",
  "handlebars",
@@ -117,7 +117,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "assemblylift-core-event",
  "assemblylift-core-event-common",
