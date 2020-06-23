@@ -16,7 +16,7 @@ Highlight reel:
 - Planned support for multiple backends, but the focus is currently on _AWS Lambda_
 - Built using the [Wasmer](https://wasmer.io) interpreter
 
-**Examples** can be found [here](/examples).
+**Examples** can be found [here](https://github.com/akkoro/assemblylift-examples).
 
 # Overview
 
