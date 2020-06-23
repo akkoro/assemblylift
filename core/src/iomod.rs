@@ -156,21 +156,19 @@ pub fn spawn_event(
 
 #[macro_export]
 macro_rules! register_calls {
-    ($reg:expr, $($org_name:ident => {
-        $ns_name:ident => $ns:tt
-    }),* $(,)?)
+    ($reg:expr, $org_name:ident => { $ns_name:ident => $ns:tt })
     => {{
-        let org_name = String::from("$org_name");
-        let ns_name = String::from("$ns_name");
+        let org_name = stringify!($org_name);
+        let ns_name = stringify!($ns_name);
 
         let mut namespace_map = HashMap::new();
 
-        $({
+        // $({
             let mut name_map = __register_calls!($ns);
-            namespace_map.entry(ns_name).or_insert(name_map);
-        })*
+            namespace_map.entry(ns_name.to_string()).or_insert(name_map);
+        // })*
 
-        $reg.modules.entry(org_name).or_insert(namespace_map);
+        $reg.modules.entry(org_name.to_string()).or_insert(namespace_map);
     }};
 }
 
@@ -180,7 +178,7 @@ macro_rules! __register_calls {
     ({ $( $call_name:ident => $call:expr ),* $(,)? }) => {{
         let mut name_map = HashMap::new();
         $(
-            let call_name = String::from("$call_name");
+            let call_name = String::from(stringify!($call_name));
             name_map.entry(call_name).or_insert($call as AsmlAbiFn);
         )*
         name_map
@@ -195,7 +193,7 @@ macro_rules! call {
         pub fn $call_name (ctx: &mut vm::Ctx, mem: WasmBufferPtr, input: WasmBufferPtr, input_len: u32) -> i32 {
             use assemblylift_core::iomod::spawn_event;
 
-            println!("TRACE: $call_name");
+            println!("TRACE: {}", stringify!($call_name));
             let input_vec = __wasm_buffer_as_vec!(ctx, input, input_len);
             let call = paste::expr! { [<$call_name _impl>] }(input_vec);
             spawn_event(ctx, mem, call)

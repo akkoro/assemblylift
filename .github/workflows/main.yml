@@ -2,9 +2,9 @@ name: AssemblyLift CI
 
 on:
   push:
-    branches: [ research ]
+    branches: [ mainline, research ]
   pull_request:
-    branches: [ research ]
+    branches: [ mainline, research ]
 
 jobs:
 
