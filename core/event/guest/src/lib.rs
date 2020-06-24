@@ -7,7 +7,6 @@ use std::task::{Context, Poll, Waker};
 
 use serde::Deserialize;
 use serde_json;
-use assemblylift_core_event_common::sanitize_buffer;
 
 extern "C" {
     fn __asml_abi_poll(id: u32) -> i32;
