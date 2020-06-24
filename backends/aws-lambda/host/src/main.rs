@@ -13,6 +13,7 @@ use wasmer_runtime::Instance;
 
 use assemblylift_core::iomod::*;
 use assemblylift_core::WasmBufferPtr;
+use assemblylift_core_event::threader::Threader;
 use runtime::AwsLambdaRuntime;
 
 mod runtime;
@@ -59,31 +60,31 @@ fn main() {
     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
     let handler_name = coords[1];
 
-    if let Ok(instance) = wasm::build_instance() {
-        // init modules -- these will eventually be plugins specified in a manifest of some kind
-        awsio::database::MyModule::register(&mut MODULE_REGISTRY.lock().unwrap());
+    // init modules -- these will eventually be plugins specified in a manifest of some kind
+    awsio::database::MyModule::register(&mut MODULE_REGISTRY.lock().unwrap());
 
-        while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
-            let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
-            ref_cell.replace(event.request_id.clone());
-            std::mem::drop(ref_cell);
+    let instance = wasm::build_instance().unwrap();
 
-            scope(|s| {
-                s.spawn(|_| {
-                    let locked = instance.lock().unwrap();
+    while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
+        let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
+        ref_cell.replace(event.request_id.clone());
+        std::mem::drop(ref_cell);
 
-                    write_event_buffer(&locked, event.event_body);
+        scope(|s| {
+            s.spawn(|_| {
+                let locked = instance.lock().unwrap();
+                write_event_buffer(&locked, event.event_body);
+                Threader::__reset_memory();
 
-                    match locked.call(handler_name, &[]) {
-                        Ok(_result) => println!("TRACE: handler returned Ok()"),
-                        Err(error) => println!("ERROR: {}", error.to_string()),
-                    }
-                });
+                match locked.call(handler_name, &[]) {
+                    Ok(_result) => println!("TRACE: handler returned Ok()"),
+                    Err(error) => println!("ERROR: {}", error.to_string()),
+                }
             });
+        });
 
-            // all threads spawned in the scope join here automatically
-            // the side-effect of which is that a hang in the handler will block the lambda
-            // runtime loop
-        }
+        // all threads spawned in the scope join here automatically
+        // the side-effect of which is that a hang in the handler will block the lambda
+        // runtime loop
     }
 }

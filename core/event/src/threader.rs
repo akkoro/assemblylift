@@ -84,6 +84,12 @@ impl Threader {
         });
         println!("TRACE: spawned");
     }
+
+    pub fn __reset_memory() {
+        if let Ok(mut memory) = EVENT_MEMORY.lock() {
+            memory.__reset();
+        }
+    }
 }
 
 struct EventMemory {
@@ -140,12 +146,19 @@ impl EventMemory {
         self.event_map.insert(event_id, true);
     }
 
+    pub fn __reset(&mut self) {
+        self._next_id = 1;
+        self.document_map = Default::default();
+        self.event_map = Default::default();
+    }
+
     fn find_with_length(&self, _length: usize) -> usize {
         // TODO this less stupidly
         let mut max_end = 0usize;
         for doc in self.document_map.values().into_iter() {
-            if doc.start + doc.length > max_end {
-                max_end = doc.start + doc.length
+            let next_end = doc.start + doc.length;
+            if next_end > max_end {
+                max_end = next_end
             }
         }
         max_end

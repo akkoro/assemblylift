@@ -29,6 +29,7 @@ end
 env_has_docker = check_exists("docker")
 env_has_cargo = check_exists("cargo")
 env_has_rustc = check_exists("rustc")
+env_has_cmake = check_exists("cmake") # needed for some dependencies
 
 DOCKER = "docker"
 CARGO = "cargo"
@@ -64,7 +65,7 @@ when "build"
 
   case build_cmd
   when "local"
-    unless env_has_cargo and env_has_rustc
+    unless env_has_cargo and env_has_rustc and env_has_cmake
       die("Missing build dependency, exiting...")
     end
 
@@ -73,8 +74,8 @@ when "build"
     `#{CARGO} build #{super_args}`
 
   when "deploy"
-    unless env_has_docker and env_has_cargo and env_has_rustc
-      die("Missing build dependency, exiting...")
+    unless env_has_docker
+      die("Missing docker, exiting...")
     end
 
     version = "0.1.0" # TODO load from Cargo.toml
@@ -82,7 +83,9 @@ when "build"
 
     puts "Building deployment-ready build..."
     `#{DOCKER} build . --file Dockerfile_aws-lambda --tag #{tag}`
-    `#{DOCKER} run --rm --entrypoint cat #{tag} /usr/src/assembly-lift/target/release/bootstrap > ./bootstrap`
+    `#{DOCKER} run --rm --entrypoint cat #{tag} /usr/src/assemblylift/target/release/bootstrap > ./bootstrap`
+    `chmod 777 ./bootstrap`
+    `zip ./bootstrap.zip ./bootstrap`
     puts "Done! Build artifact copied to project root."
 
   else

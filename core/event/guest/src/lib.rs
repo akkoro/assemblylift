@@ -12,6 +12,8 @@ extern "C" {
     fn __asml_abi_poll(id: u32) -> i32;
     fn __asml_abi_event_ptr(id: u32) -> u32;
     fn __asml_abi_event_len(id: u32) -> u32;
+
+    fn __asml_abi_console_log(ptr: *const u8, len: usize);
 }
 
 const MAX_EVENTS: usize = 50;
@@ -24,6 +26,10 @@ pub static mut EVENT_BUFFER: [u8; EVENT_BUFFER_SIZE_BYTES] = [0; EVENT_BUFFER_SI
 #[no_mangle]
 pub fn __asml_get_event_buffer_pointer() -> *const u8 {
     unsafe { EVENT_BUFFER.as_ptr() }
+}
+
+fn console_log(message: String) {
+    unsafe { __asml_abi_console_log(message.as_ptr(), message.len()) }
 }
 
 #[derive(Clone)]
@@ -57,13 +63,18 @@ impl<'a, R: Deserialize<'a>> Future for Event<'_, R> {
     }
 }
 
+#[derive(Deserialize)]
+pub struct Test {}
+
 unsafe fn read_response<'a, R: Deserialize<'a>>(id: u32) -> Option<R> {
     let ptr = __asml_abi_event_ptr(id) as usize;
     let end = __asml_abi_event_len(id) as usize + ptr;
 
-    if let Ok(response) = serde_json::from_slice::<R>(&EVENT_BUFFER[ptr..end]) {
-        return Some(response);
+    match serde_json::from_slice::<R>(&EVENT_BUFFER[ptr..end]) {
+        Ok(response) => Some(response),
+        Err(why) => {
+            console_log(why.to_string());
+            None
+        }
     }
-
-    None
 }
