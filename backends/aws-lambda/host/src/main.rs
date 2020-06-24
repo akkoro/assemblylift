@@ -72,7 +72,7 @@ fn main() {
             s.spawn(|_| {
                 let locked = instance.lock().unwrap();
 
-                write_event_buffer(&locked, /*event.event_body*/"{}".to_string());
+                write_event_buffer(&locked, event.event_body);
 
                 match locked.call(handler_name, &[]) {
                     Ok(_result) => println!("TRACE: handler returned Ok()"),
