@@ -13,6 +13,7 @@ use wasmer_runtime::Instance;
 
 use assemblylift_core::iomod::*;
 use assemblylift_core::WasmBufferPtr;
+use assemblylift_core_event::threader::Threader;
 use runtime::AwsLambdaRuntime;
 
 mod runtime;
@@ -62,6 +63,8 @@ fn main() {
     // init modules -- these will eventually be plugins specified in a manifest of some kind
     awsio::database::MyModule::register(&mut MODULE_REGISTRY.lock().unwrap());
 
+    let instance = wasm::build_instance().unwrap();
+
     while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
         let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
         ref_cell.replace(event.request_id.clone());
@@ -69,11 +72,11 @@ fn main() {
 
         scope(|s| {
             s.spawn(|_| {
-                let instance = wasm::build_instance().unwrap();
+                let locked = instance.lock().unwrap();
+                write_event_buffer(&locked, event.event_body);
+                Threader::__reset_memory();
 
-                write_event_buffer(&instance, event.event_body);
-
-                match instance.call(handler_name, &[]) {
+                match locked.call(handler_name, &[]) {
                     Ok(_result) => println!("TRACE: handler returned Ok()"),
                     Err(error) => println!("ERROR: {}", error.to_string()),
                 }

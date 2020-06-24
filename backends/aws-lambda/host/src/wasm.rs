@@ -13,7 +13,7 @@ use wasmer_runtime_core::Instance;
 use assemblylift_core::iomod::*;
 use assemblylift_core_event::threader::Threader;
 
-pub fn build_instance() -> Result<Box<Instance>, io::Error> {
+pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
     // let panic if these aren't set
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
@@ -52,9 +52,9 @@ pub fn build_instance() -> Result<Box<Instance>, io::Error> {
             let mut boxed_instance = Box::new(instance);
             boxed_instance.context_mut().data = threader as *mut _ as *mut c_void;
 
-            // let guarded_instance = Mutex::new(boxed_instance);
+            let guarded_instance = Mutex::new(boxed_instance);
 
-            Ok(boxed_instance)
+            Ok(guarded_instance)
         }
         Err(error) => Err(to_io_error(error)),
     }

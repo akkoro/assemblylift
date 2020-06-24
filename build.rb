@@ -85,6 +85,7 @@ when "build"
     `#{DOCKER} build . --file Dockerfile_aws-lambda --tag #{tag}`
     `#{DOCKER} run --rm --entrypoint cat #{tag} /usr/src/assemblylift/target/release/bootstrap > ./bootstrap`
     `chmod 777 ./bootstrap`
+    `zip ./bootstrap.zip ./bootstrap`
     puts "Done! Build artifact copied to project root."
 
   else

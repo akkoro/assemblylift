@@ -26,10 +26,6 @@ impl Threader {
             .build()
             .unwrap();
 
-        if let Ok(mut memory) = EVENT_MEMORY.lock() {
-            memory.__reset();
-        }
-
         Threader { runtime }
     }
 
@@ -87,6 +83,12 @@ impl Threader {
                 .write_vec_at(slc, serialized, event_id);
         });
         println!("TRACE: spawned");
+    }
+
+    pub fn __reset_memory() {
+        if let Ok(mut memory) = EVENT_MEMORY.lock() {
+            memory.__reset();
+        }
     }
 }
 

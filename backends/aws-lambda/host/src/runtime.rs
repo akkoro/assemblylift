@@ -7,6 +7,7 @@ use crate::LAMBDA_REQUEST_ID;
 
 // https://docs.aws.amazon.com/lambda/latest/dg/runtimes-api.html
 
+#[derive(Debug)]
 pub struct AwsLambdaEvent {
     pub request_id: String,
     pub event_body: String,
