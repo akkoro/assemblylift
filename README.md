@@ -3,6 +3,7 @@
 </p>
 
 ![AssemblyLift CI](https://github.com/akkoro/assemblylift/workflows/AssemblyLift%20CI/badge.svg)
+![Crates.io](https://img.shields.io/crates/v/assemblylift-cli)
 
 AssemblyLift is a framework for building serverless applications powered by WebAssembly (WASM).
 
@@ -15,7 +16,7 @@ Highlight reel:
 - Planned support for multiple backends, but the focus is currently on _AWS Lambda_
 - Built using the [Wasmer](https://wasmer.io) interpreter
 
-**Examples** can be found [here](/examples).
+**Examples** can be found [here](https://github.com/akkoro/assemblylift-examples).
 
 # Overview
 
