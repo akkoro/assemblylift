@@ -67,14 +67,13 @@ fn main() {
         ref_cell.replace(event.request_id.clone());
         std::mem::drop(ref_cell);
 
-        let instance = wasm::build_instance().unwrap();
         scope(|s| {
             s.spawn(|_| {
-                let locked = instance.lock().unwrap();
+                let instance = wasm::build_instance().unwrap();
 
-                write_event_buffer(&locked, event.event_body);
+                write_event_buffer(&instance, event.event_body);
 
-                match locked.call(handler_name, &[]) {
+                match instance.call(handler_name, &[]) {
                     Ok(_result) => println!("TRACE: handler returned Ok()"),
                     Err(error) => println!("ERROR: {}", error.to_string()),
                 }
