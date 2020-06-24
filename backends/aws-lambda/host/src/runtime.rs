@@ -58,7 +58,7 @@ impl AwsLambdaRuntime {
         )
         .to_string();
 
-        println!("Responding to APIGW endpoint: {}", url);
+        println!("TRACE: Responding to AWS Lambda via {}", url);
 
         self.client
             .post(url)
