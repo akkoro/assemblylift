@@ -1,0 +1,1 @@
+This directory to eventually be moved to new repo `assemblylift-plugins`
