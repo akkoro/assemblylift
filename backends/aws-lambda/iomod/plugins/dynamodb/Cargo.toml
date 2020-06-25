@@ -1,0 +1,26 @@
+[package]
+name = "assemblylift-awslambda-iomod-plugin-dynamodb"
+version = "0.1.0"
+description = "AssemblyLift AWS Lambda IOmod host library"
+authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
+edition = "2018"
+license-file = "../../../../../LICENSE.md"
+repository = "https://github.com/akkoro/assemblylift"
+readme = "README.md"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+rusoto_core = { version = "0.43.0" }
+rusoto_dynamodb = { version = "0.43.0", features = ["serialize_structs", "deserialize_structs"] }
+
+assemblylift_core = { version = "0.1.1", package = "assemblylift-core", path = "../../../../../core"}
+wasmer_runtime = { version = "0.1.1", package = "wasmer-runtime-asml-fork" }
+wasmer_runtime_core = { version = "0.1.1", package = "wasmer-runtime-core-asml-fork" }
+
+lazy_static = "1.4.0"
+crossbeam-utils = "0.7.2"
+paste = "0.1.18"
+rustc_version = "0.2.3"
+serde_json = "1.0.53"
