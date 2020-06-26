@@ -1,7 +1,7 @@
 use std::io::prelude::*;
 
-use std::fs;
 use std::fmt;
+use std::fs;
 use std::io;
 use std::path::Path;
 
@@ -10,7 +10,7 @@ use zip::write::FileOptions;
 
 #[derive(Debug)]
 pub struct ArtifactError {
-    why: String
+    why: String,
 }
 
 impl ArtifactError {

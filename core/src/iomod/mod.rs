@@ -7,8 +7,8 @@ use std::io::ErrorKind;
 use std::sync::Mutex;
 
 use crossbeam_utils::atomic::AtomicCell;
-use wasmer_runtime::Ctx;
 use wasmer_runtime::memory::MemoryView;
+use wasmer_runtime::Ctx;
 use wasmer_runtime_core::vm;
 
 use assemblylift_core_event::threader::Threader;
@@ -18,8 +18,8 @@ use crate::iomod::registry::ModuleRegistry;
 use crate::WasmBufferPtr;
 
 pub mod macros;
-pub mod registry;
 pub mod plugin;
+pub mod registry;
 
 lazy_static! {
     pub static ref MODULE_REGISTRY: Mutex<ModuleRegistry> = Mutex::new(ModuleRegistry::new());
@@ -142,4 +142,3 @@ pub fn spawn_event(
 
     event_id as i32
 }
-

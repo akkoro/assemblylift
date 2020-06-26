@@ -15,6 +15,7 @@ crossbeam-utils = "0.7.2"
 lazy_static = "1.4.0"
 serde = "1.0.106"
 paste = "0.1.12"
+libloading = "0.6.2"
 wasmer_runtime = { version = "0.1.1", package = "wasmer-runtime-asml-fork" }
 wasmer_runtime_core = { version = "0.1.1", package = "wasmer-runtime-core-asml-fork" }
 assemblylift_core_event = { version = "0.1.0", package = "assemblylift-core-event", path = "./event" }

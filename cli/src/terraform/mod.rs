@@ -11,9 +11,9 @@ use handlebars::{to_json, Handlebars};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::value::{Map, Value as Json};
 
+use crate::artifact;
 use crate::projectfs;
 use crate::templates;
-use crate::artifact;
 
 fn get_relative_path() -> &'static str {
     ".asml/bin/terraform"
@@ -34,18 +34,19 @@ pub fn extract(canonical_project_path: &PathBuf) {
     let mut terraform_zip = Vec::new();
 
     #[cfg(target_os = "linux")]
-        let mut response = reqwest::blocking::get(
-            "https://releases.hashicorp.com/terraform/0.12.26/terraform_0.12.26_linux_amd64.zip"
-        ).unwrap();
+    let mut response = reqwest::blocking::get(
+        "https://releases.hashicorp.com/terraform/0.12.26/terraform_0.12.26_linux_amd64.zip",
+    )
+    .unwrap();
     #[cfg(target_os = "macos")]
-        let mut response = reqwest::blocking::get(
-            "https://releases.hashicorp.com/terraform/0.12.26/terraform_0.12.26_darwin_amd64.zip"
-        ).unwrap();
+    let mut response = reqwest::blocking::get(
+        "https://releases.hashicorp.com/terraform/0.12.26/terraform_0.12.26_darwin_amd64.zip",
+    )
+    .unwrap();
 
     response.read_to_end(&mut terraform_zip);
 
-    if let Err(_) = fs::create_dir_all(terraform_path.replace("/terraform", ""))
-    {
+    if let Err(_) = fs::create_dir_all(terraform_path.replace("/terraform", "")) {
         panic!("could not create directory ./.asml/bin")
     }
 

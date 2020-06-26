@@ -14,9 +14,9 @@ pub mod database {
     use serde_json;
     use wasmer_runtime_core::vm;
 
+    use assemblylift_core::iomod::registry::{AsmlAbiFn, ModuleRegistry};
     use assemblylift_core::iomod::IoModule;
     use assemblylift_core::WasmBufferPtr;
-    use assemblylift_core::iomod::registry::{AsmlAbiFn, ModuleRegistry};
 
     lazy_static! {
         static ref DYNAMODB: DynamoDbClient = DynamoDbClient::new(Region::UsEast1);

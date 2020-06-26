@@ -4,26 +4,24 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 #[macro_export]
 macro_rules! export_iomod {
     ($module:ident) => {
+        extern "C" fn register(registry: &mut ModuleRegistry) {
+            $module::register(registry)
+        }
 
-    extern "C" fn register(registry: &mut ModuleRegistry) {
-        $module::register(registry)
-    }
-
-    #[doc(hidden)]
-    #[no_mangle]
-    pub static __asml_iomod_plugin_decl: $crate::iomod::plugin::IoModulePlugin = $crate::iomod::plugin::IoModulePlugin {
-        rustc_version: $crate::iomod::macros::RUSTC_VERSION,
-        asml_core_version: $crate::iomod::macros::CORE_VERSION,
-        register,
+        #[doc(hidden)]
+        #[no_mangle]
+        pub static __asml_iomod_plugin_decl: $crate::iomod::plugin::IoModulePlugin =
+            $crate::iomod::plugin::IoModulePlugin {
+                rustc_version: $crate::iomod::macros::RUSTC_VERSION,
+                asml_core_version: $crate::iomod::macros::CORE_VERSION,
+                register,
+            };
     };
-
-    }
 }
 
 #[macro_export]
 macro_rules! register_calls {
-    ($reg:expr, $org_name:ident => { $ns_name:ident => $ns:tt })
-    => {{
+    ($reg:expr, $org_name:ident => { $ns_name:ident => $ns:tt }) => {{
         let org_name = stringify!($org_name);
         let ns_name = stringify!($ns_name);
 
@@ -32,7 +30,9 @@ macro_rules! register_calls {
         let mut name_map = __register_calls!($ns);
         namespace_map.entry(ns_name.to_string()).or_insert(name_map);
 
-        $reg.modules.entry(org_name.to_string()).or_insert(namespace_map);
+        $reg.modules
+            .entry(org_name.to_string())
+            .or_insert(namespace_map);
     }};
 }
 

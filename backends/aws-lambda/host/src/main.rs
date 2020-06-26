@@ -48,7 +48,10 @@ fn write_event_buffer(instance: &Instance, event: String) {
 }
 
 fn main() {
-    println!("Starting AssemblyLift AWS Lambda runtime {}", crate_version!());
+    println!(
+        "Starting AssemblyLift AWS Lambda runtime {}",
+        crate_version!()
+    );
 
     // let panic if these aren't set
     let handler_coordinates = env::var("_HANDLER").unwrap();
@@ -62,6 +65,10 @@ fn main() {
 
     // init modules -- these will eventually be plugins specified in a manifest of some kind
     awsio::database::MyModule::register(&mut MODULE_REGISTRY.lock().unwrap());
+    unsafe {
+        plugin::load(&mut MODULE_REGISTRY.lock().unwrap(),
+                     "/Users/xlem/Development/Projects/assemblylift/target/debug/libassemblylift_awslambda_iomod_plugin_dynamodb.dylib");
+    }
 
     let instance = wasm::build_instance().unwrap();
 
