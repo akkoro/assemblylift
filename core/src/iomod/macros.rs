@@ -12,6 +12,7 @@ macro_rules! export_iomod {
         #[no_mangle]
         pub static __asml_iomod_plugin_decl: $crate::iomod::plugin::IoModulePlugin =
             $crate::iomod::plugin::IoModulePlugin {
+                name: stringify!($module),
                 rustc_version: $crate::iomod::macros::RUSTC_VERSION,
                 asml_core_version: $crate::iomod::macros::CORE_VERSION,
                 register,

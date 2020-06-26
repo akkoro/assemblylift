@@ -64,7 +64,8 @@ fn main() {
     let handler_name = coords[1];
 
     // init modules -- these will eventually be plugins specified in a manifest of some kind
-    awsio::database::MyModule::register(&mut MODULE_REGISTRY.lock().unwrap());
+    // awsio::database::MyModule::register(&mut MODULE_REGISTRY.lock().unwrap());
+
     unsafe {
         plugin::load(&mut MODULE_REGISTRY.lock().unwrap(),
                      "/Users/xlem/Development/Projects/assemblylift/target/debug/libassemblylift_awslambda_iomod_plugin_dynamodb.dylib");
@@ -72,15 +73,15 @@ fn main() {
 
     let instance = wasm::build_instance().unwrap();
 
-    while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
-        let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
-        ref_cell.replace(event.request_id.clone());
-        std::mem::drop(ref_cell);
-
+    // while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
+    //     let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
+    //     ref_cell.replace(event.request_id.clone());
+    //     std::mem::drop(ref_cell);
+    loop {
         scope(|s| {
             s.spawn(|_| {
                 let locked = instance.lock().unwrap();
-                write_event_buffer(&locked, event.event_body);
+                write_event_buffer(&locked, "{}".to_string()/*event.event_body*/);
                 Threader::__reset_memory();
 
                 match locked.call(handler_name, &[]) {
