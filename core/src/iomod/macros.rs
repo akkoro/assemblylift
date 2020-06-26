@@ -1,3 +1,6 @@
+pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
+
 #[macro_export]
 macro_rules! export_iomod {
     ($module:ident) => {
@@ -5,6 +8,14 @@ macro_rules! export_iomod {
     extern "C" fn register(registry: &mut ModuleRegistry) {
         $module::register(registry)
     }
+
+    #[doc(hidden)]
+    #[no_mangle]
+    pub static __asml_iomod_plugin_decl: $crate::iomod::plugin::IoModulePlugin = $crate::iomod::plugin::IoModulePlugin {
+        rustc_version: $crate::iomod::macros::RUSTC_VERSION,
+        asml_core_version: $crate::iomod::macros::CORE_VERSION,
+        register,
+    };
 
     }
 }

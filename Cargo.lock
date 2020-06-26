@@ -140,6 +140,7 @@ dependencies = [
  "crossbeam-utils",
  "lazy_static",
  "paste",
+ "rustc_version",
  "serde",
  "wasmer-runtime-asml-fork",
  "wasmer-runtime-core-asml-fork",

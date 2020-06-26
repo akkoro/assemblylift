@@ -19,3 +19,6 @@ wasmer_runtime = { version = "0.1.1", package = "wasmer-runtime-asml-fork" }
 wasmer_runtime_core = { version = "0.1.1", package = "wasmer-runtime-core-asml-fork" }
 assemblylift_core_event = { version = "0.1.0", package = "assemblylift-core-event", path = "./event" }
 assemblylift_core_event_common = { version = "0.1.0", package = "assemblylift-core-event-common", path = "./event/common" }
+
+[build-dependencies]
+rustc_version = "0.2.3"
