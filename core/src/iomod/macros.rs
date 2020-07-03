@@ -1,11 +1,14 @@
+use once_cell::sync::Lazy;
+use tokio::runtime::{Builder, Runtime};
+
 pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 #[macro_export]
 macro_rules! export_iomod {
     ($module:ident) => {
-        extern "C" fn register(registry: &mut ModuleRegistry) {
-            $module::register(registry)
+        extern "C" fn register(registry: &mut ModuleRegistry, runtime: &Runtime) {
+            $module::register(registry, runtime)
         }
 
         #[doc(hidden)]
@@ -15,6 +18,12 @@ macro_rules! export_iomod {
                 name: stringify!($module),
                 rustc_version: $crate::iomod::macros::RUSTC_VERSION,
                 asml_core_version: $crate::iomod::macros::CORE_VERSION,
+                runtime: Lazy::new(|| Box::new(
+                    Builder::new()
+                        .threaded_scheduler()
+                        .enable_all()
+                        .build()
+                        .unwrap())),
                 register,
             };
     };

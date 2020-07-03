@@ -1,19 +1,21 @@
 #[macro_use]
-extern crate lazy_static;
-#[macro_use]
 extern crate assemblylift_core;
+#[macro_use]
+extern crate lazy_static;
 extern crate paste;
 
 use std::collections::HashMap;
 
 use crossbeam_utils::atomic::AtomicCell;
+use once_cell::sync::Lazy;
 use rusoto_core::Region;
 use rusoto_dynamodb::DynamoDbClient;
 use serde_json;
+use tokio::runtime::{Builder, Runtime};
 use wasmer_runtime_core::vm;
 
-use assemblylift_core::iomod::registry::{AsmlAbiFn, ModuleRegistry};
 use assemblylift_core::iomod::IoModule;
+use assemblylift_core::iomod::registry::{AsmlAbiFn, ModuleRegistry};
 use assemblylift_core::WasmBufferPtr;
 
 lazy_static! {
@@ -26,7 +28,7 @@ pub struct DynamoDb;
 export_iomod!(DynamoDb);
 
 impl IoModule for DynamoDb {
-    fn register(registry: &mut ModuleRegistry) {
+    fn register(registry: &mut ModuleRegistry, runtime: &Runtime) {
         register_calls!(registry,
             aws => {
                 dynamodb => {

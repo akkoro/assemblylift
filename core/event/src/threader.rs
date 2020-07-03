@@ -72,16 +72,17 @@ impl Threader {
         let slc = unsafe { std::slice::from_raw_parts(writer, EVENT_BUFFER_SIZE_BYTES) };
 
         println!("TRACE: spawning on tokio runtime");
+
         self.runtime.spawn(async move {
             println!("TRACE: awaiting IO...");
             let serialized = future.await;
-            println!("TRACE: IO complete");
 
             EVENT_MEMORY
                 .lock()
                 .unwrap()
                 .write_vec_at(slc, serialized, event_id);
         });
+
         println!("TRACE: spawned");
     }
 

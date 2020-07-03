@@ -81,19 +81,19 @@ pub mod database {
 
     pub struct MyModule {}
 
-    impl IoModule for MyModule {
-        fn register(registry: &mut ModuleRegistry) {
-            register_calls!(registry,
-                aws => {
-                    dynamodb => {
-                        list_tables => aws_dynamodb_list_tables,
-                        put_item => aws_dynamodb_put_item,
-                        get_item => aws_dynamodb_get_item,
-                        delete_item => aws_dynamodb_delete_item,
-                        update_item => aws_dynamodb_update_item
-                    }
-                }
-            );
-        }
-    }
+    // impl IoModule for MyModule {
+    //     fn register(registry: &mut ModuleRegistry) {
+    //         register_calls!(registry,
+    //             aws => {
+    //                 dynamodb => {
+    //                     list_tables => aws_dynamodb_list_tables,
+    //                     put_item => aws_dynamodb_put_item,
+    //                     get_item => aws_dynamodb_get_item,
+    //                     delete_item => aws_dynamodb_delete_item,
+    //                     update_item => aws_dynamodb_update_item
+    //                 }
+    //             }
+    //         );
+    //     }
+    // }
 }

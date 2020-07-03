@@ -3,6 +3,8 @@ use std::io;
 use std::rc::Rc;
 
 use libloading::Library;
+use once_cell::sync::Lazy;
+use tokio::runtime::Runtime;
 
 use crate::iomod::macros::{CORE_VERSION, RUSTC_VERSION};
 use crate::iomod::registry::ModuleRegistry;
@@ -11,7 +13,8 @@ pub struct IoModulePlugin {
     pub name: &'static str,
     pub rustc_version: &'static str,
     pub asml_core_version: &'static str,
-    pub register: unsafe extern "C" fn(&mut ModuleRegistry),
+    pub runtime: Lazy<Box<Runtime>>,
+    pub register: unsafe extern "C" fn(&mut ModuleRegistry, &Runtime),
 }
 
 pub unsafe fn load<P: AsRef<OsStr>>(
@@ -33,7 +36,7 @@ pub unsafe fn load<P: AsRef<OsStr>>(
 
     println!("TRACE: loaded IOmod {}", decl.name);
 
-    (decl.register)(&mut registry);
+    (decl.register)(&mut registry, &decl.runtime);
 
     Ok(())
 }
