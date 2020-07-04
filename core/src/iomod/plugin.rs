@@ -11,9 +11,13 @@ use crate::iomod::registry::ModuleRegistry;
 use std::sync::Arc;
 
 pub struct IoModulePlugin {
+    pub organization: &'static str,
+    pub namespace: &'static str,
     pub name: &'static str,
+
     pub rustc_version: &'static str,
     pub asml_core_version: &'static str,
+
     pub runtime: Lazy<Arc<Runtime>>,
     pub register: unsafe extern "C" fn(&mut ModuleRegistry),
 }

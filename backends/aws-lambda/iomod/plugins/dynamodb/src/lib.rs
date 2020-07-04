@@ -23,11 +23,12 @@ lazy_static! {
     static ref DYNAMODB: DynamoDbClient = DynamoDbClient::new(Region::UsEast1);
 }
 
+// org.namespace.name => IoModule
+export_iomod!(akkoro.aws.dynamodb => DynamoDb);
+
 // iomod interface
 
 pub struct DynamoDb;
-export_iomod!(DynamoDb);
-
 impl IoModule for DynamoDb {
     fn register(registry: &mut ModuleRegistry) {
         register_calls!(registry,

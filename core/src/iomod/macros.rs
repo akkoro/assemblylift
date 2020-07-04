@@ -8,7 +8,7 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 #[macro_export]
 macro_rules! export_iomod {
-    ($module:ident) => {
+    ($org:ident.$ns:ident.$name:ident => $module:ident) => {
         extern "C" fn register(registry: &mut ModuleRegistry) {
             $module::register(registry)
         }
@@ -17,7 +17,9 @@ macro_rules! export_iomod {
         #[no_mangle]
         pub static __asml_iomod_plugin_decl: $crate::iomod::plugin::IoModulePlugin =
             $crate::iomod::plugin::IoModulePlugin {
-                name: stringify!($module),
+                organization: stringify!($org),
+                namespace: stringify!($ns),
+                name: stringify!($name),
                 rustc_version: $crate::iomod::macros::RUSTC_VERSION,
                 asml_core_version: $crate::iomod::macros::CORE_VERSION,
                 runtime: Lazy::new(|| Arc::new(
@@ -30,6 +32,9 @@ macro_rules! export_iomod {
             };
     };
 }
+
+// TODO should calls be registered in groups by plugin? -- then runtime is set per-plugin for all
+//      registered calls, rather than with each call
 
 #[macro_export]
 macro_rules! register_calls {

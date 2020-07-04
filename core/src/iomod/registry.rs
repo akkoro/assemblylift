@@ -3,8 +3,10 @@ use std::collections::HashMap;
 use wasmer_runtime_core::vm;
 
 use crate::WasmBufferPtr;
+use tokio::runtime::Runtime;
 
 pub type AsmlAbiFn = fn(&mut vm::Ctx, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
+pub type AsmlFnRunner = (AsmlAbiFn, Runtime);
 pub type ModuleMap = HashMap<String, HashMap<String, HashMap<String, AsmlAbiFn>>>;
 
 #[derive(Clone)]
