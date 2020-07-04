@@ -7,7 +7,6 @@ use std::io::ErrorKind;
 use std::sync::Mutex;
 
 use crossbeam_utils::atomic::AtomicCell;
-use tokio::runtime::Runtime;
 use wasmer_runtime::Ctx;
 use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime_core::vm;
@@ -31,7 +30,7 @@ fn to_io_error<E: Error>(err: E) -> io::Error {
 }
 
 pub trait IoModule {
-    fn register(registry: &mut ModuleRegistry, runtime: &Runtime);
+    fn register(registry: &mut ModuleRegistry);
 }
 
 pub fn asml_abi_invoke(

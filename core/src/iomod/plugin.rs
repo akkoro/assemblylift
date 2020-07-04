@@ -15,7 +15,7 @@ pub struct IoModulePlugin {
     pub rustc_version: &'static str,
     pub asml_core_version: &'static str,
     pub runtime: Lazy<Arc<Runtime>>,
-    pub register: unsafe extern "C" fn(&mut ModuleRegistry, &Runtime),
+    pub register: unsafe extern "C" fn(&mut ModuleRegistry),
 }
 
 pub unsafe fn load<P: AsRef<OsStr>>(
@@ -37,7 +37,7 @@ pub unsafe fn load<P: AsRef<OsStr>>(
 
     println!("TRACE: loaded IOmod {}", decl.name);
 
-    (decl.register)(&mut registry, &decl.runtime);
+    (decl.register)(&mut registry);
 
     Ok(decl)
 }

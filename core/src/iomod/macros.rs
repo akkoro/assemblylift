@@ -9,8 +9,8 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 #[macro_export]
 macro_rules! export_iomod {
     ($module:ident) => {
-        extern "C" fn register(registry: &mut ModuleRegistry, runtime: &Runtime) {
-            $module::register(registry, runtime)
+        extern "C" fn register(registry: &mut ModuleRegistry) {
+            $module::register(registry)
         }
 
         #[doc(hidden)]

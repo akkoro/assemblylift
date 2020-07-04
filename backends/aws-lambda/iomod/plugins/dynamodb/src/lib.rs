@@ -29,7 +29,7 @@ pub struct DynamoDb;
 export_iomod!(DynamoDb);
 
 impl IoModule for DynamoDb {
-    fn register(registry: &mut ModuleRegistry, runtime: &Runtime) {
+    fn register(registry: &mut ModuleRegistry) {
         register_calls!(registry,
             aws => {
                 dynamodb => {
