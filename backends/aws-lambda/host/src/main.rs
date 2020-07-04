@@ -15,6 +15,7 @@ use assemblylift_core::iomod::*;
 use assemblylift_core::WasmBufferPtr;
 use assemblylift_core_event::threader::Threader;
 use runtime::AwsLambdaRuntime;
+use assemblylift_core::iomod::plugin::IoModulePlugin;
 
 mod runtime;
 mod wasm;
@@ -63,15 +64,13 @@ fn main() {
     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
     let handler_name = coords[1];
 
-    // init modules -- these will eventually be plugins specified in a manifest of some kind
-    // awsio::database::MyModule::register(&mut MODULE_REGISTRY.lock().unwrap());
-
+    let plugin_declaration: IoModulePlugin;
     unsafe {
-        plugin::load(&mut MODULE_REGISTRY.lock().unwrap(),
-                     "/Users/xlem/Development/Projects/assemblylift/target/debug/libassemblylift_awslambda_iomod_plugin_dynamodb.dylib");
+        plugin_declaration = plugin::load(&mut MODULE_REGISTRY.lock().unwrap(),
+                     "/Users/xlem/Development/Projects/assemblylift/target/debug/libassemblylift_awslambda_iomod_plugin_dynamodb.dylib").unwrap();
     }
 
-    let instance = wasm::build_instance().unwrap();
+    let instance = wasm::build_instance((*plugin_declaration.runtime).clone()).unwrap();
 
     // while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
     //     let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();

@@ -66,6 +66,7 @@ dependencies = [
  "lazy_static",
  "once_cell",
  "reqwest",
+ "tokio",
  "wasmer-runtime-asml-fork",
  "wasmer-runtime-core-asml-fork",
 ]

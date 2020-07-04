@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use once_cell::sync::Lazy;
 use tokio::runtime::{Builder, Runtime};
 
@@ -18,7 +20,7 @@ macro_rules! export_iomod {
                 name: stringify!($module),
                 rustc_version: $crate::iomod::macros::RUSTC_VERSION,
                 asml_core_version: $crate::iomod::macros::CORE_VERSION,
-                runtime: Lazy::new(|| Box::new(
+                runtime: Lazy::new(|| Arc::new(
                     Builder::new()
                         .threaded_scheduler()
                         .enable_all()

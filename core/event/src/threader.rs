@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::future::Future;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crossbeam_utils::atomic::AtomicCell;
 use tokio::runtime::Runtime;
@@ -13,19 +13,11 @@ lazy_static! {
 }
 
 pub struct Threader {
-    runtime: Runtime,
+    runtime: Arc<Runtime>,
 }
 
 impl Threader {
-    pub fn new() -> Self {
-        use tokio::runtime::Builder;
-
-        let runtime = Builder::new()
-            .threaded_scheduler()
-            .enable_all()
-            .build()
-            .unwrap();
-
+    pub fn new(runtime: Arc<Runtime>) -> Self {
         Threader { runtime }
     }
 
@@ -118,7 +110,10 @@ impl EventMemory {
     }
 
     pub fn is_ready(&self, event_id: u32) -> bool {
-        *self.event_map.get(&event_id).unwrap()
+        match self.event_map.get(&event_id) {
+            Some(status) => *status,
+            None => false
+        }
     }
 
     pub fn write_vec_at(&mut self, writer: &[AtomicCell<u8>], vec: Vec<u8>, event_id: u32) {

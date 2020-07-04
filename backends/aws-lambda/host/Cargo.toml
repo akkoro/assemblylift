@@ -15,6 +15,7 @@ name = "bootstrap"
 path = "src/main.rs"
 
 [dependencies]
+tokio = "0.2.21"
 crossbeam-utils = "0.7.2"
 wasmer_runtime = { version = "0.1.1", package = "wasmer-runtime-asml-fork" }
 wasmer_runtime_core = { version = "0.1.1", package = "wasmer-runtime-core-asml-fork" }

@@ -4,6 +4,7 @@ extern crate assemblylift_core;
 extern crate lazy_static;
 extern crate paste;
 
+use std::sync::Arc;
 use std::collections::HashMap;
 
 use crossbeam_utils::atomic::AtomicCell;
