@@ -15,26 +15,26 @@ macro_rules! export_iomod {
 
         #[doc(hidden)]
         #[no_mangle]
-        pub static __asml_iomod_plugin_decl: $crate::iomod::plugin::IoModulePlugin =
+        pub static __ASML_IOMOD_PLUGIN_DECL: $crate::iomod::plugin::IoModulePlugin =
             $crate::iomod::plugin::IoModulePlugin {
                 organization: stringify!($org),
                 namespace: stringify!($ns),
                 name: stringify!($name),
                 rustc_version: $crate::iomod::macros::RUSTC_VERSION,
                 asml_core_version: $crate::iomod::macros::CORE_VERSION,
-                runtime: Lazy::new(|| Arc::new(
-                    Builder::new()
-                        .threaded_scheduler()
-                        .enable_all()
-                        .build()
-                        .unwrap())),
+                runtime: Lazy::new(|| {
+                    Arc::new(
+                        Builder::new()
+                            .threaded_scheduler()
+                            .enable_all()
+                            .build()
+                            .unwrap(),
+                    )
+                }),
                 register,
             };
     };
 }
-
-// TODO should calls be registered in groups by plugin? -- then runtime is set per-plugin for all
-//      registered calls, rather than with each call
 
 #[macro_export]
 macro_rules! register_calls {
@@ -60,7 +60,7 @@ macro_rules! __register_calls {
         let mut name_map = HashMap::new();
         $(
             let call_name = String::from(stringify!($call_name));
-            name_map.entry(call_name).or_insert($call as AsmlAbiFn);
+            name_map.entry(call_name).or_insert(($call as AsmlAbiFn, (*__ASML_IOMOD_PLUGIN_DECL.runtime).clone()));
         )*
         name_map
     }};
@@ -77,7 +77,7 @@ macro_rules! call {
             println!("TRACE: {}", stringify!($call_name));
             let input_vec = __wasm_buffer_as_vec!(ctx, input, input_len);
             let call = paste::expr! { [<$call_name _impl>] }(input_vec);
-            spawn_event(ctx, mem, call)
+            spawn_event(__ASML_IOMOD_PLUGIN_DECL, ctx, mem, call)
         }
     };
 }

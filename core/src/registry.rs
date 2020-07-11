@@ -4,10 +4,15 @@ use wasmer_runtime_core::vm;
 
 use crate::WasmBufferPtr;
 use tokio::runtime::Runtime;
+use std::sync::Arc;
 
+pub type AsmlRuntime = Arc<Runtime>;
 pub type AsmlAbiFn = fn(&mut vm::Ctx, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
-pub type AsmlFnRunner = (AsmlAbiFn, Runtime);
-pub type ModuleMap = HashMap<String, HashMap<String, HashMap<String, AsmlAbiFn>>>;
+pub type AsmlRuntimePair = (AsmlAbiFn, AsmlRuntime);
+
+// org -> namespace -> name -> fn
+pub type ModuleMap =
+    HashMap<String, HashMap<String, HashMap<String, AsmlRuntimePair>>>;
 
 #[derive(Clone)]
 pub struct ModuleRegistry {

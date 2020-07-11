@@ -1,10 +1,27 @@
-extern crate assemblylift_core_event;
 #[macro_use]
 extern crate lazy_static;
-extern crate paste;
 
+use std::sync::Arc;
+
+use once_cell::sync::Lazy;
+use tokio::runtime::Runtime;
 use wasmer_runtime::{Array, WasmPtr};
 
-pub mod iomod;
+use crate::registry::ModuleRegistry;
 
 pub type WasmBufferPtr = WasmPtr<u8, Array>;
+
+pub struct IoModulePlugin {
+    pub organization: &'static str,
+    pub namespace: &'static str,
+    pub name: &'static str,
+
+    pub rustc_version: &'static str,
+    pub asml_core_version: &'static str,
+
+    pub runtime: Lazy<Arc<Runtime>>,
+    pub register: unsafe extern "C" fn(&mut ModuleRegistry),
+}
+
+pub mod registry;
+pub mod threader;

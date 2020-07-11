@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::future::Future;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use crossbeam_utils::atomic::AtomicCell;
 use tokio::runtime::Runtime;
@@ -8,17 +8,17 @@ use tokio::runtime::Runtime;
 use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 use assemblylift_core_event_common::EventMemoryDocument;
 
+use crate::IoModulePlugin;
+
 lazy_static! {
     static ref EVENT_MEMORY: Mutex<EventMemory> = Mutex::new(EventMemory::new());
 }
 
-pub struct Threader {
-    runtime: Arc<Runtime>,
-}
+pub struct Threader {}
 
 impl Threader {
-    pub fn new(runtime: Arc<Runtime>) -> Self {
-        Threader { runtime }
+    pub fn new() -> Self {
+        Threader {}
     }
 
     pub fn next_event_id(&mut self) -> Option<u32> {
@@ -54,6 +54,7 @@ impl Threader {
 
     pub fn spawn_with_event_id(
         &mut self,
+        plugin_decl: &IoModulePlugin,
         writer: *const AtomicCell<u8>,
         future: impl Future<Output = Vec<u8>> + 'static + Send,
         event_id: u32,
@@ -65,7 +66,7 @@ impl Threader {
 
         println!("TRACE: spawning on tokio runtime");
 
-        self.runtime.spawn(async move {
+        plugin_decl.runtime.spawn(async move {
             println!("TRACE: awaiting IO...");
             let serialized = future.await;
 
@@ -112,7 +113,7 @@ impl EventMemory {
     pub fn is_ready(&self, event_id: u32) -> bool {
         match self.event_map.get(&event_id) {
             Some(status) => *status,
-            None => false
+            None => false,
         }
     }
 

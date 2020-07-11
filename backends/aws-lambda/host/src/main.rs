@@ -11,11 +11,11 @@ use crossbeam_utils::thread::scope;
 use once_cell::sync::Lazy;
 use wasmer_runtime::Instance;
 
+use assemblylift_core::{IoModulePlugin, WasmBufferPtr};
 use assemblylift_core::iomod::*;
-use assemblylift_core::WasmBufferPtr;
+use assemblylift_core::threader::Threader;
 use assemblylift_core_event::threader::Threader;
 use runtime::AwsLambdaRuntime;
-use assemblylift_core::iomod::plugin::IoModulePlugin;
 
 mod runtime;
 mod wasm;
@@ -70,7 +70,7 @@ fn main() {
                      "/Users/xlem/Development/Projects/assemblylift/target/debug/libassemblylift_awslambda_iomod_plugin_dynamodb.dylib").unwrap();
     }
 
-    let instance = wasm::build_instance((*plugin_declaration.runtime).clone()).unwrap();
+    let instance = wasm::build_instance().unwrap();
 
     // while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
     //     let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
@@ -80,7 +80,7 @@ fn main() {
         scope(|s| {
             s.spawn(|_| {
                 let locked = instance.lock().unwrap();
-                write_event_buffer(&locked, "{}".to_string()/*event.event_body*/);
+                write_event_buffer(&locked, "{}".to_string() /*event.event_body*/);
                 Threader::__reset_memory();
 
                 match locked.call(handler_name, &[]) {

@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate lazy_static;
+
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::error::Error;
@@ -7,19 +10,14 @@ use std::io::ErrorKind;
 use std::sync::Mutex;
 
 use crossbeam_utils::atomic::AtomicCell;
-use wasmer_runtime::Ctx;
 use wasmer_runtime::memory::MemoryView;
+use wasmer_runtime::Ctx;
 use wasmer_runtime_core::vm;
 
-use assemblylift_core_event::threader::Threader;
 use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
-
-use crate::iomod::registry::ModuleRegistry;
-use crate::WasmBufferPtr;
 
 pub mod macros;
 pub mod plugin;
-pub mod registry;
 
 lazy_static! {
     pub static ref MODULE_REGISTRY: Mutex<ModuleRegistry> = Mutex::new(ModuleRegistry::new());
@@ -42,16 +40,18 @@ pub fn asml_abi_invoke(
     input_len: u32,
 ) -> i32 {
     println!("TRACE: asml_abi_invoke called");
-    if let Ok(coords) = ctx_ptr_to_string(ctx, name_ptr, name_len) {
-        let coord_vec = coords.split(".").collect::<Vec<&str>>();
-        let org = coord_vec[0];
-        let namespace = coord_vec[1];
-        let name = coord_vec[2];
-        println!("  with coordinates: {:?}", coord_vec);
+    unsafe {
+        if let Ok(coords) = ctx_ptr_to_string(ctx, name_ptr, name_len) {
+            let coord_vec = coords.split(".").collect::<Vec<&str>>();
+            let org = coord_vec[0];
+            let namespace = coord_vec[1];
+            let name = coord_vec[2];
+            println!("  with coordinates: {:?}", coord_vec);
 
-        println!("DEBUG: input_len={}", input_len);
-        let registry = MODULE_REGISTRY.lock().unwrap();
-        return registry.modules[org][namespace][name](ctx, mem, input, input_len);
+            println!("DEBUG: input_len={}", input_len);
+            let registry = MODULE_REGISTRY.lock().unwrap();
+            return registry.modules[org][namespace][name].0(ctx, mem, input, input_len);
+        }
     }
 
     println!("ERROR: asml_abi_invoke error");
@@ -115,30 +115,4 @@ fn ctx_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Er
         .map_err(to_io_error)
 }
 
-#[inline(always)]
-pub fn spawn_event(
-    ctx: &mut vm::Ctx,
-    mem: WasmBufferPtr,
-    future: impl Future<Output = Vec<u8>> + 'static + Send,
-) -> i32 {
-    let threader: *mut Threader = ctx.data.cast();
-    if threader.is_null() {
-        panic!("Threader instance is NULL in spawn_event")
-    }
-
-    let threader_ref = unsafe { threader.as_mut().unwrap() };
-
-    let event_id = threader_ref.next_event_id().unwrap();
-    println!("DEBUG: event_id={}", event_id);
-
-    let wasm_instance_memory = ctx.memory(0);
-    let memory_writer: &[AtomicCell<u8>] =
-        match mem.deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32) {
-            Some(memory) => memory,
-            None => panic!("could not dereference WASM guest memory in spawn_event"),
-        };
-
-    threader_ref.spawn_with_event_id(memory_writer.as_ptr(), future, event_id);
-
-    event_id as i32
-}
+// spawn_event was here

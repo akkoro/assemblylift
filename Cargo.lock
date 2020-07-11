@@ -57,7 +57,6 @@ dependencies = [
 name = "assemblylift-awslambda-host"
 version = "0.1.2"
 dependencies = [
- "assemblylift-awslambda-iomod",
  "assemblylift-core",
  "assemblylift-core-event",
  "assemblylift-core-event-common",
@@ -67,24 +66,6 @@ dependencies = [
  "once_cell",
  "reqwest",
  "tokio",
- "wasmer-runtime-asml-fork",
- "wasmer-runtime-core-asml-fork",
-]
-
-[[package]]
-name = "assemblylift-awslambda-iomod"
-version = "0.1.2"
-dependencies = [
- "assemblylift-core",
- "assemblylift-core-event",
- "assemblylift-core-event-common",
- "crossbeam-utils",
- "futures",
- "lazy_static",
- "paste",
- "rusoto_core",
- "rusoto_dynamodb",
- "serde_json",
  "wasmer-runtime-asml-fork",
  "wasmer-runtime-core-asml-fork",
 ]
@@ -107,6 +88,8 @@ name = "assemblylift-awslambda-iomod-plugin-dynamodb"
 version = "0.1.0"
 dependencies = [
  "assemblylift-core",
+ "assemblylift-core-event",
+ "assemblylift-core-iomod",
  "crossbeam-utils",
  "lazy_static",
  "once_cell",
@@ -138,15 +121,10 @@ dependencies = [
 name = "assemblylift-core"
 version = "0.1.1"
 dependencies = [
- "assemblylift-core-event",
  "assemblylift-core-event-common",
  "crossbeam-utils",
  "lazy_static",
- "libloading",
  "once_cell",
- "paste",
- "rustc_version",
- "serde",
  "tokio",
  "wasmer-runtime-asml-fork",
  "wasmer-runtime-core-asml-fork",
@@ -156,6 +134,7 @@ dependencies = [
 name = "assemblylift-core-event"
 version = "0.1.1"
 dependencies = [
+ "assemblylift-core",
  "assemblylift-core-event-common",
  "crossbeam-utils",
  "futures",
@@ -163,6 +142,7 @@ dependencies = [
  "lazy_static",
  "serde",
  "tokio",
+ "wasmer-runtime-core-asml-fork",
 ]
 
 [[package]]
@@ -188,6 +168,24 @@ name = "assemblylift-core-guest"
 version = "0.1.1"
 dependencies = [
  "paste",
+]
+
+[[package]]
+name = "assemblylift-core-iomod"
+version = "0.1.0"
+dependencies = [
+ "assemblylift-core-event",
+ "assemblylift-core-event-common",
+ "crossbeam-utils",
+ "lazy_static",
+ "libloading",
+ "once_cell",
+ "paste",
+ "rustc_version",
+ "serde",
+ "tokio",
+ "wasmer-runtime-asml-fork",
+ "wasmer-runtime-core-asml-fork",
 ]
 
 [[package]]

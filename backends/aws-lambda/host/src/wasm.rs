@@ -3,7 +3,7 @@ use std::error::Error;
 use std::ffi::c_void;
 use std::fs::{canonicalize, File};
 use std::io::{ErrorKind, Read};
-use std::sync::{Mutex, Arc};
+use std::sync::{Arc, Mutex};
 use std::{env, io};
 
 use tokio::runtime::Runtime;
@@ -15,7 +15,7 @@ use wasmer_runtime_core::Instance;
 use assemblylift_core::iomod::*;
 use assemblylift_core_event::threader::Threader;
 
-pub fn build_instance(runtime: Arc<Runtime>) -> Result<Mutex<Box<Instance>>, io::Error> {
+pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
     // let panic if these aren't set
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
@@ -50,7 +50,7 @@ pub fn build_instance(runtime: Arc<Runtime>) -> Result<Mutex<Box<Instance>>, io:
 
     match get_instance {
         Ok(instance) => {
-            let threader = Box::into_raw(Box::from(Threader::new(runtime)));
+            let threader = Box::into_raw(Box::from(Threader::new()));
             let mut boxed_instance = Box::new(instance);
             boxed_instance.context_mut().data = threader as *mut _ as *mut c_void;
 

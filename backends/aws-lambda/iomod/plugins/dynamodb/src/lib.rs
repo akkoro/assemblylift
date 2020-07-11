@@ -4,8 +4,8 @@ extern crate assemblylift_core;
 extern crate lazy_static;
 extern crate paste;
 
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crossbeam_utils::atomic::AtomicCell;
 use once_cell::sync::Lazy;
@@ -15,8 +15,8 @@ use serde_json;
 use tokio::runtime::{Builder, Runtime};
 use wasmer_runtime_core::vm;
 
-use assemblylift_core::iomod::IoModule;
-use assemblylift_core::iomod::registry::{AsmlAbiFn, ModuleRegistry};
+use assemblylift_core_iomod::registry::{AsmlAbiFn, ModuleRegistry};
+use assemblylift_core_iomod::IoModule;
 use assemblylift_core::WasmBufferPtr;
 
 lazy_static! {
