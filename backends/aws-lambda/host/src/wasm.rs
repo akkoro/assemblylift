@@ -1,19 +1,17 @@
+use std::{env, io};
 use std::cell::Cell;
 use std::error::Error;
 use std::ffi::c_void;
 use std::fs::{canonicalize, File};
 use std::io::{ErrorKind, Read};
 use std::sync::{Arc, Mutex};
-use std::{env, io};
-
-use tokio::runtime::Runtime;
 
 use wasmer_runtime::memory::MemoryView;
-use wasmer_runtime_core::vm::Ctx;
 use wasmer_runtime_core::Instance;
+use wasmer_runtime_core::vm::Ctx;
 
-use assemblylift_core::iomod::*;
-use assemblylift_core_event::threader::Threader;
+use assemblylift_core::threader::Threader;
+use assemblylift_core_iomod::{asml_abi_event_len, asml_abi_event_ptr, asml_abi_invoke, asml_abi_poll};
 
 pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
     // let panic if these aren't set

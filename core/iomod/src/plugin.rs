@@ -1,13 +1,16 @@
 use std::ffi::OsStr;
 use std::io;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use libloading::Library;
 use once_cell::sync::Lazy;
 use tokio::runtime::Runtime;
 
+use assemblylift_core::IoModulePlugin;
+use assemblylift_core::registry::ModuleRegistry;
+
 use crate::macros::{CORE_VERSION, RUSTC_VERSION};
-use std::sync::Arc;
 
 pub unsafe fn load<P: AsRef<OsStr>>(
     mut registry: &mut ModuleRegistry,

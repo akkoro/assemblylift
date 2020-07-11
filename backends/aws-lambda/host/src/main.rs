@@ -12,9 +12,8 @@ use once_cell::sync::Lazy;
 use wasmer_runtime::Instance;
 
 use assemblylift_core::{IoModulePlugin, WasmBufferPtr};
-use assemblylift_core::iomod::*;
 use assemblylift_core::threader::Threader;
-use assemblylift_core_event::threader::Threader;
+use assemblylift_core_iomod::{plugin, MODULE_REGISTRY};
 use runtime::AwsLambdaRuntime;
 
 mod runtime;

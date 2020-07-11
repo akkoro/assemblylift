@@ -2,19 +2,18 @@
 extern crate lazy_static;
 
 use std::cell::Cell;
-use std::collections::HashMap;
 use std::error::Error;
-use std::future::Future;
 use std::io;
 use std::io::ErrorKind;
 use std::sync::Mutex;
 
-use crossbeam_utils::atomic::AtomicCell;
 use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime::Ctx;
 use wasmer_runtime_core::vm;
 
-use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
+use assemblylift_core::registry::ModuleRegistry;
+use assemblylift_core::WasmBufferPtr;
+use assemblylift_core::threader::Threader;
 
 pub mod macros;
 pub mod plugin;

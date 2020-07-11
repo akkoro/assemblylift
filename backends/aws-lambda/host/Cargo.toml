@@ -17,12 +17,15 @@ path = "src/main.rs"
 [dependencies]
 tokio = "0.2.21"
 crossbeam-utils = "0.7.2"
-wasmer_runtime = { version = "0.1.1", package = "wasmer-runtime-asml-fork" }
-wasmer_runtime_core = { version = "0.1.1", package = "wasmer-runtime-core-asml-fork" }
 lazy_static = "1.4.0"
 once_cell = "1.4.0"
 clap = "3.0.0-beta.1"
 reqwest = { version = "0.10.4", features = ["blocking"] }
+
+wasmer_runtime = { version = "0.1.1", package = "wasmer-runtime-asml-fork" }
+wasmer_runtime_core = { version = "0.1.1", package = "wasmer-runtime-core-asml-fork" }
+
 assemblylift_core = { version = "0.1.1", package = "assemblylift-core", path = "../../../core" }
+assemblylift_core_iomod = { version = "0.1.0", package = "assemblylift-core-iomod", path = "../../../core/iomod" }
 assemblylift_core_event = { version = "0.1.1", package = "assemblylift-core-event", path = "../../../core/event" }
 assemblylift_core_event_common = { version = "0.1.0", package = "assemblylift-core-event-common", path = "../../../core/event/common" }

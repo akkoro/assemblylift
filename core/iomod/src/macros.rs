@@ -15,13 +15,13 @@ macro_rules! export_iomod {
 
         #[doc(hidden)]
         #[no_mangle]
-        pub static __ASML_IOMOD_PLUGIN_DECL: $crate::iomod::plugin::IoModulePlugin =
-            $crate::iomod::plugin::IoModulePlugin {
+        pub static __ASML_IOMOD_PLUGIN_DECL: assemblylift_core::IoModulePlugin =
+            assemblylift_core::IoModulePlugin {
                 organization: stringify!($org),
                 namespace: stringify!($ns),
                 name: stringify!($name),
-                rustc_version: $crate::iomod::macros::RUSTC_VERSION,
-                asml_core_version: $crate::iomod::macros::CORE_VERSION,
+                rustc_version: assemblylift_core_iomod::macros::RUSTC_VERSION,
+                asml_core_version: assemblylift_core_iomod::macros::CORE_VERSION,
                 runtime: Lazy::new(|| {
                     Arc::new(
                         Builder::new()
@@ -72,12 +72,12 @@ macro_rules! call {
         $call
 
         pub fn $call_name (ctx: &mut vm::Ctx, mem: WasmBufferPtr, input: WasmBufferPtr, input_len: u32) -> i32 {
-            use assemblylift_core::iomod::spawn_event;
+            use assemblylift_core_event::spawn_event;
 
             println!("TRACE: {}", stringify!($call_name));
             let input_vec = __wasm_buffer_as_vec!(ctx, input, input_len);
             let call = paste::expr! { [<$call_name _impl>] }(input_vec);
-            spawn_event(__ASML_IOMOD_PLUGIN_DECL, ctx, mem, call)
+            spawn_event(&__ASML_IOMOD_PLUGIN_DECL, ctx, mem, call)
         }
     };
 }

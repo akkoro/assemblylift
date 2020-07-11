@@ -1,23 +1,24 @@
 #[macro_use]
-extern crate assemblylift_core;
+extern crate assemblylift_core_iomod;
 #[macro_use]
 extern crate lazy_static;
 extern crate paste;
 
-use std::collections::HashMap;
 use std::sync::Arc;
+use std::collections::HashMap;
 
-use crossbeam_utils::atomic::AtomicCell;
 use once_cell::sync::Lazy;
+use tokio::runtime::Builder;
+use crossbeam_utils::atomic::AtomicCell;
+
 use rusoto_core::Region;
 use rusoto_dynamodb::DynamoDbClient;
-use serde_json;
-use tokio::runtime::{Builder, Runtime};
+
 use wasmer_runtime_core::vm;
 
-use assemblylift_core_iomod::registry::{AsmlAbiFn, ModuleRegistry};
-use assemblylift_core_iomod::IoModule;
 use assemblylift_core::WasmBufferPtr;
+use assemblylift_core::registry::{AsmlAbiFn, ModuleRegistry};
+use assemblylift_core_iomod::IoModule;
 
 lazy_static! {
     static ref DYNAMODB: DynamoDbClient = DynamoDbClient::new(Region::UsEast1);

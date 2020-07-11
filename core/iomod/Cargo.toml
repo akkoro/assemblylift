@@ -16,7 +16,7 @@ paste = "0.1.12"
 libloading = "0.6.2"
 wasmer_runtime = { version = "0.1.1", package = "wasmer-runtime-asml-fork" }
 wasmer_runtime_core = { version = "0.1.1", package = "wasmer-runtime-core-asml-fork" }
-assemblylift_core_event = { version = "0.1.1", package = "assemblylift-core-event", path = "../../core/event" }
+assemblylift_core = { version = "0.1.1", package = "assemblylift-core", path = "../../core" }
 assemblylift_core_event_common = { version = "0.1.0", package = "assemblylift-core-event-common", path = "../../core/event/common" }
 
 [build-dependencies]

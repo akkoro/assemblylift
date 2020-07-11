@@ -60,6 +60,7 @@ dependencies = [
  "assemblylift-core",
  "assemblylift-core-event",
  "assemblylift-core-event-common",
+ "assemblylift-core-iomod",
  "clap 3.0.0-beta.1",
  "crossbeam-utils",
  "lazy_static",
@@ -174,7 +175,7 @@ dependencies = [
 name = "assemblylift-core-iomod"
 version = "0.1.0"
 dependencies = [
- "assemblylift-core-event",
+ "assemblylift-core",
  "assemblylift-core-event-common",
  "crossbeam-utils",
  "lazy_static",
