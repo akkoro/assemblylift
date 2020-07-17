@@ -15,6 +15,7 @@
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/guest/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/core/event/guest/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/guest/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/core/iomod/guest/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

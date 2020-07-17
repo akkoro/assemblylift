@@ -72,19 +72,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "assemblylift-awslambda-iomod-guest"
-version = "0.1.1"
-dependencies = [
- "assemblylift-core-event-guest",
- "assemblylift-core-guest",
- "base64 0.12.1",
- "bytes",
- "paste",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "assemblylift-awslambda-iomod-plugin-dynamodb"
 version = "0.1.0"
 dependencies = [
@@ -102,6 +89,20 @@ dependencies = [
  "tokio",
  "wasmer-runtime-asml-fork",
  "wasmer-runtime-core-asml-fork",
+]
+
+[[package]]
+name = "assemblylift-awslambda-iomod-plugin-dynamodb-guest"
+version = "0.1.0"
+dependencies = [
+ "assemblylift-core-event-guest",
+ "assemblylift-core-guest",
+ "assemblylift-core-iomod-guest",
+ "base64 0.12.1",
+ "bytes",
+ "paste",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -188,6 +189,10 @@ dependencies = [
  "wasmer-runtime-asml-fork",
  "wasmer-runtime-core-asml-fork",
 ]
+
+[[package]]
+name = "assemblylift-core-iomod-guest"
+version = "0.1.0"
 
 [[package]]
 name = "async-trait"
@@ -884,10 +889,6 @@ dependencies = [
  "byteorder",
  "indexmap",
 ]
-
-[[package]]
-name = "guest"
-version = "0.1.0"
 
 [[package]]
 name = "h2"

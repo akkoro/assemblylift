@@ -2,12 +2,12 @@
 members = [
     "backends/aws-lambda/host",
     "backends/aws-lambda/guest",
-    "backends/aws-lambda/iomod/guest",
     "backends/aws-lambda/iomod/plugins/dynamodb",
     "backends/aws-lambda/iomod/plugins/dynamodb/guest",
     "core",
     "core/guest",
     "core/iomod",
+    "core/iomod/guest",
     "core/event",
     "core/event/guest",
     "core/event/common",
