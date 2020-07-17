@@ -1,5 +1,20 @@
 pub mod macros {
     #[macro_export]
+    macro_rules! export_iomod_guest {
+        () => {
+            extern "C" {
+                fn __asml_abi_invoke(
+                    mem: *const u8,
+                    name_ptr: *const u8,
+                    name_len: usize,
+                    input_ptr: *const u8,
+                    input_len: usize,
+                ) -> i32;
+            }
+        }
+    }
+
+    #[macro_export]
     macro_rules! call {
         ($org:ident => $ns:ident => $name:ident, $input:ty => $output:ty) => {
             paste::item_with_macros! {

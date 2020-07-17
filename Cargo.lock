@@ -96,7 +96,6 @@ name = "assemblylift-awslambda-iomod-plugin-dynamodb-guest"
 version = "0.1.0"
 dependencies = [
  "assemblylift-core-event-guest",
- "assemblylift-core-guest",
  "assemblylift-core-iomod-guest",
  "base64 0.12.1",
  "bytes",

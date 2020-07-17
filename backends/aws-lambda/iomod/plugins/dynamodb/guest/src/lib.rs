@@ -1,21 +1,12 @@
 #[macro_use]
 extern crate assemblylift_core_iomod_guest;
 
-extern "C" {
-    fn __asml_abi_invoke(
-        mem: *const u8,
-        name_ptr: *const u8,
-        name_len: usize,
-        input_ptr: *const u8,
-        input_len: usize,
-    ) -> i32;
-}
+export_iomod_guest!();
 
 use paste;
 use serde_json;
 
 use assemblylift_core_event_guest::Event;
-use assemblylift_core_guest::*;
 
 use crate::structs::{
     DeleteItemInput, DeleteItemOutput, GetItemInput, GetItemOutput, ListTablesInput,
