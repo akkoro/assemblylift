@@ -14,7 +14,7 @@ use crate::structs::{
 };
 
 mod serialization;
-mod structs;
+pub mod structs;
 
 call!(aws => dynamodb => list_tables, ListTablesInput => ListTablesOutput);
 call!(aws => dynamodb => put_item, PutItemInput => PutItemOutput);
