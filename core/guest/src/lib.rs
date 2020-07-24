@@ -5,5 +5,3 @@ pub trait GuestCore {
     fn console_log(message: String);
     fn success(response: String);
 }
-
-
