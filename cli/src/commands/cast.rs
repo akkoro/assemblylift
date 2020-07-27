@@ -9,6 +9,13 @@ use crate::artifact;
 use crate::bom;
 use crate::terraform;
 use crate::terraform::TerraformFunction;
+use std::path::Path;
+use std::sync::Arc;
+
+macro_rules! path {
+    ($str:tt) => {path::Path::new(&$str)};
+    ($str:expr) => {path::Path::new(&$str)};
+}
 
 pub fn command(matches: Option<&ArgMatches>) {
     use std::io::Read;
@@ -36,7 +43,7 @@ pub fn command(matches: Option<&ArgMatches>) {
 
     let asml_manifest = bom::manifest::read();
 
-    let canonical_project_path = match fs::canonicalize(path::Path::new("./")) {
+    let canonical_project_path = match fs::canonicalize(path!("./")) {
         Ok(path) => path,
         Err(why) => panic!(
             "unable to build canonical project path: {}",
@@ -45,21 +52,34 @@ pub fn command(matches: Option<&ArgMatches>) {
     };
 
     let mut functions: Vec<TerraformFunction> = Vec::new();
+    let mut dependencies: Vec<(String, String)> = Vec::new();
 
-    for (_sid, service) in asml_manifest.services {
+    for (name, service) in asml_manifest.services {
         let service_name = service.name.clone();
         let service_manifest = bom::service::read(&service_name);
 
-        for (_fid, function) in service_manifest.api.functions {
+        for (_id, dependency) in service_manifest.iomod.dependencies {
+            match dependency.dependency_type.as_str() {
+                // TODO: other types will need to resolve and/or build the dependency first
+                //          "file:" type can just pass thru the path
+                "file" => {
+                    // TODO `from` must be a path to a local file -- check & enforce this
+                    dependencies.push((name.clone(), dependency.from.clone()));
+                },
+                _ => unimplemented!("only type=file is available currently")
+            }
+        }
+
+        for (_id, function) in service_manifest.api.functions {
             let function_artifact_path =
                 format!("./net/services/{}/{}", service_name, function.name);
-            if let Err(err) = fs::create_dir_all(path::Path::new(&function_artifact_path)) {
+            if let Err(err) = fs::create_dir_all(path!(function_artifact_path)) {
                 panic!(err)
             }
 
             let function_path = format!("./services/{}/{}", service_name, function.name);
             let canonical_function_path =
-                &fs::canonicalize(path::Path::new(&format!("{}/Cargo.toml", function_path)))
+                &fs::canonicalize(path!(format!("{}/Cargo.toml", function_path)))
                     .unwrap();
 
             let mode = "release"; // TODO should this really be the default?
@@ -94,15 +114,14 @@ pub fn command(matches: Option<&ArgMatches>) {
                 println!("{:?}", copy_result.err());
             }
 
+            let wasm_path = format!("{}/{}.wasm", function_artifact_path, &function.name);
+
             artifact::zip_files(
-                vec![path::Path::new(&format!(
-                    "{}/{}.wasm",
-                    function_artifact_path, &function.name
-                ))],
-                &path::Path::new(&format!(
+                vec![wasm_path],
+                format!(
                     "{}/{}.zip",
                     function_artifact_path, &function.name
-                )),
+                ),
             );
 
             let tf_function = TerraformFunction {

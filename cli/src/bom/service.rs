@@ -7,6 +7,7 @@ use serde_derive::Deserialize;
 pub struct Manifest {
     pub service: Service,
     pub api: Api,
+    pub iomod: Iomod,
 }
 
 #[derive(Deserialize)]
@@ -24,6 +25,19 @@ pub struct Api {
 pub struct Function {
     pub name: String,
     pub handler_name: String,
+}
+
+#[derive(Deserialize)]
+pub struct Iomod {
+    pub dependencies: HashMap<String, Dependency>, // map dependency_id -> dependency
+}
+
+#[derive(Clone, Deserialize)]
+pub struct Dependency {
+    pub from: String,
+    pub version: String,
+    #[serde(alias = "type")]
+    pub dependency_type: String,
 }
 
 pub fn read(name: &str) -> Manifest {

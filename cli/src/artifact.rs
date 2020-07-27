@@ -1,6 +1,6 @@
 use std::io::prelude::*;
 
-use std::fmt;
+use std::{fmt, path};
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -27,8 +27,9 @@ impl fmt::Display for ArtifactError {
     }
 }
 
-pub fn zip_files(files_in: Vec<&Path>, file_out: &Path) {
-    let file = match fs::File::create(file_out) {
+pub fn zip_files(files_in: Vec<impl AsRef<Path>>, file_out: impl AsRef<Path>) {
+
+    let file = match fs::File::create(&file_out) {
         Ok(file) => file,
         Err(why) => panic!("could not create zip archive: {}", why.to_string()),
     };
@@ -39,13 +40,13 @@ pub fn zip_files(files_in: Vec<&Path>, file_out: &Path) {
         .unix_permissions(0o777); // full access
 
     for path in files_in {
-        let mut file_bytes = match fs::read(path) {
+        let mut file_bytes = match fs::read(&path) {
             Ok(bytes) => bytes,
             Err(why) => panic!("could not create zip archive: {}", why.to_string()),
         };
 
         // unwrap: path always has a file name at this point
-        let path_str = path.file_name().unwrap().to_str().unwrap();
+        let path_str = path.as_ref().file_name().unwrap().to_str().unwrap();
 
         if let Err(why) = zip.start_file(path_str, options) {
             panic!("could not create zip archive: {}", why.to_string())
@@ -56,7 +57,7 @@ pub fn zip_files(files_in: Vec<&Path>, file_out: &Path) {
         }
     }
 
-    println!("🗜 > Wrote zip artifact {}", file_out.display());
+    println!("🗜 > Wrote zip artifact {}", file_out.as_ref().display());
 }
 
 pub fn unzip_to(bytes_in: Vec<u8>, out_dir: &str) -> Result<(), ArtifactError> {

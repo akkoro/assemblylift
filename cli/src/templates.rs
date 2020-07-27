@@ -119,6 +119,16 @@ module "{{this.name}}" {
 
 "#;
 
+pub(crate) static TERRAFORM_SERVICE: &str = r#"# Generated with assemblylift-cli {{asml_version}}
+
+resource "aws_lambda_layer_version" "asml_{{name}}_service_layer" {
+  filename   = "${path.module}/../.asml/runtime/bootstrap.zip"
+  layer_name = "{{name}}-service"
+
+  source_code_hash = filebase64sha256("${path.module}/../.asml/runtime/bootstrap.zip")
+}
+"#;
+
 pub(crate) static TERRAFORM_FUNCTION: &str = r#"# Generated with assemblylift-cli {{asml_version}}
 
 variable "runtime_layer_arn" {
