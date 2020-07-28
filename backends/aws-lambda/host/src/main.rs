@@ -57,6 +57,7 @@ fn main() {
     // let panic if these aren't set
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
+    let runtime_dir = env::var("LAMBDA_RUNTIME_DIR").unwrap();
 
     println!("Using Lambda root: {}", lambda_path);
 
@@ -64,7 +65,7 @@ fn main() {
     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
     let handler_name = coords[1];
 
-    let runtime_dir = env::var("LAMBDA_RUNTIME_DIR").unwrap();
+    // load plugins from runtime dir, which should contain merged contents of Lambda layers
     for entry in fs::read_dir(runtime_dir).unwrap() {
         let entry = entry.unwrap();
         if entry.file_type().unwrap().is_file() {
@@ -74,15 +75,15 @@ fn main() {
 
     let instance = wasm::build_instance().unwrap();
 
-    // while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
-    //     let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
-    //     ref_cell.replace(event.request_id.clone());
-    //     std::mem::drop(ref_cell);
-    loop {
+    while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
+        let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
+        ref_cell.replace(event.request_id.clone());
+        std::mem::drop(ref_cell);
+
         scope(|s| {
             s.spawn(|_| {
                 let locked = instance.lock().unwrap();
-                write_event_buffer(&locked, "{}".to_string() /*event.event_body*/);
+                write_event_buffer(&locked, event.event_body);
                 Threader::__reset_memory();
 
                 match locked.call(handler_name, &[]) {
