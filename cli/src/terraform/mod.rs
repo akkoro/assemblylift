@@ -127,9 +127,15 @@ pub struct TerraformFunction {
     pub service: String,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TerraformService {
+    pub name: String,
+}
+
 pub fn write_root_terraform(
     canonical_project_path: &PathBuf,
     functions: Vec<TerraformFunction>,
+    services: Vec<TerraformService>
 ) -> Result<(), io::Error> {
     let file_name = "main.tf";
 
@@ -141,10 +147,38 @@ pub fn write_root_terraform(
     data.insert("asml_version".to_string(), to_json(crate_version!()));
     data.insert("aws_region".to_string(), to_json("us-east-1"));
     data.insert("functions".to_string(), to_json(functions));
+    data.insert("services".to_string(), to_json(services));
 
     let render = reg.render(file_name, &data).unwrap();
 
     let path_str = &format!("{}/net/{}", canonical_project_path.display(), file_name);
+    let path = path::Path::new(path_str);
+
+    projectfs::write_to_file(&path, render)
+}
+
+pub fn write_service_terraform(
+    canonical_project_path: &PathBuf,
+    service: TerraformService,
+) -> Result<(), io::Error> {
+    let file_name = "service.tf";
+
+    let mut reg = Handlebars::new();
+    reg.register_template_string(file_name, templates::TERRAFORM_SERVICE)
+        .unwrap(); // templates are known at compile-time
+
+    let mut data = Map::<String, Json>::new();
+    data.insert("asml_version".to_string(), to_json(crate_version!()));
+    data.insert("name".to_string(), to_json(&service.name));
+
+    let render = reg.render(file_name, &data).unwrap();
+
+    let path_str = &format!(
+        "{}/net/services/{}/{}",
+        canonical_project_path.display(),
+        &service.name,
+        file_name
+    );
     let path = path::Path::new(path_str);
 
     projectfs::write_to_file(&path, render)
@@ -158,7 +192,7 @@ pub fn write_function_terraform(
 
     let mut reg = Handlebars::new();
     reg.register_template_string(file_name, templates::TERRAFORM_FUNCTION)
-        .unwrap();
+        .unwrap(); // templates are known at compile-time
 
     let mut data = Map::<String, Json>::new();
     data.insert("asml_version".to_string(), to_json(crate_version!()));

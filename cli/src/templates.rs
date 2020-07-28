@@ -107,6 +107,12 @@ resource "aws_lambda_layer_version" "asml_runtime_layer" {
   source_code_hash = filebase64sha256("${path.module}/../.asml/runtime/bootstrap.zip")
 }
 
+{{#each services}}
+module "{{this.name}}" {
+  source = "./services/{{this.name}}"
+}
+{{/each}}
+
 {{#each functions}}
 module "{{this.name}}" {
   source = "./services/{{this.service}}/{{this.name}}"
@@ -114,7 +120,9 @@ module "{{this.name}}" {
   lambda_role_arn   = aws_iam_role.lambda_iam_role.arn
   lambda_role_name  = aws_iam_role.lambda_iam_role.name
   runtime_layer_arn = aws_lambda_layer_version.asml_runtime_layer.arn
+  service_layer_arn = module.{{this.service}}.service_layer_arn
 }
+
 {{/each}}
 
 "#;
@@ -125,13 +133,21 @@ resource "aws_lambda_layer_version" "asml_{{name}}_service_layer" {
   filename   = "${path.module}/../.asml/runtime/bootstrap.zip"
   layer_name = "{{name}}-service"
 
-  source_code_hash = filebase64sha256("${path.module}/../.asml/runtime/bootstrap.zip")
+  source_code_hash = filebase64sha256("${path.module}/../../../.asml/runtime/{{name}}.zip")
+}
+
+output "service_layer_arn" {
+  value = aws_lambda_layer_version.asml_{{name}}_service_layer.arn
 }
 "#;
 
 pub(crate) static TERRAFORM_FUNCTION: &str = r#"# Generated with assemblylift-cli {{asml_version}}
 
 variable "runtime_layer_arn" {
+  type = string
+}
+
+variable "service_layer_arn" {
   type = string
 }
 
@@ -150,7 +166,7 @@ resource "aws_lambda_function" "asml_{{name}}_lambda" {
     handler       = "{{name}}.{{handler_name}}"
     filename      = "${path.module}/{{name}}.zip"
 
-    layers = [var.runtime_layer_arn]
+    layers = [var.runtime_layer_arn, var.service_layer_arn]
 
     source_code_hash = filebase64sha256("${path.module}/{{name}}.zip")
 }

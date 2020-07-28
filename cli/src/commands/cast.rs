@@ -8,9 +8,7 @@ use clap::ArgMatches;
 use crate::artifact;
 use crate::bom;
 use crate::terraform;
-use crate::terraform::TerraformFunction;
-use std::path::Path;
-use std::sync::Arc;
+use crate::terraform::{TerraformFunction, TerraformService};
 
 macro_rules! path {
     ($str:tt) => {path::Path::new(&$str)};
@@ -52,27 +50,39 @@ pub fn command(matches: Option<&ArgMatches>) {
     };
 
     let mut functions: Vec<TerraformFunction> = Vec::new();
-    let mut dependencies: Vec<(String, String)> = Vec::new();
+    let mut services: Vec<TerraformService> = Vec::new();
 
-    for (name, service) in asml_manifest.services {
+    for (_, service) in asml_manifest.services {
         let service_name = service.name.clone();
         let service_manifest = bom::service::read(&service_name);
 
-        for (_id, dependency) in service_manifest.iomod.dependencies {
+        let tf_service = TerraformService { name: service_name.clone() };
+        services.push(tf_service.clone());
+        terraform::write_service_terraform(&canonical_project_path, tf_service).unwrap();
+
+        let mut dependencies: Vec<String> = Vec::new();
+        for (name, dependency) in service_manifest.iomod.dependencies {
             match dependency.dependency_type.as_str() {
-                // TODO: other types will need to resolve and/or build the dependency first
-                //          "file:" type can just pass thru the path
                 "file" => {
-                    // TODO `from` must be a path to a local file -- check & enforce this
-                    dependencies.push((name.clone(), dependency.from.clone()));
+                    // copy file & rename it to `name`
+
+                    let dependency_name = name.clone();
+                    let dependency_path = dependency.from.clone();
+                    let p = path::Path::new(&dependency_path);
+                    let runtime_path = format!("./.asml/runtime/{}.{}", dependency_name, p.extension().unwrap().to_str().unwrap());
+                    fs::copy(dependency_path, &runtime_path).unwrap();
+
+                    dependencies.push(runtime_path);
                 },
                 _ => unimplemented!("only type=file is available currently")
             }
         }
 
+        artifact::zip_files(dependencies, format!("./.asml/runtime/{}.zip", &service_name));
+
         for (_id, function) in service_manifest.api.functions {
             let function_artifact_path =
-                format!("./net/services/{}/{}", service_name, function.name);
+                format!("./net/services/{}/{}", &service_name, function.name);
             if let Err(err) = fs::create_dir_all(path!(function_artifact_path)) {
                 panic!(err)
             }
@@ -130,12 +140,12 @@ pub fn command(matches: Option<&ArgMatches>) {
                 service: service.name.clone(),
             };
 
-            terraform::write_function_terraform(&canonical_project_path, &tf_function);
+            terraform::write_function_terraform(&canonical_project_path, &tf_function).unwrap();
             functions.push(tf_function.clone());
         }
     }
 
-    terraform::write_root_terraform(&canonical_project_path, functions);
+    terraform::write_root_terraform(&canonical_project_path, functions, services).unwrap();
 
     terraform::run_terraform_init();
     terraform::run_terraform_plan();
