@@ -3,6 +3,7 @@ extern crate lazy_static;
 
 use std::cell::RefCell;
 use std::env;
+use std::fs;
 use std::sync::Mutex;
 
 use clap::crate_version;
@@ -11,9 +12,9 @@ use crossbeam_utils::thread::scope;
 use once_cell::sync::Lazy;
 use wasmer_runtime::Instance;
 
-use assemblylift_core::{IoModulePlugin, WasmBufferPtr};
+use assemblylift_core::WasmBufferPtr;
 use assemblylift_core::threader::Threader;
-use assemblylift_core_iomod::{plugin, MODULE_REGISTRY};
+use assemblylift_core_iomod::{MODULE_REGISTRY, plugin};
 use runtime::AwsLambdaRuntime;
 
 mod runtime;
@@ -63,10 +64,12 @@ fn main() {
     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
     let handler_name = coords[1];
 
-    let plugin_declaration: IoModulePlugin;
-    unsafe {
-        plugin_declaration = plugin::load(&mut MODULE_REGISTRY.lock().unwrap(),
-                     "/Users/xlem/Development/Projects/assemblylift/target/debug/libassemblylift_awslambda_iomod_plugin_dynamodb.dylib").unwrap();
+    let runtime_dir = env::var("LAMBDA_RUNTIME_DIR").unwrap();
+    for entry in fs::read_dir(runtime_dir).unwrap() {
+        let entry = entry.unwrap();
+        if entry.file_type().unwrap().is_file() {
+            unsafe { plugin::load(&mut MODULE_REGISTRY.lock().unwrap(), entry.path()).unwrap(); }
+        }
     }
 
     let instance = wasm::build_instance().unwrap();
