@@ -27,7 +27,7 @@ impl fmt::Display for ArtifactError {
     }
 }
 
-pub fn zip_files(files_in: Vec<impl AsRef<Path>>, file_out: impl AsRef<Path>) {
+pub fn zip_files(files_in: Vec<impl AsRef<Path>>, file_out: impl AsRef<Path>, prefix_path: Option<&str>) {
 
     let file = match fs::File::create(&file_out) {
         Ok(file) => file,
@@ -48,7 +48,12 @@ pub fn zip_files(files_in: Vec<impl AsRef<Path>>, file_out: impl AsRef<Path>) {
         // unwrap: path always has a file name at this point
         let path_str = path.as_ref().file_name().unwrap().to_str().unwrap();
 
-        if let Err(why) = zip.start_file(path_str, options) {
+        let mut zip_path = String::from(path_str);
+        if prefix_path.is_some() {
+            zip_path = format!("{}{}", prefix_path.unwrap(), path_str);
+        }
+
+        if let Err(why) = zip.start_file_from_path(path::Path::new(&zip_path), options) {
             panic!("could not create zip archive: {}", why.to_string())
         }
 

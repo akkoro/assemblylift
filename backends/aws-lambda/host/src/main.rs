@@ -36,7 +36,7 @@ fn write_event_buffer(instance: &Instance, event: String) {
     let get_pointer: Func<(), WasmBufferPtr> = instance
         .exports
         .get("__asml_guest_get_aws_event_string_buffer_pointer")
-        .expect("__asml_guest_get_aws_event_string_buffer_pointer");
+        .expect("could not find export in wasm named __asml_guest_get_aws_event_string_buffer_pointer");
 
     let event_buffer = get_pointer.call().unwrap();
     let memory_writer: &[AtomicCell<u8>] = event_buffer
@@ -57,7 +57,7 @@ fn main() {
     // let panic if these aren't set
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
-    let runtime_dir = env::var("LAMBDA_RUNTIME_DIR").unwrap();
+    let runtime_dir = "/opt".to_string();
 
     println!("Using Lambda root: {}", lambda_path);
 
@@ -68,7 +68,8 @@ fn main() {
     // load plugins from runtime dir, which should contain merged contents of Lambda layers
     for entry in fs::read_dir(runtime_dir).unwrap() {
         let entry = entry.unwrap();
-        if entry.file_type().unwrap().is_file() {
+        println!("Found entry: {}", entry.path().display());
+        if entry.file_type().unwrap().is_file() && entry.file_name().into_string().unwrap().contains(".so") {
             unsafe { plugin::load(&mut MODULE_REGISTRY.lock().unwrap(), entry.path()).unwrap(); }
         }
     }
@@ -91,7 +92,7 @@ fn main() {
                     Err(error) => println!("ERROR: {}", error.to_string()),
                 }
             });
-        });
+        }).unwrap();
 
         // all threads spawned in the scope join here automatically
         // the side-effect of which is that a hang in the handler will block the lambda

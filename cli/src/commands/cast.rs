@@ -27,7 +27,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     // TODO in the future we should check if we already have the same version
     // TODO argument to specify which version -- default to 'latest'
     let mut response = reqwest::blocking::get(
-        "http://runtime.assemblylift.akkoro.io/aws-lambda/latest/bootstrap.zip",
+        "http://runtime.assemblylift.akkoro.io/aws-lambda/xlem/bootstrap.zip",
     )
     .unwrap();
     let mut response_buffer = Vec::new();
@@ -78,7 +78,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             }
         }
 
-        artifact::zip_files(dependencies, format!("./.asml/runtime/{}.zip", &service_name));
+        artifact::zip_files(dependencies, format!("./.asml/runtime/{}.zip", &service_name), Some("iomod/"));
 
         for (_id, function) in service_manifest.api.functions {
             let function_artifact_path =
@@ -132,6 +132,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                     "{}/{}.zip",
                     function_artifact_path, &function.name
                 ),
+                None,
             );
 
             let tf_function = TerraformFunction {
