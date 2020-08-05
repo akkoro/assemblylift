@@ -78,7 +78,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             }
         }
 
-        artifact::zip_files(dependencies, format!("./.asml/runtime/{}.zip", &service_name), Some("iomod/"));
+        artifact::zip_files(dependencies, format!("./.asml/runtime/{}.zip", &service_name), Some("iomod/"), true);
 
         for (_id, function) in service_manifest.api.functions {
             let function_artifact_path =
@@ -133,6 +133,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                     function_artifact_path, &function.name
                 ),
                 None,
+                false
             );
 
             let tf_function = TerraformFunction {

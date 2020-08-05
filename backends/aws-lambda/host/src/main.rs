@@ -57,7 +57,7 @@ fn main() {
     // let panic if these aren't set
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
-    let runtime_dir = "/opt".to_string();
+    let runtime_dir = "/opt/iomod".to_string();
 
     println!("Using Lambda root: {}", lambda_path);
 

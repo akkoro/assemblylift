@@ -27,8 +27,11 @@ impl fmt::Display for ArtifactError {
     }
 }
 
-pub fn zip_files(files_in: Vec<impl AsRef<Path>>, file_out: impl AsRef<Path>, prefix_path: Option<&str>) {
-
+pub fn zip_files(files_in: Vec<impl AsRef<Path>>,
+                 file_out: impl AsRef<Path>,
+                 prefix_path: Option<&str>,
+                 ro: bool
+) {
     let file = match fs::File::create(&file_out) {
         Ok(file) => file,
         Err(why) => panic!("could not create zip archive: {}", why.to_string()),
@@ -37,7 +40,7 @@ pub fn zip_files(files_in: Vec<impl AsRef<Path>>, file_out: impl AsRef<Path>, pr
     let mut zip = zip::ZipWriter::new(file);
     let options = FileOptions::default()
         .compression_method(zip::CompressionMethod::Stored)
-        .unix_permissions(0o777); // full access
+        .unix_permissions(if ro == true { 0o444 } else { 0o777 }); // read-only or full access
 
     for path in files_in {
         let mut file_bytes = match fs::read(&path) {

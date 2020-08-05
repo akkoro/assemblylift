@@ -10,7 +10,9 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 macro_rules! export_iomod {
     ($org:ident.$ns:ident.$name:ident => $module:ident) => {
         extern "C" fn register(registry: &mut ModuleRegistry) {
-            $module::register(registry)
+            println!("DEBUG: registering IOmod");
+            $module::register(registry);
+            println!("DEBUG: registered IOmod");
         }
 
         #[doc(hidden)]
@@ -47,9 +49,13 @@ macro_rules! register_calls {
         let mut name_map = __register_calls!($ns);
         namespace_map.entry(ns_name.to_string()).or_insert(name_map);
 
+        println!("DEBUG: registering IOmod calls");
+
         $reg.modules
             .entry(org_name.to_string())
             .or_insert(namespace_map);
+
+        println!("DEBUG: registered IOmod calls");
     }};
 }
 
