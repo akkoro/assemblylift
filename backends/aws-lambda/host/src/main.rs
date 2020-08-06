@@ -70,13 +70,20 @@ fn main() {
         let entry = entry.unwrap();
         println!("Found entry: {}", entry.path().display());
         if entry.file_type().unwrap().is_file() && entry.file_name().into_string().unwrap().contains(".so") {
-            unsafe { plugin::load(&mut MODULE_REGISTRY.lock().unwrap(), entry.path()).unwrap(); }
+            plugin::load(&mut MODULE_REGISTRY.lock().unwrap(), entry.path()).unwrap();
         }
     }
 
-    let instance = wasm::build_instance().unwrap();
+    println!("TRACE: building Wasmer instance");
+    let instance = match wasm::build_instance() {
+        Ok(instance) => instance,
+        Err(why) => panic!("PANIC {}", why.to_string()),
+    };
 
+    println!("TRACE: starting main Lambda runtime loop");
     while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
+        println!("DEBUG: got Lambda event {}", event.request_id.clone());
+
         let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
         ref_cell.replace(event.request_id.clone());
         std::mem::drop(ref_cell);
@@ -87,6 +94,7 @@ fn main() {
                 write_event_buffer(&locked, event.event_body);
                 Threader::__reset_memory();
 
+                println!("DEBUG: calling handler {}", handler_name);
                 match locked.call(handler_name, &[]) {
                     Ok(_result) => println!("TRACE: handler returned Ok()"),
                     Err(error) => println!("ERROR: {}", error.to_string()),

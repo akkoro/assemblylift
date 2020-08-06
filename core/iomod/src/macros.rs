@@ -25,13 +25,13 @@ macro_rules! export_iomod {
                 rustc_version: assemblylift_core_iomod::macros::RUSTC_VERSION,
                 asml_core_version: assemblylift_core_iomod::macros::CORE_VERSION,
                 runtime: Lazy::new(|| {
-                    Arc::new(
+                    // Box::new(
                         Builder::new()
                             .threaded_scheduler()
                             .enable_all()
                             .build()
-                            .unwrap(),
-                    )
+                            .unwrap()
+                    // )
                 }),
                 register,
             };
@@ -66,7 +66,10 @@ macro_rules! __register_calls {
         let mut name_map = HashMap::new();
         $(
             let call_name = String::from(stringify!($call_name));
-            name_map.entry(call_name).or_insert(($call as AsmlAbiFn, (*__ASML_IOMOD_PLUGIN_DECL.runtime).clone()));
+            // SEGFAULT goes away when we don't __register_calls, so I'm assuming it's this access
+            //      of the runtime that's fucking things
+            let call_runtime = (*__ASML_IOMOD_PLUGIN_DECL.runtime);
+            name_map.entry(call_name).or_insert(($call as AsmlAbiFn, call_runtime));
         )*
         name_map
     }};

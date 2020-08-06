@@ -2,9 +2,9 @@ use std::{env, io};
 use std::cell::Cell;
 use std::error::Error;
 use std::ffi::c_void;
-use std::fs::{canonicalize, File};
-use std::io::{ErrorKind, Read};
-use std::sync::{Arc, Mutex};
+use std::fs::canonicalize;
+use std::io::ErrorKind;
+use std::sync::Mutex;
 
 use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime_core::Instance;
@@ -21,16 +21,14 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
     // handler coordinates are expected to be <file name>.<function name>
     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
     let file_name = coords[0];
+    let file_path = format!("{}/{}.wasm", lambda_path, file_name);
 
-    let get_instance = canonicalize(format!("{}/{}.wasm", lambda_path, file_name))
-        .and_then(|path| File::open(path))
-        .and_then(|mut file: File| {
-            let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer)
-                .map(move |_| buffer)
-                .map_err(to_io_error)
-        })
+    println!("DEBUG: loading WASM instance from {}", &file_path);
+
+    let get_instance = canonicalize(file_path)
+        .and_then(|path| std::fs::read(path))
         .and_then(|buffer| {
+            println!("DEBUG: read wasm file to buffer");
             use wasmer_runtime::{func, imports, instantiate};
             let import_object = imports! {
                 "env" => {
@@ -43,11 +41,14 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
                 },
             };
 
+            println!("DEBUG: instantiating wasm...");
             instantiate(&buffer[..], &import_object).map_err(to_io_error)
         });
 
     match get_instance {
         Ok(instance) => {
+            println!("DEBUG: raw instance instantiated");
+
             let threader = Box::into_raw(Box::from(Threader::new()));
             let mut boxed_instance = Box::new(instance);
             boxed_instance.context_mut().data = threader as *mut _ as *mut c_void;

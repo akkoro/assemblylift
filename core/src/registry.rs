@@ -6,7 +6,7 @@ use crate::WasmBufferPtr;
 use tokio::runtime::Runtime;
 use std::sync::Arc;
 
-pub type AsmlRuntime = Arc<Runtime>;
+pub type AsmlRuntime = Runtime;
 pub type AsmlAbiFn = fn(&mut vm::Ctx, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
 pub type AsmlRuntimePair = (AsmlAbiFn, AsmlRuntime);
 
@@ -14,7 +14,7 @@ pub type AsmlRuntimePair = (AsmlAbiFn, AsmlRuntime);
 pub type ModuleMap =
     HashMap<String, HashMap<String, HashMap<String, AsmlRuntimePair>>>;
 
-#[derive(Clone)]
+// #[derive(Clone)]
 pub struct ModuleRegistry {
     pub modules: ModuleMap,
 }

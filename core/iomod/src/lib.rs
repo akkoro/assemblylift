@@ -113,5 +113,3 @@ fn ctx_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Er
         .map(String::from)
         .map_err(to_io_error)
 }
-
-// spawn_event was here

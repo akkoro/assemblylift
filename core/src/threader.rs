@@ -3,7 +3,6 @@ use std::future::Future;
 use std::sync::Mutex;
 
 use crossbeam_utils::atomic::AtomicCell;
-use tokio::runtime::Runtime;
 
 use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 use assemblylift_core_event_common::EventMemoryDocument;
@@ -147,6 +146,7 @@ impl EventMemory {
         self._next_id = 1;
         self.document_map = Default::default();
         self.event_map = Default::default();
+        println!("DEBUG: reset Threader memory");
     }
 
     fn find_with_length(&self, _length: usize) -> usize {
