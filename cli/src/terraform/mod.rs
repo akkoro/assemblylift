@@ -135,7 +135,7 @@ pub struct TerraformService {
 pub fn write_root_terraform(
     canonical_project_path: &PathBuf,
     functions: Vec<TerraformFunction>,
-    services: Vec<TerraformService>
+    services: Vec<TerraformService>,
 ) -> Result<(), io::Error> {
     let file_name = "main.tf";
 

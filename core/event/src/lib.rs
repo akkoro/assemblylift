@@ -7,16 +7,16 @@ use crossbeam_utils::atomic::AtomicCell;
 
 use wasmer_runtime_core::vm;
 
-use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
-use assemblylift_core::{IoModulePlugin, WasmBufferPtr};
 use assemblylift_core::threader::Threader;
+use assemblylift_core::{IoModulePlugin, WasmBufferPtr};
+use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 
 #[inline(always)]
 pub fn spawn_event(
     plugin_decl: &IoModulePlugin,
     ctx: &mut vm::Ctx,
     mem: WasmBufferPtr,
-    future: impl Future<Output=Vec<u8>> + 'static + Send,
+    future: impl Future<Output = Vec<u8>> + 'static + Send,
 ) -> i32 {
     let threader: *mut Threader = ctx.data.cast();
     if threader.is_null() {

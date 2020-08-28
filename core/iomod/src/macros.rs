@@ -26,11 +26,11 @@ macro_rules! export_iomod {
                 asml_core_version: assemblylift_core_iomod::macros::CORE_VERSION,
                 runtime: Lazy::new(|| {
                     // Box::new(
-                        Builder::new()
-                            .threaded_scheduler()
-                            .enable_all()
-                            .build()
-                            .unwrap()
+                    Builder::new()
+                        .threaded_scheduler()
+                        .enable_all()
+                        .build()
+                        .unwrap()
                     // )
                 }),
                 register,

@@ -1,9 +1,9 @@
 use std::io::prelude::*;
 
-use std::{fmt, path};
 use std::fs;
 use std::io;
 use std::path::Path;
+use std::{fmt, path};
 
 use zip;
 use zip::write::FileOptions;
@@ -27,10 +27,11 @@ impl fmt::Display for ArtifactError {
     }
 }
 
-pub fn zip_files(files_in: Vec<impl AsRef<Path>>,
-                 file_out: impl AsRef<Path>,
-                 prefix_path: Option<&str>,
-                 ro: bool
+pub fn zip_files(
+    files_in: Vec<impl AsRef<Path>>,
+    file_out: impl AsRef<Path>,
+    prefix_path: Option<&str>,
+    ro: bool,
 ) {
     let file = match fs::File::create(&file_out) {
         Ok(file) => file,

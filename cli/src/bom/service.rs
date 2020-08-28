@@ -43,8 +43,7 @@ pub struct Dependency {
 pub fn read(name: &str) -> Manifest {
     let service_path = format!("./services/{}/service.toml", name);
     let service_config_contents = fs::read_to_string(service_path).unwrap();
-    let service_config: Manifest =
-        toml::from_str(&service_config_contents).unwrap();
+    let service_config: Manifest = toml::from_str(&service_config_contents).unwrap();
 
     // TODO is this necessary? seems better to err to safety, I'm not sure what happens if these don't match
     if name != service_config.service.name {

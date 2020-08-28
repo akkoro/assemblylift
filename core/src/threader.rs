@@ -6,8 +6,7 @@ use crossbeam_utils::atomic::AtomicCell;
 
 use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 use assemblylift_core_event_common::EventMemoryDocument;
-
-use crate::IoModulePlugin;
+use assemblylift_core_iomod::registry::RegistryService;
 
 lazy_static! {
     static ref EVENT_MEMORY: Mutex<EventMemory> = Mutex::new(EventMemory::new());
@@ -16,7 +15,7 @@ lazy_static! {
 pub struct Threader {}
 
 impl Threader {
-    pub fn new() -> Self {
+    pub fn new(registry: impl RegistryService) -> Self {
         Threader {}
     }
 
@@ -65,6 +64,7 @@ impl Threader {
 
         println!("TRACE: spawning on tokio runtime");
 
+        // TODO instead locally spawn and wait for remote invoke to return
         plugin_decl.runtime.spawn(async move {
             println!("TRACE: awaiting IO...");
             let serialized = future.await;

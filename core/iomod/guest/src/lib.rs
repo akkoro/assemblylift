@@ -11,7 +11,7 @@ pub mod macros {
                     input_len: usize,
                 ) -> i32;
             }
-        }
+        };
     }
 
     #[macro_export]

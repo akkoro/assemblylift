@@ -11,8 +11,12 @@ use crate::terraform;
 use crate::terraform::{TerraformFunction, TerraformService};
 
 macro_rules! path {
-    ($str:tt) => {path::Path::new(&$str)};
-    ($str:expr) => {path::Path::new(&$str)};
+    ($str:tt) => {
+        path::Path::new(&$str)
+    };
+    ($str:expr) => {
+        path::Path::new(&$str)
+    };
 }
 
 pub fn command(matches: Option<&ArgMatches>) {
@@ -56,7 +60,9 @@ pub fn command(matches: Option<&ArgMatches>) {
         let service_name = service.name.clone();
         let service_manifest = bom::service::read(&service_name);
 
-        let tf_service = TerraformService { name: service_name.clone() };
+        let tf_service = TerraformService {
+            name: service_name.clone(),
+        };
         services.push(tf_service.clone());
         terraform::write_service_terraform(&canonical_project_path, tf_service).unwrap();
 
@@ -69,16 +75,25 @@ pub fn command(matches: Option<&ArgMatches>) {
                     let dependency_name = name.clone();
                     let dependency_path = dependency.from.clone();
                     let p = path::Path::new(&dependency_path);
-                    let runtime_path = format!("./.asml/runtime/{}.{}", dependency_name, p.extension().unwrap().to_str().unwrap());
+                    let runtime_path = format!(
+                        "./.asml/runtime/{}.{}",
+                        dependency_name,
+                        p.extension().unwrap().to_str().unwrap()
+                    );
                     fs::copy(dependency_path, &runtime_path).unwrap();
 
                     dependencies.push(runtime_path);
-                },
-                _ => unimplemented!("only type=file is available currently")
+                }
+                _ => unimplemented!("only type=file is available currently"),
             }
         }
 
-        artifact::zip_files(dependencies, format!("./.asml/runtime/{}.zip", &service_name), Some("iomod/"), true);
+        artifact::zip_files(
+            dependencies,
+            format!("./.asml/runtime/{}.zip", &service_name),
+            Some("iomod/"),
+            true,
+        );
 
         for (_id, function) in service_manifest.api.functions {
             let function_artifact_path =
@@ -89,8 +104,7 @@ pub fn command(matches: Option<&ArgMatches>) {
 
             let function_path = format!("./services/{}/{}", service_name, function.name);
             let canonical_function_path =
-                &fs::canonicalize(path!(format!("{}/Cargo.toml", function_path)))
-                    .unwrap();
+                &fs::canonicalize(path!(format!("{}/Cargo.toml", function_path))).unwrap();
 
             let mode = "release"; // TODO should this really be the default?
 
@@ -128,12 +142,9 @@ pub fn command(matches: Option<&ArgMatches>) {
 
             artifact::zip_files(
                 vec![wasm_path],
-                format!(
-                    "{}/{}.zip",
-                    function_artifact_path, &function.name
-                ),
+                format!("{}/{}.zip", function_artifact_path, &function.name),
                 None,
-                false
+                false,
             );
 
             let tf_function = TerraformFunction {

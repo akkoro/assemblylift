@@ -12,9 +12,9 @@ use crossbeam_utils::thread::scope;
 use once_cell::sync::Lazy;
 use wasmer_runtime::Instance;
 
-use assemblylift_core::WasmBufferPtr;
 use assemblylift_core::threader::Threader;
-use assemblylift_core_iomod::{MODULE_REGISTRY, plugin};
+use assemblylift_core::WasmBufferPtr;
+use assemblylift_core_iomod::{plugin, MODULE_REGISTRY};
 use runtime::AwsLambdaRuntime;
 
 mod runtime;
@@ -36,7 +36,9 @@ fn write_event_buffer(instance: &Instance, event: String) {
     let get_pointer: Func<(), WasmBufferPtr> = instance
         .exports
         .get("__asml_guest_get_aws_event_string_buffer_pointer")
-        .expect("could not find export in wasm named __asml_guest_get_aws_event_string_buffer_pointer");
+        .expect(
+            "could not find export in wasm named __asml_guest_get_aws_event_string_buffer_pointer",
+        );
 
     let event_buffer = get_pointer.call().unwrap();
     let memory_writer: &[AtomicCell<u8>] = event_buffer
@@ -57,7 +59,7 @@ fn main() {
     // let panic if these aren't set
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
-    let runtime_dir = "/opt/iomod".to_string();
+    // let runtime_dir = "/opt/iomod".to_string();
 
     println!("Using Lambda root: {}", lambda_path);
 
@@ -66,13 +68,15 @@ fn main() {
     let handler_name = coords[1];
 
     // load plugins from runtime dir, which should contain merged contents of Lambda layers
-    for entry in fs::read_dir(runtime_dir).unwrap() {
-        let entry = entry.unwrap();
-        println!("Found entry: {}", entry.path().display());
-        if entry.file_type().unwrap().is_file() && entry.file_name().into_string().unwrap().contains(".so") {
-            plugin::load(&mut MODULE_REGISTRY.lock().unwrap(), entry.path()).unwrap();
-        }
-    }
+    // for entry in fs::read_dir(runtime_dir).unwrap() {
+    //     let entry = entry.unwrap();
+    //     println!("Found entry: {}", entry.path().display());
+    //     if entry.file_type().unwrap().is_file()
+    //         && entry.file_name().into_string().unwrap().contains(".so")
+    //     {
+    //         plugin::load(&mut MODULE_REGISTRY, entry.path()).unwrap();
+    //     }
+    // }
 
     println!("TRACE: building Wasmer instance");
     let instance = match wasm::build_instance() {
@@ -100,7 +104,16 @@ fn main() {
                     Err(error) => println!("ERROR: {}", error.to_string()),
                 }
             });
-        }).unwrap();
+
+            s.spawn(|_| {
+                let tokio_local = tokio::task::LocalSet::new();
+                tokio_local.spawn_local(async move {
+                    let registry = &MODULE_REGISTRY;
+                    registry.start_service()
+                })
+            });
+        })
+        .unwrap();
 
         // all threads spawned in the scope join here automatically
         // the side-effect of which is that a hang in the handler will block the lambda

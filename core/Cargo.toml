@@ -20,3 +20,4 @@ wasmer_runtime = { version = "0.1.1", package = "wasmer-runtime-asml-fork" }
 wasmer_runtime_core = { version = "0.1.1", package = "wasmer-runtime-core-asml-fork" }
 
 assemblylift-core-event-common = { version = "0.1.0", path = "./event/common" }
+assemblylift-core-iomod = { version = "0.1.0", path = "./iomod" }
