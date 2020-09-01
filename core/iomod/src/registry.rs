@@ -13,6 +13,8 @@ use tokio::prelude::*;
 use tokio_util::compat::Tokio02AsyncReadCompatExt;
 
 use crate::iomod_capnp::{iomod, registry};
+use crate::Agent;
+use std::rc::Rc;
 
 pub trait RegistryService {
     fn spawn_service(self) -> Result<(), RegistryError>;
@@ -51,7 +53,7 @@ impl RegistryService for Registry {
     fn spawn_service(self) -> Result<(), RegistryError> {
         tokio::task::spawn_local(async move {
             let mut listener = TcpListener::bind("127.0.0.1:13555").await.unwrap();
-            let registry: registry::Client = capnp_rpc::new_client(Registry::new());
+            let registry_client: registry::Client = capnp_rpc::new_client(Registry::new());
 
             loop {
                 let (stream, _) = listener.accept().await.unwrap();
@@ -68,7 +70,7 @@ impl RegistryService for Registry {
                 );
 
                 let rpc_system =
-                    RpcSystem::new(Box::new(rpc_network), Some(registry.clone().client));
+                    RpcSystem::new(Box::new(rpc_network), Some(registry_client.clone().client));
 
                 tokio::task::spawn_local(Box::pin(
                     rpc_system
@@ -91,23 +93,13 @@ impl registry::Server for Registry {
     ) -> Promise<(), capnp::Error> {
         let coordinates: String = String::from(params.get().unwrap().get_coordinates().unwrap());
         let module: iomod::Client = params.get().unwrap().get_iomod().unwrap();
+        let rc_module: Rc<RefCell<iomod::Client>> = Rc::new(RefCell::new(
+            params.get().unwrap().get_iomod().unwrap()));
 
         self.modules.borrow_mut().entry(coordinates).or_insert(module);
 
+        results.get().set_agent(capnp_rpc::new_client(Agent::new(rc_module)));
+
         Promise::ok(())
-        // Promise::from_future(async move {
-        //
-        //     let req = module.get_declaration_request();
-        //     let res = req.send().promise.await.unwrap();
-        //
-        //     let decl = res.get().unwrap().get_decl().unwrap();
-        //     let name = decl.get_name().unwrap();
-        //     let namespace = decl.get_namespace().unwrap();
-        //     let organization = decl.get_organization().unwrap();
-        //     let coords = format!("{}.{}.{}", organization, namespace, name);
-        //
-        //
-        //     Ok(())
-        // })
     }
 }

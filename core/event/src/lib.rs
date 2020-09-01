@@ -8,12 +8,11 @@ use crossbeam_utils::atomic::AtomicCell;
 use wasmer_runtime_core::vm;
 
 use assemblylift_core::threader::Threader;
-use assemblylift_core::{IoModulePlugin, WasmBufferPtr};
+use assemblylift_core::WasmBufferPtr;
 use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 
 #[inline(always)]
 pub fn spawn_event(
-    plugin_decl: &IoModulePlugin,
     ctx: &mut vm::Ctx,
     mem: WasmBufferPtr,
     future: impl Future<Output = Vec<u8>> + 'static + Send,
@@ -35,7 +34,7 @@ pub fn spawn_event(
             None => panic!("could not dereference WASM guest memory in spawn_event"),
         };
 
-    threader_ref.spawn_with_event_id(plugin_decl, memory_writer.as_ptr(), future, event_id);
+    threader_ref.spawn_with_event_id(memory_writer.as_ptr(), future, event_id);
 
     event_id as i32
 }

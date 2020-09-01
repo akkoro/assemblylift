@@ -1,11 +1,13 @@
 @0xdefbefb7e7579c48;
 
 interface Agent {
-    invoke @0 (path: Text);
+    invoke @0 (coordinates: Text) -> (result: Data);
 }
 
 interface Iomod {
     getDeclaration @0 () -> (decl: Declaration);
+
+    invoke @1 (coordinates: Text) -> (result: Data);
 
     struct Declaration {
         name         @0: Text;

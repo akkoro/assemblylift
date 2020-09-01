@@ -11,11 +11,12 @@ use wasmer_runtime_core::vm::Ctx;
 use wasmer_runtime_core::Instance;
 
 use assemblylift_core::threader::Threader;
-use assemblylift_core_iomod::{
+use assemblylift_core::abi::{
     asml_abi_event_len, asml_abi_event_ptr, asml_abi_invoke, asml_abi_poll,
 };
+use assemblylift_core_iomod::registry;
 
-pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
+pub fn build_instance() -> Result<Instance, io::Error> {
     // let panic if these aren't set
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
@@ -48,16 +49,14 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
         });
 
     match get_instance {
-        Ok(instance) => {
+        Ok(mut instance) => {
             println!("DEBUG: raw instance instantiated");
 
-            let threader = Box::into_raw(Box::from(Threader::new()));
-            let mut boxed_instance = Box::new(instance);
-            boxed_instance.context_mut().data = threader as *mut _ as *mut c_void;
+            let registry = Box::new(registry::Registry::new());
+            let threader = Box::into_raw(Box::from(Threader::new(registry)));
+            instance.context_mut().data = threader as *mut _ as *mut c_void;
 
-            let guarded_instance = Mutex::new(boxed_instance);
-
-            Ok(guarded_instance)
+            Ok(instance)
         }
         Err(error) => Err(to_io_error(error)),
     }

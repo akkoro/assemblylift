@@ -3,6 +3,7 @@ use std::error::Error;
 use std::io;
 use std::io::ErrorKind;
 
+use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime_core::vm;
 
 use crate::threader::Threader;
@@ -83,7 +84,7 @@ fn get_threader(ctx: &mut vm::Ctx) -> *mut Threader {
 }
 
 #[inline]
-fn ctx_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Error> {
+fn ctx_ptr_to_string(ctx: &mut vm::Ctx, ptr: u32, len: u32) -> Result<String, io::Error> {
     let memory = ctx.memory(0);
     let view: MemoryView<u8> = memory.view();
 

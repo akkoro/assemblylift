@@ -12,11 +12,15 @@ lazy_static! {
     static ref EVENT_MEMORY: Mutex<EventMemory> = Mutex::new(EventMemory::new());
 }
 
-pub struct Threader {}
+pub struct Threader {
+    pub registry: Box<dyn RegistryService>
+}
 
 impl Threader {
-    pub fn new(registry: impl RegistryService) -> Self {
-        Threader {}
+    pub fn new(registry: Box<dyn RegistryService>) -> Self {
+        Threader {
+            registry
+        }
     }
 
     pub fn next_event_id(&mut self) -> Option<u32> {
@@ -52,7 +56,6 @@ impl Threader {
 
     pub fn spawn_with_event_id(
         &mut self,
-        plugin_decl: &IoModulePlugin,
         writer: *const AtomicCell<u8>,
         future: impl Future<Output = Vec<u8>> + 'static + Send,
         event_id: u32,
@@ -65,7 +68,7 @@ impl Threader {
         println!("TRACE: spawning on tokio runtime");
 
         // TODO instead locally spawn and wait for remote invoke to return
-        plugin_decl.runtime.spawn(async move {
+        let io = async move {
             println!("TRACE: awaiting IO...");
             let serialized = future.await;
 
@@ -73,7 +76,7 @@ impl Threader {
                 .lock()
                 .unwrap()
                 .write_vec_at(slc, serialized, event_id);
-        });
+        };
 
         println!("TRACE: spawned");
     }
