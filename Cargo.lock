@@ -72,39 +72,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "assemblylift-awslambda-iomod-plugin-dynamodb"
-version = "0.1.0"
-dependencies = [
- "assemblylift-core",
- "assemblylift-core-event",
- "assemblylift-core-iomod",
- "crossbeam-utils",
- "lazy_static",
- "once_cell",
- "paste",
- "rusoto_core",
- "rusoto_dynamodb",
- "rustc_version",
- "serde_json",
- "tokio",
- "wasmer-runtime-asml-fork",
- "wasmer-runtime-core-asml-fork",
-]
-
-[[package]]
-name = "assemblylift-awslambda-iomod-plugin-dynamodb-guest"
-version = "0.1.0"
-dependencies = [
- "assemblylift-core-event-guest",
- "assemblylift-core-iomod-guest",
- "base64 0.12.1",
- "bytes",
- "paste",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "assemblylift-cli"
 version = "0.1.2"
 dependencies = [

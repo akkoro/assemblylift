@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::env;
 use std::fs;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc};
 
 use clap::crate_version;
 use crossbeam_utils::atomic::AtomicCell;
@@ -35,17 +35,19 @@ tokio::task_local! {
 pub static LAMBDA_REQUEST_ID: Lazy<Mutex<RefCell<String>>> =
     Lazy::new(|| Mutex::new(RefCell::new(String::new())));
 
+#[inline(always)]
 fn write_event_buffer(instance: &Instance, event: String) {
     use wasmer_runtime::Func;
 
     let wasm_instance_context = instance.context();
     let wasm_instance_memory = wasm_instance_context.memory(0);
 
+    let fn_name = "__asml_guest_get_aws_event_string_buffer_pointer";
     let get_pointer: Func<(), WasmBufferPtr> = instance
         .exports
-        .get("__asml_guest_get_aws_event_string_buffer_pointer")
+        .get(fn_name)
         .expect(
-            "could not find export in wasm named __asml_guest_get_aws_event_string_buffer_pointer",
+            &*format!("could not find export in wasm named {}", fn_name),
         );
 
     let event_buffer = get_pointer.call().unwrap();
@@ -65,16 +67,8 @@ async fn main() {
         crate_version!()
     );
 
-    // let panic if these aren't set
-    let handler_coordinates = env::var("_HANDLER").unwrap();
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
-    // let runtime_dir = "/opt/iomod".to_string();
-
     println!("Using Lambda root: {}", lambda_path);
-
-    // handler coordinates are expected to be <file name>.<function name>
-    let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
-    let handler_name = coords[1];
 
     // load plugins from runtime dir, which should contain merged contents of Lambda layers
     // for entry in fs::read_dir(runtime_dir).unwrap() {
@@ -95,18 +89,27 @@ async fn main() {
         ref_cell.replace(event.request_id.clone());
         std::mem::drop(ref_cell);
 
-
-        // let threader: *mut Threader = instance.borrow_mut().context().data.cast();
-
         let local_set = tokio::task::LocalSet::new();
         local_set.run_until(async move {
+            let channel = mpsc::channel();
+            let registry = Box::new(registry::Registry::new());
+
             println!("TRACE: building Wasmer instance");
-            let instance = match wasm::build_instance() {
+            let instance = match wasm::build_instance(channel.0.clone()) {
                 Ok(instance) => instance,
                 Err(why) => panic!("PANIC {}", why.to_string()),
             };
 
+            if let Err(why) = registry.spawn_service(channel.1) {
+                panic!("PANIC {}", why.to_string())
+            }
+
             tokio::task::spawn_local(async move {
+                // handler coordinates are expected to be <file name>.<function name>
+                let handler_coordinates = env::var("_HANDLER").unwrap();
+                let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
+                let handler_name = coords[1];
+
                 write_event_buffer(&instance, event.event_body);
                 Threader::__reset_memory();
 
@@ -116,43 +119,6 @@ async fn main() {
                     Err(error) => println!("ERROR: {}", error.to_string()),
                 }
             });
-
-            let registry: Box<dyn RegistryService>;
-            unsafe {
-                let threader: *mut Threader = instance.context().data.cast();
-                registry = (*threader).registry;
-            }
-
-            tokio::task::spawn_local(async move {
-                registry.spawn_service()
-            });
         }).await;
-
-        // scope(|s| {
-        //     s.spawn(|_| {
-        //         let locked = instance.lock().unwrap();
-        //         write_event_buffer(&locked, event.event_body);
-        //         Threader::__reset_memory();
-        //
-        //         println!("DEBUG: calling handler {}", handler_name);
-        //         match locked.call(handler_name, &[]) {
-        //             Ok(_result) => println!("TRACE: handler returned Ok()"),
-        //             Err(error) => println!("ERROR: {}", error.to_string()),
-        //         }
-        //     });
-        //
-        //     s.spawn(|_| {
-        //         let tokio_local = tokio::task::LocalSet::new();
-        //         tokio_local.spawn_local(async move {
-        //             let registry = &MODULE_REGISTRY;
-        //             registry.start_service()
-        //         })
-        //     });
-        // })
-        // .unwrap();
-
-        // all threads spawned in the scope join here automatically
-        // the side-effect of which is that a hang in the handler will block the lambda
-        // runtime loop
     }
 }

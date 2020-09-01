@@ -1,8 +1,8 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
-use std::sync::Arc;
-use std::sync::mpsc::{Receiver, Sender};
+use std::rc::Rc;
+use std::sync::{Arc, mpsc};
 
 use capnp::capability::Promise;
 use capnp_rpc::{rpc_twoparty_capnp, RpcSystem, twoparty};
@@ -12,12 +12,16 @@ use tokio::net::TcpListener;
 use tokio::prelude::*;
 use tokio_util::compat::Tokio02AsyncReadCompatExt;
 
-use crate::iomod_capnp::{iomod, registry};
 use crate::Agent;
-use std::rc::Rc;
+use crate::iomod_capnp::{iomod, registry};
+
+pub type RegistryChannelMessage = &'static str;
+pub type RegistryTx = mpsc::Sender<RegistryChannelMessage>;
+pub type RegistryRx = mpsc::Receiver<RegistryChannelMessage>;
+pub type RegistryChannel = (RegistryTx, RegistryRx);
 
 pub trait RegistryService {
-    fn spawn_service(self) -> Result<(), RegistryError>;
+    fn spawn_service(self, rx: RegistryRx) -> Result<(), RegistryError>;
 }
 
 pub struct Registry {
@@ -50,7 +54,7 @@ impl Registry {
 }
 
 impl RegistryService for Registry {
-    fn spawn_service(self) -> Result<(), RegistryError> {
+    fn spawn_service(self, rx: RegistryRx) -> Result<(), RegistryError> {
         tokio::task::spawn_local(async move {
             let mut listener = TcpListener::bind("127.0.0.1:13555").await.unwrap();
             let registry_client: registry::Client = capnp_rpc::new_client(Registry::new());
@@ -77,6 +81,12 @@ impl RegistryService for Registry {
                         .map_err(|e| println!("error: {:?}", e))
                         .map(|_| ()),
                 ));
+            }
+        });
+
+        tokio::task::spawn_local(async move {
+            while let Ok(msg) = rx.recv() {
+
             }
         });
 

@@ -1,25 +1,25 @@
 use std::collections::HashMap;
 use std::future::Future;
-use std::sync::Mutex;
+use std::sync::{mpsc, Mutex};
 
 use crossbeam_utils::atomic::AtomicCell;
 
 use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 use assemblylift_core_event_common::EventMemoryDocument;
-use assemblylift_core_iomod::registry::RegistryService;
+use assemblylift_core_iomod::registry::{RegistryService, RegistryChannel, RegistryTx};
 
 lazy_static! {
     static ref EVENT_MEMORY: Mutex<EventMemory> = Mutex::new(EventMemory::new());
 }
 
 pub struct Threader {
-    pub registry: Box<dyn RegistryService>
+    pub registry_tx: RegistryTx
 }
 
 impl Threader {
-    pub fn new(registry: Box<dyn RegistryService>) -> Self {
+    pub fn new(tx: RegistryTx) -> Self {
         Threader {
-            registry
+            registry_tx: tx
         }
     }
 

@@ -3,7 +3,7 @@ use std::error::Error;
 use std::ffi::c_void;
 use std::fs::canonicalize;
 use std::io::ErrorKind;
-use std::sync::Mutex;
+use std::sync::mpsc;
 use std::{env, io};
 
 use wasmer_runtime::memory::MemoryView;
@@ -15,8 +15,9 @@ use assemblylift_core::abi::{
     asml_abi_event_len, asml_abi_event_ptr, asml_abi_invoke, asml_abi_poll,
 };
 use assemblylift_core_iomod::registry;
+use assemblylift_core_iomod::registry::{RegistryChannel, RegistryTx};
 
-pub fn build_instance() -> Result<Instance, io::Error> {
+pub fn build_instance(tx: RegistryTx) -> Result<Instance, io::Error> {
     // let panic if these aren't set
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
@@ -52,8 +53,7 @@ pub fn build_instance() -> Result<Instance, io::Error> {
         Ok(mut instance) => {
             println!("DEBUG: raw instance instantiated");
 
-            let registry = Box::new(registry::Registry::new());
-            let threader = Box::into_raw(Box::from(Threader::new(registry)));
+            let threader = Box::into_raw(Box::from(Threader::new(tx)));
             instance.context_mut().data = threader as *mut _ as *mut c_void;
 
             Ok(instance)
