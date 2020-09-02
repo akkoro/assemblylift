@@ -4,8 +4,6 @@ use std::rc::Rc;
 use capnp::capability::Promise;
 
 use crate::iomod_capnp::{agent, iomod};
-use std::borrow::Borrow;
-use once_cell::unsync::Lazy;
 
 pub mod iomod_capnp;
 pub mod macros;
@@ -33,6 +31,7 @@ impl agent::Server for Agent {
         Promise::from_future(async move {
             let mut invoke = client.borrow_mut().invoke_request();
             invoke.get().set_coordinates(params.get().unwrap().get_coordinates().unwrap());
+            invoke.get().set_input(params.get().unwrap().get_input().unwrap());
 
             let invoke_response = invoke.send().promise.await.unwrap();
             results.get().set_result(invoke_response.get().unwrap().get_result().unwrap());

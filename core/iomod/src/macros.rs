@@ -7,38 +7,6 @@ pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 #[macro_export]
-macro_rules! export_iomod {
-    ($org:ident.$ns:ident.$name:ident => $module:ident) => {
-        extern "C" fn register(registry: &mut ModuleRegistry) {
-            println!("DEBUG: registering IOmod");
-            $module::register(registry);
-            println!("DEBUG: registered IOmod");
-        }
-
-        #[doc(hidden)]
-        #[no_mangle]
-        pub static __ASML_IOMOD_PLUGIN_DECL: assemblylift_core::IoModulePlugin =
-            assemblylift_core::IoModulePlugin {
-                organization: stringify!($org),
-                namespace: stringify!($ns),
-                name: stringify!($name),
-                rustc_version: assemblylift_core_iomod::macros::RUSTC_VERSION,
-                asml_core_version: assemblylift_core_iomod::macros::CORE_VERSION,
-                runtime: Lazy::new(|| {
-                    // Box::new(
-                    Builder::new()
-                        .threaded_scheduler()
-                        .enable_all()
-                        .build()
-                        .unwrap()
-                    // )
-                }),
-                register,
-            };
-    };
-}
-
-#[macro_export]
 macro_rules! register_calls {
     ($reg:expr, $org_name:ident => { $ns_name:ident => $ns:tt }) => {{
         let org_name = stringify!($org_name);
@@ -86,7 +54,7 @@ macro_rules! call {
             println!("TRACE: {}", stringify!($call_name));
             let input_vec = __wasm_buffer_as_vec!(ctx, input, input_len);
             let call = paste::expr! { [<$call_name _impl>] }(input_vec);
-            spawn_event(&__ASML_IOMOD_PLUGIN_DECL, ctx, mem, call)
+            spawn_event(ctx, mem, call)
         }
     };
 }

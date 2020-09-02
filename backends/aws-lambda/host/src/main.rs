@@ -99,7 +99,7 @@ async fn main() {
                 Err(why) => panic!("PANIC {}", why.to_string()),
             };
 
-            if let Err(why) = registry.spawn_service(channel.1) {
+            if let Err(why) = registry.start_service(channel.1) {
                 panic!("PANIC {}", why.to_string())
             }
 

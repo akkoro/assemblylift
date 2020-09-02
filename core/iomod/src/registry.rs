@@ -47,8 +47,8 @@ impl std::error::Error for RegistryError {}
 
 #[derive(Debug)]
 pub struct RegistryChannelMessage {
-    pub iomod_coords: &'static str,
-    pub method_name: &'static str,
+    pub iomod_coords: String,
+    pub method_name: String,
     pub payload_type: &'static str,
     pub payload: Vec<u8>,
     pub responder: Option<RegistryTx>,
@@ -61,7 +61,7 @@ impl Registry {
         }
     }
 
-    pub fn spawn_service(&mut self, rx: RegistryRx) -> Result<(), RegistryError> {
+    pub fn start_service(&mut self, rx: RegistryRx) -> Result<(), RegistryError> {
         tokio::task::spawn_local(async move {
             let mut listener = TcpListener::bind("127.0.0.1:13555").await.unwrap();
             let registry_client: registry::Client = capnp_rpc::new_client(Registry::new());
@@ -97,20 +97,22 @@ impl Registry {
                 let responder = msg.responder.unwrap();
                 let coords = msg.iomod_coords;
                 let method = msg.method_name;
+                let input = msg.payload.as_slice();
 
                 let modules = RefCell::borrow(&modules);
-                let agent = modules.get(coords).unwrap();
+                let agent = modules.get(&coords).unwrap();
                 let mut invoke = agent.invoke_request();
 
-                invoke.get().set_coordinates(method);
+                invoke.get().set_coordinates(&method);
+                invoke.get().set_input(input);
                 let results = invoke.send().promise.await.unwrap();
-                let payload = Vec::from(results.get().unwrap().get_result().unwrap());
+                let response_payload = Vec::from(results.get().unwrap().get_result().unwrap());
 
                 responder.send(RegistryChannelMessage {
-                    iomod_coords: "",
-                    method_name: "",
-                    payload_type: "",
-                    payload,
+                    iomod_coords: coords,
+                    method_name: method,
+                    payload_type: "IOMOD_RESPONSE",
+                    payload: response_payload,
                     responder: None
                 }).unwrap();
             }

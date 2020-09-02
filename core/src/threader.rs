@@ -1,12 +1,11 @@
 use std::collections::HashMap;
-use std::future::Future;
-use std::sync::{Mutex, mpsc};
+use std::sync::{mpsc, Mutex};
 
 use crossbeam_utils::atomic::AtomicCell;
 
 use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 use assemblylift_core_event_common::EventMemoryDocument;
-use assemblylift_core_iomod::registry::{RegistryTx, RegistryChannelMessage};
+use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
 lazy_static! {
     static ref EVENT_MEMORY: Mutex<EventMemory> = Mutex::new(EventMemory::new());
@@ -56,8 +55,9 @@ impl Threader {
 
     pub fn spawn_with_event_id(
         &mut self,
+        method_path: &str,
+        method_input: Vec<u8>,
         writer: *const AtomicCell<u8>,
-        future: impl Future<Output = Vec<u8>> + 'static + Send,
         event_id: u32,
     ) {
         println!("TRACE: spawn_with_event_id");
@@ -65,12 +65,20 @@ impl Threader {
         // FIXME this is a kludge -- I feel like the raw pointer shouldn't be needed
         let slc = unsafe { std::slice::from_raw_parts(writer, EVENT_BUFFER_SIZE_BYTES) };
 
+        let coords = method_path.split(".").collect::<Vec<&str>>();
+        if coords.len() != 4 {
+            panic!("Malformed method path @ spawn_with_event_id") // TODO don't panic
+        }
+
+        let iomod_coords = format!("{}.{}.{}", coords[0], coords[1], coords[2]);
+        let method_name = format!("{}", coords[3]);
+
         let channel = mpsc::channel();
         self.registry_tx.send(RegistryChannelMessage {
-            iomod_coords: "",
-            method_name: "",
-            payload_type: "",
-            payload: vec![],
+            iomod_coords,
+            method_name,
+            payload_type: "IOMOD_REQUEST",
+            payload: method_input,
             responder: Some(channel.0.clone())
         }).unwrap();
 
