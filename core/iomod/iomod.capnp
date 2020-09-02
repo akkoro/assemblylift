@@ -23,5 +23,5 @@ interface Iomod {
 }
 
 interface Registry {
-    register @0 (coordinates: Text, iomod: Iomod) -> (agent: Agent);
+    register @0 (coordinates: Text, iomod: Iomod);
 }

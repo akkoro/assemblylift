@@ -1,11 +1,13 @@
 #[macro_use]
 extern crate lazy_static;
 
+use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::env;
 use std::fs;
+use std::ops::Deref;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{Arc, mpsc, Mutex};
 
 use clap::crate_version;
 use crossbeam_utils::atomic::AtomicCell;
@@ -17,9 +19,6 @@ use assemblylift_core::threader::Threader;
 use assemblylift_core::WasmBufferPtr;
 use assemblylift_core_iomod::registry;
 use runtime::AwsLambdaRuntime;
-use std::ops::Deref;
-use std::borrow::{Borrow, BorrowMut};
-use assemblylift_core_iomod::registry::RegistryService;
 
 mod runtime;
 mod wasm;
@@ -92,7 +91,7 @@ async fn main() {
         let local_set = tokio::task::LocalSet::new();
         local_set.run_until(async move {
             let channel = mpsc::channel();
-            let registry = Box::new(registry::Registry::new());
+            let mut registry = Box::new(registry::Registry::new());
 
             println!("TRACE: building Wasmer instance");
             let instance = match wasm::build_instance(channel.0.clone()) {

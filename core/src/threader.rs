@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 use std::future::Future;
-use std::sync::{mpsc, Mutex};
+use std::sync::{Mutex, mpsc};
 
 use crossbeam_utils::atomic::AtomicCell;
 
 use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 use assemblylift_core_event_common::EventMemoryDocument;
-use assemblylift_core_iomod::registry::{RegistryService, RegistryChannel, RegistryTx};
+use assemblylift_core_iomod::registry::{RegistryTx, RegistryChannelMessage};
 
 lazy_static! {
     static ref EVENT_MEMORY: Mutex<EventMemory> = Mutex::new(EventMemory::new());
 }
 
 pub struct Threader {
-    pub registry_tx: RegistryTx
+    registry_tx: RegistryTx
 }
 
 impl Threader {
@@ -65,18 +65,23 @@ impl Threader {
         // FIXME this is a kludge -- I feel like the raw pointer shouldn't be needed
         let slc = unsafe { std::slice::from_raw_parts(writer, EVENT_BUFFER_SIZE_BYTES) };
 
-        println!("TRACE: spawning on tokio runtime");
+        let channel = mpsc::channel();
+        self.registry_tx.send(RegistryChannelMessage {
+            iomod_coords: "",
+            method_name: "",
+            payload_type: "",
+            payload: vec![],
+            responder: Some(channel.0.clone())
+        }).unwrap();
 
-        // TODO instead locally spawn and wait for remote invoke to return
-        let io = async move {
-            println!("TRACE: awaiting IO...");
-            let serialized = future.await;
-
-            EVENT_MEMORY
-                .lock()
-                .unwrap()
-                .write_vec_at(slc, serialized, event_id);
-        };
+        tokio::task::spawn_local(async move {
+            if let Ok(response) = channel.1.recv() {
+                EVENT_MEMORY
+                    .lock()
+                    .unwrap()
+                    .write_vec_at(slc, response.payload, event_id);
+            }
+        });
 
         println!("TRACE: spawned");
     }
