@@ -17,7 +17,6 @@ use crate::iomod_capnp::{agent, iomod, registry};
 use std::borrow::{Borrow, BorrowMut};
 use std::ops::Deref;
 
-// pub type RegistryChannelMessage = &'static str;
 pub type RegistryTx = mpsc::Sender<RegistryChannelMessage>;
 pub type RegistryRx = mpsc::Receiver<RegistryChannelMessage>;
 pub type RegistryChannel = (RegistryTx, RegistryRx);
@@ -25,21 +24,23 @@ pub type RegistryChannel = (RegistryTx, RegistryRx);
 pub type ClientPair = (iomod::Client, agent::Client);
 
 pub struct Registry {
-    modules: Arc<RefCell<HashMap<String, agent::Client>>>,
+    modules: Rc<RefCell<HashMap<String, agent::Client>>>,
 }
 
 #[derive(Debug)]
-pub struct RegistryError;
+pub struct RegistryError {
+    why: String
+}
 
 impl RegistryError {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(why: String) -> Self {
+        Self { why }
     }
 }
 
 impl fmt::Display for RegistryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "RegistryError")
+        write!(f, "RegistryError: {}", self.why)
     }
 }
 
@@ -57,7 +58,7 @@ pub struct RegistryChannelMessage {
 impl Registry {
     pub fn new() -> Self {
         Self {
-            modules: Arc::new(RefCell::new(HashMap::new())),
+            modules: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
