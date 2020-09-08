@@ -90,7 +90,6 @@ async fn main() {
         local_set
             .run_until(async move {
                 let channel = mpsc::channel();
-                let mut registry = Box::new(registry::Registry::new());
 
                 println!("TRACE: building Wasmer instance");
                 let instance = match wasm::build_instance(channel.0.clone()) {
@@ -98,9 +97,12 @@ async fn main() {
                     Err(why) => panic!("PANIC {}", why.to_string()),
                 };
 
-                if let Err(why) = registry.start_service(channel.1) {
-                    panic!("PANIC {}", why.to_string())
-                }
+                tokio::spawn(async move {
+                    let mut registry = registry::Registry::new();
+                    if let Err(why) = registry.start_service(channel.1) {
+                        panic!("PANIC {}", why.to_string())
+                    }
+                });
 
                 tokio::task::spawn_local(async move {
                     // handler coordinates are expected to be <file name>.<function name>
