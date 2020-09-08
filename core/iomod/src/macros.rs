@@ -53,8 +53,9 @@ macro_rules! call {
 
             println!("TRACE: {}", stringify!($call_name));
             let input_vec = __wasm_buffer_as_vec!(ctx, input, input_len);
-            let call = paste::expr! { [<$call_name _impl>] }(input_vec);
-            spawn_event(ctx, mem, call)
+            let call = paste::expr! { [<$call_name _impl>] };
+
+            call(input_vec)
         }
     };
 }

@@ -35,8 +35,7 @@ pub fn spawn_event(
             None => panic!("could not dereference WASM guest memory in spawn_event"),
         };
 
-    threader_ref.spawn_with_event_id(method_path, method_input,
-                                     memory_writer.as_ptr(), event_id);
+    threader_ref.spawn_with_event_id(method_path, method_input, memory_writer.as_ptr(), event_id);
 
     event_id as i32
 }

@@ -7,7 +7,7 @@ use std::env;
 use std::fs;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::sync::{Arc, mpsc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
 
 use clap::crate_version;
 use crossbeam_utils::atomic::AtomicCell;
@@ -45,9 +45,7 @@ fn write_event_buffer(instance: &Instance, event: String) {
     let get_pointer: Func<(), WasmBufferPtr> = instance
         .exports
         .get(fn_name)
-        .expect(
-            &*format!("could not find export in wasm named {}", fn_name),
-        );
+        .expect(&*format!("could not find export in wasm named {}", fn_name));
 
     let event_buffer = get_pointer.call().unwrap();
     let memory_writer: &[AtomicCell<u8>] = event_buffer
@@ -89,35 +87,37 @@ async fn main() {
         std::mem::drop(ref_cell);
 
         let local_set = tokio::task::LocalSet::new();
-        local_set.run_until(async move {
-            let channel = mpsc::channel();
-            let mut registry = Box::new(registry::Registry::new());
+        local_set
+            .run_until(async move {
+                let channel = mpsc::channel();
+                let mut registry = Box::new(registry::Registry::new());
 
-            println!("TRACE: building Wasmer instance");
-            let instance = match wasm::build_instance(channel.0.clone()) {
-                Ok(instance) => instance,
-                Err(why) => panic!("PANIC {}", why.to_string()),
-            };
+                println!("TRACE: building Wasmer instance");
+                let instance = match wasm::build_instance(channel.0.clone()) {
+                    Ok(instance) => instance,
+                    Err(why) => panic!("PANIC {}", why.to_string()),
+                };
 
-            if let Err(why) = registry.start_service(channel.1) {
-                panic!("PANIC {}", why.to_string())
-            }
-
-            tokio::task::spawn_local(async move {
-                // handler coordinates are expected to be <file name>.<function name>
-                let handler_coordinates = env::var("_HANDLER").unwrap();
-                let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
-                let handler_name = coords[1];
-
-                write_event_buffer(&instance, event.event_body);
-                Threader::__reset_memory();
-
-                println!("DEBUG: calling handler {}", handler_name);
-                match instance.call(handler_name, &[]) {
-                    Ok(_result) => println!("TRACE: handler returned Ok()"),
-                    Err(error) => println!("ERROR: {}", error.to_string()),
+                if let Err(why) = registry.start_service(channel.1) {
+                    panic!("PANIC {}", why.to_string())
                 }
-            });
-        }).await;
+
+                tokio::task::spawn_local(async move {
+                    // handler coordinates are expected to be <file name>.<function name>
+                    let handler_coordinates = env::var("_HANDLER").unwrap();
+                    let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
+                    let handler_name = coords[1];
+
+                    write_event_buffer(&instance, event.event_body);
+                    Threader::__reset_memory();
+
+                    println!("DEBUG: calling handler {}", handler_name);
+                    match instance.call(handler_name, &[]) {
+                        Ok(_result) => println!("TRACE: handler returned Ok()"),
+                        Err(error) => println!("ERROR: {}", error.to_string()),
+                    }
+                });
+            })
+            .await;
     }
 }

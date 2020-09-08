@@ -2,18 +2,18 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-use std::sync::{Arc, mpsc};
+use std::sync::{mpsc, Arc};
 
 use capnp::capability::Promise;
-use capnp_rpc::{rpc_twoparty_capnp, RpcSystem, twoparty};
+use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::{AsyncReadExt, FutureExt, TryFutureExt};
 use once_cell::sync::Lazy;
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 use tokio_util::compat::Tokio02AsyncReadCompatExt;
 
-use crate::Agent;
 use crate::iomod_capnp::{agent, iomod, registry};
+use crate::Agent;
 use std::borrow::{Borrow, BorrowMut};
 use std::ops::Deref;
 
@@ -29,7 +29,7 @@ pub struct Registry {
 
 #[derive(Debug)]
 pub struct RegistryError {
-    why: String
+    why: String,
 }
 
 impl RegistryError {
@@ -109,13 +109,15 @@ impl Registry {
                 let results = invoke.send().promise.await.unwrap();
                 let response_payload = Vec::from(results.get().unwrap().get_result().unwrap());
 
-                responder.send(RegistryChannelMessage {
-                    iomod_coords: coords,
-                    method_name: method,
-                    payload_type: "IOMOD_RESPONSE",
-                    payload: response_payload,
-                    responder: None
-                }).unwrap();
+                responder
+                    .send(RegistryChannelMessage {
+                        iomod_coords: coords,
+                        method_name: method,
+                        payload_type: "IOMOD_RESPONSE",
+                        payload: response_payload,
+                        responder: None,
+                    })
+                    .unwrap();
             }
         });
 
@@ -131,8 +133,8 @@ impl registry::Server for Registry {
     ) -> Promise<(), capnp::Error> {
         let coordinates: String = String::from(params.get().unwrap().get_coordinates().unwrap());
 
-        let module: Rc<RefCell<iomod::Client>> = Rc::new(RefCell::new(
-            params.get().unwrap().get_iomod().unwrap()));
+        let module: Rc<RefCell<iomod::Client>> =
+            Rc::new(RefCell::new(params.get().unwrap().get_iomod().unwrap()));
 
         let agent: agent::Client = capnp_rpc::new_client(Agent::new(module));
 

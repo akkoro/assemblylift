@@ -12,14 +12,12 @@ lazy_static! {
 }
 
 pub struct Threader {
-    registry_tx: RegistryTx
+    registry_tx: RegistryTx,
 }
 
 impl Threader {
     pub fn new(tx: RegistryTx) -> Self {
-        Threader {
-            registry_tx: tx
-        }
+        Threader { registry_tx: tx }
     }
 
     pub fn next_event_id(&mut self) -> Option<u32> {
@@ -74,13 +72,15 @@ impl Threader {
         let method_name = format!("{}", coords[3]);
 
         let channel = mpsc::channel();
-        self.registry_tx.send(RegistryChannelMessage {
-            iomod_coords,
-            method_name,
-            payload_type: "IOMOD_REQUEST",
-            payload: method_input,
-            responder: Some(channel.0.clone())
-        }).unwrap();
+        self.registry_tx
+            .send(RegistryChannelMessage {
+                iomod_coords,
+                method_name,
+                payload_type: "IOMOD_REQUEST",
+                payload: method_input,
+                responder: Some(channel.0.clone()),
+            })
+            .unwrap();
 
         tokio::task::spawn_local(async move {
             if let Ok(response) = channel.1.recv() {

@@ -10,10 +10,10 @@ use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime_core::vm::Ctx;
 use wasmer_runtime_core::Instance;
 
-use assemblylift_core::threader::Threader;
 use assemblylift_core::abi::{
     asml_abi_event_len, asml_abi_event_ptr, asml_abi_invoke, asml_abi_poll,
 };
+use assemblylift_core::threader::Threader;
 use assemblylift_core_iomod::registry;
 use assemblylift_core_iomod::registry::{RegistryChannel, RegistryTx};
 
