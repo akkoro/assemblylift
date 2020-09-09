@@ -17,6 +17,7 @@
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/guest/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/core/iomod/guest/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/dynamodb/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/backends/aws-lambda/iomod/dynamodb/guest/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

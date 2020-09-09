@@ -30,6 +30,8 @@ use tokio::task::JoinHandle;
 
 static DYNAMODB: Lazy<DynamoDbClient> = Lazy::new(|| DynamoDbClient::new(Region::UsEast1));
 
+// TODO look at moving a lot of this out or to new macros
+
 struct CallRequest {
     pub coords: String,
     pub input: Vec<u8>,
@@ -128,8 +130,6 @@ impl iomod::Server for Iomod {
     }
 }
 
-// TODO write everything with macros -- macro in many literal definitions, or something
-
 #[tokio::main]
 async fn main() {
     // TODO macro
@@ -181,7 +181,7 @@ async fn main() {
                         })
                         .await
                     {
-                        println!("{}", why)
+                        println!("ERROR {}", why)
                     }
                 }
             })

@@ -187,6 +187,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "assemblylift-iomod-dynamodb-guest"
+version = "0.1.0"
+dependencies = [
+ "assemblylift-core-event-guest",
+ "assemblylift-core-iomod-guest",
+ "base64 0.12.1",
+ "bytes",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "async-trait"
 version = "0.1.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
