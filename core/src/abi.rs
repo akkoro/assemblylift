@@ -6,8 +6,8 @@ use std::io::ErrorKind;
 use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime_core::vm;
 
+use crate::{spawn_event, WasmBufferPtr};
 use crate::threader::Threader;
-use crate::WasmBufferPtr;
 
 pub type AsmlAbiFn = fn(&mut vm::Ctx, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
 
@@ -20,24 +20,18 @@ pub fn asml_abi_invoke(
     mem: WasmBufferPtr,
     name_ptr: u32,
     name_len: u32,
-    input: WasmBufferPtr,
+    input: u32,
     input_len: u32,
 ) -> i32 {
     println!("TRACE: asml_abi_invoke called");
 
-    let threader = get_threader(ctx);
-
-    if let Ok(coords) = ctx_ptr_to_string(ctx, name_ptr, name_len) {
-        let coord_vec = coords.split(".").collect::<Vec<&str>>();
-        let org = coord_vec[0];
-        let namespace = coord_vec[1];
-        let name = coord_vec[2];
-        println!("  with coordinates: {:?}", coord_vec);
-
+    if let Ok(method_path) = ctx_ptr_to_string(ctx, name_ptr, name_len) {
+        println!("  with name: {:?}", method_path);
         println!("DEBUG: input_len={}", input_len);
 
-        // return registry.modules[org][namespace][name].0(ctx, mem, input, input_len);
-        return 0i32;
+        if let Ok(input) = ctx_ptr_to_bytes(ctx, input, input_len) {
+            return spawn_event(ctx, mem, &*method_path, input);
+        }
     }
 
     println!("ERROR: asml_abi_invoke error");
@@ -83,6 +77,7 @@ fn get_threader(ctx: &mut vm::Ctx) -> *mut Threader {
     threader
 }
 
+
 #[inline]
 fn ctx_ptr_to_string(ctx: &mut vm::Ctx, ptr: u32, len: u32) -> Result<String, io::Error> {
     let memory = ctx.memory(0);
@@ -99,4 +94,20 @@ fn ctx_ptr_to_string(ctx: &mut vm::Ctx, ptr: u32, len: u32) -> Result<String, io
     std::str::from_utf8(str_vec.as_slice())
         .map(String::from)
         .map_err(to_io_error)
+}
+
+#[inline]
+fn ctx_ptr_to_bytes(ctx: &mut vm::Ctx, ptr: u32, len: u32) -> Result<Vec<u8>, io::Error> {
+    let memory = ctx.memory(0);
+    let view: MemoryView<u8> = memory.view();
+
+    let mut bytes: Vec<u8> = Vec::new();
+    for byte in view[ptr as usize..(ptr + len) as usize]
+        .iter()
+        .map(Cell::get)
+    {
+        bytes.push(byte);
+    }
+
+    Ok(bytes)
 }

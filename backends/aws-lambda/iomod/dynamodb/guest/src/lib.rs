@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate assemblylift_core_iomod_guest;
 
-export_iomod_guest!();
+export_iomod_guest!(akkoro, aws, dynamodb);
 
 use serde_json;
 

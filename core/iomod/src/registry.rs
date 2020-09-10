@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 
 use capnp::capability::Promise;
 use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
@@ -10,6 +10,7 @@ use futures::{AsyncReadExt, FutureExt, TryFutureExt};
 use once_cell::sync::Lazy;
 use tokio::net::TcpListener;
 use tokio::prelude::*;
+use tokio::sync::mpsc;
 use tokio_util::compat::Tokio02AsyncReadCompatExt;
 
 use crate::iomod_capnp::{agent, iomod, registry};
@@ -62,13 +63,20 @@ impl Registry {
         }
     }
 
-    pub fn start_service(&mut self, rx: RegistryRx) -> Result<(), RegistryError> {
-        tokio::task::spawn_local(async move {
+    pub fn spawn_local(
+        &mut self,
+        local_set: &tokio::task::LocalSet,
+        mut rx: RegistryRx,
+    ) -> Result<(), RegistryError> {
+        println!("TRACE: starting registry");
+
+        local_set.spawn_local(async move {
+            println!("TRACE: spawning RPC task");
+
             let mut listener = TcpListener::bind("127.0.0.1:13555").await.unwrap();
             let registry_client: registry::Client = capnp_rpc::new_client(Registry::new());
 
-            loop {
-                let (stream, _) = listener.accept().await.unwrap();
+            while let Ok((stream, _)) = listener.accept().await {
                 stream.set_nodelay(true).unwrap();
 
                 let (reader, writer) =
@@ -93,9 +101,13 @@ impl Registry {
         });
 
         let modules = self.modules.clone();
-        tokio::task::spawn_local(async move {
-            while let Ok(msg) = rx.recv() {
-                let responder = msg.responder.unwrap();
+        local_set.spawn_local(async move {
+            println!("TRACE: spawning invoke queue rx task");
+
+            while let Some(msg) = rx.recv().await {
+                println!("TRACE: received invoke from Threader");
+
+                let mut responder = msg.responder.unwrap();
                 let coords = msg.iomod_coords;
                 let method = msg.method_name;
                 let input = msg.payload.as_slice();
@@ -116,8 +128,7 @@ impl Registry {
                         payload_type: "IOMOD_RESPONSE",
                         payload: response_payload,
                         responder: None,
-                    })
-                    .unwrap();
+                    }).await.unwrap();
             }
         });
 

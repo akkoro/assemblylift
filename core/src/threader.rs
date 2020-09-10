@@ -1,7 +1,8 @@
 use std::collections::HashMap;
-use std::sync::{mpsc, Mutex};
+use std::sync::Mutex;
 
 use crossbeam_utils::atomic::AtomicCell;
+use tokio::sync::mpsc;
 
 use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 use assemblylift_core_event_common::EventMemoryDocument;
@@ -58,7 +59,7 @@ impl Threader {
         writer: *const AtomicCell<u8>,
         event_id: u32,
     ) {
-        println!("TRACE: spawn_with_event_id");
+        println!("TRACE: Threader::spawn_with_event_id");
 
         // FIXME this is a kludge -- I feel like the raw pointer shouldn't be needed
         let slc = unsafe { std::slice::from_raw_parts(writer, EVENT_BUFFER_SIZE_BYTES) };
@@ -71,19 +72,23 @@ impl Threader {
         let iomod_coords = format!("{}.{}.{}", coords[0], coords[1], coords[2]);
         let method_name = format!("{}", coords[3]);
 
-        let channel = mpsc::channel();
-        self.registry_tx
-            .send(RegistryChannelMessage {
-                iomod_coords,
-                method_name,
-                payload_type: "IOMOD_REQUEST",
-                payload: method_input,
-                responder: Some(channel.0.clone()),
-            })
-            .unwrap();
+        let mut registry_tx = self.registry_tx.clone();
+        let (local_tx, mut local_rx) = mpsc::channel(100);
 
-        tokio::task::spawn_local(async move {
-            if let Ok(response) = channel.1.recv() {
+        tokio::spawn(async move {
+            registry_tx.send(RegistryChannelMessage {
+                    iomod_coords,
+                    method_name,
+                    payload_type: "IOMOD_REQUEST",
+                    payload: method_input,
+                    responder: Some(local_tx.clone()),
+                }).await.unwrap();
+
+            println!("TRACE: sent invoke to Registry");
+        });
+
+        tokio::spawn(async move {
+            if let Some(response) = local_rx.recv().await {
                 EVENT_MEMORY
                     .lock()
                     .unwrap()
