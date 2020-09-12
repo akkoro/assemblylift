@@ -73,9 +73,9 @@ async fn main() {
     //     std::mem::drop(ref_cell);
 
 
-    let channel = mpsc::channel(100);
+    let registry_channel = mpsc::channel(100);
 
-    let rx = channel.1;
+    let rx = registry_channel.1;
     registry::spawn_registry(rx).unwrap();
 
     // load plugins from runtime dir, which should contain merged contents of Lambda layers
@@ -88,18 +88,20 @@ async fn main() {
     }
 
     println!("TRACE: building Wasmer instance");
-    let tx = channel.0.clone();
+    let tx = registry_channel.0.clone();
     let instance = match wasm::build_instance(tx) {
         Ok(instance) => instance,
         Err(why) => panic!("PANIC {}", why.to_string()),
     };
 
+    println!("DEBUG: spawning handler task");
     tokio::spawn(async move {
         // handler coordinates are expected to be <file name>.<function name>
         let handler_coordinates = env::var("_HANDLER").unwrap();
         let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
         let handler_name = coords[1];
 
+        println!("DEBUG: writing event buffer");
         write_event_buffer(&instance, "{}".to_string() /*event.event_body*/);
         Threader::__reset_memory();
 
@@ -108,7 +110,7 @@ async fn main() {
             Ok(_result) => println!("TRACE: handler returned Ok()"),
             Err(error) => println!("ERROR: {}", error.to_string()),
         }
-    });
+    }).await.unwrap();
 
     // }
 }

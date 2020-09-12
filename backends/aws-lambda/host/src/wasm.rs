@@ -56,6 +56,8 @@ pub fn build_instance(tx: RegistryTx) -> Result<Instance, io::Error> {
             let threader = Box::into_raw(Box::from(Threader::new(tx)));
             instance.context_mut().data = threader as *mut _ as *mut c_void;
 
+            println!("DEBUG: attached threader to instance");
+
             Ok(instance)
         }
         Err(error) => Err(to_io_error(error)),
