@@ -2,31 +2,19 @@
 extern crate assemblylift_core_iomod;
 
 use std::collections::HashMap;
-use std::future::Future;
-use std::pin::Pin;
 
 use capnp::capability::Promise;
 use capnp::Error;
-use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
-use crossbeam_utils::atomic::AtomicCell;
-use futures::{AsyncReadExt, FutureExt, TryFutureExt};
+use capnp_rpc::{rpc_twoparty_capnp, RpcSystem, twoparty};
+use futures::{AsyncReadExt, FutureExt};
+use futures::future::BoxFuture;
 use once_cell::sync::Lazy;
 use rusoto_core::Region;
 use rusoto_dynamodb::DynamoDbClient;
 use tokio::net::TcpStream;
-use tokio::prelude::*;
-use tokio_util::compat::Tokio02AsyncReadCompatExt;
-use wasmer_runtime_core::vm;
-
-use assemblylift_core::WasmBufferPtr;
-use assemblylift_core_iomod::iomod_capnp::*;
-use futures::future::BoxFuture;
-use std::borrow::BorrowMut;
-use std::cell::{Cell, RefCell};
-use std::rc::Rc;
-use std::sync::Arc;
 use tokio::sync::mpsc;
-use tokio::task::JoinHandle;
+
+use assemblylift_core_iomod::iomod_capnp::*;
 
 static IOMOD_COORDS: &str = "akkoro.aws.dynamodb";
 static DYNAMODB: Lazy<DynamoDbClient> = Lazy::new(|| DynamoDbClient::new(Region::UsEast1));
@@ -92,14 +80,6 @@ impl Iomod {
 }
 
 impl iomod::Server for Iomod {
-    fn get_declaration(
-        &mut self,
-        params: iomod::GetDeclarationParams,
-        results: iomod::GetDeclarationResults,
-    ) -> Promise<(), Error> {
-        Promise::ok(())
-    }
-
     fn invoke(
         &mut self,
         params: iomod::InvokeParams,
@@ -195,7 +175,7 @@ async fn main() {
                 }
             });
 
-            tokio::join!(rpc_task, call_task);
+            let (_, _) = tokio::join!(rpc_task, call_task);
         })
         .await;
 }
