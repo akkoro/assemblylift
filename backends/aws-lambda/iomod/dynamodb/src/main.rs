@@ -28,6 +28,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
+static IOMOD_COORDS: &str = "akkoro.aws.dynamodb";
 static DYNAMODB: Lazy<DynamoDbClient> = Lazy::new(|| DynamoDbClient::new(Region::UsEast1));
 
 // TODO look at moving a lot of this out or to new macros
@@ -106,6 +107,7 @@ impl iomod::Server for Iomod {
     ) -> Promise<(), Error> {
         let mut tx = self.tx.clone();
 
+        println!("IOMOD: RPC invoke");
         Promise::from_future(async move {
             let coords = params.get().unwrap().get_coordinates().unwrap().to_owned();
             let input = params.get().unwrap().get_input().unwrap();
@@ -132,6 +134,8 @@ impl iomod::Server for Iomod {
 
 #[tokio::main]
 async fn main() {
+    println!("Starting AssemblyLift IO module {}", IOMOD_COORDS);
+
     // TODO macro
     let mut call_map: CallMap = CallMap::new();
     call_map
@@ -158,15 +162,20 @@ async fn main() {
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async move {
-            tokio::task::spawn_local(Box::pin(rpc_system.map(|_| ())));
+            let rpc_task = tokio::task::spawn_local(Box::pin(rpc_system.map(|_| ())));
 
+            println!("IOMOD: registering dynamodb IOmod");
             let mut register = registry.register_request();
             register
                 .get()
                 .set_iomod(capnp_rpc::new_client(Iomod::new(call_channel.0.clone())));
+            register
+                .get()
+                .set_coordinates(IOMOD_COORDS);
             register.send().promise.await.unwrap();
 
-            tokio::spawn(async move {
+            println!("IOMOD: spawning call receiver");
+            let call_task = tokio::task::spawn_local(async move {
                 while let Some(mut call) = call_channel.1.recv().await {
                     let coords = call.coords.as_str();
                     let call_ptr = call_map.get(String::from(coords), call.input);
@@ -184,9 +193,9 @@ async fn main() {
                         println!("ERROR {}", why)
                     }
                 }
-            })
-            .await
-            .unwrap();
+            });
+
+            tokio::join!(rpc_task, call_task);
         })
         .await;
 }

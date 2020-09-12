@@ -26,7 +26,8 @@ pub mod macros {
                 use serde_json;
 
                 let name = std::stringify!($name);
-                let method_path = format!("{}.{}.{}.{}", IOMOD_ORG, IOMOD_NAMESPACE, IOMOD_NAME, name);
+                let method_path =
+                    format!("{}.{}.{}.{}", IOMOD_ORG, IOMOD_NAMESPACE, IOMOD_NAME, name);
 
                 let event_id: i32;
                 unsafe {

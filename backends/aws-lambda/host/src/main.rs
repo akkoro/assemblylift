@@ -1,17 +1,14 @@
 #[macro_use]
 extern crate lazy_static;
 
-use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::env;
 use std::fs;
-use std::ops::Deref;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::process;
+use std::sync::Mutex;
 
 use clap::crate_version;
 use crossbeam_utils::atomic::AtomicCell;
-use crossbeam_utils::thread::scope;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
 use wasmer_runtime::Instance;
@@ -20,16 +17,13 @@ use assemblylift_core::threader::Threader;
 use assemblylift_core::WasmBufferPtr;
 use assemblylift_core_iomod::registry;
 use runtime::AwsLambdaRuntime;
+use std::path::Path;
 
 mod runtime;
 mod wasm;
 
 lazy_static! {
     pub static ref LAMBDA_RUNTIME: AwsLambdaRuntime = AwsLambdaRuntime::new();
-}
-
-tokio::task_local! {
-    static INSTANCE: Instance;
 }
 
 pub static LAMBDA_REQUEST_ID: Lazy<Mutex<RefCell<String>>> =
@@ -65,19 +59,10 @@ async fn main() {
         crate_version!()
     );
 
+    let iomod_dir = Path::new("./iomod/").canonicalize().unwrap();
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
     println!("Using Lambda root: {}", lambda_path);
-
-    // load plugins from runtime dir, which should contain merged contents of Lambda layers
-    // for entry in fs::read_dir(runtime_dir).unwrap() {
-    //     let entry = entry.unwrap();
-    //     println!("Found entry: {}", entry.path().display());
-    //     if entry.file_type().unwrap().is_file()
-    //         && entry.file_name().into_string().unwrap().contains(".so")
-    //     {
-    //         plugin::load(&mut MODULE_REGISTRY, entry.path()).unwrap();
-    //     }
-    // }
+    println!("Using IOmod root: {:?}", iomod_dir);
 
     println!("TRACE: starting main Lambda runtime loop");
     // while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
@@ -87,14 +72,24 @@ async fn main() {
     //     ref_cell.replace(event.request_id.clone());
     //     std::mem::drop(ref_cell);
 
-    let local_set = tokio::task::LocalSet::new();
+
     let channel = mpsc::channel(100);
 
-    let mut registry = registry::Registry::new();
-    registry.spawn_local(&local_set, channel.1).unwrap();
+    let rx = channel.1;
+    registry::spawn_registry(rx).unwrap();
+
+    // load plugins from runtime dir, which should contain merged contents of Lambda layers
+    for entry in fs::read_dir(iomod_dir).unwrap() {
+        let entry = entry.unwrap();
+        println!("Starting IOmod: {}", entry.path().display());
+        if entry.file_type().unwrap().is_file() {
+            process::Command::new(entry.path()).spawn().unwrap();
+        }
+    }
 
     println!("TRACE: building Wasmer instance");
-    let instance = match wasm::build_instance(channel.0.clone()) {
+    let tx = channel.0.clone();
+    let instance = match wasm::build_instance(tx) {
         Ok(instance) => instance,
         Err(why) => panic!("PANIC {}", why.to_string()),
     };
@@ -115,6 +110,5 @@ async fn main() {
         }
     });
 
-    local_set.await;
     // }
 }

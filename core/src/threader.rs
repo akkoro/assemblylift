@@ -14,11 +14,12 @@ lazy_static! {
 
 pub struct Threader {
     registry_tx: RegistryTx,
+    runtime: tokio::runtime::Runtime,
 }
 
 impl Threader {
     pub fn new(tx: RegistryTx) -> Self {
-        Threader { registry_tx: tx }
+        Threader { registry_tx: tx, runtime: tokio::runtime::Runtime::new().unwrap() }
     }
 
     pub fn next_event_id(&mut self) -> Option<u32> {
@@ -75,25 +76,35 @@ impl Threader {
         let mut registry_tx = self.registry_tx.clone();
         let (local_tx, mut local_rx) = mpsc::channel(100);
 
-        tokio::spawn(async move {
-            registry_tx.send(RegistryChannelMessage {
-                    iomod_coords,
-                    method_name,
-                    payload_type: "IOMOD_REQUEST",
-                    payload: method_input,
-                    responder: Some(local_tx.clone()),
-                }).await.unwrap();
+        let hnd = self.runtime.handle().clone();
+        std::thread::spawn(move || {
+            hnd.enter(|| {
+                tokio::spawn(async move {
+                    println!("TRACE: sending invoke to Registry");
+                    registry_tx
+                        .send(RegistryChannelMessage {
+                            iomod_coords,
+                            method_name,
+                            payload_type: "IOMOD_REQUEST",
+                            payload: method_input,
+                            responder: Some(local_tx.clone()),
+                        })
+                        .await
+                        .unwrap();
 
-            println!("TRACE: sent invoke to Registry");
-        });
+                    println!("TRACE: sent invoke to Registry");
+                });
 
-        tokio::spawn(async move {
-            if let Some(response) = local_rx.recv().await {
-                EVENT_MEMORY
-                    .lock()
-                    .unwrap()
-                    .write_vec_at(slc, response.payload, event_id);
-            }
+                tokio::spawn(async move {
+                    if let Some(response) = local_rx.recv().await {
+                        println!("TRACE: got invocation response");
+                        EVENT_MEMORY
+                            .lock()
+                            .unwrap()
+                            .write_vec_at(slc, response.payload, event_id);
+                    }
+                });
+            });
         });
 
         println!("TRACE: spawned");

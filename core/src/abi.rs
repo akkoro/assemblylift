@@ -6,8 +6,8 @@ use std::io::ErrorKind;
 use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime_core::vm;
 
-use crate::{spawn_event, WasmBufferPtr};
 use crate::threader::Threader;
+use crate::{spawn_event, WasmBufferPtr};
 
 pub type AsmlAbiFn = fn(&mut vm::Ctx, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
 
@@ -76,7 +76,6 @@ fn get_threader(ctx: &mut vm::Ctx) -> *mut Threader {
 
     threader
 }
-
 
 #[inline]
 fn ctx_ptr_to_string(ctx: &mut vm::Ctx, ptr: u32, len: u32) -> Result<String, io::Error> {
