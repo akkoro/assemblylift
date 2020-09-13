@@ -19,7 +19,10 @@ pub struct Threader {
 
 impl Threader {
     pub fn new(tx: RegistryTx) -> Self {
-        Threader { registry_tx: tx, runtime: tokio::runtime::Runtime::new().unwrap() }
+        Threader {
+            registry_tx: tx,
+            runtime: tokio::runtime::Runtime::new().unwrap(),
+        }
     }
 
     pub fn next_event_id(&mut self) -> Option<u32> {

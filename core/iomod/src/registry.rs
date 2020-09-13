@@ -70,7 +70,8 @@ pub fn spawn_registry(mut rx: RegistryRx) -> Result<(), RegistryError> {
                 println!("TRACE: spawning RPC task");
 
                 let mut listener = TcpListener::bind("127.0.0.1:13555").await.unwrap();
-                let registry_client: registry::Client = capnp_rpc::new_client(Registry::new(rpc_modules));
+                let registry_client: registry::Client =
+                    capnp_rpc::new_client(Registry::new(rpc_modules));
 
                 while let Ok((stream, _)) = listener.accept().await {
                     println!("TRACE: rx RPC connection from IOmod");
@@ -146,9 +147,7 @@ pub fn spawn_registry(mut rx: RegistryRx) -> Result<(), RegistryError> {
 
 impl Registry {
     pub fn new(modules: ModuleMap) -> Self {
-        Self {
-            modules,
-        }
+        Self { modules }
     }
 }
 

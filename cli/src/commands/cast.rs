@@ -27,7 +27,6 @@ pub fn command(matches: Option<&ArgMatches>) {
         _ => panic!("could not get matches for cast command"),
     };
 
-
     // Download the latest runtime binary
     // TODO in the future we should check if we already have the same version
     // TODO argument to specify which version -- default to 'latest'
@@ -78,10 +77,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                     let dependency_name = name.clone();
                     let dependency_path = dependency.from.clone();
 
-                    let runtime_path = format!(
-                        "./.asml/runtime/{}",
-                        dependency_name
-                    );
+                    let runtime_path = format!("./.asml/runtime/{}", dependency_name);
                     fs::copy(dependency_path, &runtime_path).unwrap();
 
                     dependencies.push(runtime_path);

@@ -5,9 +5,9 @@ use std::collections::HashMap;
 
 use capnp::capability::Promise;
 use capnp::Error;
-use capnp_rpc::{rpc_twoparty_capnp, RpcSystem, twoparty};
-use futures::{AsyncReadExt, FutureExt};
+use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::future::BoxFuture;
+use futures::{AsyncReadExt, FutureExt};
 use once_cell::sync::Lazy;
 use rusoto_core::Region;
 use rusoto_dynamodb::DynamoDbClient;
@@ -149,9 +149,7 @@ async fn main() {
             register
                 .get()
                 .set_iomod(capnp_rpc::new_client(Iomod::new(call_channel.0.clone())));
-            register
-                .get()
-                .set_coordinates(IOMOD_COORDS);
+            register.get().set_coordinates(IOMOD_COORDS);
             register.send().promise.await.unwrap();
 
             println!("IOMOD: spawning call receiver");

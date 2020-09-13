@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::env;
 use std::fs;
 use std::process;
-use std::sync::{Mutex, Arc};
+use std::sync::{Arc, Mutex};
 
 use clap::crate_version;
 use crossbeam_utils::atomic::AtomicCell;
@@ -81,40 +81,44 @@ async fn main() {
     let task_set = tokio::task::LocalSet::new();
 
     println!("TRACE: starting main Lambda runtime loop");
-    task_set.run_until(async move {
-        println!("TRACE: building Wasmer instance");
+    task_set
+        .run_until(async move {
+            println!("TRACE: building Wasmer instance");
 
-        let instance = match wasm::build_instance(tx) {
-            Ok(instance) => instance,
-            Err(why) => panic!("PANIC {}", why.to_string()),
-        };
-        let instance = Arc::new(instance);
+            let instance = match wasm::build_instance(tx) {
+                Ok(instance) => instance,
+                Err(why) => panic!("PANIC {}", why.to_string()),
+            };
+            let instance = Arc::new(instance);
 
-        while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
-            println!("DEBUG: got Lambda event {}", event.request_id.clone());
+            while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
+                println!("DEBUG: got Lambda event {}", event.request_id.clone());
 
-            let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
-            ref_cell.replace(event.request_id.clone());
-            std::mem::drop(ref_cell);
+                let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
+                ref_cell.replace(event.request_id.clone());
+                std::mem::drop(ref_cell);
 
-            println!("DEBUG: spawning handler task");
-            let instance = instance.clone();
-            tokio::task::spawn_local(async move {
-                // handler coordinates are expected to be <file name>.<function name>
-                let handler_coordinates = env::var("_HANDLER").unwrap();
-                let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
-                let handler_name = coords[1];
+                println!("DEBUG: spawning handler task");
+                let instance = instance.clone();
+                tokio::task::spawn_local(async move {
+                    // handler coordinates are expected to be <file name>.<function name>
+                    let handler_coordinates = env::var("_HANDLER").unwrap();
+                    let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
+                    let handler_name = coords[1];
 
-                println!("DEBUG: writing event buffer");
-                write_event_buffer(&instance, event.event_body);
-                Threader::__reset_memory();
+                    println!("DEBUG: writing event buffer");
+                    write_event_buffer(&instance, event.event_body);
+                    Threader::__reset_memory();
 
-                println!("DEBUG: calling handler {}", handler_name);
-                match instance.call(handler_name, &[]) {
-                    Ok(_result) => println!("TRACE: handler returned Ok()"),
-                    Err(error) => println!("ERROR: {}", error.to_string()),
-                }
-            }).await.unwrap();
-        }
-    }).await;
+                    println!("DEBUG: calling handler {}", handler_name);
+                    match instance.call(handler_name, &[]) {
+                        Ok(_result) => println!("TRACE: handler returned Ok()"),
+                        Err(error) => println!("ERROR: {}", error.to_string()),
+                    }
+                })
+                .await
+                .unwrap();
+            }
+        })
+        .await;
 }
