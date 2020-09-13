@@ -27,6 +27,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         _ => panic!("could not get matches for cast command"),
     };
 
+
     // Download the latest runtime binary
     // TODO in the future we should check if we already have the same version
     // TODO argument to specify which version -- default to 'latest'
@@ -53,6 +54,8 @@ pub fn command(matches: Option<&ArgMatches>) {
         ),
     };
 
+    terraform::extract(&canonical_project_path);
+
     let mut functions: Vec<TerraformFunction> = Vec::new();
     let mut services: Vec<TerraformService> = Vec::new();
 
@@ -74,11 +77,10 @@ pub fn command(matches: Option<&ArgMatches>) {
 
                     let dependency_name = name.clone();
                     let dependency_path = dependency.from.clone();
-                    let p = path::Path::new(&dependency_path);
+
                     let runtime_path = format!(
-                        "./.asml/runtime/{}.{}",
-                        dependency_name,
-                        p.extension().unwrap().to_str().unwrap()
+                        "./.asml/runtime/{}",
+                        dependency_name
                     );
                     fs::copy(dependency_path, &runtime_path).unwrap();
 
@@ -92,7 +94,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             dependencies,
             format!("./.asml/runtime/{}.zip", &service_name),
             Some("iomod/"),
-            true,
+            false,
         );
 
         for (_id, function) in service_manifest.api.functions {

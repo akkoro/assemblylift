@@ -173,15 +173,18 @@ pub fn write_service_terraform(
 
     let render = reg.render(file_name, &data).unwrap();
 
-    let path_str = &format!(
-        "{}/net/services/{}/{}",
+    let path = &format!(
+        "{}/net/services/{}",
         canonical_project_path.display(),
-        &service.name,
-        file_name
+        &service.name
     );
-    let path = path::Path::new(path_str);
 
-    projectfs::write_to_file(&path, render)
+    fs::create_dir_all(path);
+
+    let file_path = &format!("{}/{}", path, file_name);
+    let file_path = path::Path::new(file_path);
+
+    projectfs::write_to_file(&file_path, render)
 }
 
 pub fn write_function_terraform(
