@@ -23,18 +23,12 @@ pub fn asml_abi_invoke(
     input: u32,
     input_len: u32,
 ) -> i32 {
-    println!("TRACE: asml_abi_invoke called");
-
     if let Ok(method_path) = ctx_ptr_to_string(ctx, name_ptr, name_len) {
-        println!("  with name: {:?}", method_path);
-        println!("DEBUG: input_len={}", input_len);
-
         if let Ok(input) = ctx_ptr_to_bytes(ctx, input, input_len) {
             return spawn_event(ctx, mem, &*method_path, input);
         }
     }
-
-    println!("ERROR: asml_abi_invoke error");
+    
     -1i32 // error
 }
 

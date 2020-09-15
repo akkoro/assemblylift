@@ -81,7 +81,7 @@ macro_rules! handler {
                 }
             };
 
-            let $context: $type = LambdaContext { client, event };
+            let $context: $type = $type { client, event };
 
             direct_executor::run_spinning($async_handler);
 

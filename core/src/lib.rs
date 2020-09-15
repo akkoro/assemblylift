@@ -25,11 +25,9 @@ pub fn spawn_event(
     if threader.is_null() {
         panic!("Threader instance is NULL in spawn_event")
     }
+    let threader = unsafe { threader.as_mut().unwrap() };
 
-    let threader_ref = unsafe { threader.as_mut().unwrap() };
-
-    let event_id = threader_ref.next_event_id().unwrap();
-    println!("DEBUG: event_id={}", event_id);
+    let event_id = threader.next_event_id().unwrap();
 
     let wasm_instance_memory = ctx.memory(0);
     let memory_writer: &[AtomicCell<u8>] =
@@ -38,7 +36,7 @@ pub fn spawn_event(
             None => panic!("could not dereference WASM guest memory in spawn_event"),
         };
 
-    threader_ref.spawn_with_event_id(method_path, method_input, memory_writer.as_ptr(), event_id);
+    threader.spawn_with_event_id(method_path, method_input, memory_writer.as_ptr(), event_id);
 
     event_id as i32
 }

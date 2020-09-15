@@ -40,7 +40,6 @@ impl Threader {
     }
 
     pub fn get_event_memory_document(&mut self, event_id: u32) -> Option<EventMemoryDocument> {
-        println!("TRACE: get_event_memory_document event_id={}", event_id);
         match EVENT_MEMORY.lock() {
             Ok(memory) => {
                 println!(
@@ -83,7 +82,6 @@ impl Threader {
         std::thread::spawn(move || {
             hnd.enter(|| {
                 tokio::spawn(async move {
-                    println!("TRACE: sending invoke to Registry");
                     registry_tx
                         .send(RegistryChannelMessage {
                             iomod_coords,
@@ -94,13 +92,10 @@ impl Threader {
                         })
                         .await
                         .unwrap();
-
-                    println!("TRACE: sent invoke to Registry");
                 });
 
                 tokio::spawn(async move {
                     if let Some(response) = local_rx.recv().await {
-                        println!("TRACE: got invocation response");
                         EVENT_MEMORY
                             .lock()
                             .unwrap()
@@ -109,8 +104,6 @@ impl Threader {
                 });
             });
         });
-
-        println!("TRACE: spawned");
     }
 
     pub fn __reset_memory() {
@@ -152,26 +145,18 @@ impl EventMemory {
     }
 
     pub fn write_vec_at(&mut self, writer: &[AtomicCell<u8>], vec: Vec<u8>, event_id: u32) {
-        println!("TRACE: write_vec_at");
-
         // Serialize the response
         let response_len = vec.len();
-        println!("DEBUG: response is {} bytes", response_len);
 
         let start = self.find_with_length(response_len);
         let end = start + response_len;
         for i in start..end {
             writer[i].store(vec[i - start]);
         }
-        println!("TRACE: stored response");
 
         // Update document map
         self.document_map
             .insert(event_id, EventMemoryDocument { start, length: end });
-        println!(
-            "TRACE: updated document map id={} start={} end={}",
-            event_id, start, end
-        );
 
         // Update event status table
         self.event_map.insert(event_id, true);
@@ -181,7 +166,6 @@ impl EventMemory {
         self._next_id = 1;
         self.document_map = Default::default();
         self.event_map = Default::default();
-        println!("DEBUG: reset Threader memory");
     }
 
     fn find_with_length(&self, _length: usize) -> usize {

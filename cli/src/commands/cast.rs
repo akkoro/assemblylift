@@ -133,7 +133,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             );
 
             if copy_result.is_err() {
-                println!("{:?}", copy_result.err());
+                println!("ERROR: {:?}", copy_result.err());
             }
 
             let wasm_path = format!("{}/{}.wasm", function_artifact_path, &function.name);

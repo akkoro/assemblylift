@@ -5,18 +5,13 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use capnp::capability::Promise;
-use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
+use capnp_rpc::{rpc_twoparty_capnp, RpcSystem, twoparty};
 use futures::{AsyncReadExt, FutureExt, TryFutureExt};
-use once_cell::sync::Lazy;
 use tokio::net::TcpListener;
-use tokio::prelude::*;
 use tokio::sync::mpsc;
-use tokio_util::compat::Tokio02AsyncReadCompatExt;
 
-use crate::iomod_capnp::{agent, iomod, registry};
 use crate::Agent;
-use std::borrow::{Borrow, BorrowMut};
-use std::ops::Deref;
+use crate::iomod_capnp::{agent, iomod, registry};
 
 pub type RegistryTx = mpsc::Sender<RegistryChannelMessage>;
 pub type RegistryRx = mpsc::Receiver<RegistryChannelMessage>;
@@ -66,16 +61,12 @@ pub fn spawn_registry(mut rx: RegistryRx) -> Result<(), RegistryError> {
             let modules: ModuleMap = Arc::new(Box::new(RefCell::new(HashMap::new())));
 
             let rpc_modules = modules.clone();
-            let rpc = tokio::task::spawn_local(async move {
-                println!("TRACE: spawning RPC task");
-
+            let rpc_task = tokio::task::spawn_local(async move {
                 let mut listener = TcpListener::bind("127.0.0.1:13555").await.unwrap();
                 let registry_client: registry::Client =
                     capnp_rpc::new_client(Registry::new(rpc_modules));
 
                 while let Ok((stream, _)) = listener.accept().await {
-                    println!("TRACE: rx RPC connection from IOmod");
-
                     stream.set_nodelay(true).unwrap();
 
                     let (reader, writer) =
@@ -100,12 +91,8 @@ pub fn spawn_registry(mut rx: RegistryRx) -> Result<(), RegistryError> {
             });
 
             let rx_modules = modules.clone();
-            let rx_queue = tokio::task::spawn_local(async move {
-                println!("TRACE: spawning invoke queue rx task");
-
+            let rx_task = tokio::task::spawn_local(async move {
                 while let Some(msg) = rx.recv().await {
-                    println!("TRACE: received invoke from Threader");
-
                     let mut responder = msg.responder.unwrap();
                     let coords = msg.iomod_coords;
                     let method = msg.method_name;
@@ -137,8 +124,15 @@ pub fn spawn_registry(mut rx: RegistryRx) -> Result<(), RegistryError> {
                 }
             });
 
-            tokio::join!(rpc, rx_queue);
-            println!("WARNING: rpc and rx_queue thread joined");
+            let (rpc_result, rx_result) = tokio::join!(rpc_task, rx_task);
+
+            if rpc_result.is_err() {
+                println!("ERROR: registry RPC task exited with error {:?}", Some(rpc_result.err()));
+            }
+
+            if rx_result.is_err() {
+                println!("ERROR: registry rx task exited with error {:?}", Some(rx_result.err()));
+            }
         })
     });
 
@@ -158,8 +152,6 @@ impl registry::Server for Registry {
         mut _results: registry::RegisterResults,
     ) -> Promise<(), capnp::Error> {
         let coordinates: String = String::from(params.get().unwrap().get_coordinates().unwrap());
-        println!("TRACE: registering IOmod at {}", coordinates);
-
         let module: Rc<RefCell<iomod::Client>> =
             Rc::new(RefCell::new(params.get().unwrap().get_iomod().unwrap()));
 

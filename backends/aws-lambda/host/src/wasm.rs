@@ -1,21 +1,19 @@
+use std::{env, io};
 use std::cell::Cell;
 use std::error::Error;
 use std::ffi::c_void;
 use std::fs::canonicalize;
 use std::io::ErrorKind;
-use std::sync::mpsc;
-use std::{env, io};
 
 use wasmer_runtime::memory::MemoryView;
-use wasmer_runtime_core::vm::Ctx;
 use wasmer_runtime_core::Instance;
+use wasmer_runtime_core::vm::Ctx;
 
 use assemblylift_core::abi::{
     asml_abi_event_len, asml_abi_event_ptr, asml_abi_invoke, asml_abi_poll,
 };
 use assemblylift_core::threader::Threader;
-use assemblylift_core_iomod::registry;
-use assemblylift_core_iomod::registry::{RegistryChannel, RegistryTx};
+use assemblylift_core_iomod::registry::RegistryTx;
 
 pub fn build_instance(tx: RegistryTx) -> Result<Instance, io::Error> {
     // let panic if these aren't set
@@ -27,12 +25,9 @@ pub fn build_instance(tx: RegistryTx) -> Result<Instance, io::Error> {
     let file_name = coords[0];
     let file_path = format!("{}/{}.wasm", lambda_path, file_name);
 
-    println!("DEBUG: loading WASM instance from {}", &file_path);
-
     let get_instance = canonicalize(file_path)
         .and_then(|path| std::fs::read(path))
         .and_then(|buffer| {
-            println!("DEBUG: read wasm file to buffer");
             use wasmer_runtime::{func, imports, instantiate};
             let import_object = imports! {
                 "env" => {
@@ -45,18 +40,13 @@ pub fn build_instance(tx: RegistryTx) -> Result<Instance, io::Error> {
                 },
             };
 
-            println!("DEBUG: instantiating wasm...");
             instantiate(&buffer[..], &import_object).map_err(to_io_error)
         });
 
     match get_instance {
         Ok(mut instance) => {
-            println!("DEBUG: raw instance instantiated");
-
             let threader = Box::into_raw(Box::from(Threader::new(tx)));
             instance.context_mut().data = threader as *mut _ as *mut c_void;
-
-            println!("DEBUG: attached threader to instance");
 
             Ok(instance)
         }
