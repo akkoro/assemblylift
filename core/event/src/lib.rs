@@ -1,4 +1,1 @@
-#[macro_use]
-extern crate lazy_static;
-
-pub mod threader;
+// TODO this crate can possibly be deprecated

@@ -1,60 +1,22 @@
-use std::collections::HashMap;
 use std::fs;
 use std::path;
 use std::process;
 use std::process::Stdio;
 
 use clap::ArgMatches;
-use serde_derive::Deserialize;
 
 use crate::artifact;
+use crate::bom;
 use crate::terraform;
-use crate::terraform::TerraformFunction;
+use crate::terraform::{TerraformFunction, TerraformService};
 
-// TODO these config structs belong in their own module
-// TODO they also need to be less confusingly named, wtf am I doing?
-
-// assemblylift.toml
-
-#[derive(Deserialize)]
-struct AssemblyLiftConfig {
-    project: AssemblyLiftConfigProject,
-    services: HashMap<String, AssemblyLiftConfigServices>, // map service_id -> service
-}
-
-#[derive(Deserialize)]
-struct AssemblyLiftConfigProject {
-    name: String,
-}
-
-#[derive(Deserialize)]
-struct AssemblyLiftConfigServices {
-    name: String,
-}
-
-// service.toml
-
-#[derive(Deserialize)]
-struct AssemblyLiftServiceConfig {
-    service: AssemblyLiftServiceConfigService,
-    api: AssemblyLiftServiceConfigApi,
-}
-
-#[derive(Deserialize)]
-struct AssemblyLiftServiceConfigService {
-    name: String,
-}
-
-#[derive(Deserialize)]
-struct AssemblyLiftServiceConfigApi {
-    name: String,
-    functions: HashMap<String, AssemblyLiftServiceConfigApiFunction>, // map function_id -> function
-}
-
-#[derive(Deserialize)]
-struct AssemblyLiftServiceConfigApiFunction {
-    name: String,
-    handler_name: String,
+macro_rules! path {
+    ($str:tt) => {
+        path::Path::new(&$str)
+    };
+    ($str:expr) => {
+        path::Path::new(&$str)
+    };
 }
 
 pub fn command(matches: Option<&ArgMatches>) {
@@ -69,7 +31,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     // TODO in the future we should check if we already have the same version
     // TODO argument to specify which version -- default to 'latest'
     let mut response = reqwest::blocking::get(
-        "http://runtime.assemblylift.akkoro.io/aws-lambda/latest/bootstrap.zip",
+        "http://runtime.assemblylift.akkoro.io/aws-lambda/xlem/bootstrap.zip",
     )
     .unwrap();
     let mut response_buffer = Vec::new();
@@ -81,17 +43,9 @@ pub fn command(matches: Option<&ArgMatches>) {
     // Compile function source
     // This currently assumes the language is Rust
 
-    let asml_config_contents = match fs::read_to_string("./assemblylift.toml") {
-        Ok(contents) => contents,
-        Err(why) => panic!("could not read assemblylift.toml: {}", why.to_string()),
-    };
+    let asml_manifest = bom::manifest::read();
 
-    let asml_config: AssemblyLiftConfig = match toml::from_str(&asml_config_contents) {
-        Ok(config) => config,
-        Err(why) => panic!("could not parse assemblylift.toml: {}", why.to_string()),
-    };
-
-    let canonical_project_path = match fs::canonicalize(path::Path::new("./")) {
+    let canonical_project_path = match fs::canonicalize(path!("./")) {
         Ok(path) => path,
         Err(why) => panic!(
             "unable to build canonical project path: {}",
@@ -99,34 +53,56 @@ pub fn command(matches: Option<&ArgMatches>) {
         ),
     };
 
+    terraform::extract(&canonical_project_path);
+
     let mut functions: Vec<TerraformFunction> = Vec::new();
-    // let mut services = Vec::new();
+    let mut services: Vec<TerraformService> = Vec::new();
 
-    for (_sid, service) in asml_config.services {
-        let service_path = format!("./services/{}/service.toml", service.name);
-        let service_config_contents = fs::read_to_string(service_path).unwrap();
-        let service_config: AssemblyLiftServiceConfig =
-            toml::from_str(&service_config_contents).unwrap();
+    for (_, service) in asml_manifest.services {
+        let service_name = service.name.clone();
+        let service_manifest = bom::service::read(&service_name);
 
-        // TODO is this necessary? seems better to err to safety, I'm not sure what happens if these don't match
-        if service.name != service_config.service.name {
-            panic!(
-                "incorrect config; service names {}, {} do not match",
-                service.name, service_config.service.name
-            )
+        let tf_service = TerraformService {
+            name: service_name.clone(),
+        };
+        services.push(tf_service.clone());
+        terraform::write_service_terraform(&canonical_project_path, tf_service).unwrap();
+
+        let mut dependencies: Vec<String> = Vec::new();
+        for (name, dependency) in service_manifest.iomod.dependencies {
+            match dependency.dependency_type.as_str() {
+                "file" => {
+                    // copy file & rename it to `name`
+
+                    let dependency_name = name.clone();
+                    let dependency_path = dependency.from.clone();
+
+                    let runtime_path = format!("./.asml/runtime/{}", dependency_name);
+                    fs::copy(dependency_path, &runtime_path).unwrap();
+
+                    dependencies.push(runtime_path);
+                }
+                _ => unimplemented!("only type=file is available currently"),
+            }
         }
 
-        for (_fid, function) in service_config.api.functions {
+        artifact::zip_files(
+            dependencies,
+            format!("./.asml/runtime/{}.zip", &service_name),
+            Some("iomod/"),
+            false,
+        );
+
+        for (_id, function) in service_manifest.api.functions {
             let function_artifact_path =
-                format!("./net/services/{}/{}", &service.name, function.name);
-            if let Err(err) = fs::create_dir_all(path::Path::new(&function_artifact_path)) {
+                format!("./net/services/{}/{}", &service_name, function.name);
+            if let Err(err) = fs::create_dir_all(path!(function_artifact_path)) {
                 panic!(err)
             }
 
-            let function_path = format!("./services/{}/{}", service.name, function.name);
+            let function_path = format!("./services/{}/{}", service_name, function.name);
             let canonical_function_path =
-                &fs::canonicalize(path::Path::new(&format!("{}/Cargo.toml", function_path)))
-                    .unwrap();
+                &fs::canonicalize(path!(format!("{}/Cargo.toml", function_path))).unwrap();
 
             let mode = "release"; // TODO should this really be the default?
 
@@ -157,18 +133,16 @@ pub fn command(matches: Option<&ArgMatches>) {
             );
 
             if copy_result.is_err() {
-                println!("{:?}", copy_result.err());
+                println!("ERROR: {:?}", copy_result.err());
             }
 
+            let wasm_path = format!("{}/{}.wasm", function_artifact_path, &function.name);
+
             artifact::zip_files(
-                vec![path::Path::new(&format!(
-                    "{}/{}.wasm",
-                    function_artifact_path, &function.name
-                ))],
-                &path::Path::new(&format!(
-                    "{}/{}.zip",
-                    function_artifact_path, &function.name
-                )),
+                vec![wasm_path],
+                format!("{}/{}.zip", function_artifact_path, &function.name),
+                None,
+                false,
             );
 
             let tf_function = TerraformFunction {
@@ -177,12 +151,12 @@ pub fn command(matches: Option<&ArgMatches>) {
                 service: service.name.clone(),
             };
 
-            terraform::write_function_terraform(&canonical_project_path, &tf_function);
+            terraform::write_function_terraform(&canonical_project_path, &tf_function).unwrap();
             functions.push(tf_function.clone());
         }
     }
 
-    terraform::write_root_terraform(&canonical_project_path, functions);
+    terraform::write_root_terraform(&canonical_project_path, functions, services).unwrap();
 
     terraform::run_terraform_init();
     terraform::run_terraform_plan();

@@ -11,9 +11,9 @@ use handlebars::{to_json, Handlebars};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::value::{Map, Value as Json};
 
+use crate::artifact;
 use crate::projectfs;
 use crate::templates;
-use crate::artifact;
 
 fn get_relative_path() -> &'static str {
     ".asml/bin/terraform"
@@ -34,18 +34,19 @@ pub fn extract(canonical_project_path: &PathBuf) {
     let mut terraform_zip = Vec::new();
 
     #[cfg(target_os = "linux")]
-        let mut response = reqwest::blocking::get(
-            "https://releases.hashicorp.com/terraform/0.12.26/terraform_0.12.26_linux_amd64.zip"
-        ).unwrap();
+    let mut response = reqwest::blocking::get(
+        "https://releases.hashicorp.com/terraform/0.12.26/terraform_0.12.26_linux_amd64.zip",
+    )
+    .unwrap();
     #[cfg(target_os = "macos")]
-        let mut response = reqwest::blocking::get(
-            "https://releases.hashicorp.com/terraform/0.12.26/terraform_0.12.26_darwin_amd64.zip"
-        ).unwrap();
+    let mut response = reqwest::blocking::get(
+        "https://releases.hashicorp.com/terraform/0.12.26/terraform_0.12.26_darwin_amd64.zip",
+    )
+    .unwrap();
 
     response.read_to_end(&mut terraform_zip);
 
-    if let Err(_) = fs::create_dir_all(terraform_path.replace("/terraform", ""))
-    {
+    if let Err(_) = fs::create_dir_all(terraform_path.replace("/terraform", "")) {
         panic!("could not create directory ./.asml/bin")
     }
 
@@ -126,9 +127,15 @@ pub struct TerraformFunction {
     pub service: String,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TerraformService {
+    pub name: String,
+}
+
 pub fn write_root_terraform(
     canonical_project_path: &PathBuf,
     functions: Vec<TerraformFunction>,
+    services: Vec<TerraformService>,
 ) -> Result<(), io::Error> {
     let file_name = "main.tf";
 
@@ -140,6 +147,7 @@ pub fn write_root_terraform(
     data.insert("asml_version".to_string(), to_json(crate_version!()));
     data.insert("aws_region".to_string(), to_json("us-east-1"));
     data.insert("functions".to_string(), to_json(functions));
+    data.insert("services".to_string(), to_json(services));
 
     let render = reg.render(file_name, &data).unwrap();
 
@@ -147,6 +155,36 @@ pub fn write_root_terraform(
     let path = path::Path::new(path_str);
 
     projectfs::write_to_file(&path, render)
+}
+
+pub fn write_service_terraform(
+    canonical_project_path: &PathBuf,
+    service: TerraformService,
+) -> Result<(), io::Error> {
+    let file_name = "service.tf";
+
+    let mut reg = Handlebars::new();
+    reg.register_template_string(file_name, templates::TERRAFORM_SERVICE)
+        .unwrap(); // templates are known at compile-time
+
+    let mut data = Map::<String, Json>::new();
+    data.insert("asml_version".to_string(), to_json(crate_version!()));
+    data.insert("name".to_string(), to_json(&service.name));
+
+    let render = reg.render(file_name, &data).unwrap();
+
+    let path = &format!(
+        "{}/net/services/{}",
+        canonical_project_path.display(),
+        &service.name
+    );
+
+    fs::create_dir_all(path);
+
+    let file_path = &format!("{}/{}", path, file_name);
+    let file_path = path::Path::new(file_path);
+
+    projectfs::write_to_file(&file_path, render)
 }
 
 pub fn write_function_terraform(
@@ -157,7 +195,7 @@ pub fn write_function_terraform(
 
     let mut reg = Handlebars::new();
     reg.register_template_string(file_name, templates::TERRAFORM_FUNCTION)
-        .unwrap();
+        .unwrap(); // templates are known at compile-time
 
     let mut data = Map::<String, Json>::new();
     data.insert("asml_version".to_string(), to_json(crate_version!()));

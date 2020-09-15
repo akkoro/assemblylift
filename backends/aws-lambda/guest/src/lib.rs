@@ -10,7 +10,7 @@ pub static mut AWS_EVENT_STRING_BUFFER: [u8; AWS_EVENT_STRING_BUFFER_SIZE] =
 
 // provided TO the wasm runtime (host)
 #[no_mangle]
-pub fn __al_get_aws_event_string_buffer_pointer() -> *const u8 {
+pub fn __asml_guest_get_aws_event_string_buffer_pointer() -> *const u8 {
     unsafe { AWS_EVENT_STRING_BUFFER.as_ptr() }
 }
 
@@ -81,7 +81,7 @@ macro_rules! handler {
                 }
             };
 
-            let $context: $type = LambdaContext { client, event };
+            let $context: $type = $type { client, event };
 
             direct_executor::run_spinning($async_handler);
 

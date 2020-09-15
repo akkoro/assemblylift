@@ -1,32 +1,28 @@
 use std::collections::HashMap;
-use std::future::Future;
 use std::sync::Mutex;
 
 use crossbeam_utils::atomic::AtomicCell;
-use tokio::runtime::Runtime;
+use tokio::sync::mpsc;
 
 use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
 use assemblylift_core_event_common::EventMemoryDocument;
+use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
 lazy_static! {
     static ref EVENT_MEMORY: Mutex<EventMemory> = Mutex::new(EventMemory::new());
 }
 
 pub struct Threader {
-    runtime: Runtime,
+    registry_tx: RegistryTx,
+    runtime: tokio::runtime::Runtime,
 }
 
 impl Threader {
-    pub fn new() -> Self {
-        use tokio::runtime::Builder;
-
-        let runtime = Builder::new()
-            .threaded_scheduler()
-            .enable_all()
-            .build()
-            .unwrap();
-
-        Threader { runtime }
+    pub fn new(tx: RegistryTx) -> Self {
+        Threader {
+            registry_tx: tx,
+            runtime: tokio::runtime::Runtime::new().unwrap(),
+        }
     }
 
     pub fn next_event_id(&mut self) -> Option<u32> {
@@ -44,7 +40,6 @@ impl Threader {
     }
 
     pub fn get_event_memory_document(&mut self, event_id: u32) -> Option<EventMemoryDocument> {
-        println!("TRACE: get_event_memory_document event_id={}", event_id);
         match EVENT_MEMORY.lock() {
             Ok(memory) => {
                 println!(
@@ -62,27 +57,53 @@ impl Threader {
 
     pub fn spawn_with_event_id(
         &mut self,
+        method_path: &str,
+        method_input: Vec<u8>,
         writer: *const AtomicCell<u8>,
-        future: impl Future<Output = Vec<u8>> + 'static + Send,
         event_id: u32,
     ) {
-        println!("TRACE: spawn_with_event_id");
+        println!("TRACE: Threader::spawn_with_event_id");
 
         // FIXME this is a kludge -- I feel like the raw pointer shouldn't be needed
         let slc = unsafe { std::slice::from_raw_parts(writer, EVENT_BUFFER_SIZE_BYTES) };
 
-        println!("TRACE: spawning on tokio runtime");
-        self.runtime.spawn(async move {
-            println!("TRACE: awaiting IO...");
-            let serialized = future.await;
-            println!("TRACE: IO complete");
+        let coords = method_path.split(".").collect::<Vec<&str>>();
+        if coords.len() != 4 {
+            panic!("Malformed method path @ spawn_with_event_id") // TODO don't panic
+        }
 
-            EVENT_MEMORY
-                .lock()
-                .unwrap()
-                .write_vec_at(slc, serialized, event_id);
+        let iomod_coords = format!("{}.{}.{}", coords[0], coords[1], coords[2]);
+        let method_name = format!("{}", coords[3]);
+
+        let mut registry_tx = self.registry_tx.clone();
+        let (local_tx, mut local_rx) = mpsc::channel(100);
+
+        let hnd = self.runtime.handle().clone();
+        std::thread::spawn(move || {
+            hnd.enter(|| {
+                tokio::spawn(async move {
+                    registry_tx
+                        .send(RegistryChannelMessage {
+                            iomod_coords,
+                            method_name,
+                            payload_type: "IOMOD_REQUEST",
+                            payload: method_input,
+                            responder: Some(local_tx.clone()),
+                        })
+                        .await
+                        .unwrap();
+                });
+
+                tokio::spawn(async move {
+                    if let Some(response) = local_rx.recv().await {
+                        EVENT_MEMORY
+                            .lock()
+                            .unwrap()
+                            .write_vec_at(slc, response.payload, event_id);
+                    }
+                });
+            });
         });
-        println!("TRACE: spawned");
     }
 
     pub fn __reset_memory() {
@@ -117,30 +138,25 @@ impl EventMemory {
     }
 
     pub fn is_ready(&self, event_id: u32) -> bool {
-        *self.event_map.get(&event_id).unwrap()
+        match self.event_map.get(&event_id) {
+            Some(status) => *status,
+            None => false,
+        }
     }
 
     pub fn write_vec_at(&mut self, writer: &[AtomicCell<u8>], vec: Vec<u8>, event_id: u32) {
-        println!("TRACE: write_vec_at");
-
         // Serialize the response
         let response_len = vec.len();
-        println!("DEBUG: response is {} bytes", response_len);
 
         let start = self.find_with_length(response_len);
         let end = start + response_len;
         for i in start..end {
             writer[i].store(vec[i - start]);
         }
-        println!("TRACE: stored response");
 
         // Update document map
         self.document_map
             .insert(event_id, EventMemoryDocument { start, length: end });
-        println!(
-            "TRACE: updated document map id={} start={} end={}",
-            event_id, start, end
-        );
 
         // Update event status table
         self.event_map.insert(event_id, true);
