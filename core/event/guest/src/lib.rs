@@ -63,9 +63,6 @@ impl<'a, R: Deserialize<'a>> Future for Event<'_, R> {
     }
 }
 
-#[derive(Deserialize)]
-pub struct Test {}
-
 unsafe fn read_response<'a, R: Deserialize<'a>>(id: u32) -> Option<R> {
     let ptr = __asml_abi_event_ptr(id) as usize;
     let end = __asml_abi_event_len(id) as usize + ptr;

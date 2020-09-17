@@ -28,13 +28,13 @@ pub fn asml_abi_invoke(
             return spawn_event(ctx, mem, &*method_path, input);
         }
     }
-    
+
     -1i32 // error
 }
 
 pub fn asml_abi_poll(ctx: &mut vm::Ctx, id: u32) -> i32 {
     let threader = get_threader(ctx);
-    unsafe { threader.as_mut().unwrap().is_event_ready(id) as i32 }
+    unsafe { threader.as_mut().unwrap().poll(id) as i32 }
 }
 
 pub fn asml_abi_event_ptr(ctx: &mut vm::Ctx, id: u32) -> u32 {

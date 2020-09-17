@@ -5,13 +5,13 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use capnp::capability::Promise;
-use capnp_rpc::{rpc_twoparty_capnp, RpcSystem, twoparty};
+use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::{AsyncReadExt, FutureExt, TryFutureExt};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
-use crate::Agent;
 use crate::iomod_capnp::{agent, iomod, registry};
+use crate::Agent;
 
 pub type RegistryTx = mpsc::Sender<RegistryChannelMessage>;
 pub type RegistryRx = mpsc::Receiver<RegistryChannelMessage>;
@@ -127,11 +127,17 @@ pub fn spawn_registry(mut rx: RegistryRx) -> Result<(), RegistryError> {
             let (rpc_result, rx_result) = tokio::join!(rpc_task, rx_task);
 
             if rpc_result.is_err() {
-                println!("ERROR: registry RPC task exited with error {:?}", Some(rpc_result.err()));
+                println!(
+                    "ERROR: registry RPC task exited with error {:?}",
+                    Some(rpc_result.err())
+                );
             }
 
             if rx_result.is_err() {
-                println!("ERROR: registry rx task exited with error {:?}", Some(rx_result.err()));
+                println!(
+                    "ERROR: registry rx task exited with error {:?}",
+                    Some(rx_result.err())
+                );
             }
         })
     });

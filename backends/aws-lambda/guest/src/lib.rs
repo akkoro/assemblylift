@@ -53,6 +53,7 @@ macro_rules! handler {
     ($context:ident: $type:ty, $async_handler:expr) => {
         #[no_mangle]
         pub fn handler() -> i32 {
+            use direct_executor;
             use asml_awslambda::{AWS_EVENT_STRING_BUFFER, AWS_EVENT_STRING_BUFFER_SIZE};
 
             AwsLambdaClient::console_log("Started handler...".to_string());
@@ -81,7 +82,7 @@ macro_rules! handler {
                 }
             };
 
-            let $context: $type = $type { client, event };
+            let $context: $type = LambdaContext { client, event };
 
             direct_executor::run_spinning($async_handler);
 
