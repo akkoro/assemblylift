@@ -5,7 +5,7 @@ use crossbeam_utils::atomic::AtomicCell;
 use wasmer_runtime::{Array, WasmPtr};
 use wasmer_runtime_core::vm;
 
-use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
+use assemblylift_core_event_common::constants::IO_BUFFER_SIZE_BYTES;
 
 use crate::threader::Threader;
 
@@ -15,7 +15,7 @@ pub mod abi;
 pub mod threader;
 
 #[inline(always)]
-pub fn spawn_event(
+pub fn invoke_io(
     ctx: &mut vm::Ctx,
     mem: WasmBufferPtr,
     method_path: &str,
@@ -27,16 +27,16 @@ pub fn spawn_event(
     }
     let threader = unsafe { threader.as_mut().unwrap() };
 
-    let event_id = threader.next_event_id().unwrap();
+    let ioid = threader.next_ioid().unwrap();
 
     let wasm_instance_memory = ctx.memory(0);
     let memory_writer: &[AtomicCell<u8>] =
-        match mem.deref(wasm_instance_memory, 0, EVENT_BUFFER_SIZE_BYTES as u32) {
+        match mem.deref(wasm_instance_memory, 0, IO_BUFFER_SIZE_BYTES as u32) {
             Some(memory) => memory,
             None => panic!("could not dereference WASM guest memory in spawn_event"),
         };
 
-    threader.spawn_with_event_id(method_path, method_input, memory_writer.as_ptr(), event_id);
+    threader.invoke(method_path, method_input, memory_writer.as_ptr(), ioid);
 
-    event_id as i32
+    ioid as i32
 }

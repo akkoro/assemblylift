@@ -7,7 +7,7 @@ use wasmer_runtime::memory::MemoryView;
 use wasmer_runtime_core::vm;
 
 use crate::threader::Threader;
-use crate::{spawn_event, WasmBufferPtr};
+use crate::{invoke_io, WasmBufferPtr};
 
 pub type AsmlAbiFn = fn(&mut vm::Ctx, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
 
@@ -25,16 +25,16 @@ pub fn asml_abi_invoke(
 ) -> i32 {
     if let Ok(method_path) = ctx_ptr_to_string(ctx, name_ptr, name_len) {
         if let Ok(input) = ctx_ptr_to_bytes(ctx, input, input_len) {
-            return spawn_event(ctx, mem, &*method_path, input);
+            return invoke_io(ctx, mem, &*method_path, input);
         }
     }
-    
+
     -1i32 // error
 }
 
 pub fn asml_abi_poll(ctx: &mut vm::Ctx, id: u32) -> i32 {
     let threader = get_threader(ctx);
-    unsafe { threader.as_mut().unwrap().is_event_ready(id) as i32 }
+    unsafe { threader.as_mut().unwrap().poll(id) as i32 }
 }
 
 pub fn asml_abi_event_ptr(ctx: &mut vm::Ctx, id: u32) -> u32 {
@@ -43,7 +43,7 @@ pub fn asml_abi_event_ptr(ctx: &mut vm::Ctx, id: u32) -> u32 {
         threader
             .as_mut()
             .unwrap()
-            .get_event_memory_document(id)
+            .get_io_memory_document(id)
             .unwrap()
             .start as u32
     }
@@ -55,7 +55,7 @@ pub fn asml_abi_event_len(ctx: &mut vm::Ctx, id: u32) -> u32 {
         threader
             .as_mut()
             .unwrap()
-            .get_event_memory_document(id)
+            .get_io_memory_document(id)
             .unwrap()
             .length as u32
     }

@@ -2,15 +2,17 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use crossbeam_utils::atomic::AtomicCell;
+use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
 
-use assemblylift_core_event_common::constants::EVENT_BUFFER_SIZE_BYTES;
-use assemblylift_core_event_common::EventMemoryDocument;
+use assemblylift_core_event_common::constants::IO_BUFFER_SIZE_BYTES;
+use assemblylift_core_event_common::IoMemoryDocument;
 use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
-lazy_static! {
-    static ref EVENT_MEMORY: Mutex<EventMemory> = Mutex::new(EventMemory::new());
-}
+const BLOCK_SIZE_BYTES: usize = 64;
+const NUM_BLOCKS: usize = IO_BUFFER_SIZE_BYTES / BLOCK_SIZE_BYTES;
+
+static IO_MEMORY: Lazy<Mutex<IoMemory>> = Lazy::new(|| Mutex::new(IoMemory::new()));
 
 pub struct Threader {
     registry_tx: RegistryTx,
@@ -25,51 +27,54 @@ impl Threader {
         }
     }
 
-    pub fn next_event_id(&mut self) -> Option<u32> {
-        match EVENT_MEMORY.lock() {
+    pub fn next_ioid(&mut self) -> Option<u32> {
+        match IO_MEMORY.lock() {
             Ok(mut memory) => memory.next_id(),
             Err(_) => None,
         }
     }
 
-    pub fn is_event_ready(&self, event_id: u32) -> bool {
-        match EVENT_MEMORY.lock() {
-            Ok(memory) => memory.is_ready(event_id),
-            Err(_) => false,
-        }
-    }
-
-    pub fn get_event_memory_document(&mut self, event_id: u32) -> Option<EventMemoryDocument> {
-        match EVENT_MEMORY.lock() {
-            Ok(memory) => {
-                println!(
-                    "DEBUG: num keys in document map: {}",
-                    memory.document_map.keys().len()
-                );
-                match memory.document_map.get(&event_id) {
-                    Some(doc) => Some(doc.clone()),
-                    None => None,
-                }
-            }
+    pub fn get_io_memory_document(&mut self, ioid: u32) -> Option<IoMemoryDocument> {
+        match IO_MEMORY.lock() {
+            Ok(memory) => match memory.document_map.get(&ioid) {
+                Some(doc) => Some(doc.clone()),
+                None => None,
+            },
             Err(_) => None,
         }
     }
 
-    pub fn spawn_with_event_id(
+    pub fn poll(&mut self, ioid: u32) -> bool {
+        match IO_MEMORY.lock() {
+            Ok(mut memory) => {
+                match memory.poll(ioid) {
+                    true => {
+                        // At this point, the document "contents" have already been written to the WASM buffer
+                        //    and are read on the guest side immediately after poll() exits.
+                        // We can free the host-side memory structure here.
+                        memory.free(ioid);
+                        true
+                    },
+                    false => false
+                }
+            },
+            Err(_) => false,
+        }
+    }
+
+    pub fn invoke(
         &mut self,
         method_path: &str,
         method_input: Vec<u8>,
         writer: *const AtomicCell<u8>,
-        event_id: u32,
+        ioid: u32,
     ) {
-        println!("TRACE: Threader::spawn_with_event_id");
-
         // FIXME this is a kludge -- I feel like the raw pointer shouldn't be needed
-        let slc = unsafe { std::slice::from_raw_parts(writer, EVENT_BUFFER_SIZE_BYTES) };
+        let slc = unsafe { std::slice::from_raw_parts(writer, IO_BUFFER_SIZE_BYTES) };
 
         let coords = method_path.split(".").collect::<Vec<&str>>();
         if coords.len() != 4 {
-            panic!("Malformed method path @ spawn_with_event_id") // TODO don't panic
+            panic!("Malformed method path @ Threader::invoke") // TODO don't panic
         }
 
         let iomod_coords = format!("{}.{}.{}", coords[0], coords[1], coords[2]);
@@ -96,10 +101,10 @@ impl Threader {
 
                 tokio::spawn(async move {
                     if let Some(response) = local_rx.recv().await {
-                        EVENT_MEMORY
+                        IO_MEMORY
                             .lock()
                             .unwrap()
-                            .write_vec_at(slc, response.payload, event_id);
+                            .write_vec_at(slc, response.payload, ioid);
                     }
                 });
             });
@@ -107,48 +112,85 @@ impl Threader {
     }
 
     pub fn __reset_memory() {
-        if let Ok(mut memory) = EVENT_MEMORY.lock() {
-            memory.__reset();
+        if let Ok(mut memory) = IO_MEMORY.lock() {
+            memory.reset();
         }
     }
 }
 
-struct EventMemory {
-    _next_id: u32,
-    document_map: HashMap<u32, EventMemoryDocument>,
-    event_map: HashMap<u32, bool>,
+#[derive(Copy, Clone)]
+enum BlockStatus {
+    Free,
+    Used,
 }
 
-impl EventMemory {
-    pub fn new() -> Self {
-        EventMemory {
+#[derive(Copy, Clone)]
+struct Block {
+    status: BlockStatus,
+    event_ptr: Option<u32>,
+}
+
+struct BlockList {
+    list: Box<[Block; NUM_BLOCKS]>,
+}
+
+impl Default for BlockList {
+    fn default() -> Self {
+        let list: Box<[Block; NUM_BLOCKS]> = Box::new(
+            [Block {
+                status: BlockStatus::Free,
+                event_ptr: None,
+            }; NUM_BLOCKS],
+        );
+
+        Self { list }
+    }
+}
+
+struct IoMemory {
+    _next_id: u32,
+    document_map: HashMap<u32, IoMemoryDocument>,
+    io_status: HashMap<u32, bool>,
+    blocks: BlockList,
+}
+
+impl IoMemory {
+    fn new() -> Self {
+        IoMemory {
             _next_id: 1, // id 0 is reserved (null)
             document_map: Default::default(),
-            event_map: Default::default(),
+            io_status: Default::default(),
+            blocks: Default::default(),
         }
     }
 
-    pub fn next_id(&mut self) -> Option<u32> {
+    fn reset(&mut self) {
+        self._next_id = 1;
+        self.document_map = Default::default();
+        self.io_status = Default::default();
+        self.blocks = Default::default();
+    }
+
+    fn next_id(&mut self) -> Option<u32> {
         let next_id = self._next_id.clone();
         self._next_id += 1;
 
-        self.event_map.insert(next_id, false);
+        self.io_status.insert(next_id, false);
 
         Some(next_id)
     }
 
-    pub fn is_ready(&self, event_id: u32) -> bool {
-        match self.event_map.get(&event_id) {
+    fn poll(&self, ioid: u32) -> bool {
+        match self.io_status.get(&ioid) {
             Some(status) => *status,
-            None => false,
+            None => false
         }
     }
 
-    pub fn write_vec_at(&mut self, writer: &[AtomicCell<u8>], vec: Vec<u8>, event_id: u32) {
+    fn write_vec_at(&mut self, writer: &[AtomicCell<u8>], vec: Vec<u8>, ioid: u32) {
         // Serialize the response
         let response_len = vec.len();
-
-        let start = self.find_with_length(response_len);
+        let start = self.alloc(writer, response_len, ioid);
         let end = start + response_len;
         for i in start..end {
             writer[i].store(vec[i - start]);
@@ -156,27 +198,64 @@ impl EventMemory {
 
         // Update document map
         self.document_map
-            .insert(event_id, EventMemoryDocument { start, length: end });
+            .insert(ioid, IoMemoryDocument { start, length: response_len });
 
         // Update event status table
-        self.event_map.insert(event_id, true);
+        self.io_status.insert(ioid, true);
     }
 
-    pub fn __reset(&mut self) {
-        self._next_id = 1;
-        self.document_map = Default::default();
-        self.event_map = Default::default();
-    }
+    fn alloc(&mut self, writer: &[AtomicCell<u8>], byte_length: usize, ioid: u32) -> usize {
+        let needed_blocks = (byte_length as f64 / BLOCK_SIZE_BYTES as f64).ceil() as usize;
+        let mut available_blocks = 0usize;
+        let mut block_list_offset = 0usize;
 
-    fn find_with_length(&self, _length: usize) -> usize {
-        // TODO this less stupidly
-        let mut max_end = 0usize;
-        for doc in self.document_map.values().into_iter() {
-            let next_end = doc.start + doc.length;
-            if next_end > max_end {
-                max_end = next_end
+        for i in 0..NUM_BLOCKS {
+            match self.blocks.list[i].status {
+                BlockStatus::Free => {
+                    if available_blocks == 0 {
+                        block_list_offset = i;
+                    }
+                    available_blocks += 1;
+                    if available_blocks >= needed_blocks {
+                        break;
+                    }
+                }
+
+                BlockStatus::Used => {
+                    available_blocks = 0;
+                }
             }
         }
-        max_end
+
+        if available_blocks < needed_blocks {
+            panic!("unable to allocate memory in Threader")
+        }
+
+        let block_range = block_list_offset..(block_list_offset + needed_blocks);
+        for i in block_range {
+            let byte_range = (i * BLOCK_SIZE_BYTES)..((i * BLOCK_SIZE_BYTES) + BLOCK_SIZE_BYTES);
+            for b in byte_range {
+                writer[b].store(0);
+            }
+            self.blocks.list[i] = Block {
+                status: BlockStatus::Used,
+                event_ptr: Some(ioid),
+            }
+        }
+
+        block_list_offset * BLOCK_SIZE_BYTES
+    }
+
+    fn free(&mut self, ioid: u32) {
+        for i in 0..NUM_BLOCKS {
+            if let Some(event_ptr) = self.blocks.list[i].event_ptr {
+                if event_ptr == ioid {
+                    self.blocks.list[i] = Block {
+                        status: BlockStatus::Free,
+                        event_ptr: None,
+                    }
+                }
+            }
+        }
     }
 }
