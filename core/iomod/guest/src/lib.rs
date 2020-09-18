@@ -21,19 +21,19 @@ pub mod macros {
     #[macro_export]
     macro_rules! call {
         ($name:ident, $input:ty => $output:ty) => {
-            pub fn $name<'a>(input: $input) -> Event<'a, $output> {
-                use assemblylift_core_event_guest::{Event, EVENT_BUFFER};
+            pub fn $name<'a>(input: $input) -> Io<'a, $output> {
+                use assemblylift_core_event_guest::{Io, IO_BUFFER};
                 use serde_json;
 
                 let name = std::stringify!($name);
                 let method_path =
                     format!("{}.{}.{}.{}", IOMOD_ORG, IOMOD_NAMESPACE, IOMOD_NAME, name);
 
-                let event_id: i32;
+                let ioid: i32;
                 unsafe {
                     let serialized: Box<Vec<u8>> = Box::from(serde_json::to_vec(&input).unwrap());
-                    event_id = crate::__asml_abi_invoke(
-                        EVENT_BUFFER.as_ptr(),
+                    ioid = crate::__asml_abi_invoke(
+                        IO_BUFFER.as_ptr(),
                         method_path.as_ptr(),
                         method_path.len(),
                         serialized.as_ptr(),
@@ -41,9 +41,9 @@ pub mod macros {
                     );
                 }
 
-                match event_id {
+                match ioid {
                     -1 => panic!("unable to invoke fn {}", name),
-                    _ => Event::<$output>::new(event_id as u32),
+                    _ => Io::<$output>::new(ioid as u32),
                 }
             }
         };
