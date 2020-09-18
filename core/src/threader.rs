@@ -74,7 +74,7 @@ impl Threader {
 
         let coords = method_path.split(".").collect::<Vec<&str>>();
         if coords.len() != 4 {
-            panic!("Malformed method path @ spawn_with_ioid") // TODO don't panic
+            panic!("Malformed method path @ Threader::invoke") // TODO don't panic
         }
 
         let iomod_coords = format!("{}.{}.{}", coords[0], coords[1], coords[2]);
