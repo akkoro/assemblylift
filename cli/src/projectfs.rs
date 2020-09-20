@@ -4,7 +4,7 @@ use std::{fs, io};
 use path_abs::{PathAbs, PathDir};
 
 pub struct Project {
-    pub project_path: Box<PathBuf>,
+    project_path: Box<PathBuf>,
     service_path: Box<PathBuf>,
 }
 
@@ -34,7 +34,10 @@ impl Project {
     pub fn new(name: String, project_path: Option<PathBuf>) -> Self {
         let project_path = match project_path {
             Some(path) => {
-                fs::create_dir(path.clone());
+                fs::create_dir(path.clone()).expect(&*format!(
+                    "could not create dir {}",
+                    path.clone().into_os_string().into_string().unwrap()
+                ));
                 Box::new(PathBuf::from(
                     PathAbs::from(
                         PathDir::new(path.clone())
@@ -46,7 +49,8 @@ impl Project {
 
             None => {
                 let path = format!("./{}", name);
-                fs::create_dir(path.clone());
+                fs::create_dir(path.clone())
+                    .expect(&*format!("could not create dir {}", path.clone()));
                 Box::new(PathBuf::from(
                     PathAbs::from(PathDir::new(path.clone()).unwrap()).as_path(),
                 ))
@@ -57,7 +61,7 @@ impl Project {
             "{}/services",
             project_path.clone().into_os_string().into_string().unwrap()
         );
-        fs::create_dir(path.clone());
+        fs::create_dir(path.clone()).expect(&*format!("could not create dir {}", path.clone()));
         let service_path = Box::new(PathBuf::from(
             PathAbs::from(PathDir::new(path.clone()).unwrap()).as_path(),
         ));
@@ -108,5 +112,9 @@ impl Project {
             name
         ));
         ServiceDir::new(Box::new(path))
+    }
+
+    pub fn dir(&self) -> Box<PathBuf> {
+        self.project_path.clone()
     }
 }

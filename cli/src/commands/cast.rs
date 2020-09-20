@@ -39,7 +39,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     fs::create_dir_all("./.asml/runtime").unwrap();
     fs::write("./.asml/runtime/bootstrap.zip", response_buffer).unwrap();
 
-    terraform::fetch(&*project.project_path);
+    terraform::fetch(&*project.dir());
 
     let mut functions: Vec<TerraformFunction> = Vec::new();
     let mut services: Vec<TerraformService> = Vec::new();
@@ -56,7 +56,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         services.push(tf_service.clone());
 
         if let Some(iomod) = service_manifest.iomod {
-            terraform::service::write(&*project.project_path, tf_service.clone()).unwrap();
+            terraform::service::write(&*project.dir(), tf_service.clone()).unwrap();
 
             let mut dependencies: Vec<String> = Vec::new();
             for (name, dependency) in iomod.dependencies {
@@ -87,8 +87,10 @@ pub fn command(matches: Option<&ArgMatches>) {
         for (_id, function) in service_manifest.api.functions {
             let function_artifact_path =
                 format!("./net/services/{}/{}", &service_name, function.name);
-            fs::create_dir_all(PathBuf::from(function_artifact_path.clone()))
-                .expect(&*format!("unable to create path {}", function_artifact_path));
+            fs::create_dir_all(PathBuf::from(function_artifact_path.clone())).expect(&*format!(
+                "unable to create path {}",
+                function_artifact_path
+            ));
 
             if let Some(verb) = function.http_verb {
                 // TODO build & write out APIGW terraform
@@ -162,12 +164,12 @@ pub fn command(matches: Option<&ArgMatches>) {
                 service_has_layer: tf_service.clone().has_layer,
             };
 
-            terraform::function::write(&*project.project_path, &tf_function).unwrap();
+            terraform::function::write(&*project.dir(), &tf_function).unwrap();
             functions.push(tf_function.clone());
         }
     }
 
-    terraform::write(&*project.project_path, functions, services).unwrap();
+    terraform::write(&*project.dir(), functions, services).unwrap();
 
     terraform::commands::init();
     terraform::commands::plan();

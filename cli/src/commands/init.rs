@@ -25,7 +25,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         .init(default_service_name, default_function_name)
         .unwrap();
 
-    terraform::fetch(&*project.project_path);
+    terraform::fetch(&*project.dir());
 
     let data = &mut Map::<String, Json>::new();
     data.insert(
@@ -36,7 +36,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         "default_service_name".to_string(),
         to_json(default_service_name.to_string()),
     );
-    bom::manifest::Manifest::write(&*project.project_path, data);
+    bom::manifest::Manifest::write(&*project.dir(), data);
 
     let data = &mut Map::<String, Json>::new();
     data.insert(
@@ -70,10 +70,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         _ => {}
     }
 
-    println!(
-        "\r\n✅  Done! Your project root is: {:?}",
-        project.project_path
-    )
+    println!("\r\n✅  Done! Your project root is: {:?}", project.dir())
 }
 
 fn check_rust_prereqs() -> bool {
