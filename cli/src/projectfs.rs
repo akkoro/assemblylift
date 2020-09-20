@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{fs, io};
 
 use path_abs::{PathAbs, PathDir};
@@ -34,10 +34,12 @@ impl Project {
     pub fn new(name: String, project_path: Option<PathBuf>) -> Self {
         let project_path = match project_path {
             Some(path) => {
-                fs::create_dir(path.clone()).expect(&*format!(
-                    "could not create dir {}",
-                    path.clone().into_os_string().into_string().unwrap()
-                ));
+                if !Path::exists(&*path.clone()) {
+                    fs::create_dir(path.clone()).expect(&*format!(
+                        "could not create dir {}",
+                        path.clone().into_os_string().into_string().unwrap()
+                    ));
+                }
                 Box::new(PathBuf::from(
                     PathAbs::from(
                         PathDir::new(path.clone())
@@ -49,8 +51,10 @@ impl Project {
 
             None => {
                 let path = format!("./{}", name);
-                fs::create_dir(path.clone())
-                    .expect(&*format!("could not create dir {}", path.clone()));
+                if !Path::exists(path.as_ref()) {
+                    fs::create_dir(path.clone())
+                        .expect(&*format!("could not create dir {}", path.clone()));
+                }
                 Box::new(PathBuf::from(
                     PathAbs::from(PathDir::new(path.clone()).unwrap()).as_path(),
                 ))
@@ -61,7 +65,9 @@ impl Project {
             "{}/services",
             project_path.clone().into_os_string().into_string().unwrap()
         );
-        fs::create_dir(path.clone()).expect(&*format!("could not create dir {}", path.clone()));
+        if !Path::exists(path.as_ref()) {
+            fs::create_dir(path.clone()).expect(&*format!("could not create dir {}", path.clone()));
+        }
         let service_path = Box::new(PathBuf::from(
             PathAbs::from(PathDir::new(path.clone()).unwrap()).as_path(),
         ));
