@@ -46,7 +46,11 @@ pub fn zip_files(
     for path in files_in {
         let mut file_bytes = match fs::read(&path) {
             Ok(bytes) => bytes,
-            Err(why) => panic!("could read file at {:?}: {}", path.as_ref(), why.to_string()),
+            Err(why) => panic!(
+                "could read file at {:?}: {}",
+                path.as_ref(),
+                why.to_string()
+            ),
         };
 
         // unwrap: path always has a file name at this point

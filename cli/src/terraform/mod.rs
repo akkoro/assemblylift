@@ -127,7 +127,7 @@ pub fn fetch(canonical_project_path: &PathBuf) {
     }
 }
 
-pub fn write_root(
+pub fn write(
     canonical_project_path: &PathBuf,
     functions: Vec<TerraformFunction>,
     services: Vec<TerraformService>,

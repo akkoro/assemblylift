@@ -45,6 +45,9 @@ pub struct Api {
 pub struct Function {
     pub name: String,
     pub handler_name: String,
+
+    pub http_verb: Option<String>,
+    pub http_path: Option<String>,
 }
 
 #[derive(Deserialize)]

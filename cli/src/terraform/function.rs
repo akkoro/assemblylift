@@ -96,7 +96,10 @@ pub fn write(
     data.insert("name".to_string(), to_json(&function.name));
     data.insert("handler_name".to_string(), to_json(&function.handler_name));
     data.insert("service".to_string(), to_json(&function.service));
-    data.insert("has_service_layer".to_string(), to_json(function.service_has_layer));
+    data.insert(
+        "has_service_layer".to_string(),
+        to_json(function.service_has_layer),
+    );
 
     let render = reg.render(file_name, &data).unwrap();
 

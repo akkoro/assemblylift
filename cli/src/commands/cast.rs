@@ -1,18 +1,17 @@
 use std::fs;
-use std::path;
 use std::path::PathBuf;
 use std::process;
 use std::process::Stdio;
 
 use clap::ArgMatches;
 
+use crate::artifact;
 use crate::bom;
 use crate::bom::DocumentSet;
 use crate::projectfs::Project;
 use crate::terraform;
 use crate::terraform::function::TerraformFunction;
 use crate::terraform::service::TerraformService;
-use crate::{artifact, projectfs};
 
 pub fn command(matches: Option<&ArgMatches>) {
     use std::io::Read;
@@ -22,7 +21,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         _ => panic!("could not get matches for cast command"),
     };
 
-    // Init the project structure
+    // Init the project structure -- panic if the project isn't in the current working dir
     let cwd = std::env::current_dir().unwrap();
     let asml_manifest = bom::manifest::Manifest::read(&cwd);
     let project = Project::new(asml_manifest.project.name, Some(cwd));
@@ -35,10 +34,10 @@ pub fn command(matches: Option<&ArgMatches>) {
     )
     .unwrap();
     let mut response_buffer = Vec::new();
-    response.read_to_end(&mut response_buffer);
+    response.read_to_end(&mut response_buffer).unwrap();
 
-    fs::create_dir_all("./.asml/runtime");
-    fs::write("./.asml/runtime/bootstrap.zip", response_buffer);
+    fs::create_dir_all("./.asml/runtime").unwrap();
+    fs::write("./.asml/runtime/bootstrap.zip", response_buffer).unwrap();
 
     terraform::fetch(&*project.project_path);
 
@@ -46,7 +45,8 @@ pub fn command(matches: Option<&ArgMatches>) {
     let mut services: Vec<TerraformService> = Vec::new();
 
     for (_, service) in asml_manifest.services {
-        let service_manifest = bom::service::Manifest::read(&*project.service_dir(service.name.clone()).dir());
+        let service_manifest =
+            bom::service::Manifest::read(&*project.service_dir(service.name.clone()).dir());
         let service_name = service_manifest.service.name.clone();
 
         let tf_service = TerraformService {
@@ -54,7 +54,6 @@ pub fn command(matches: Option<&ArgMatches>) {
             has_layer: service_manifest.iomod.is_some(),
         };
         services.push(tf_service.clone());
-
 
         if let Some(iomod) = service_manifest.iomod {
             terraform::service::write(&*project.project_path, tf_service.clone()).unwrap();
@@ -88,15 +87,24 @@ pub fn command(matches: Option<&ArgMatches>) {
         for (_id, function) in service_manifest.api.functions {
             let function_artifact_path =
                 format!("./net/services/{}/{}", &service_name, function.name);
-            if let Err(err) = fs::create_dir_all(PathBuf::from(function_artifact_path.clone())) {
-                panic!(err)
+            fs::create_dir_all(PathBuf::from(function_artifact_path.clone()))
+                .expect(&*format!("unable to create path {}", function_artifact_path));
+
+            if let Some(verb) = function.http_verb {
+                // TODO build & write out APIGW terraform
             }
+
+            // Compile the function
+            // TODO switch on function language, toggle compilation on/off
 
             let function_path = PathBuf::from(format!(
                 "{}/Cargo.toml",
                 project
                     .service_dir(service_name.clone())
-                    .function_dir(function.name.clone()).into_os_string().into_string().unwrap()
+                    .function_dir(function.name.clone())
+                    .into_os_string()
+                    .into_string()
+                    .unwrap()
             ));
 
             let mode = "release"; // TODO should this really be the default?
@@ -124,7 +132,10 @@ pub fn command(matches: Option<&ArgMatches>) {
                     "{}/target/wasm32-unknown-unknown/{}/{}.wasm",
                     project
                         .service_dir(service_name.clone())
-                        .function_dir(function.name.clone()).into_os_string().into_string().unwrap(),
+                        .function_dir(function.name.clone())
+                        .into_os_string()
+                        .into_string()
+                        .unwrap(),
                     mode,
                     function_name_snaked
                 ),
@@ -156,7 +167,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         }
     }
 
-    terraform::write_root(&*project.project_path, functions, services).unwrap();
+    terraform::write(&*project.project_path, functions, services).unwrap();
 
     terraform::commands::init();
     terraform::commands::plan();
