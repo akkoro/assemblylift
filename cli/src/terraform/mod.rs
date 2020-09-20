@@ -1,34 +1,102 @@
 use std::fs;
 use std::io;
+use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path;
-use std::path::PathBuf;
-use std::process;
-use std::process::Stdio;
+use std::path::{Path, PathBuf};
 
 use clap::crate_version;
 use handlebars::{to_json, Handlebars};
-use serde_derive::{Deserialize, Serialize};
 use serde_json::value::{Map, Value as Json};
 
 use crate::artifact;
-use crate::projectfs;
-use crate::templates;
+use crate::terraform::function::TerraformFunction;
+use crate::terraform::service::TerraformService;
 
-fn get_relative_path() -> &'static str {
+pub mod commands;
+pub mod function;
+pub mod service;
+
+static TERRAFORM_ROOT: &str = r#"# Generated with assemblylift-cli {{asml_version}}
+
+provider "aws" {
+    region = "{{aws_region}}"
+}
+
+resource "aws_iam_role" "lambda_iam_role" {
+    name = "asml_lambda_iam_role"
+
+    assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "lambda.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_lambda_layer_version" "asml_runtime_layer" {
+  filename   = "${path.module}/../.asml/runtime/bootstrap.zip"
+  layer_name = "assemblylift-runtime"
+
+  source_code_hash = filebase64sha256("${path.module}/../.asml/runtime/bootstrap.zip")
+}
+
+{{#each services}}
+module "{{this.name}}" {
+  source = "./services/{{this.name}}"
+}
+{{/each}}
+
+{{#each functions}}
+module "{{this.name}}" {
+  source = "./services/{{this.service}}/{{this.name}}"
+
+  lambda_role_arn   = aws_iam_role.lambda_iam_role.arn
+  lambda_role_name  = aws_iam_role.lambda_iam_role.name
+  runtime_layer_arn = aws_lambda_layer_version.asml_runtime_layer.arn
+  {{#if this.service_has_layer}}
+  service_layer_arn = module.{{this.service}}.service_layer_arn
+  {{/if}}
+}
+
+{{/each}}
+
+"#;
+
+pub fn get_relative_path() -> &'static str {
     ".asml/bin/terraform"
 }
 
-pub fn extract(canonical_project_path: &PathBuf) {
+pub fn fetch(canonical_project_path: &PathBuf) {
     use std::io::Read;
-
-    // TODO check first if file is present
 
     let terraform_path = format!(
         "{}/{}",
-        canonical_project_path.display(),
+        canonical_project_path
+            .clone()
+            .into_os_string()
+            .into_string()
+            .unwrap(),
         get_relative_path()
     );
+
+    if Path::new(&terraform_path).exists() {
+        println!(
+            "Found terraform at {}, skipping download...",
+            terraform_path
+        );
+        return;
+    }
+
     println!("Extracting terraform to {}", terraform_path);
 
     let mut terraform_zip = Vec::new();
@@ -59,80 +127,7 @@ pub fn extract(canonical_project_path: &PathBuf) {
     }
 }
 
-pub fn run_terraform_init() {
-    let mut terraform_result = process::Command::new(get_relative_path())
-        .arg("init")
-        .arg("./net")
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .unwrap();
-
-    match terraform_result.wait() {
-        Ok(_) => {}
-        Err(_) => {}
-    }
-}
-
-pub fn run_terraform_plan() {
-    let mut terraform_result = process::Command::new(get_relative_path())
-        .arg("plan")
-        .arg("-out=./net/plan")
-        .arg("./net")
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .unwrap();
-
-    match terraform_result.wait() {
-        Ok(_) => {}
-        Err(_) => {}
-    }
-}
-
-pub fn run_terraform_apply() {
-    let mut terraform_result = process::Command::new(get_relative_path())
-        .arg("apply")
-        .arg("./net/plan")
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .unwrap();
-
-    match terraform_result.wait() {
-        Ok(_) => {}
-        Err(_) => {}
-    }
-}
-
-pub fn run_terraform_destroy() {
-    let mut terraform_result = process::Command::new(get_relative_path())
-        .arg("destroy")
-        .arg("./net")
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .unwrap();
-
-    match terraform_result.wait() {
-        Ok(_) => {}
-        Err(_) => {}
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct TerraformFunction {
-    pub name: String,
-    pub handler_name: String,
-    pub service: String,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct TerraformService {
-    pub name: String,
-}
-
-pub fn write_root_terraform(
+pub fn write_root(
     canonical_project_path: &PathBuf,
     functions: Vec<TerraformFunction>,
     services: Vec<TerraformService>,
@@ -140,7 +135,7 @@ pub fn write_root_terraform(
     let file_name = "main.tf";
 
     let mut reg = Handlebars::new();
-    reg.register_template_string(file_name, templates::TERRAFORM_ROOT)
+    reg.register_template_string(file_name, TERRAFORM_ROOT)
         .unwrap();
 
     let mut data = Map::<String, Json>::new();
@@ -151,68 +146,30 @@ pub fn write_root_terraform(
 
     let render = reg.render(file_name, &data).unwrap();
 
-    let path_str = &format!("{}/net/{}", canonical_project_path.display(), file_name);
-    let path = path::Path::new(path_str);
-
-    projectfs::write_to_file(&path, render)
-}
-
-pub fn write_service_terraform(
-    canonical_project_path: &PathBuf,
-    service: TerraformService,
-) -> Result<(), io::Error> {
-    let file_name = "service.tf";
-
-    let mut reg = Handlebars::new();
-    reg.register_template_string(file_name, templates::TERRAFORM_SERVICE)
-        .unwrap(); // templates are known at compile-time
-
-    let mut data = Map::<String, Json>::new();
-    data.insert("asml_version".to_string(), to_json(crate_version!()));
-    data.insert("name".to_string(), to_json(&service.name));
-
-    let render = reg.render(file_name, &data).unwrap();
-
-    let path = &format!(
-        "{}/net/services/{}",
-        canonical_project_path.display(),
-        &service.name
-    );
-
-    fs::create_dir_all(path);
-
-    let file_path = &format!("{}/{}", path, file_name);
-    let file_path = path::Path::new(file_path);
-
-    projectfs::write_to_file(&file_path, render)
-}
-
-pub fn write_function_terraform(
-    canonical_project_path: &PathBuf,
-    function: &TerraformFunction,
-) -> Result<(), io::Error> {
-    let file_name = "function.tf";
-
-    let mut reg = Handlebars::new();
-    reg.register_template_string(file_name, templates::TERRAFORM_FUNCTION)
-        .unwrap(); // templates are known at compile-time
-
-    let mut data = Map::<String, Json>::new();
-    data.insert("asml_version".to_string(), to_json(crate_version!()));
-    data.insert("name".to_string(), to_json(&function.name));
-    data.insert("handler_name".to_string(), to_json(&function.handler_name));
-    data.insert("service".to_string(), to_json(&function.service));
-
-    let render = reg.render(file_name, &data).unwrap();
-
     let path_str = &format!(
-        "{}/net/services/{}/{}/{}",
-        canonical_project_path.display(),
-        function.service,
-        function.name,
+        "{}/net/{}",
+        canonical_project_path
+            .clone()
+            .into_os_string()
+            .into_string()
+            .unwrap(),
         file_name
     );
     let path = path::Path::new(path_str);
 
-    projectfs::write_to_file(&path, render)
+    write_to_file(&path, render)
+}
+
+fn write_to_file(path: &path::Path, contents: String) -> Result<(), io::Error> {
+    let mut file = match fs::File::create(path) {
+        Err(why) => panic!(
+            "couldn't create file {}: {}",
+            path.display(),
+            why.to_string()
+        ),
+        Ok(file) => file,
+    };
+
+    println!("📄 > Wrote {}", path.display());
+    file.write_all(contents.as_bytes())
 }
