@@ -114,7 +114,7 @@ pub fn write(project_path: &PathBuf, function: &TerraformFunction) -> Result<(),
     );
     data.insert(
         "service_has_http_api".to_string(),
-        to_json(function.service_has_http_api,
+        to_json(function.service_has_http_api),
     );
 
     let render = reg.render(file_name, &data).unwrap();
