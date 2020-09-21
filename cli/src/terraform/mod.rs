@@ -72,21 +72,17 @@ module "{{this.name}}" {
 
 "#;
 
-pub fn get_relative_path() -> &'static str {
+pub fn relative_binary_path() -> &'static str {
     ".asml/bin/terraform"
 }
 
-pub fn fetch(canonical_project_path: &PathBuf) {
+pub fn fetch(project_path: &PathBuf) {
     use std::io::Read;
 
     let terraform_path = format!(
         "{}/{}",
-        canonical_project_path
-            .clone()
-            .into_os_string()
-            .into_string()
-            .unwrap(),
-        get_relative_path()
+        project_path.clone().into_os_string().into_string().unwrap(),
+        relative_binary_path()
     );
 
     if Path::new(&terraform_path).exists() {
@@ -128,7 +124,7 @@ pub fn fetch(canonical_project_path: &PathBuf) {
 }
 
 pub fn write(
-    canonical_project_path: &PathBuf,
+    project_path: &PathBuf,
     functions: Vec<TerraformFunction>,
     services: Vec<TerraformService>,
 ) -> Result<(), io::Error> {
@@ -148,11 +144,7 @@ pub fn write(
 
     let path_str = &format!(
         "{}/net/{}",
-        canonical_project_path
-            .clone()
-            .into_os_string()
-            .into_string()
-            .unwrap(),
+        project_path.clone().into_os_string().into_string().unwrap(),
         file_name
     );
     let path = path::Path::new(path_str);

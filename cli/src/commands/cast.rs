@@ -52,13 +52,14 @@ pub fn command(matches: Option<&ArgMatches>) {
         let tf_service = TerraformService {
             name: service_name.clone(),
             has_layer: service_manifest.iomod.is_some(),
+            has_http_api: service_manifest.api.functions.values().any(|f| f.http.is_some())
         };
         services.push(tf_service.clone());
 
-        if let Some(iomod) = service_manifest.iomod {
-            terraform::service::write(&*project.dir(), tf_service.clone()).unwrap();
+        terraform::service::write(&*project.dir(), tf_service.clone()).unwrap();
 
-            let mut dependencies: Vec<String> = Vec::new();
+        if let Some(iomod) = service_manifest.iomod {
+                        let mut dependencies: Vec<String> = Vec::new();
             for (name, dependency) in iomod.dependencies {
                 match dependency.dependency_type.as_str() {
                     "file" => {
@@ -92,7 +93,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                 function_artifact_path
             ));
 
-            if let Some(verb) = function.http_verb {
+            if let Some(http) = function.http {
                 // TODO build & write out APIGW terraform
             }
 
@@ -157,11 +158,13 @@ pub fn command(matches: Option<&ArgMatches>) {
                 false,
             );
 
+            let tf_function_service = tf_service.clone();
             let tf_function = TerraformFunction {
                 name: function.name.clone(),
                 handler_name: function.handler_name,
                 service: service.name.clone(),
-                service_has_layer: tf_service.clone().has_layer,
+                service_has_layer: tf_function_service.has_layer,
+                service_has_http_api: tf_function_service.has_http_api,
             };
 
             terraform::function::write(&*project.dir(), &tf_function).unwrap();

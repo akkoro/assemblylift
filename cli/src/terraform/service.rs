@@ -22,15 +22,23 @@ output "service_layer_arn" {
   value = aws_lambda_layer_version.asml_{{name}}_service_layer.arn
 }
 {{/if}}
+
+{{#if has_http_api}}
+resource "aws_apigatewayv2_api" "{{name}}_http_api" {
+  name          = "{{name}}"
+  protocol_type = "HTTP"
+}
+{{/if}}
 "#;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TerraformService {
     pub name: String,
     pub has_layer: bool,
+    pub has_http_api: bool,
 }
 
-pub fn write(canonical_project_path: &PathBuf, service: TerraformService) -> Result<(), io::Error> {
+pub fn write(project_path: &PathBuf, service: TerraformService) -> Result<(), io::Error> {
     let file_name = "service.tf";
 
     let mut reg = Handlebars::new();
@@ -41,20 +49,17 @@ pub fn write(canonical_project_path: &PathBuf, service: TerraformService) -> Res
     data.insert("asml_version".to_string(), to_json(crate_version!()));
     data.insert("name".to_string(), to_json(&service.name));
     data.insert("has_layer".to_string(), to_json(service.has_layer));
+    data.insert("has_http_api".to_string(), to_json(service.has_http_api));
 
     let render = reg.render(file_name, &data).unwrap();
 
     let path = &format!(
         "{}/net/services/{}",
-        canonical_project_path
-            .clone()
-            .into_os_string()
-            .into_string()
-            .unwrap(),
+        project_path.clone().into_os_string().into_string().unwrap(),
         &service.name
     );
 
-    fs::create_dir_all(path);
+    fs::create_dir_all(path).expect(&*format!("unable to create path {:?}", path));
 
     let file_path = &format!("{}/{}", path, file_name);
     let file_path = path::Path::new(file_path);

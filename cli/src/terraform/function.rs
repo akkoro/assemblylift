@@ -3,7 +3,7 @@ use std::path;
 use std::path::PathBuf;
 
 use clap::crate_version;
-use handlebars::{to_json, Handlebars};
+use handlebars::{Handlebars, to_json};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::value::{Map, Value as Json};
 
@@ -14,7 +14,7 @@ pub static TERRAFORM_FUNCTION: &str = r#"# Generated with assemblylift-cli {{asm
 variable "runtime_layer_arn" {
   type = string
 }
-{{#if has_service_layer}}
+{{#if service_has_layer}}
 variable "service_layer_arn" {
   type = string
 }
@@ -26,6 +26,20 @@ variable "lambda_role_arn" {
 variable "lambda_role_name" {
   type = string
 }
+{{#if service_has_http_api}
+variable "service_http_api_id" {
+  type = sring
+}
+
+resource "aws_apigatewayv2_integration" "asml_{{name}}" {
+  api_id           = var.service_http_api_id
+  integration_type = "AWS_PROXY"
+
+  connection_type           = "INTERNET"
+  integration_method        = "POST"
+  integration_uri           = aws_lambda_function.asml_{{name}}_lambda.invoke_arn
+}
+{{/if}}
 
 resource "aws_lambda_function" "asml_{{name}}_lambda" {
     function_name = "{{name}}"
@@ -35,7 +49,7 @@ resource "aws_lambda_function" "asml_{{name}}_lambda" {
     filename      = "${path.module}/{{name}}.zip"
     timeout       = 10
 
-    {{#if has_service_layer}}
+    {{#if service_has_layer}}
     layers = [var.runtime_layer_arn, var.service_layer_arn]
     {{else}}
     layers = [var.runtime_layer_arn]
@@ -79,12 +93,10 @@ pub struct TerraformFunction {
     pub handler_name: String,
     pub service: String,
     pub service_has_layer: bool,
+    pub service_has_http_api: bool,
 }
 
-pub fn write(
-    canonical_project_path: &PathBuf,
-    function: &TerraformFunction,
-) -> Result<(), io::Error> {
+pub fn write(project_path: &PathBuf, function: &TerraformFunction) -> Result<(), io::Error> {
     let file_name = "function.tf";
 
     let mut reg = Handlebars::new();
@@ -97,19 +109,19 @@ pub fn write(
     data.insert("handler_name".to_string(), to_json(&function.handler_name));
     data.insert("service".to_string(), to_json(&function.service));
     data.insert(
-        "has_service_layer".to_string(),
+        "service_has_layer".to_string(),
         to_json(function.service_has_layer),
+    );
+    data.insert(
+        "service_has_http_api".to_string(),
+        to_json(function.service_has_http_api,
     );
 
     let render = reg.render(file_name, &data).unwrap();
 
     let path_str = &format!(
         "{}/net/services/{}/{}/{}",
-        canonical_project_path
-            .clone()
-            .into_os_string()
-            .into_string()
-            .unwrap(),
+        project_path.clone().into_os_string().into_string().unwrap(),
         function.service,
         function.name,
         file_name
