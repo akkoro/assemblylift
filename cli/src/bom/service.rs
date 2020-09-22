@@ -8,6 +8,7 @@ use serde::Deserialize;
 use serde_json::value::{Map, Value as Json};
 
 use crate::bom::{write_documents, Document, DocumentSet};
+use std::rc::Rc;
 
 static SERVICE_TOML: &str = r#"# Generated with assemblylift-cli {{asml_version}}
 
@@ -52,7 +53,7 @@ pub struct Function {
     pub name: String,
     pub handler_name: String,
 
-    pub http: Option<HttpFunction>,
+    pub http: Rc<Option<HttpFunction>>,
 }
 
 #[derive(Deserialize)]

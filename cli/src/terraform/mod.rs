@@ -24,7 +24,7 @@ provider "aws" {
 }
 
 resource "aws_iam_role" "lambda_iam_role" {
-    name = "asml_lambda_iam_role"
+    name = "asml_{{project_name}}_lambda_iam_role"
 
     assume_role_policy = <<EOF
 {
@@ -65,6 +65,13 @@ module "{{this.name}}" {
   runtime_layer_arn = aws_lambda_layer_version.asml_runtime_layer.arn
   {{#if this.service_has_layer}}
   service_layer_arn = module.{{this.service}}.service_layer_arn
+  {{/if}}
+
+  {{#if this.service_has_http_api}}
+  service_http_api_id    = module.{{this.service}}.http_api_id
+  http_api_execution_arn = module.{{this.service}}.http_api_execution_arn
+  http_verb = "{{this.http_verb}}"
+  http_path = "{{this.http_path}}"
   {{/if}}
 }
 
@@ -125,6 +132,7 @@ pub fn fetch(project_path: &PathBuf) {
 
 pub fn write(
     project_path: &PathBuf,
+    project_name: String,
     functions: Vec<TerraformFunction>,
     services: Vec<TerraformService>,
 ) -> Result<(), io::Error> {
@@ -137,6 +145,7 @@ pub fn write(
     let mut data = Map::<String, Json>::new();
     data.insert("asml_version".to_string(), to_json(crate_version!()));
     data.insert("aws_region".to_string(), to_json("us-east-1"));
+    data.insert("project_name".to_string(), to_json(project_name));
     data.insert("functions".to_string(), to_json(functions));
     data.insert("services".to_string(), to_json(services));
 

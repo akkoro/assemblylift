@@ -28,6 +28,20 @@ resource "aws_apigatewayv2_api" "{{name}}_http_api" {
   name          = "{{name}}"
   protocol_type = "HTTP"
 }
+
+resource "aws_apigatewayv2_stage" "{{name}}_default_stage" {
+  api_id      = aws_apigatewayv2_api.{{name}}_http_api.id
+  name        = "$default"
+  auto_deploy = true
+}
+
+output "http_api_id" {
+  value = aws_apigatewayv2_api.{{name}}_http_api.id
+}
+
+output "http_api_execution_arn" {
+  value = aws_apigatewayv2_api.{{name}}_http_api.execution_arn
+}
 {{/if}}
 "#;
 

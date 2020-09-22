@@ -24,7 +24,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     // Init the project structure -- panic if the project isn't in the current working dir
     let cwd = std::env::current_dir().unwrap();
     let asml_manifest = bom::manifest::Manifest::read(&cwd);
-    let project = Project::new(asml_manifest.project.name, Some(cwd));
+    let project = Project::new(asml_manifest.project.name.clone(), Some(cwd));
 
     // Download the latest runtime binary
     // TODO in the future we should check if we already have the same version
@@ -93,10 +93,6 @@ pub fn command(matches: Option<&ArgMatches>) {
                 function_artifact_path
             ));
 
-            if let Some(http) = function.http {
-                // TODO build & write out APIGW terraform
-            }
-
             // Compile the function
             // TODO switch on function language, toggle compilation on/off
 
@@ -158,6 +154,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                 false,
             );
 
+            let function_http = function.http.clone();
             let tf_function_service = tf_service.clone();
             let tf_function = TerraformFunction {
                 name: function.name.clone(),
@@ -165,6 +162,14 @@ pub fn command(matches: Option<&ArgMatches>) {
                 service: service.name.clone(),
                 service_has_layer: tf_function_service.has_layer,
                 service_has_http_api: tf_function_service.has_http_api,
+                http_verb: match function_http.as_ref() {
+                    Some(http) => Some(http.verb.to_string()),
+                    None => None
+                },
+                http_path: match function_http.as_ref() {
+                    Some(http) => Some(http.path.to_string()),
+                    None => None
+                }
             };
 
             terraform::function::write(&*project.dir(), &tf_function).unwrap();
@@ -172,7 +177,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         }
     }
 
-    terraform::write(&*project.dir(), functions, services).unwrap();
+    terraform::write(&*project.dir(), asml_manifest.project.name, functions, services).unwrap();
 
     terraform::commands::init();
     terraform::commands::plan();

@@ -26,9 +26,27 @@ variable "lambda_role_arn" {
 variable "lambda_role_name" {
   type = string
 }
-{{#if service_has_http_api}
+{{#if service_has_http_api}}
 variable "service_http_api_id" {
-  type = sring
+  type = string
+}
+
+variable "http_verb" {
+  type = string
+}
+
+variable "http_path" {
+  type = string
+}
+
+variable "http_api_execution_arn" {
+  type = string
+}
+
+resource "aws_apigatewayv2_route" "asml_{{name}}_http_route" {
+  api_id    = var.service_http_api_id
+  route_key = "${var.http_verb} ${var.http_path}"
+  target    = "integrations/${aws_apigatewayv2_integration.asml_{{name}}.id}"
 }
 
 resource "aws_apigatewayv2_integration" "asml_{{name}}" {
@@ -38,6 +56,14 @@ resource "aws_apigatewayv2_integration" "asml_{{name}}" {
   connection_type           = "INTERNET"
   integration_method        = "POST"
   integration_uri           = aws_lambda_function.asml_{{name}}_lambda.invoke_arn
+}
+
+resource "aws_lambda_permission" "lambda_permission" {
+  action        = "lambda:InvokeFunction"
+  function_name = "{{name}}"
+  principal     = "apigateway.amazonaws.com"
+
+  source_arn = "${var.http_api_execution_arn}/*"
 }
 {{/if}}
 
@@ -94,6 +120,8 @@ pub struct TerraformFunction {
     pub service: String,
     pub service_has_layer: bool,
     pub service_has_http_api: bool,
+    pub http_verb: Option<String>,
+    pub http_path: Option<String>
 }
 
 pub fn write(project_path: &PathBuf, function: &TerraformFunction) -> Result<(), io::Error> {
