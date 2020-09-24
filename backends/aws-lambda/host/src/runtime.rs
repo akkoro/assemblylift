@@ -41,10 +41,10 @@ impl AwsLambdaRuntime {
                     .to_str()
                     .unwrap()
                     .to_string();
-
+                let event_body = res.text().unwrap();
                 AwsLambdaEvent {
                     request_id,
-                    event_body: res.text().unwrap(),
+                    event_body,
                 }
             })
             .map_err(|err| Error::new(ErrorKind::Other, err.to_string()))

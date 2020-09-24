@@ -53,18 +53,18 @@ async fn main() {
         crate_version!()
     );
 
-    let iomod_dir = Path::new("/opt/iomod").canonicalize().unwrap();
-
     let registry_channel = mpsc::channel(100);
     let tx = registry_channel.0.clone();
     let rx = registry_channel.1;
     registry::spawn_registry(rx).unwrap();
 
     // load plugins from runtime dir, which should contain merged contents of Lambda layers
-    for entry in fs::read_dir(iomod_dir).unwrap() {
-        let entry = entry.unwrap();
-        if entry.file_type().unwrap().is_file() {
-            process::Command::new(entry.path()).spawn().unwrap();
+    if let Ok(rd) = fs::read_dir("/opt/iomod") {
+        for entry in rd {
+            let entry = entry.unwrap();
+            if entry.file_type().unwrap().is_file() {
+                process::Command::new(entry.path()).spawn().unwrap();
+            }
         }
     }
 

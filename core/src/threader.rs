@@ -54,10 +54,10 @@ impl Threader {
                         // We can free the host-side memory structure here.
                         memory.free(ioid);
                         true
-                    },
-                    false => false
+                    }
+                    false => false,
                 }
-            },
+            }
             Err(_) => false,
         }
     }
@@ -183,7 +183,7 @@ impl IoMemory {
     fn poll(&self, ioid: u32) -> bool {
         match self.io_status.get(&ioid) {
             Some(status) => *status,
-            None => false
+            None => false,
         }
     }
 
@@ -197,8 +197,13 @@ impl IoMemory {
         }
 
         // Update document map
-        self.document_map
-            .insert(ioid, IoMemoryDocument { start, length: response_len });
+        self.document_map.insert(
+            ioid,
+            IoMemoryDocument {
+                start,
+                length: response_len,
+            },
+        );
 
         // Update event status table
         self.io_status.insert(ioid, true);

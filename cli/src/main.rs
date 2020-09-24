@@ -11,7 +11,6 @@ mod artifact;
 mod bom;
 mod commands;
 mod projectfs;
-mod templates;
 mod terraform;
 
 fn main() {
