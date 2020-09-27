@@ -14,7 +14,6 @@ use assemblylift_core::threader::Threader;
 use assemblylift_core::WasmBufferPtr;
 use assemblylift_core_iomod::registry;
 use runtime::AwsLambdaRuntime;
-use std::path::Path;
 
 mod runtime;
 mod wasm;

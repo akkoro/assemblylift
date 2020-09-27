@@ -46,8 +46,8 @@ checksum = "cff77d8686867eceff3105329d4698d96c2391c176d5d03adc90c7389162b5b8"
 name = "assemblylift-awslambda-guest"
 version = "0.2.0"
 dependencies = [
- "assemblylift-core-event-guest",
  "assemblylift-core-guest",
+ "assemblylift-core-io-guest",
  "direct-executor",
  "serde",
  "serde_json",
@@ -58,8 +58,8 @@ name = "assemblylift-awslambda-host"
 version = "0.2.0"
 dependencies = [
  "assemblylift-core",
- "assemblylift-core-event",
- "assemblylift-core-event-common",
+ "assemblylift-core-io",
+ "assemblylift-core-io-common",
  "assemblylift-core-iomod",
  "clap 3.0.0-beta.1",
  "crossbeam-utils",
@@ -89,7 +89,7 @@ dependencies = [
 name = "assemblylift-core"
 version = "0.2.0"
 dependencies = [
- "assemblylift-core-event-common",
+ "assemblylift-core-io-common",
  "assemblylift-core-iomod",
  "crossbeam-utils",
  "lazy_static",
@@ -100,11 +100,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "assemblylift-core-event"
+name = "assemblylift-core-guest"
+version = "0.2.0"
+dependencies = [
+ "paste",
+]
+
+[[package]]
+name = "assemblylift-core-io"
 version = "0.2.0"
 dependencies = [
  "assemblylift-core",
- "assemblylift-core-event-common",
+ "assemblylift-core-io-common",
  "crossbeam-utils",
  "futures",
  "indexmap",
@@ -115,17 +122,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "assemblylift-core-event-common"
+name = "assemblylift-core-io-common"
 version = "0.2.0"
 dependencies = [
  "serde",
 ]
 
 [[package]]
-name = "assemblylift-core-event-guest"
+name = "assemblylift-core-io-guest"
 version = "0.2.0"
 dependencies = [
- "assemblylift-core-event-common",
+ "assemblylift-core-io-common",
  "futures",
  "lazy_static",
  "serde",
@@ -133,17 +140,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "assemblylift-core-guest"
-version = "0.2.0"
-dependencies = [
- "paste",
-]
-
-[[package]]
 name = "assemblylift-core-iomod"
 version = "0.1.0"
 dependencies = [
- "assemblylift-core-event-common",
+ "assemblylift-core-io-common",
  "capnp",
  "capnp-rpc",
  "capnpc",
@@ -170,12 +170,13 @@ name = "assemblylift-iomod-dynamodb"
 version = "0.1.0"
 dependencies = [
  "assemblylift-core",
- "assemblylift-core-event",
+ "assemblylift-core-io",
  "assemblylift-core-iomod",
  "capnp",
  "capnp-rpc",
  "crossbeam-utils",
  "futures",
+ "futures-util",
  "once_cell",
  "paste",
  "rusoto_core",
@@ -190,7 +191,7 @@ dependencies = [
 name = "assemblylift-iomod-dynamodb-guest"
 version = "0.1.0"
 dependencies = [
- "assemblylift-core-event-guest",
+ "assemblylift-core-io-guest",
  "assemblylift-core-iomod-guest",
  "base64 0.12.1",
  "bytes",

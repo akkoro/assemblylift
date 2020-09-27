@@ -22,7 +22,7 @@ pub mod macros {
     macro_rules! call {
         ($name:ident, $input:ty => $output:ty) => {
             pub fn $name<'a>(input: $input) -> Io<'a, $output> {
-                use assemblylift_core_event_guest::{Io, IO_BUFFER};
+                use assemblylift_core_io_guest::{Io, IO_BUFFER};
                 use serde_json;
 
                 let name = std::stringify!($name);

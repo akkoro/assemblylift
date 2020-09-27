@@ -74,7 +74,7 @@ pub fn zip_files(
 }
 
 pub fn unzip_to(bytes_in: Vec<u8>, out_dir: &str) -> Result<(), ArtifactError> {
-    let mut reader = std::io::Cursor::new(bytes_in);
+    let reader = std::io::Cursor::new(bytes_in);
     let mut archive = zip::ZipArchive::new(reader).unwrap();
     let mut file_out = archive.by_name("terraform").unwrap();
 

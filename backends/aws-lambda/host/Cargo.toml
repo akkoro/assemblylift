@@ -26,5 +26,5 @@ wasmer_runtime_core = { version = "0.1.1", package = "wasmer-runtime-core-asml-f
 
 assemblylift_core = { version = "0.2.0", package = "assemblylift-core", path = "../../../core" }
 assemblylift_core_iomod = { version = "0.1.0", package = "assemblylift-core-iomod", path = "../../../core/iomod" }
-assemblylift_core_event = { version = "0.2.0", package = "assemblylift-core-event", path = "../../../core/event" }
-assemblylift_core_event_common = { version = "0.2.0", package = "assemblylift-core-event-common", path = "../../../core/event/common" }
+assemblylift_core_io = { version = "0.2.0", package = "assemblylift-core-io", path = "../../../core/io" }
+assemblylift_core_io_common = { version = "0.2.0", package = "assemblylift-core-io-common", path = "../../../core/io/common" }

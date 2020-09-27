@@ -52,14 +52,18 @@ pub fn command(matches: Option<&ArgMatches>) {
         let tf_service = TerraformService {
             name: service_name.clone(),
             has_layer: service_manifest.iomod.is_some(),
-            has_http_api: service_manifest.api.functions.values().any(|f| f.http.is_some())
+            has_http_api: service_manifest
+                .api
+                .functions
+                .values()
+                .any(|f| f.http.is_some()),
         };
         services.push(tf_service.clone());
 
         terraform::service::write(&*project.dir(), tf_service.clone()).unwrap();
 
         if let Some(iomod) = service_manifest.iomod {
-                        let mut dependencies: Vec<String> = Vec::new();
+            let mut dependencies: Vec<String> = Vec::new();
             for (name, dependency) in iomod.dependencies {
                 match dependency.dependency_type.as_str() {
                     "file" => {
@@ -164,12 +168,12 @@ pub fn command(matches: Option<&ArgMatches>) {
                 service_has_http_api: tf_function_service.has_http_api,
                 http_verb: match function_http.as_ref() {
                     Some(http) => Some(http.verb.to_string()),
-                    None => None
+                    None => None,
                 },
                 http_path: match function_http.as_ref() {
                     Some(http) => Some(http.path.to_string()),
-                    None => None
-                }
+                    None => None,
+                },
             };
 
             terraform::function::write(&*project.dir(), &tf_function).unwrap();
@@ -177,7 +181,13 @@ pub fn command(matches: Option<&ArgMatches>) {
         }
     }
 
-    terraform::write(&*project.dir(), asml_manifest.project.name, functions, services).unwrap();
+    terraform::write(
+        &*project.dir(),
+        asml_manifest.project.name,
+        functions,
+        services,
+    )
+    .unwrap();
 
     terraform::commands::init();
     terraform::commands::plan();

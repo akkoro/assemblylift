@@ -34,7 +34,7 @@ pub(in crate::bom) fn write_documents(
         let render = reg.render(doc.file_name, &data).unwrap();
         let mut path = PathBuf::from(path);
         path.push(doc.file_name);
-        write_to_file(&*path, render);
+        write_to_file(&*path, render).unwrap();
     }
 }
 

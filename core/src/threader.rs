@@ -5,8 +5,8 @@ use crossbeam_utils::atomic::AtomicCell;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
 
-use assemblylift_core_event_common::constants::IO_BUFFER_SIZE_BYTES;
-use assemblylift_core_event_common::IoMemoryDocument;
+use assemblylift_core_io_common::constants::IO_BUFFER_SIZE_BYTES;
+use assemblylift_core_io_common::IoMemoryDocument;
 use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
 const BLOCK_SIZE_BYTES: usize = 64;
@@ -205,7 +205,7 @@ impl IoMemory {
             },
         );
 
-        // Update event status table
+        // Update io status table
         self.io_status.insert(ioid, true);
     }
 
