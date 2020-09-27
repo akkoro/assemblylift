@@ -1,7 +1,7 @@
 [package]
 name = "assemblylift-iomod-dynamodb"
 version = "0.1.0"
-description = "AssemblyLift AWS Lambda IOmod host library"
+description = "AssemblyLift DynamoDB IOmod (host)"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
 license-file = "../../../../LICENSE.md"
@@ -23,8 +23,8 @@ futures = "0.3.5"
 rusoto_core = { version = "0.43.0" }
 rusoto_dynamodb = { version = "0.43.0", features = ["serialize_structs", "deserialize_structs"] }
 
-assemblylift_core = { version = "0.1.1", package = "assemblylift-core", path = "../../../../core"}
-assemblylift_core_event = { version = "0.1.1", package = "assemblylift-core-event", path = "../../../../core/event" }
+assemblylift_core = { version = "0.2.0", package = "assemblylift-core", path = "../../../../core"}
+assemblylift_core_event = { version = "0.2.0", package = "assemblylift-core-event", path = "../../../../core/event" }
 assemblylift_core_iomod = { version = "0.1.0", package = "assemblylift-core-iomod", path = "../../../../core/iomod" }
 
 wasmer_runtime_core = { version = "0.1.1", package = "wasmer-runtime-core-asml-fork" }

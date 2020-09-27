@@ -44,7 +44,7 @@ checksum = "cff77d8686867eceff3105329d4698d96c2391c176d5d03adc90c7389162b5b8"
 
 [[package]]
 name = "assemblylift-awslambda-guest"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "assemblylift-core-event-guest",
  "assemblylift-core-guest",
@@ -55,7 +55,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-awslambda-host"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "assemblylift-core",
  "assemblylift-core-event",
@@ -72,7 +72,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-cli"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "clap 2.33.1",
  "handlebars",
@@ -87,7 +87,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "assemblylift-core-event-common",
  "assemblylift-core-iomod",
@@ -101,7 +101,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-event"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "assemblylift-core",
  "assemblylift-core-event-common",
@@ -116,14 +116,14 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-event-common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "assemblylift-core-event-guest"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "assemblylift-core-event-common",
  "futures",
@@ -134,7 +134,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-guest"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "paste",
 ]

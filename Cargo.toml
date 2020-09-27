@@ -13,7 +13,3 @@ members = [
     "core/event/common",
     "cli"
 ]
-exclude = [
-    "examples/hello-world",
-    "examples/todo"
-]

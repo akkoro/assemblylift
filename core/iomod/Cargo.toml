@@ -1,8 +1,12 @@
 [package]
 name = "assemblylift-core-iomod"
 version = "0.1.0"
-authors = ["xlem <xlem@akkoro.io>"]
+description = "AssemblyLift core IOmod library"
+authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
+license-file = "../../LICENSE.md"
+repository = "https://github.com/akkoro/assemblylift"
+readme = "README.md"
 
 build = "build.rs"
 
@@ -22,7 +26,7 @@ capnp-rpc = "0.13.1"
 wasmer_runtime = { version = "0.1.1", package = "wasmer-runtime-asml-fork" }
 wasmer_runtime_core = { version = "0.1.1", package = "wasmer-runtime-core-asml-fork" }
 
-assemblylift_core_event_common = { version = "0.1.0", package = "assemblylift-core-event-common", path = "../../core/event/common" }
+assemblylift_core_event_common = { version = "0.2.0", package = "assemblylift-core-event-common", path = "../../core/event/common" }
 
 [build-dependencies]
 rustc_version = "0.2.3"
