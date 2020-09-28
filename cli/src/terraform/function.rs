@@ -3,7 +3,7 @@ use std::path;
 use std::path::PathBuf;
 
 use clap::crate_version;
-use handlebars::{Handlebars, to_json};
+use handlebars::{to_json, Handlebars};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::value::{Map, Value as Json};
 
@@ -73,7 +73,7 @@ resource "aws_lambda_function" "asml_{{name}}_lambda" {
     runtime       = "provided"
     handler       = "{{name}}.{{handler_name}}"
     filename      = "${path.module}/{{name}}.zip"
-    timeout       = 10
+    timeout       = 5
 
     {{#if service_has_layer}}
     layers = [var.runtime_layer_arn, var.service_layer_arn]
@@ -121,7 +121,7 @@ pub struct TerraformFunction {
     pub service_has_layer: bool,
     pub service_has_http_api: bool,
     pub http_verb: Option<String>,
-    pub http_path: Option<String>
+    pub http_path: Option<String>,
 }
 
 pub fn write(project_path: &PathBuf, function: &TerraformFunction) -> Result<(), io::Error> {

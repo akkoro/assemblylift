@@ -115,13 +115,13 @@ pub fn fetch(project_path: &PathBuf) {
     )
     .unwrap();
 
-    response.read_to_end(&mut terraform_zip);
+    response.read_to_end(&mut terraform_zip).unwrap();
 
     if let Err(_) = fs::create_dir_all(terraform_path.replace("/terraform", "")) {
         panic!("could not create directory ./.asml/bin")
     }
 
-    artifact::unzip_to(terraform_zip, &terraform_path);
+    artifact::unzip_to(terraform_zip, &terraform_path).unwrap();
 
     let mut perms = fs::metadata(&terraform_path).unwrap().permissions();
     perms.set_mode(0o755);

@@ -14,7 +14,6 @@ use assemblylift_core::threader::Threader;
 use assemblylift_core::WasmBufferPtr;
 use assemblylift_core_iomod::registry;
 use runtime::AwsLambdaRuntime;
-use std::path::Path;
 
 mod runtime;
 mod wasm;
@@ -38,11 +37,18 @@ fn write_event_buffer(instance: &Instance, event: String) {
 
     let event_buffer = get_pointer.call().unwrap();
     let memory_writer: &[AtomicCell<u8>] = event_buffer
-        .deref(wasm_instance_memory, 0, event.len() as u32)
+        .deref(wasm_instance_memory, 0, 8192u32)
         .unwrap();
 
-    for (i, b) in event.bytes().enumerate() {
+    let bytes = event.bytes();
+    for (i, b) in bytes.clone().enumerate() {
         memory_writer[i].store(b);
+    }
+    if 8192 > bytes.clone().len() {
+        // FIXME magic number -- equiv to AWS_EVENT_STRING_BUFFER_SIZE
+        for i in bytes.len()..8192 {
+            memory_writer[i].store('\0' as u8)
+        }
     }
 }
 
@@ -76,10 +82,14 @@ async fn main() {
                 Err(why) => panic!("PANIC {}", why.to_string()),
             };
 
-            while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
-                let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
-                ref_cell.replace(event.request_id.clone());
-                std::mem::drop(ref_cell);
+            while let Ok(event) = LAMBDA_RUNTIME.get_next_event().await {
+                {
+                    let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
+                    if ref_cell.borrow().clone() == event.request_id.clone() {
+                        continue
+                    }
+                    ref_cell.replace(event.request_id.clone());
+                }
 
                 let instance = instance.clone();
                 tokio::task::spawn_local(async move {

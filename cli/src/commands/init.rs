@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::process;
 
 use clap::ArgMatches;

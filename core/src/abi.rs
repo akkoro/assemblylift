@@ -62,10 +62,10 @@ pub fn asml_abi_event_len(ctx: &mut vm::Ctx, id: u32) -> u32 {
 }
 
 #[inline]
-fn get_threader(ctx: &mut vm::Ctx) -> *mut Threader {
+pub fn get_threader(ctx: &mut vm::Ctx) -> *mut Threader {
     let threader: *mut Threader = ctx.data.cast();
     if threader.is_null() {
-        panic!("Threader instance is NULL in asml_abi_poll")
+        panic!("Threader instance is NULL in abi::get_threader")
     }
 
     threader

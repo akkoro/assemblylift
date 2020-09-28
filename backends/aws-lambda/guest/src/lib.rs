@@ -1,5 +1,5 @@
-extern crate assemblylift_core_event_guest;
 extern crate assemblylift_core_guest;
+extern crate assemblylift_core_io_guest;
 
 use std::collections::HashMap;
 
@@ -59,13 +59,16 @@ pub struct ApiGatewayResponse {
 impl ApiGatewayResponse {
     pub fn ok(body: String, content_type: Option<String>) -> Self {
         let mut headers = HashMap::default();
-        headers.insert("content-type".to_string(), content_type.unwrap_or_else(|| String::from("application/json")));
+        headers.insert(
+            "content-type".to_string(),
+            content_type.unwrap_or_else(|| String::from("application/json")),
+        );
 
         Self {
             status_code: 200,
             is_base64_encoded: false,
             headers,
-            body
+            body,
         }
     }
 }
@@ -107,8 +110,7 @@ macro_rules! handler {
             }
 
             if event_ptr == -1 || event_end == -1 {
-                AwsLambdaClient::console_log(format!(
-                    "ERROR reading Lambda Event from buffer"));
+                AwsLambdaClient::console_log(format!("ERROR reading Lambda Event from buffer"));
                 panic!("!!!!");
             }
 

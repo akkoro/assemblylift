@@ -1,11 +1,10 @@
-#[macro_use]
 extern crate lazy_static;
 
 use crossbeam_utils::atomic::AtomicCell;
 use wasmer_runtime::{Array, WasmPtr};
 use wasmer_runtime_core::vm;
 
-use assemblylift_core_event_common::constants::IO_BUFFER_SIZE_BYTES;
+use assemblylift_core_io_common::constants::IO_BUFFER_SIZE_BYTES;
 
 use crate::threader::Threader;
 

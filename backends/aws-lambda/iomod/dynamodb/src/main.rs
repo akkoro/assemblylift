@@ -1,13 +1,13 @@
-#[macro_use]
 extern crate assemblylift_core_iomod;
 
 use std::collections::HashMap;
 
 use capnp::capability::Promise;
-use capnp::Error;
+use capnp::{Error, ErrorKind};
 use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::future::BoxFuture;
 use futures::{AsyncReadExt, FutureExt};
+use futures_util::TryFutureExt;
 use once_cell::sync::Lazy;
 use rusoto_core::Region;
 use rusoto_dynamodb::DynamoDbClient;
@@ -99,14 +99,21 @@ impl iomod::Server for Iomod {
                 input: Vec::from(input),
                 responder: channel.0.clone(),
             })
-            .await;
+            .and_then(|_| async move {
+                // wait for response from executor thread
+                if let Some(response) = channel.1.recv().await {
+                    results.get().set_result(response.payload.as_slice());
+                }
 
-            // wait for response from executor thread
-            if let Some(response) = channel.1.recv().await {
-                results.get().set_result(response.payload.as_slice());
-            }
-
-            Ok(())
+                Ok(())
+            })
+            .or_else(|why| async move {
+                Err(capnp::Error {
+                    kind: ErrorKind::Failed,
+                    description: why.to_string(),
+                })
+            })
+            .await
         })
     }
 }

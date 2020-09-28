@@ -1,17 +1,15 @@
+use std::{env, io};
 use std::cell::Cell;
 use std::error::Error;
 use std::ffi::c_void;
 use std::fs::canonicalize;
 use std::io::ErrorKind;
-use std::{env, io};
 
 use wasmer_runtime::memory::MemoryView;
-use wasmer_runtime_core::vm::Ctx;
 use wasmer_runtime_core::Instance;
+use wasmer_runtime_core::vm::Ctx;
 
-use assemblylift_core::abi::{
-    asml_abi_event_len, asml_abi_event_ptr, asml_abi_invoke, asml_abi_poll,
-};
+use assemblylift_core::abi::{asml_abi_event_len, asml_abi_event_ptr, asml_abi_invoke, asml_abi_poll, get_threader};
 use assemblylift_core::threader::Threader;
 use assemblylift_core_iomod::registry::RegistryTx;
 
@@ -66,7 +64,13 @@ fn runtime_console_log(ctx: &mut Ctx, ptr: u32, len: u32) {
 fn runtime_success(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<(), io::Error> {
     let lambda_runtime = &crate::LAMBDA_RUNTIME;
     let response = runtime_ptr_to_string(ctx, ptr, len).unwrap();
-    lambda_runtime.respond(response.to_string())
+
+    let threader: *mut Threader = get_threader(ctx);
+    let threader = unsafe { threader.as_mut().unwrap() };
+
+    let respond = lambda_runtime.respond(response.to_string());
+    threader.spawn(respond);
+    Ok(())
 }
 
 fn runtime_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Error> {

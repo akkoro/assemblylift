@@ -8,12 +8,8 @@ members = [
     "core/guest",
     "core/iomod",
     "core/iomod/guest",
-    "core/event",
-    "core/event/guest",
-    "core/event/common",
+    "core/io",
+    "core/io/guest",
+    "core/io/common",
     "cli"
-]
-exclude = [
-    "examples/hello-world",
-    "examples/todo"
 ]
