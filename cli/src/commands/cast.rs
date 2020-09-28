@@ -30,7 +30,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     // TODO in the future we should check if we already have the same version
     // TODO argument to specify which version -- default to 'latest'
     let mut response = reqwest::blocking::get(
-        "http://runtime.assemblylift.akkoro.io/aws-lambda/xlem/bootstrap.zip",
+        "http://runtime.assemblylift.akkoro.io/aws-lambda/latest/bootstrap.zip",
     )
     .unwrap();
     let mut response_buffer = Vec::new();
