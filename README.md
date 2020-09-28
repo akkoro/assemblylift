@@ -68,9 +68,9 @@ If using Ruby as a build front-end is problematic in your environment, please [f
 
 ## 0.2
 
-- [ ] ❗ Better implementation of [Threader](/core/io/src/threader.rs) memory manager
-- [ ] ❗ Plugin framework for IOmods [#17](https://github.com/akkoro/assemblylift/pull/17)
-- [ ] API definitions
+- [x] ❗ Better implementation of Threader memory manager [#19](https://github.com/akkoro/assemblylift/pull/19)
+- [x] ❗ Plugin framework for IOmods [#18](https://github.com/akkoro/assemblylift/pull/18)
+- [x] API definitions [#20](https://github.com/akkoro/assemblylift/pull/20)
 - [ ] More examples
 - [ ] Logging system
 
