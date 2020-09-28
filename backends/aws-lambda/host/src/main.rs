@@ -37,11 +37,18 @@ fn write_event_buffer(instance: &Instance, event: String) {
 
     let event_buffer = get_pointer.call().unwrap();
     let memory_writer: &[AtomicCell<u8>] = event_buffer
-        .deref(wasm_instance_memory, 0, event.len() as u32)
+        .deref(wasm_instance_memory, 0, 8192u32)
         .unwrap();
 
-    for (i, b) in event.bytes().enumerate() {
+    let bytes = event.bytes();
+    for (i, b) in bytes.clone().enumerate() {
         memory_writer[i].store(b);
+    }
+    if 8192 > bytes.clone().len() {
+        // FIXME magic number -- equiv to AWS_EVENT_STRING_BUFFER_SIZE
+        for i in bytes.len()..8192 {
+            memory_writer[i].store('\0' as u8)
+        }
     }
 }
 
