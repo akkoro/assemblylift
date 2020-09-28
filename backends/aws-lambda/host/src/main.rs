@@ -75,10 +75,14 @@ async fn main() {
                 Err(why) => panic!("PANIC {}", why.to_string()),
             };
 
-            while let Ok(event) = LAMBDA_RUNTIME.get_next_event() {
-                let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
-                ref_cell.replace(event.request_id.clone());
-                std::mem::drop(ref_cell);
+            while let Ok(event) = LAMBDA_RUNTIME.get_next_event().await {
+                {
+                    let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
+                    if ref_cell.borrow().clone() == event.request_id.clone() {
+                        continue
+                    }
+                    ref_cell.replace(event.request_id.clone());
+                }
 
                 let instance = instance.clone();
                 tokio::task::spawn_local(async move {

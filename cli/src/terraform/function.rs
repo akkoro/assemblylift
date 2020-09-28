@@ -73,7 +73,7 @@ resource "aws_lambda_function" "asml_{{name}}_lambda" {
     runtime       = "provided"
     handler       = "{{name}}.{{handler_name}}"
     filename      = "${path.module}/{{name}}.zip"
-    timeout       = 10
+    timeout       = 5
 
     {{#if service_has_layer}}
     layers = [var.runtime_layer_arn, var.service_layer_arn]

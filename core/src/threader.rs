@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::Mutex;
 
 use crossbeam_utils::atomic::AtomicCell;
@@ -111,6 +112,11 @@ impl Threader {
         });
     }
 
+    pub fn spawn(&self, future: impl Future<Output = Result<(), std::io::Error>> + Send + 'static) {
+        let hnd = self.runtime.handle();
+        hnd.enter(|| tokio::spawn(future));
+    }
+
     pub fn __reset_memory() {
         if let Ok(mut memory) = IO_MEMORY.lock() {
             memory.reset();
@@ -166,8 +172,8 @@ impl IoMemory {
 
     fn reset(&mut self) {
         self._next_id = 1;
-        self.document_map = Default::default();
-        self.io_status = Default::default();
+        self.document_map.clear();
+        self.io_status.clear();
         self.blocks = Default::default();
     }
 
