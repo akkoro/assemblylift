@@ -130,7 +130,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-io-guest"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "assemblylift-core-io-common",
  "futures",
