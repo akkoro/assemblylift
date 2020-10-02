@@ -1,16 +1,19 @@
-extern crate assemblylift_core_event_guest;
 extern crate assemblylift_core_guest;
+extern crate assemblylift_core_io_guest;
 
-use assemblylift_core_guest::*;
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
-pub const AWS_EVENT_STRING_BUFFER_SIZE: usize = 2048;
+use assemblylift_core_guest::*;
+
+pub const AWS_EVENT_STRING_BUFFER_SIZE: usize = 8192;
 pub static mut AWS_EVENT_STRING_BUFFER: [u8; AWS_EVENT_STRING_BUFFER_SIZE] =
     [0; AWS_EVENT_STRING_BUFFER_SIZE];
 
 // provided TO the wasm runtime (host)
 #[no_mangle]
-pub fn __al_get_aws_event_string_buffer_pointer() -> *const u8 {
+pub fn __asml_guest_get_aws_event_string_buffer_pointer() -> *const u8 {
     unsafe { AWS_EVENT_STRING_BUFFER.as_ptr() }
 }
 
@@ -43,6 +46,33 @@ pub struct ApiGatewayEvent {
     pub body: Option<String>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct ApiGatewayResponse {
+    #[serde(rename = "isBase64Encoded")]
+    is_base64_encoded: bool,
+    #[serde(rename = "statusCode")]
+    status_code: u16,
+    headers: HashMap<String, String>,
+    body: String,
+}
+
+impl ApiGatewayResponse {
+    pub fn ok(body: String, content_type: Option<String>) -> Self {
+        let mut headers = HashMap::default();
+        headers.insert(
+            "content-type".to_string(),
+            content_type.unwrap_or_else(|| String::from("application/json")),
+        );
+
+        Self {
+            status_code: 200,
+            is_base64_encoded: false,
+            headers,
+            body,
+        }
+    }
+}
+
 pub struct LambdaContext {
     pub client: AwsLambdaClient,
     pub event: ApiGatewayEvent,
@@ -54,21 +84,37 @@ macro_rules! handler {
         #[no_mangle]
         pub fn handler() -> i32 {
             use asml_awslambda::{AWS_EVENT_STRING_BUFFER, AWS_EVENT_STRING_BUFFER_SIZE};
+            use direct_executor;
 
             AwsLambdaClient::console_log("Started handler...".to_string());
 
             let client = AwsLambdaClient::new();
 
-            let mut event_len: usize = 0;
+            let mut event_ptr: i32 = -1;
+            let mut event_end: i32 = -1;
             unsafe {
                 for (i, &b) in AWS_EVENT_STRING_BUFFER.iter().enumerate() {
-                    if b == '\0' as u8 {
-                        event_len = i;
-                        break;
+                    if event_ptr == -1 {
+                        if b != '\0' as u8 {
+                            event_ptr = i as i32;
+                        }
+                    } else {
+                        if event_end == -1 {
+                            if b == '\0' as u8 {
+                                event_end = i as i32;
+                                break;
+                            }
+                        }
                     }
                 }
             }
-            let slice = unsafe { &AWS_EVENT_STRING_BUFFER[0..event_len] };
+
+            if event_ptr == -1 || event_end == -1 {
+                AwsLambdaClient::console_log(format!("ERROR reading Lambda Event from buffer"));
+                panic!("!!!!");
+            }
+
+            let slice = unsafe { &AWS_EVENT_STRING_BUFFER[event_ptr as usize..event_end as usize] };
 
             let event: ApiGatewayEvent = match serde_json::from_slice(slice) {
                 Ok(event) => event,

@@ -1,19 +1,19 @@
+use std::{env, io};
 use std::cell::Cell;
 use std::error::Error;
 use std::ffi::c_void;
-use std::fs::{canonicalize, File};
-use std::io::{ErrorKind, Read};
-use std::sync::Mutex;
-use std::{env, io};
+use std::fs::canonicalize;
+use std::io::ErrorKind;
 
 use wasmer_runtime::memory::MemoryView;
-use wasmer_runtime_core::vm::Ctx;
 use wasmer_runtime_core::Instance;
+use wasmer_runtime_core::vm::Ctx;
 
-use assemblylift_core::iomod::*;
-use assemblylift_core_event::threader::Threader;
+use assemblylift_core::abi::{asml_abi_event_len, asml_abi_event_ptr, asml_abi_invoke, asml_abi_poll, get_threader};
+use assemblylift_core::threader::Threader;
+use assemblylift_core_iomod::registry::RegistryTx;
 
-pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
+pub fn build_instance(tx: RegistryTx) -> Result<Instance, io::Error> {
     // let panic if these aren't set
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
@@ -21,15 +21,10 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
     // handler coordinates are expected to be <file name>.<function name>
     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
     let file_name = coords[0];
+    let file_path = format!("{}/{}.wasm", lambda_path, file_name);
 
-    let get_instance = canonicalize(format!("{}/{}.wasm", lambda_path, file_name))
-        .and_then(|path| File::open(path))
-        .and_then(|mut file: File| {
-            let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer)
-                .map(move |_| buffer)
-                .map_err(to_io_error)
-        })
+    let get_instance = canonicalize(file_path)
+        .and_then(|path| std::fs::read(path))
         .and_then(|buffer| {
             use wasmer_runtime::{func, imports, instantiate};
             let import_object = imports! {
@@ -47,14 +42,11 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
         });
 
     match get_instance {
-        Ok(instance) => {
-            let threader = Box::into_raw(Box::from(Threader::new()));
-            let mut boxed_instance = Box::new(instance);
-            boxed_instance.context_mut().data = threader as *mut _ as *mut c_void;
+        Ok(mut instance) => {
+            let threader = Box::into_raw(Box::from(Threader::new(tx)));
+            instance.context_mut().data = threader as *mut _ as *mut c_void;
 
-            let guarded_instance = Mutex::new(boxed_instance);
-
-            Ok(guarded_instance)
+            Ok(instance)
         }
         Err(error) => Err(to_io_error(error)),
     }
@@ -72,7 +64,13 @@ fn runtime_console_log(ctx: &mut Ctx, ptr: u32, len: u32) {
 fn runtime_success(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<(), io::Error> {
     let lambda_runtime = &crate::LAMBDA_RUNTIME;
     let response = runtime_ptr_to_string(ctx, ptr, len).unwrap();
-    lambda_runtime.respond(response.to_string())
+
+    let threader: *mut Threader = get_threader(ctx);
+    let threader = unsafe { threader.as_mut().unwrap() };
+
+    let respond = lambda_runtime.respond(response.to_string());
+    threader.spawn(respond);
+    Ok(())
 }
 
 fn runtime_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Error> {

@@ -8,6 +8,6 @@ pub fn command(matches: Option<&ArgMatches>) {
         _ => panic!("could not get matches for bind command"),
     };
 
-    terraform::run_terraform_init();
-    terraform::run_terraform_apply();
+    terraform::commands::init();
+    terraform::commands::apply();
 }

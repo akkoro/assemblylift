@@ -78,15 +78,16 @@ when "build"
       die("Missing docker, exiting...")
     end
 
-    version = "0.1.0" # TODO load from Cargo.toml
+    version = "0.1.0" # TODO load from cli/Cargo.toml
     tag = "assemblylift:#{version}"
 
     puts "Building deployment-ready build..."
     `#{DOCKER} build . --file Dockerfile_aws-lambda --tag #{tag}`
     `#{DOCKER} run --rm --entrypoint cat #{tag} /usr/src/assemblylift/target/release/bootstrap > ./bootstrap`
+    `#{DOCKER} run --rm --entrypoint cat #{tag} /usr/src/assemblylift/target/release/libassemblylift_awslambda_iomod_plugin_dynamodb.so > ./libassemblylift_awslambda_iomod_plugin_dynamodb.so`
     `chmod 777 ./bootstrap`
     `zip ./bootstrap.zip ./bootstrap`
-    puts "Done! Build artifact copied to project root."
+    puts "Done! Build artifacts copied to project root."
 
   else
     die(build_arg_error_string)
