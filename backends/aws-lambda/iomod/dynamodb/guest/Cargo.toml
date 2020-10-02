@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "AssemblyLift DynamoDB IOmod (guest)"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
-license-file = "../../../../LICENSE.md"
+license-file = "../../../../../LICENSE.md"
 repository = "https://github.com/akkoro/assemblylift"
 readme = "README.md"
 
