@@ -79,7 +79,6 @@ dependencies = [
  "path_abs",
  "reqwest",
  "serde",
- "serde_derive",
  "serde_json",
  "toml",
  "zip",

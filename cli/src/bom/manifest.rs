@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use clap::crate_version;
 use handlebars::to_json;
-use serde_derive::Deserialize;
+use serde::Deserialize;
 use serde_json::{Map, Value as Json};
 
 use crate::bom::{write_documents, Document, DocumentSet};

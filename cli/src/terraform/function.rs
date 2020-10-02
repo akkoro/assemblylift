@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use clap::crate_version;
 use handlebars::{to_json, Handlebars};
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::value::{Map, Value as Json};
 
 use crate::terraform::write_to_file;
