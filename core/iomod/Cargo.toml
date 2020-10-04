@@ -1,6 +1,6 @@
 [package]
 name = "assemblylift-core-iomod"
-version = "0.1.0"
+version = "0.2.0"
 description = "AssemblyLift core IOmod library"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
