@@ -2,35 +2,90 @@ pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 #[macro_export]
-macro_rules! call {
-    ($call_name:ident => $call:item) => {
-        $call
+macro_rules! iomod {
+    ($org:ident.$ns:ident.$name:ident => $calls:tt) => {
+        use assemblylift_core_iomod::{
+            Call, CallChannel, CallMap, CallPtr, CallRequest, CallResponse, Iomod,
+        };
+        use assemblylift_core_iomod::iomod_capnp::*;
+        use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
+        use futures::{AsyncReadExt, FutureExt};
+        use tokio::net::TcpStream;
+        use tokio::sync::mpsc;
 
-        pub fn $call_name (ctx: &mut vm::Ctx, mem: WasmBufferPtr, input: WasmBufferPtr, input_len: u32) -> i32 {
-            let input_vec = __wasm_buffer_as_vec!(ctx, input, input_len);
-            let call = paste::expr! { [<$call_name _impl>] };
+        let org = stringify!($org);
+        let ns = stringify!($ns);
+        let name = stringify!($name);
 
-            call(input_vec)
-        }
+        let iomod_coords = format!("{}.{}.{}", org, ns, name);
+        println!("Starting AssemblyLift IO module {}", iomod_coords);
+
+        let mut call_map: CallMap = $crate::__calls!($calls);
+        let mut call_channel: CallChannel = mpsc::channel(100);
+
+        let stream = TcpStream::connect("127.0.0.1:13555").await.unwrap();
+        stream.set_nodelay(true).unwrap();
+
+        let (reader, writer) =
+            tokio_util::compat::Tokio02AsyncReadCompatExt::compat(stream).split();
+
+        let rpc_network = Box::new(twoparty::VatNetwork::new(
+            reader,
+            writer,
+            rpc_twoparty_capnp::Side::Client,
+            Default::default(),
+        ));
+
+        let mut rpc_system = RpcSystem::new(rpc_network, None);
+        let registry: registry::Client = rpc_system.bootstrap(rpc_twoparty_capnp::Side::Server);
+
+        let local = tokio::task::LocalSet::new();
+        local
+            .run_until(async move {
+                let rpc_task = tokio::task::spawn_local(Box::pin(rpc_system.map(|_| ())));
+
+                let mut register = registry.register_request();
+                register
+                    .get()
+                    .set_iomod(capnp_rpc::new_client(Iomod::new(call_channel.0.clone())));
+                register.get().set_coordinates(iomod_coords.as_str());
+                register.send().promise.await.unwrap();
+
+                let call_task = tokio::task::spawn_local(async move {
+                    while let Some(mut call) = call_channel.1.recv().await {
+                        let coords = call.coords.as_str();
+                        let call_ptr = call_map.get(String::from(coords), call.input);
+
+                        let response = call_ptr.await;
+
+                        if let Err(why) = call
+                            .responder
+                            .send(CallResponse {
+                                coords: String::from(coords),
+                                payload: response,
+                            })
+                            .await
+                        {
+                            println!("ERROR {}", why)
+                        }
+                    }
+                });
+
+                let (_, _) = tokio::join!(rpc_task, call_task);
+            })
+            .await;
     };
 }
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! __wasm_buffer_as_vec {
-    ($ctx:ident, $input:ident, $input_len:ident) => {{
-        let wasm_instance_memory = $ctx.memory(0);
-        let input_deref: &[AtomicCell<u8>] = match $input.deref(wasm_instance_memory, 0, $input_len)
-        {
-            Some(memory) => memory,
-            None => panic!("could not dereference WASM guest memory in __wasm_buffer_as_vec"),
-        };
-
-        let mut as_vec: Vec<u8> = Vec::new();
-        for (idx, b) in input_deref.iter().enumerate() {
-            as_vec.insert(idx, b.load());
-        }
-
-        as_vec
+macro_rules! __calls {
+    ({ $( $call_name:ident => $call:expr ),* $(,)? }) => {{
+        let mut call_map = CallMap::new();
+        $(
+            let call_name = stringify!($call_name);
+            call_map.map.insert(call_name, CallPtr::new($call));
+        )*
+        call_map
     }};
 }

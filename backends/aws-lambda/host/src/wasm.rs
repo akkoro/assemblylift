@@ -1,15 +1,17 @@
-use std::{env, io};
 use std::cell::Cell;
 use std::error::Error;
 use std::ffi::c_void;
 use std::fs::canonicalize;
 use std::io::ErrorKind;
+use std::{env, io};
 
 use wasmer_runtime::memory::MemoryView;
-use wasmer_runtime_core::Instance;
 use wasmer_runtime_core::vm::Ctx;
+use wasmer_runtime_core::Instance;
 
-use assemblylift_core::abi::{asml_abi_event_len, asml_abi_event_ptr, asml_abi_invoke, asml_abi_poll, get_threader};
+use assemblylift_core::abi::{
+    asml_abi_event_len, asml_abi_event_ptr, asml_abi_invoke, asml_abi_poll, get_threader,
+};
 use assemblylift_core::threader::Threader;
 use assemblylift_core_iomod::registry::RegistryTx;
 

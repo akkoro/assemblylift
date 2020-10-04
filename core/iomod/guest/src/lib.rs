@@ -2,6 +2,8 @@ pub mod macros {
     #[macro_export]
     macro_rules! export_iomod_guest {
         ($org:ident, $namespace:ident, $name: ident) => {
+            use assemblylift_core_io_guest::{Io, IO_BUFFER};
+
             static IOMOD_ORG: &'static str = std::stringify!($org);
             static IOMOD_NAMESPACE: &'static str = std::stringify!($namespace);
             static IOMOD_NAME: &'static str = std::stringify!($name);
@@ -22,7 +24,6 @@ pub mod macros {
     macro_rules! call {
         ($name:ident, $input:ty => $output:ty) => {
             pub fn $name<'a>(input: $input) -> Io<'a, $output> {
-                use assemblylift_core_io_guest::{Io, IO_BUFFER};
                 use serde_json;
 
                 let name = std::stringify!($name);
