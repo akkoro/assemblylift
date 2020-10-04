@@ -148,6 +148,7 @@ dependencies = [
  "capnpc",
  "crossbeam-utils",
  "futures",
+ "futures-util",
  "lazy_static",
  "libloading",
  "once_cell",

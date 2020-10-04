@@ -86,7 +86,7 @@ async fn main() {
                 {
                     let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
                     if ref_cell.borrow().clone() == event.request_id.clone() {
-                        continue
+                        continue;
                     }
                     ref_cell.replace(event.request_id.clone());
                 }
