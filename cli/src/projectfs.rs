@@ -3,6 +3,9 @@ use std::{fs, io};
 
 use path_abs::{PathAbs, PathDir};
 
+use crate::bom::{manifest, DocumentSet};
+use std::borrow::Borrow;
+
 pub struct Project {
     project_path: Box<PathBuf>,
     service_path: Box<PathBuf>,
@@ -122,5 +125,27 @@ impl Project {
 
     pub fn dir(&self) -> Box<PathBuf> {
         self.project_path.clone()
+    }
+}
+
+pub fn locate_asml_manifest() -> Option<(manifest::Manifest, PathBuf)> {
+    use walkdir::WalkDir;
+
+    let mut path: Option<PathBuf> = None;
+    for entry in WalkDir::new(".").into_iter().filter_map(|e| e.ok()) {
+        let file = entry.file_name().to_string_lossy();
+        if file.eq_ignore_ascii_case("assemblylift.toml") {
+            path = Some(PathBuf::from(file.into_owned()));
+            break
+        }
+    }
+
+    match path {
+        Some(path) => {
+            let canonical_path = fs::canonicalize(path.clone()).unwrap();
+            let parent = canonical_path.parent().unwrap();
+            Some((manifest::Manifest::read(&PathBuf::from(parent)), PathBuf::from(parent)))
+        }
+        None => None
     }
 }

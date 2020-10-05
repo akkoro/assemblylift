@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use clap::{crate_version, App, Arg};
 
 use crate::commands::CommandFn;
-use crate::commands::{bind, burn, cast, init};
+use crate::commands::{bind, burn, cast, init, make};
 
 mod artifact;
 mod bom;
@@ -34,6 +34,14 @@ fn main() {
                         .takes_value(true),
                 ), // TODO this is going to need an argument to specify the backend (ie aws-lambda, azure, etc)
         )
+        .subcommand(App::new("make")
+            .about("Make a new service or function")
+            .arg(
+                Arg::with_name("resource")
+                    .multiple(true)
+                    .required(true)
+            )
+        )
         .subcommand(App::new("cast").about("Build the AssemblyLift application"))
         .subcommand(
             App::new("bind")
@@ -52,6 +60,7 @@ fn main() {
     command_map.insert("cast", cast::command);
     command_map.insert("bind", bind::command);
     command_map.insert("burn", burn::command);
+    command_map.insert("make", make::command);
 
     match matches.subcommand() {
         (name, matches) => command_map[name](matches),
