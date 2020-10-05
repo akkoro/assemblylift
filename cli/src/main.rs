@@ -36,6 +36,7 @@ fn main() {
         )
         .subcommand(App::new("make")
             .about("Make a new service or function")
+            .after_help("RESOURCE SYNTAX:\n    asml make service <service-name>\n    asml make function <service-name>.<function-name>")
             .arg(
                 Arg::with_name("resource")
                     .multiple(true)
