@@ -39,6 +39,8 @@ pub(in crate::bom) fn write_documents(
 }
 
 fn write_to_file(path: &path::Path, contents: String) -> Result<(), io::Error> {
+    fs::create_dir_all(path.parent().unwrap())?;
+
     let mut file = match fs::File::create(path) {
         Err(why) => panic!(
             "couldn't create file {}: {}",
