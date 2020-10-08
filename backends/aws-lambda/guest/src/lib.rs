@@ -43,6 +43,17 @@ impl GuestCore for AwsLambdaClient {
 
 #[derive(Serialize, Deserialize, Clone, std::fmt::Debug)]
 pub struct ApiGatewayEvent {
+    pub resource: String,
+    pub path: String,
+    #[serde(rename = "httpMethod")]
+    pub http_method: String,
+    pub headers: HashMap<String, String>,
+    #[serde(rename = "queryStringParameters")]
+    pub query_string_parameters: Option<HashMap<String, String>>,
+    #[serde(rename = "pathParameters")]
+    pub path_parameters: Option<HashMap<String, String>>,
+    #[serde(rename = "stageVariables")]
+    pub stage_variables: Option<HashMap<String, String>>
     pub body: Option<String>,
 }
 
@@ -69,6 +80,21 @@ impl ApiGatewayResponse {
             is_base64_encoded: false,
             headers,
             body,
+        }
+    }
+
+    pub fn error(why: String) -> Self {
+        let mut headers = HashMap::default();
+        headers.insert(
+            String::from("content-type"),
+            String::from("application/json"),
+        );
+
+        Self {
+            status_code: 500,
+            is_base64_encoded: false,
+            headers,
+            body: why
         }
     }
 }
