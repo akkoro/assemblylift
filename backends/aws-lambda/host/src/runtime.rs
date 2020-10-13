@@ -35,10 +35,14 @@ impl AwsLambdaRuntime {
 
         match self.client.get(url).send().await {
             Ok(res) => {
-                let request_id = res.headers()["Lambda-Runtime-Aws-Request-Id"]
-                    .to_str()
-                    .unwrap()
-                    .to_string();
+                let request_id = match res.headers().get("Lambda-Runtime-Aws-Request-Id") {
+                    Some(request_id) => request_id.to_str().unwrap().to_string(),
+                    None => {
+                        return Err(Error::new(ErrorKind::InvalidData,
+                                              "missing header \"Lambda-Runtime-Aws-Request-Id\""))
+                    }
+                };
+
                 let event_body = res.text().await.unwrap();
 
                 Ok(AwsLambdaEvent {
@@ -62,8 +66,6 @@ impl AwsLambdaRuntime {
             self.api_endpoint, request_id
         )
         .to_string();
-
-        println!("TRACE: Responding to AWS Lambda via {}", url);
 
         match self.client.post(url).body(response).send().await {
             Ok(_) => Ok(()),
