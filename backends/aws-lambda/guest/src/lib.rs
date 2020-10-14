@@ -78,13 +78,13 @@ pub struct ApiGatewayError {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum ApiGatewayErrorCode {
-    FunctionError = 520
+    FunctionError = 520,
 }
 
 impl fmt::Display for ApiGatewayErrorCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ApiGatewayErrorCode::FunctionError => write!(f, "Function Error")
+            ApiGatewayErrorCode::FunctionError => write!(f, "Function Error"),
         }
     }
 }
@@ -116,13 +116,12 @@ impl ApiGatewayResponse {
             status_code: code as StatusCode,
             is_base64_encoded: false,
             headers,
-            body: serde_json::to_string(
-                &ApiGatewayError {
-                    code: code as StatusCode,
-                    desc: code.to_string(),
-                    message
-                })
-                .unwrap()
+            body: serde_json::to_string(&ApiGatewayError {
+                code: code as StatusCode,
+                desc: code.to_string(),
+                message,
+            })
+            .unwrap(),
         }
     }
 }
@@ -191,15 +190,25 @@ macro_rules! handler {
 #[macro_export]
 macro_rules! http_ok {
     ($response:ident) => {
-        AwsLambdaClient::success(serde_json::to_string(
-            &ApiGatewayResponse::ok(serde_json::to_string(&$response).unwrap(), None)).unwrap());
-    }
+        AwsLambdaClient::success(
+            serde_json::to_string(&ApiGatewayResponse::ok(
+                serde_json::to_string(&$response).unwrap(),
+                None,
+            ))
+            .unwrap(),
+        );
+    };
 }
 
 #[macro_export]
 macro_rules! http_error {
     ($message:expr) => {
-        AwsLambdaClient::success(serde_json::to_string(
-            &ApiGatewayResponse::error($message, ApiGatewayErrorCode::FunctionError)).unwrap());
-    }
+        AwsLambdaClient::success(
+            serde_json::to_string(&ApiGatewayResponse::error(
+                $message,
+                ApiGatewayErrorCode::FunctionError,
+            ))
+            .unwrap(),
+        );
+    };
 }

@@ -38,8 +38,10 @@ impl AwsLambdaRuntime {
                 let request_id = match res.headers().get("Lambda-Runtime-Aws-Request-Id") {
                     Some(request_id) => request_id.to_str().unwrap().to_string(),
                     None => {
-                        return Err(Error::new(ErrorKind::InvalidData,
-                                              "missing header \"Lambda-Runtime-Aws-Request-Id\""))
+                        return Err(Error::new(
+                            ErrorKind::InvalidData,
+                            "missing header \"Lambda-Runtime-Aws-Request-Id\"",
+                        ))
                     }
                 };
 

@@ -27,12 +27,14 @@ pub fn command(matches: Option<&ArgMatches>) {
     let project = Project::new(asml_manifest.project.name.clone(), Some(cwd));
 
     // Download the latest runtime binary
-    // TODO in the future we should check if we already have the same version
-    // TODO argument to specify which version -- default to 'latest'
-    let mut response = reqwest::blocking::get(
-        "http://runtime.assemblylift.akkoro.io/aws-lambda/latest/bootstrap.zip",
-    )
-    .unwrap();
+    let runtime_url = &*format!(
+        "http://runtime.assemblylift.akkoro.io/aws-lambda/{}/bootstrap.zip",
+        clap::crate_version!()
+    );
+    let mut response = reqwest::blocking::get(runtime_url).unwrap();
+    if !response.status().is_success() {
+        panic!("unable to fetch asml runtime from {}", runtime_url);
+    }
     let mut response_buffer = Vec::new();
     response.read_to_end(&mut response_buffer).unwrap();
 
