@@ -136,7 +136,7 @@ pub fn locate_asml_manifest() -> Option<(manifest::Manifest, PathBuf)> {
         let file = entry.file_name().to_string_lossy();
         if file.eq_ignore_ascii_case("assemblylift.toml") {
             path = Some(PathBuf::from(file.into_owned()));
-            break
+            break;
         }
     }
 
@@ -144,8 +144,11 @@ pub fn locate_asml_manifest() -> Option<(manifest::Manifest, PathBuf)> {
         Some(path) => {
             let canonical_path = fs::canonicalize(path.clone()).unwrap();
             let parent = canonical_path.parent().unwrap();
-            Some((manifest::Manifest::read(&PathBuf::from(parent)), PathBuf::from(parent)))
+            Some((
+                manifest::Manifest::read(&PathBuf::from(parent)),
+                PathBuf::from(parent),
+            ))
         }
-        None => None
+        None => None,
     }
 }

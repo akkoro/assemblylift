@@ -2,6 +2,7 @@ extern crate assemblylift_core_guest;
 extern crate assemblylift_core_io_guest;
 
 use std::collections::HashMap;
+use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
@@ -43,17 +44,49 @@ impl GuestCore for AwsLambdaClient {
 
 #[derive(Serialize, Deserialize, Clone, std::fmt::Debug)]
 pub struct ApiGatewayEvent {
+    pub resource: String,
+    pub path: String,
+    #[serde(rename = "httpMethod")]
+    pub http_method: String,
+    pub headers: HashMap<String, String>,
+    #[serde(rename = "queryStringParameters")]
+    pub query_string_parameters: Option<HashMap<String, String>>,
+    #[serde(rename = "pathParameters")]
+    pub path_parameters: Option<HashMap<String, String>>,
+    #[serde(rename = "stageVariables")]
+    pub stage_variables: Option<HashMap<String, String>>,
     pub body: Option<String>,
 }
 
+pub type StatusCode = u16;
 #[derive(Serialize, Deserialize)]
 pub struct ApiGatewayResponse {
     #[serde(rename = "isBase64Encoded")]
     is_base64_encoded: bool,
     #[serde(rename = "statusCode")]
-    status_code: u16,
+    status_code: StatusCode,
     headers: HashMap<String, String>,
     body: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ApiGatewayError {
+    pub code: StatusCode,
+    pub desc: String,
+    pub message: String,
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub enum ApiGatewayErrorCode {
+    FunctionError = 520,
+}
+
+impl fmt::Display for ApiGatewayErrorCode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ApiGatewayErrorCode::FunctionError => write!(f, "Function Error"),
+        }
+    }
 }
 
 impl ApiGatewayResponse {
@@ -71,6 +104,26 @@ impl ApiGatewayResponse {
             body,
         }
     }
+
+    pub fn error(message: String, code: ApiGatewayErrorCode) -> Self {
+        let mut headers = HashMap::default();
+        headers.insert(
+            String::from("content-type"),
+            String::from("application/json"),
+        );
+
+        Self {
+            status_code: code as StatusCode,
+            is_base64_encoded: false,
+            headers,
+            body: serde_json::to_string(&ApiGatewayError {
+                code: code as StatusCode,
+                desc: code.to_string(),
+                message,
+            })
+            .unwrap(),
+        }
+    }
 }
 
 pub struct LambdaContext {
@@ -85,8 +138,6 @@ macro_rules! handler {
         pub fn handler() -> i32 {
             use asml_awslambda::{AWS_EVENT_STRING_BUFFER, AWS_EVENT_STRING_BUFFER_SIZE};
             use direct_executor;
-
-            AwsLambdaClient::console_log("Started handler...".to_string());
 
             let client = AwsLambdaClient::new();
 
@@ -111,7 +162,7 @@ macro_rules! handler {
 
             if event_ptr == -1 || event_end == -1 {
                 AwsLambdaClient::console_log(format!("ERROR reading Lambda Event from buffer"));
-                panic!("!!!!");
+                return -1;
             }
 
             let slice = unsafe { &AWS_EVENT_STRING_BUFFER[event_ptr as usize..event_end as usize] };
@@ -123,7 +174,7 @@ macro_rules! handler {
                         "ERROR deserializing Lambda Event: {}",
                         why.to_string()
                     ));
-                    panic!("!!!!");
+                    return -1;
                 }
             };
 
@@ -133,5 +184,31 @@ macro_rules! handler {
 
             0
         }
+    };
+}
+
+#[macro_export]
+macro_rules! http_ok {
+    ($response:ident) => {
+        AwsLambdaClient::success(
+            serde_json::to_string(&ApiGatewayResponse::ok(
+                serde_json::to_string(&$response).unwrap(),
+                None,
+            ))
+            .unwrap(),
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! http_error {
+    ($message:expr) => {
+        AwsLambdaClient::success(
+            serde_json::to_string(&ApiGatewayResponse::error(
+                $message,
+                ApiGatewayErrorCode::FunctionError,
+            ))
+            .unwrap(),
+        );
     };
 }

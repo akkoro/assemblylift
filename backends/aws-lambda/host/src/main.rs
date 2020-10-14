@@ -102,7 +102,7 @@ async fn main() {
                     Threader::__reset_memory();
 
                     match instance.call(handler_name, &[]) {
-                        Ok(_result) => println!("TRACE: handler returned Ok()"),
+                        Ok(result) => println!("TRACE: handler returned {:?}", result),
                         Err(error) => println!("ERROR: {}", error.to_string()),
                     }
                 })

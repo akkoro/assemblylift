@@ -20,9 +20,9 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 direct-executor = "0.3.0"
 serde_json = "1.0.53"
-asml_core = { version = "0.2.0, package = "assemblylift-core-guest" }
-asml_core_io = { version = "0.1.0", package = "assemblylift-core-io-guest" }
-asml_awslambda = { version = "0.2.0", package = "assemblylift-awslambda-guest" }
+asml_core = { version = "0.2.0", package = "assemblylift-core-guest" }
+asml_core_io = { version = "0.2.0", package = "assemblylift-core-io-guest" }
+asml_awslambda = { version = "0.2.1", package = "assemblylift-awslambda-guest" }
 
 "#;
 
@@ -36,7 +36,6 @@ static FUNCTION_LIB_RS: &str = r#"// Generated with assemblylift-cli {{asml_vers
 
 extern crate asml_awslambda;
 
-use direct_executor;
 use asml_core::GuestCore;
 use asml_awslambda::{*, AwsLambdaClient, LambdaContext};
 

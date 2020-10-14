@@ -4,10 +4,10 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 #[macro_export]
 macro_rules! iomod {
     ($org:ident.$ns:ident.$name:ident => $calls:tt) => {
+        use assemblylift_core_iomod::iomod_capnp::*;
         use assemblylift_core_iomod::{
             Call, CallChannel, CallMap, CallPtr, CallRequest, CallResponse, Iomod,
         };
-        use assemblylift_core_iomod::iomod_capnp::*;
         use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
         use futures::{AsyncReadExt, FutureExt};
         use tokio::net::TcpStream;

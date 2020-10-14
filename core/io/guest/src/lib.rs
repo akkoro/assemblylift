@@ -68,7 +68,7 @@ unsafe fn read_response<'a, R: Deserialize<'a>>(id: u32) -> Option<R> {
     match serde_json::from_slice::<R>(&IO_BUFFER[ptr..end]) {
         Ok(response) => Some(response),
         Err(why) => {
-            console_log(why.to_string());
+            console_log(format!("[ERROR] {}", why.to_string()));
             None
         }
     }
