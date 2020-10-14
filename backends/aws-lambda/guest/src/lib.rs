@@ -163,7 +163,7 @@ macro_rules! handler {
 
             if event_ptr == -1 || event_end == -1 {
                 AwsLambdaClient::console_log(format!("ERROR reading Lambda Event from buffer"));
-                -1
+                return -1;
             }
 
             let slice = unsafe { &AWS_EVENT_STRING_BUFFER[event_ptr as usize..event_end as usize] };
@@ -175,7 +175,7 @@ macro_rules! handler {
                         "ERROR deserializing Lambda Event: {}",
                         why.to_string()
                     ));
-                    -1
+                    return -1;
                 }
             };
 
