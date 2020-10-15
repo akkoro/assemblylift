@@ -10,7 +10,7 @@ use wasmer_runtime_core::vm::Ctx;
 use wasmer_runtime_core::Instance;
 
 use assemblylift_core::abi::{
-    asml_abi_event_len, asml_abi_event_ptr, asml_abi_invoke, asml_abi_poll, get_threader,
+    asml_abi_io_len, asml_abi_io_ptr, asml_abi_invoke, asml_abi_poll, asml_abi_clock_time_get, get_threader,
 };
 use assemblylift_core::threader::Threader;
 use assemblylift_core_iomod::registry::RegistryTx;
@@ -35,8 +35,9 @@ pub fn build_instance(tx: RegistryTx) -> Result<Instance, io::Error> {
                     "__asml_abi_success" => func!(runtime_success),
                     "__asml_abi_invoke" => func!(asml_abi_invoke),
                     "__asml_abi_poll" => func!(asml_abi_poll),
-                    "__asml_abi_event_ptr" => func!(asml_abi_event_ptr),
-                    "__asml_abi_event_len" => func!(asml_abi_event_len),
+                    "__asml_abi_io_ptr" => func!(asml_abi_io_ptr),
+                    "__asml_abi_io_len" => func!(asml_abi_io_len),
+                    "__asml_abi_clock_time_get" => func!(asml_abi_clock_time_get),
                 },
             };
 

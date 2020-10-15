@@ -55,7 +55,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-awslambda-host"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "assemblylift-core",
  "assemblylift-core-io",
@@ -87,7 +87,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "assemblylift-core-io-common",
  "assemblylift-core-iomod",
@@ -130,7 +130,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-io-guest"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "assemblylift-core-io-common",
  "futures",

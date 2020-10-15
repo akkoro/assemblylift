@@ -8,6 +8,7 @@ use wasmer_runtime_core::vm;
 
 use crate::threader::Threader;
 use crate::{invoke_io, WasmBufferPtr};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub type AsmlAbiFn = fn(&mut vm::Ctx, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
 
@@ -37,7 +38,7 @@ pub fn asml_abi_poll(ctx: &mut vm::Ctx, id: u32) -> i32 {
     unsafe { threader.as_mut().unwrap().poll(id) as i32 }
 }
 
-pub fn asml_abi_event_ptr(ctx: &mut vm::Ctx, id: u32) -> u32 {
+pub fn asml_abi_io_ptr(ctx: &mut vm::Ctx, id: u32) -> u32 {
     let threader = get_threader(ctx);
     unsafe {
         threader
@@ -49,7 +50,7 @@ pub fn asml_abi_event_ptr(ctx: &mut vm::Ctx, id: u32) -> u32 {
     }
 }
 
-pub fn asml_abi_event_len(ctx: &mut vm::Ctx, id: u32) -> u32 {
+pub fn asml_abi_io_len(ctx: &mut vm::Ctx, id: u32) -> u32 {
     let threader = get_threader(ctx);
     unsafe {
         threader
@@ -59,6 +60,14 @@ pub fn asml_abi_event_len(ctx: &mut vm::Ctx, id: u32) -> u32 {
             .unwrap()
             .length as u32
     }
+}
+
+pub fn asml_abi_clock_time_get(_ctx: &mut vm::Ctx) -> u64 {
+    let start = SystemTime::now();
+    let unix_time = start
+        .duration_since(UNIX_EPOCH)
+        .expect("time is broken");
+    unix_time.as_secs() * 1000u64
 }
 
 #[inline]

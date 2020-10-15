@@ -23,26 +23,6 @@ provider "aws" {
     region = "{{aws_region}}"
 }
 
-resource "aws_iam_role" "lambda_iam_role" {
-    name = "asml_{{project_name}}_lambda_iam_role"
-
-    assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Principal": {
-        "Service": "lambda.amazonaws.com"
-      },
-      "Effect": "Allow",
-      "Sid": ""
-    }
-  ]
-}
-EOF
-}
-
 resource "aws_lambda_layer_version" "asml_runtime_layer" {
   filename   = "${path.module}/../.asml/runtime/bootstrap.zip"
   layer_name = "assemblylift-runtime"
@@ -60,8 +40,6 @@ module "{{this.name}}" {
 module "{{this.name}}" {
   source = "./services/{{this.service}}/{{this.name}}"
 
-  lambda_role_arn   = aws_iam_role.lambda_iam_role.arn
-  lambda_role_name  = aws_iam_role.lambda_iam_role.name
   runtime_layer_arn = aws_lambda_layer_version.asml_runtime_layer.arn
   {{#if this.service_has_layer}}
   service_layer_arn = module.{{this.service}}.service_layer_arn

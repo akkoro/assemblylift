@@ -1,6 +1,6 @@
 [package]
 name = "assemblylift-awslambda-host"
-version = "0.2.1"
+version = "0.2.2"
 description = "AssemblyLift AWS Lambda runtime"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
@@ -24,7 +24,7 @@ reqwest = { version = "0.10.4", features = ["blocking"] }
 wasmer_runtime = { version = "0.1.1", package = "wasmer-runtime-asml-fork" }
 wasmer_runtime_core = { version = "0.1.1", package = "wasmer-runtime-core-asml-fork" }
 
-assemblylift_core = { version = "0.2.1", package = "assemblylift-core", path = "../../../core" }
+assemblylift_core = { version = "0.2.2", package = "assemblylift-core", path = "../../../core" }
 assemblylift_core_iomod = { version = "0.2.1", package = "assemblylift-core-iomod", path = "../../../core/iomod" }
 assemblylift_core_io = { version = "0.2.0", package = "assemblylift-core-io", path = "../../../core/io" }
 assemblylift_core_io_common = { version = "0.2.0", package = "assemblylift-core-io-common", path = "../../../core/io/common" }

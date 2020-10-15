@@ -12,8 +12,9 @@ use assemblylift_core_io_common::constants::IO_BUFFER_SIZE_BYTES;
 
 extern "C" {
     fn __asml_abi_poll(id: u32) -> i32;
-    fn __asml_abi_event_ptr(id: u32) -> u32;
-    fn __asml_abi_event_len(id: u32) -> u32;
+    fn __asml_abi_io_ptr(id: u32) -> u32;
+    fn __asml_abi_io_len(id: u32) -> u32;
+    fn __asml_abi_clock_time_get() -> u64;
 
     fn __asml_abi_console_log(ptr: *const u8, len: usize);
 }
@@ -28,6 +29,10 @@ pub fn __asml_get_event_buffer_pointer() -> *const u8 {
 
 fn console_log(message: String) {
     unsafe { __asml_abi_console_log(message.as_ptr(), message.len()) }
+}
+
+pub fn get_time() -> u64 {
+    unsafe { __asml_abi_clock_time_get() }
 }
 
 #[derive(Clone)]
@@ -62,8 +67,8 @@ impl<'a, R: Deserialize<'a>> Future for Io<'_, R> {
 }
 
 unsafe fn read_response<'a, R: Deserialize<'a>>(id: u32) -> Option<R> {
-    let ptr = __asml_abi_event_ptr(id) as usize;
-    let end = __asml_abi_event_len(id) as usize + ptr;
+    let ptr = __asml_abi_io_ptr(id) as usize;
+    let end = __asml_abi_io_len(id) as usize + ptr;
 
     match serde_json::from_slice::<R>(&IO_BUFFER[ptr..end]) {
         Ok(response) => Some(response),

@@ -4,7 +4,6 @@ use std::{fs, io};
 use path_abs::{PathAbs, PathDir};
 
 use crate::bom::{manifest, DocumentSet};
-use std::borrow::Borrow;
 
 pub struct Project {
     project_path: Box<PathBuf>,
