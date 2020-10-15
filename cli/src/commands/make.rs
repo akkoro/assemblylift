@@ -1,5 +1,3 @@
-use std::fs;
-
 use clap::ArgMatches;
 use handlebars::to_json;
 use serde_json::value::{Map, Value as Json};

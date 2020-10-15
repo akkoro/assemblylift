@@ -19,13 +19,6 @@ variable "service_layer_arn" {
   type = string
 }
 {{/if}}
-variable "lambda_role_arn" {
-  type = string
-}
-
-variable "lambda_role_name" {
-  type = string
-}
 {{#if service_has_http_api}}
 variable "service_http_api_id" {
   type = string
@@ -43,6 +36,10 @@ variable "http_api_execution_arn" {
   type = string
 }
 
+locals {
+  lambda_name = "asml_{{service}}_{{name}}_lambda"
+}
+
 resource "aws_apigatewayv2_route" "asml_{{name}}_http_route" {
   api_id    = var.service_http_api_id
   route_key = "${var.http_verb} ${var.http_path}"
@@ -55,21 +52,21 @@ resource "aws_apigatewayv2_integration" "asml_{{name}}" {
 
   connection_type           = "INTERNET"
   integration_method        = "POST"
-  integration_uri           = aws_lambda_function.asml_{{name}}_lambda.invoke_arn
+  integration_uri           = aws_lambda_function.asml_{{service}}_{{name}}_lambda.invoke_arn
 }
 
 resource "aws_lambda_permission" "lambda_permission" {
   action        = "lambda:InvokeFunction"
-  function_name = "{{name}}"
+  function_name = local.lambda_name
   principal     = "apigateway.amazonaws.com"
 
   source_arn = "${var.http_api_execution_arn}/*"
 }
 {{/if}}
 
-resource "aws_lambda_function" "asml_{{name}}_lambda" {
-    function_name = "{{name}}"
-    role          = var.lambda_role_arn
+resource "aws_lambda_function" "asml_{{service}}_{{name}}_lambda" {
+    function_name = local.lambda_name
+    role          = aws_iam_role.lambda_iam_role.arn
     runtime       = "provided"
     handler       = "{{name}}.{{handler_name}}"
     filename      = "${path.module}/{{name}}.zip"
@@ -84,7 +81,27 @@ resource "aws_lambda_function" "asml_{{name}}_lambda" {
     source_code_hash = filebase64sha256("${path.module}/{{name}}.zip")
 }
 
-resource "aws_iam_policy" "asml_{{name}}_lambda_logging" {
+resource "aws_iam_role" "lambda_iam_role" {
+    name = local.lambda_name
+
+    assume_role_policy = <<EOF
+{aws_iam_role
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "lambda.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_policy" "asml_{{service}}_{{name}}_lambda_logging" {
   name        = "asml_{{name}}_lambda_logging"
   path        = "/"
   description = "IAM policy for logging from a lambda"
@@ -108,8 +125,8 @@ EOF
 }
 
 resource "aws_iam_role_policy_attachment" "asml_{{name}}_lambda_logs" {
-  role       = var.lambda_role_name
-  policy_arn = aws_iam_policy.asml_{{name}}_lambda_logging.arn
+  role       = aws_iam_role.lambda_iam_role.name
+  policy_arn = aws_iam_policy.asml_{{service}}_{{name}}_lambda_logging.arn
 }
 "#;
 
