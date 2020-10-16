@@ -85,7 +85,7 @@ resource "aws_iam_role" "lambda_iam_role" {
     name = local.lambda_name
 
     assume_role_policy = <<EOF
-{aws_iam_role
+{
   "Version": "2012-10-17",
   "Statement": [
     {
