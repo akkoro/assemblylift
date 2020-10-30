@@ -9,10 +9,10 @@ AssemblyLift is a framework for building serverless applications powered by WebA
 
 Highlight reel:
 
-- ["IO Modules"](backends/aws-lambda/iomod) (eventually to be shipped as packages/plugins) provide an interface for both the host and WASM guest,
+- ["IO Modules"](https://dev.to/dotxlem/assemblylift-v0-2-preview-rpc-based-io-modules-2d38) provide a plugin interface for both the host and WASM guest,
   allowing guests to **safely** make calls to the outside world without needing elevated access.
+- IOmods are implemented on top of [Cap'n Proto RPC](https://capnproto.org), and guests written using Rust fully support **async/await**.
 - Currently focusing on support for guests written in **Rust**, but other languages targeting WASM are possible. PR's welcome!
-- IOmods are **asynchronous** (using [tokio](https://github.com/tokio-rs/tokio)), and guests written using Rust fully support **async/await**.
 - Planned support for multiple backends, but the focus is currently on _AWS Lambda_
 - Built using the [Wasmer](https://wasmer.io) interpreter
 
@@ -44,35 +44,13 @@ your dependency supply chain.
 It's still early days, so there's nothing in this repo right now which I would characterize as ergonomic. In terms of
 plans in this area, I intend for the tooling to abstract away as much of the underlying backend as possible (ie AWS vs Azure).
 
-# Building
-
-To build using your local Cargo installation, run  
-`./build.rb build local {optional Cargo build args}`
-
-To generate a build of `bootstrap` to deploy to AWS Lambda, run  
-`./build.rb build deploy (optional Cargo build args}`
-
-If using Ruby as a build front-end is problematic in your environment, please [file an issue](https://github.com/akkoro/assemblylift/issues/new?labels=bug)!
-
 # Roadmap
 
-## 0.1
+## 0.3 - The Observability Release
+[ ] TBD
 
-- [x] Build system incl. Docker [#2](https://github.com/akkoro/assemblylift/issues/2)
-- [ ] Unit tests [#3](https://github.com/akkoro/assemblylift/issues/3)
-- [x] Start the CLI [#13](https://github.com/akkoro/assemblylift/pull/13) [#14](https://github.com/akkoro/assemblylift/issues/14)
-- [x] Set up a CI/CD pipeline [#2](https://github.com/akkoro/assemblylift/issues/2) [#11](https://github.com/akkoro/assemblylift/pull/11)
-- [x] Handle more of those `unwrap`s
-- [x] Clean up warnings
-- [x] Macros for iomod implementation [#10](https://github.com/akkoro/assemblylift/pull/10)
-
-## 0.2
-
-- [x] ❗ Better implementation of Threader memory manager [#19](https://github.com/akkoro/assemblylift/pull/19)
-- [x] ❗ Plugin framework for IOmods [#18](https://github.com/akkoro/assemblylift/pull/18)
-- [x] API definitions [#20](https://github.com/akkoro/assemblylift/pull/20)
-- [ ] More examples
-- [ ] Logging system
+## 0.4 - The Reliability Release
+[ ] TBD
 
 # Contributing
 
@@ -82,5 +60,5 @@ so let's start there 🙂.
 
 # License
 
-The AssemblyLift source code is licensed under the [Hippocratic License 2.1](/LICENSE.md).  
-The AssemblyLift CLI embeds [HashiCorp Terraform](https://terraform.io), which is licensed under the [Mozilla Public License 2.0](https://www.mozilla.org/en-US/MPL/2.0/).
+The AssemblyLift source code is licensed under [Hippocratic License 2.1](/LICENSE.md).  
+The AssemblyLift CLI delegates some tasks to [HashiCorp Terraform](https://terraform.io), which is licensed under [Mozilla Public License 2.0](https://www.mozilla.org/en-US/MPL/2.0/).
