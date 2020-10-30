@@ -13,7 +13,7 @@ Highlight reel:
   allowing guests to **safely** make calls to the outside world without needing elevated access.
 - IOmods are implemented on top of [Cap'n Proto RPC](https://capnproto.org), and guests written using Rust fully support **async/await**.
 - Currently focusing on support for guests written in **Rust**, but other languages targeting WASM are possible. PR's welcome!
-- Planned support for multiple backends, but the focus is currently on _AWS Lambda_
+- Planned support for multiple backends, but the focus is currently on [AWS Lambda](https://aws.amazon.com/lambda/)
 - Built using the [Wasmer](https://wasmer.io) interpreter
 
 **Examples** can be found [here](https://github.com/akkoro/assemblylift-examples).
