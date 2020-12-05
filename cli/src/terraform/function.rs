@@ -14,6 +14,11 @@ pub static TERRAFORM_FUNCTION: &str = r#"# Generated with assemblylift-cli {{asm
 variable "runtime_layer_arn" {
   type = string
 }
+
+locals {
+  lambda_name = "asml_{{service}}_{{name}}_lambda"
+}
+
 {{#if service_has_layer}}
 variable "service_layer_arn" {
   type = string
@@ -34,10 +39,6 @@ variable "http_path" {
 
 variable "http_api_execution_arn" {
   type = string
-}
-
-locals {
-  lambda_name = "asml_{{service}}_{{name}}_lambda"
 }
 
 resource "aws_apigatewayv2_route" "asml_{{name}}_http_route" {
