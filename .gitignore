@@ -4,3 +4,4 @@ target/
 bootstrap
 bootstrap.zip
 *_capnp.rs
+.idea/
