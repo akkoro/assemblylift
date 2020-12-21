@@ -6,6 +6,7 @@ use path_abs::{PathAbs, PathDir};
 use crate::bom::{manifest, DocumentSet};
 
 pub struct Project {
+    pub name: String,
     project_path: Box<PathBuf>,
     service_path: Box<PathBuf>,
 }
@@ -75,6 +76,7 @@ impl Project {
         ));
 
         Self {
+            name,
             project_path,
             service_path,
         }

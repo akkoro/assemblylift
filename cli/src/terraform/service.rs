@@ -13,7 +13,7 @@ static TERRAFORM_SERVICE: &str = r#"# Generated with assemblylift-cli {{asml_ver
 {{#if has_layer}}
 resource "aws_lambda_layer_version" "asml_{{name}}_service_layer" {
   filename   = "${path.module}/../../../.asml/runtime/{{name}}.zip"
-  layer_name = "{{name}}-service"
+  layer_name = "asml-{{project_name}}-{{name}}-service"
 
   source_code_hash = filebase64sha256("${path.module}/../../../.asml/runtime/{{name}}.zip")
 }
@@ -25,7 +25,7 @@ output "service_layer_arn" {
 
 {{#if has_http_api}}
 resource "aws_apigatewayv2_api" "{{name}}_http_api" {
-  name          = "{{name}}"
+  name          = "asml-{{project_name}}-{{name}}"
   protocol_type = "HTTP"
 }
 
@@ -50,6 +50,8 @@ pub struct TerraformService {
     pub name: String,
     pub has_layer: bool,
     pub has_http_api: bool,
+
+    pub project_name: String,
 }
 
 pub fn write(project_path: &PathBuf, service: TerraformService) -> Result<(), io::Error> {
@@ -61,6 +63,7 @@ pub fn write(project_path: &PathBuf, service: TerraformService) -> Result<(), io
 
     let mut data = Map::<String, Json>::new();
     data.insert("asml_version".to_string(), to_json(crate_version!()));
+    data.insert("project_name".to_string(), to_json(&service.project_name));
     data.insert("name".to_string(), to_json(&service.name));
     data.insert("has_layer".to_string(), to_json(service.has_layer));
     data.insert("has_http_api".to_string(), to_json(service.has_http_api));

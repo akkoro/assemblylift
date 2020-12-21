@@ -84,7 +84,6 @@ impl DocumentSet<'_, RustFunction> for RustFunction {
     }
 
     fn write(path: &PathBuf, data: &mut Map<String, Json>) {
-        println!("DEBUG: writing path: {:?}", path);
         data.insert("asml_version".to_string(), to_json(crate_version!()));
         write_documents(path, RustFunction::file_names(), data)
     }
