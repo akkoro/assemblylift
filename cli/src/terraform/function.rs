@@ -16,7 +16,7 @@ variable "runtime_layer_arn" {
 }
 
 locals {
-  lambda_name = "asml_{{service}}_{{name}}_lambda"
+  lambda_name = "asml-{{project_name}}-{{service}}-{{name}}"
 }
 
 {{#if service_has_layer}}
@@ -103,7 +103,7 @@ EOF
 }
 
 resource "aws_iam_policy" "asml_{{service}}_{{name}}_lambda_logging" {
-  name        = "asml_{{name}}_lambda_logging"
+  name        = "asml-{{project_name}}-{{service}}-{{name}}-logging"
   path        = "/"
   description = "IAM policy for logging from a lambda"
 
@@ -140,6 +140,8 @@ pub struct TerraformFunction {
     pub service_has_http_api: bool,
     pub http_verb: Option<String>,
     pub http_path: Option<String>,
+
+    pub project_name: String,
 }
 
 pub fn write(project_path: &PathBuf, function: &TerraformFunction) -> Result<(), io::Error> {
@@ -151,6 +153,7 @@ pub fn write(project_path: &PathBuf, function: &TerraformFunction) -> Result<(),
 
     let mut data = Map::<String, Json>::new();
     data.insert("asml_version".to_string(), to_json(crate_version!()));
+    data.insert("project_name".to_string(), to_json(&function.project_name));
     data.insert("name".to_string(), to_json(&function.name));
     data.insert("handler_name".to_string(), to_json(&function.handler_name));
     data.insert("service".to_string(), to_json(&function.service));

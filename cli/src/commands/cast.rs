@@ -59,6 +59,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                 .functions
                 .values()
                 .any(|f| f.http.is_some()),
+            project_name: project.name.clone(),
         };
         services.push(tf_service.clone());
 
@@ -72,10 +73,15 @@ pub fn command(matches: Option<&ArgMatches>) {
                         // copy file & rename it to `name`
 
                         let dependency_name = name.clone();
-                        let dependency_path = dependency.from.clone();
 
                         let runtime_path = format!("./.asml/runtime/{}", dependency_name);
-                        fs::copy(dependency_path, &runtime_path).unwrap();
+                        match fs::metadata(dependency.from.clone()) {
+                            Ok(_) => {
+                                fs::copy(dependency.from.clone(), &runtime_path).unwrap();
+                                ()
+                            },
+                            Err(_) => panic!("ERROR: could not find file-type dependency named {} (check path)", dependency_name),
+                        }
 
                         dependencies.push(runtime_path);
                     }
@@ -176,6 +182,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                     Some(http) => Some(http.path.to_string()),
                     None => None,
                 },
+                project_name: project.name.clone(),
             };
 
             terraform::function::write(&*project.dir(), &tf_function).unwrap();

@@ -25,7 +25,7 @@ provider "aws" {
 
 resource "aws_lambda_layer_version" "asml_runtime_layer" {
   filename   = "${path.module}/../.asml/runtime/bootstrap.zip"
-  layer_name = "assemblylift-runtime"
+  layer_name = "asml-{{project_name}}-runtime"
 
   source_code_hash = filebase64sha256("${path.module}/../.asml/runtime/bootstrap.zip")
 }
