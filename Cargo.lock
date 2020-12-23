@@ -72,7 +72,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-cli"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "clap 2.33.1",
  "handlebars",
