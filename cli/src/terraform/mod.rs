@@ -30,6 +30,12 @@ resource "aws_lambda_layer_version" "asml_runtime_layer" {
   source_code_hash = filebase64sha256("${path.module}/../.asml/runtime/bootstrap.zip")
 }
 
+{{#if user_inject}}
+module "usermod" {
+  source = "../user_tf"
+}
+{{/if}}
+
 {{#each services}}
 module "{{this.name}}" {
   source = "./services/{{this.name}}"
@@ -126,6 +132,11 @@ pub fn write(
     data.insert("project_name".to_string(), to_json(project_name));
     data.insert("functions".to_string(), to_json(functions));
     data.insert("services".to_string(), to_json(services));
+
+    let mut usermod_path = PathBuf::from(project_path);
+    usermod_path.push("user_tf/");
+    let usermod: bool = fs::metadata(usermod_path).is_ok();
+    data.insert("user_inject".to_string(), to_json(usermod));
 
     let render = reg.render(file_name, &data).unwrap();
 
