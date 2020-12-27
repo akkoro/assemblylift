@@ -3,6 +3,7 @@ extern crate assemblylift_core_io_guest;
 
 use std::collections::HashMap;
 use std::fmt;
+use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 
@@ -42,7 +43,7 @@ impl GuestCore for AwsLambdaClient {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, std::fmt::Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ApiGatewayEvent {
     pub resource: String,
     pub path: String,
@@ -126,9 +127,10 @@ impl ApiGatewayResponse {
     }
 }
 
-pub struct LambdaContext {
+pub struct LambdaContext<'a, E: Serialize + Deserialize<'a> + Clone + Debug> {
     pub client: AwsLambdaClient,
-    pub event: ApiGatewayEvent,
+    pub event: E,
+    pub _phantom: std::marker::PhantomData<&'a E>,
 }
 
 #[macro_export]
@@ -167,7 +169,7 @@ macro_rules! handler {
 
             let slice = unsafe { &AWS_EVENT_STRING_BUFFER[event_ptr as usize..event_end as usize] };
 
-            let event: ApiGatewayEvent = match serde_json::from_slice(slice) {
+            let event = match serde_json::from_slice(slice) {
                 Ok(event) => event,
                 Err(why) => {
                     AwsLambdaClient::console_log(format!(
@@ -178,7 +180,7 @@ macro_rules! handler {
                 }
             };
 
-            let $context: $type = LambdaContext { client, event };
+            let $context: $type = LambdaContext { client, event, _phantom: std::marker::PhantomData };
 
             direct_executor::run_spinning($async_handler);
 

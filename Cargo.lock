@@ -44,7 +44,7 @@ checksum = "cff77d8686867eceff3105329d4698d96c2391c176d5d03adc90c7389162b5b8"
 
 [[package]]
 name = "assemblylift-awslambda-guest"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "assemblylift-core-guest",
  "assemblylift-core-io-guest",
