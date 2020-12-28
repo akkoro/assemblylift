@@ -43,6 +43,15 @@ pub struct Api {
 }
 
 #[derive(Deserialize)]
+pub struct JwtAuth;
+
+#[derive(Deserialize)]
+pub struct HttpAuth {
+    pub auth_type: String,
+    pub jwt: Option<JwtAuth>,
+}
+
+#[derive(Deserialize)]
 pub struct HttpFunction {
     pub verb: String,
     pub path: String,
@@ -54,6 +63,7 @@ pub struct Function {
     pub handler_name: String,
 
     pub http: Rc<Option<HttpFunction>>,
+    pub http_auth: Option<HttpAuth>,
 }
 
 #[derive(Deserialize)]

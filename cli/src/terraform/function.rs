@@ -45,6 +45,8 @@ resource "aws_apigatewayv2_route" "asml_{{name}}_http_route" {
   api_id    = var.service_http_api_id
   route_key = "${var.http_verb} ${var.http_path}"
   target    = "integrations/${aws_apigatewayv2_integration.asml_{{name}}.id}"
+
+  authorization_type = "{{auth_type}}"
 }
 
 resource "aws_apigatewayv2_integration" "asml_{{name}}" {
@@ -141,6 +143,8 @@ pub struct TerraformFunction {
     pub http_verb: Option<String>,
     pub http_path: Option<String>,
 
+    pub auth_type: String,
+
     pub project_name: String,
 }
 
@@ -165,6 +169,7 @@ pub fn write(project_path: &PathBuf, function: &TerraformFunction) -> Result<(),
         "service_has_http_api".to_string(),
         to_json(function.service_has_http_api),
     );
+    data.insert("auth_type".to_string(), to_json(&function.auth_type));
 
     let render = reg.render(file_name, &data).unwrap();
 

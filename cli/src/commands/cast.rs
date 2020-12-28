@@ -182,6 +182,13 @@ pub fn command(matches: Option<&ArgMatches>) {
                     Some(http) => Some(http.path.to_string()),
                     None => None,
                 },
+                auth_type: match function.http_auth {
+                    Some(auth) => match auth.auth_type.as_str() {
+                        "IAM" => "AWS_IAM".to_string(),
+                        _ => "NONE".to_string(),
+                    },
+                    None => "NONE".to_string(),
+                },
                 project_name: project.name.clone(),
             };
 
