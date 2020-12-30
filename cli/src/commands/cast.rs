@@ -50,24 +50,18 @@ pub fn command(matches: Option<&ArgMatches>) {
         let service_manifest =
             bom::service::Manifest::read(&*project.service_dir(service.name.clone()).dir());
         let service_name = service_manifest.service.name.clone();
+        let service_iomods = service_manifest.iomod.clone();
+        let service_functions = service_manifest.api.functions.clone();
+        let service_authorizers = service_manifest.api.authorizers.clone();
 
-        let tf_service = TerraformService {
-            name: service_name.clone(),
-            has_layer: service_manifest.iomod.is_some(),
-            has_http_api: service_manifest
-                .api
-                .functions
-                .values()
-                .any(|f| f.http.is_some()),
-            project_name: project.name.clone(),
-        };
+        let tf_service = TerraformService::from(service_manifest);
         services.push(tf_service.clone());
 
-        terraform::service::write(&*project.dir(), tf_service.clone()).unwrap();
+        terraform::service::write(&*project.dir(), project.name.clone(), tf_service.clone()).unwrap();
 
-        if let Some(iomod) = service_manifest.iomod {
+        if let Some(iomod) = service_iomods.as_ref() {
             let mut dependencies: Vec<String> = Vec::new();
-            for (name, dependency) in iomod.dependencies {
+            for (name, dependency) in iomod.dependencies.clone().as_ref() {
                 match dependency.dependency_type.as_str() {
                     "file" => {
                         // copy file & rename it to `name`
@@ -97,7 +91,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             );
         }
 
-        for (_id, function) in service_manifest.api.functions {
+        for (_id, function) in service_functions.as_ref() {
             let function_artifact_path =
                 format!("./net/services/{}/{}", &service_name, function.name);
             fs::create_dir_all(PathBuf::from(function_artifact_path.clone())).expect(&*format!(
@@ -170,7 +164,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             let tf_function_service = tf_service.clone();
             let tf_function = TerraformFunction {
                 name: function.name.clone(),
-                handler_name: function.handler_name,
+                handler_name: function.handler_name.clone(),
                 service: service.name.clone(),
                 service_has_layer: tf_function_service.has_layer,
                 service_has_http_api: tf_function_service.has_http_api,
@@ -182,12 +176,32 @@ pub fn command(matches: Option<&ArgMatches>) {
                     Some(http) => Some(http.path.to_string()),
                     None => None,
                 },
-                auth_type: match function.http_auth {
-                    Some(auth) => match auth.auth_type.as_str() {
-                        "IAM" => "AWS_IAM".to_string(),
-                        _ => "NONE".to_string(),
-                    },
+                auth_name: match &function.authorizer_id {
+                    Some(id) => id.to_string(),
+                    None => "".to_string(),
+                },
+                auth_type: match &function.authorizer_id {
+                    Some(id) => service_authorizers
+                        .as_ref()
+                        .as_ref()
+                        .expect("no authorizers defined in api.authorizers")
+                        .get(id)
+                        .expect(&format!("authorizer {} not found", id))
+                        .auth_type
+                        .clone(),
                     None => "NONE".to_string(),
+                },
+                auth_has_id: match &function.authorizer_id {
+                    Some(id) => service_authorizers
+                        .as_ref()
+                        .as_ref()
+                        .expect("no authorizers defined in api.authorizers")
+                        .get(id)
+                        .expect(&format!("authorizer {} not found", id))
+                        .auth_type
+                        .clone()
+                        .ne("AWS_IAM"),
+                    None => false,    
                 },
                 project_name: project.name.clone(),
             };

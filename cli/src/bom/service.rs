@@ -1,23 +1,19 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use clap::crate_version;
 use handlebars::to_json;
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use serde_json::value::{Map, Value as Json};
 
 use crate::bom::{write_documents, Document, DocumentSet};
-use std::rc::Rc;
 
 static SERVICE_TOML: &str = r#"# Generated with assemblylift-cli {{asml_version}}
 
 [service]
 name = "{{service_name}}"
-version = ""
-
-[api]
-name = "{{service_name}}-api"
 
 [api.functions.my-function]
 name = "my-function"
@@ -28,7 +24,7 @@ handler_name = "handler"
 pub struct Manifest {
     pub service: Service,
     pub api: Api,
-    pub iomod: Option<Iomod>,
+    pub iomod: Rc<Option<Iomod>>,
 }
 
 #[derive(Deserialize)]
@@ -38,17 +34,15 @@ pub struct Service {
 
 #[derive(Deserialize)]
 pub struct Api {
-    pub name: String,
-    pub functions: HashMap<String, Function>, // map function_id -> function
+    pub functions: Rc<HashMap<String, Function>>, // map function_id -> function
+    pub authorizers: Rc<Option<HashMap<String, HttpAuth>>> // map auth_id -> authorizer
 }
 
-#[derive(Deserialize)]
-pub struct JwtAuth;
-
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct HttpAuth {
     pub auth_type: String,
-    pub jwt: Option<JwtAuth>,
+    pub audience: Rc<Option<Vec<String>>>, // TODO do these actually need to be Rc?
+    pub issuer: Rc<Option<String>>,
 }
 
 #[derive(Deserialize)]
@@ -63,12 +57,12 @@ pub struct Function {
     pub handler_name: String,
 
     pub http: Rc<Option<HttpFunction>>,
-    pub http_auth: Option<HttpAuth>,
+    pub authorizer_id: Option<String>,
 }
 
 #[derive(Deserialize)]
 pub struct Iomod {
-    pub dependencies: HashMap<String, Dependency>, // map dependency_id -> dependency
+    pub dependencies: Rc<HashMap<String, Dependency>>, // map dependency_id -> dependency
 }
 
 #[derive(Clone, Deserialize)]
