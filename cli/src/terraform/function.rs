@@ -7,6 +7,7 @@ use handlebars::{to_json, Handlebars};
 use serde::{Deserialize, Serialize};
 use serde_json::value::{Map, Value as Json};
 
+use crate::bom;
 use crate::terraform::write_to_file;
 
 pub static TERRAFORM_FUNCTION: &str = r#"# Generated with assemblylift-cli {{asml_version}}
@@ -41,10 +42,21 @@ variable "http_api_execution_arn" {
   type = string
 }
 
+variable "http_authorizer_id" {
+  type = string
+  default = ""
+}
+
 resource "aws_apigatewayv2_route" "asml_{{name}}_http_route" {
   api_id    = var.service_http_api_id
   route_key = "${var.http_verb} ${var.http_path}"
   target    = "integrations/${aws_apigatewayv2_integration.asml_{{name}}.id}"
+
+  authorization_type = "{{auth_type}}"
+  {{#if auth_has_id}}
+  authorizer_id = var.http_authorizer_id
+  authorization_scopes = ["email", "openid"]
+  {{/if}}
 }
 
 resource "aws_apigatewayv2_integration" "asml_{{name}}" {
@@ -141,6 +153,10 @@ pub struct TerraformFunction {
     pub http_verb: Option<String>,
     pub http_path: Option<String>,
 
+    pub auth_name: String,
+    pub auth_type: String,
+    pub auth_has_id: bool,
+
     pub project_name: String,
 }
 
@@ -164,6 +180,11 @@ pub fn write(project_path: &PathBuf, function: &TerraformFunction) -> Result<(),
     data.insert(
         "service_has_http_api".to_string(),
         to_json(function.service_has_http_api),
+    );
+    data.insert("auth_type".to_string(), to_json(&function.auth_type));
+    data.insert(
+        "auth_has_id".to_string(), 
+        to_json(&function.auth_has_id)
     );
 
     let render = reg.render(file_name, &data).unwrap();

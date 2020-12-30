@@ -56,6 +56,9 @@ module "{{this.name}}" {
   http_api_execution_arn = module.{{this.service}}.http_api_execution_arn
   http_verb = "{{this.http_verb}}"
   http_path = "{{this.http_path}}"
+  {{#if this.auth_has_id}}
+  http_authorizer_id = module.{{this.service}}.{{this.auth_name}}_authorizer_id
+  {{/if}}
   {{/if}}
 }
 
