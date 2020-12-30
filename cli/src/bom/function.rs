@@ -39,7 +39,7 @@ extern crate asml_awslambda;
 use asml_core::GuestCore;
 use asml_awslambda::{*, AwsLambdaClient, LambdaContext};
 
-handler!(context: LambdaContext, async {
+handler!(context: LambdaContext<()>, async {
     let event = context.event;
     AwsLambdaClient::console_log(format!("Read event: {:?}", event));
 
