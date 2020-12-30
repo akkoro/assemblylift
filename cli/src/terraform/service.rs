@@ -1,8 +1,6 @@
-use std::collections::HashMap;
 use std::path;
 use std::path::PathBuf;
 use std::{fs, io};
-use std::rc::Rc;
 
 use clap::crate_version;
 use handlebars::{to_json, Handlebars};

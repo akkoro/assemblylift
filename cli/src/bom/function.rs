@@ -19,10 +19,10 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 direct-executor = "0.3.0"
-serde_json = "1.0.53"
+serde_json = "1.0.61"
 asml_core = { version = "0.2.0", package = "assemblylift-core-guest" }
 asml_core_io = { version = "0.2.1", package = "assemblylift-core-io-guest" }
-asml_awslambda = { version = "0.2.2", package = "assemblylift-awslambda-guest" }
+asml_awslambda = { version = "0.2.3", package = "assemblylift-awslambda-guest" }
 
 "#;
 

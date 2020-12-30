@@ -3,7 +3,7 @@ use std::io::prelude::*;
 use std::fs;
 use std::io;
 use std::path::Path;
-use std::{fmt, path};
+use std::fmt;
 
 use zip;
 use zip::write::FileOptions;
@@ -61,7 +61,7 @@ pub fn zip_files(
             zip_path = format!("{}{}", prefix_path.unwrap(), path_str);
         }
 
-        if let Err(why) = zip.start_file_from_path(path::Path::new(&zip_path), options) {
+        if let Err(why) = zip.start_file(&zip_path, options) {
             panic!("could not create zip archive: {}", why.to_string())
         }
 

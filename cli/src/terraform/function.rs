@@ -7,7 +7,6 @@ use handlebars::{to_json, Handlebars};
 use serde::{Deserialize, Serialize};
 use serde_json::value::{Map, Value as Json};
 
-use crate::bom;
 use crate::terraform::write_to_file;
 
 pub static TERRAFORM_FUNCTION: &str = r#"# Generated with assemblylift-cli {{asml_version}}
