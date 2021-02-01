@@ -82,7 +82,7 @@ resource "aws_lambda_function" "asml_{{service}}_{{name}}_lambda" {
     runtime       = "provided"
     handler       = "{{name}}.{{handler_name}}"
     filename      = "${path.module}/{{name}}.zip"
-    timeout       = 5
+    timeout       = {{timeout}}
 
     {{#if service_has_layer}}
     layers = [var.runtime_layer_arn, var.service_layer_arn]
@@ -156,6 +156,8 @@ pub struct TerraformFunction {
     pub auth_type: String,
     pub auth_has_id: bool,
 
+    pub timeout: Option<u16>,
+
     pub project_name: String,
 }
 
@@ -185,6 +187,7 @@ pub fn write(project_path: &PathBuf, function: &TerraformFunction) -> Result<(),
         "auth_has_id".to_string(), 
         to_json(&function.auth_has_id)
     );
+    data.insert("timeout".to_string(), to_json(&function.timeout));
 
     let render = reg.render(file_name, &data).unwrap();
 

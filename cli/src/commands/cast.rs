@@ -1,7 +1,12 @@
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process;
 use std::process::Stdio;
+
+use wasmer::{Store, Module};
+use wasmer_compiler_cranelift::Cranelift;
+use wasmer_engine_native::Native;
 
 use clap::ArgMatches;
 
@@ -152,6 +157,25 @@ pub fn command(matches: Option<&ArgMatches>) {
             }
 
             let wasm_path = format!("{}/{}.wasm", function_artifact_path.clone(), &function.name);
+            let module_file_path = format!("{}/{}.wasm.bin", function_artifact_path.clone(), &function.name);
+
+            let compiler = Cranelift::default();
+            let store = Store::new(&Native::new(compiler).engine());
+
+            let wasm_bytes = match fs::read_to_string(
+                format!("{}/{}.wasm", function_artifact_path.clone(), &function.name)
+            ) {
+                Ok(bytes) => bytes,
+                Err(err) => panic!(err.to_string()),
+            };
+            let module = Module::new(&store, wasm_bytes).unwrap();
+            let module_bytes = module.serialize().unwrap();
+            let mut module_file = match fs::File::create(module_file_path.clone()) {
+                Ok(file) => file,
+                Err(err) => panic!(err.to_string()),
+            };
+            println!("📄 > Wrote {}", module_file_path.clone());
+            module_file.write_all(&module_bytes).unwrap();
 
             artifact::zip_files(
                 vec![wasm_path],
@@ -164,7 +188,10 @@ pub fn command(matches: Option<&ArgMatches>) {
             let tf_function_service = tf_service.clone();
             let tf_function = TerraformFunction {
                 name: function.name.clone(),
-                handler_name: function.handler_name.clone(),
+                handler_name: match &function.handler_name {
+                    Some(name) => name.clone(),
+                    None => String::from("handler"),
+                },
                 service: service.name.clone(),
                 service_has_layer: tf_function_service.has_layer,
                 service_has_http_api: tf_function_service.has_http_api,
@@ -202,6 +229,10 @@ pub fn command(matches: Option<&ArgMatches>) {
                         .clone()
                         .ne("AWS_IAM"),
                     None => false,    
+                },
+                timeout: match &function.timeout_seconds {
+                    Some(timeout) => Some(*timeout),
+                    None => Some(10),
                 },
                 project_name: project.name.clone(),
             };
