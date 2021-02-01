@@ -8,7 +8,7 @@ use clap::crate_version;
 use crossbeam_utils::atomic::AtomicCell;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
-use wasmer::{Instance};
+use wasmer::Instance;
 
 use assemblylift_core::threader::Threader;
 use assemblylift_core::WasmBufferPtr;
