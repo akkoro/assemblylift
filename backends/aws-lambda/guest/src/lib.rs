@@ -210,7 +210,6 @@ macro_rules! handler {
             }
 
             let slice = unsafe { &AWS_EVENT_STRING_BUFFER[event_ptr as usize..event_end as usize] };
-            AwsLambdaClient::console_log(format!("DEBUG: {}", std::str::from_utf8(slice).unwrap()));
             let event = match serde_json::from_slice(slice) {
                 Ok(event) => event,
                 Err(why) => {

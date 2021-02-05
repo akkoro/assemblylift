@@ -16,6 +16,7 @@ fn to_io_error<E: Error>(err: E) -> io::Error {
 
 pub fn asml_abi_invoke(
     env: &ThreaderEnv,
+    mem: WasmBufferPtr,
     name_ptr: u32,
     name_len: u32,
     input: u32,
@@ -23,7 +24,7 @@ pub fn asml_abi_invoke(
 ) -> i32 {
     if let Ok(method_path) = env_ptr_to_string(env, name_ptr, name_len) {
         if let Ok(input) = env_ptr_to_bytes(env, input, input_len) {
-            return invoke_io(env, &*method_path, input);
+            return invoke_io(env, mem, &*method_path, input);
         }
     }
 

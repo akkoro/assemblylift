@@ -74,8 +74,8 @@ async fn main() {
     let task_set = tokio::task::LocalSet::new();
     task_set
         .run_until(async move {
-            let instance = match wasm::build_instance(tx) {
-                Ok(instance) => Arc::new(instance),
+            let (instance, env) = match wasm::build_instance(tx) {
+                Ok(instance) => (Arc::new(instance.0), instance.1),
                 Err(why) => panic!("PANIC {}", why.to_string()),
             };
 
@@ -107,6 +107,8 @@ async fn main() {
                 .await
                 .unwrap();
             }
+
+            std::mem::drop(env.threader);
         })
         .await;
 }

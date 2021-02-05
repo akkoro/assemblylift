@@ -14,11 +14,11 @@ pub mod threader;
 #[inline(always)]
 pub fn invoke_io(
     env: &ThreaderEnv,
+    ptr: WasmBufferPtr,
     method_path: &str,
     method_input: Vec<u8>,
 ) -> i32 {
     let memory = env.memory_ref().unwrap();
-    let ptr = WasmPtr::<u8, Array>::new(0);
     let mem = ptr.deref(memory, 0, IO_BUFFER_SIZE_BYTES as u32).unwrap();
     let ioid = env.threader.clone().lock().unwrap().next_ioid().unwrap();
 

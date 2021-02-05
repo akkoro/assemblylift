@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::{Arc, Mutex};
+use std::mem::ManuallyDrop;
 
 use crossbeam_utils::atomic::AtomicCell;
 use once_cell::sync::Lazy;
@@ -18,7 +19,7 @@ static IO_MEMORY: Lazy<Mutex<IoMemory>> = Lazy::new(|| Mutex::new(IoMemory::new(
 
 #[derive(WasmerEnv, Clone)]
 pub struct ThreaderEnv {
-    pub threader: Arc<Mutex<Threader>>,
+    pub threader: ManuallyDrop<Arc<Mutex<Threader>>>,
     #[wasmer(export)]
     pub memory: LazyInit<Memory>,
 }

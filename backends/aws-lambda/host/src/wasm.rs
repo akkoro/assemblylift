@@ -3,6 +3,7 @@ use std::error::Error;
 use std::io::ErrorKind;
 use std::sync::{Arc, Mutex};
 use std::{env, io};
+use std::mem::ManuallyDrop;
 
 use wasmer::{imports, Function, Instance, InstantiationError, MemoryView, Module, Store};
 use wasmer_engine_native::Native;
@@ -13,7 +14,7 @@ use assemblylift_core::abi::{
 use assemblylift_core::threader::{Threader, ThreaderEnv};
 use assemblylift_core_iomod::registry::RegistryTx;
 
-pub fn build_instance(tx: RegistryTx) -> Result<Instance, InstantiationError> {
+pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), InstantiationError> {
     // let panic if these aren't set
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
@@ -27,7 +28,7 @@ pub fn build_instance(tx: RegistryTx) -> Result<Instance, InstantiationError> {
     let module = unsafe { Module::deserialize_from_file(&store, file_path) }.unwrap();
 
     let env = ThreaderEnv {
-        threader: Arc::new(Mutex::new(Threader::new(tx))),
+        threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx)))),
         memory: Default::default(),
     };
 
@@ -43,7 +44,10 @@ pub fn build_instance(tx: RegistryTx) -> Result<Instance, InstantiationError> {
         },
     };
 
-    Instance::new(&module, &import_object)
+    match Instance::new(&module, &import_object) {
+        Ok(instance) => Ok((instance, env)),
+        Err(err) => Err(err),
+    }
 }
 
 fn to_io_error<E: Error>(err: E) -> io::Error {
