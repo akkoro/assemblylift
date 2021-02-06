@@ -1,6 +1,6 @@
 [package]
 name = "assemblylift-core-io"
-version = "0.2.0"
+version = "0.2.1"
 description = "AssemblyLift core event library"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
@@ -18,7 +18,5 @@ indexmap = "1.3.2"
 crossbeam-utils = "0.7.2"
 serde = { version = "1.0.106", features = ["derive"]}
 
-wasmer_runtime_core = { version = "0.1.1", package = "wasmer-runtime-core-asml-fork" }
-
-assemblylift-core = { version = "0.2.0", path = "../../core" }
+assemblylift-core = { version = "0.2.3", path = "../../core" }
 assemblylift-core-io-common = { version = "0.2.0", path = "./common" }

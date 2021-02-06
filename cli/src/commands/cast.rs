@@ -1,7 +1,15 @@
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process;
 use std::process::Stdio;
+use std::str::FromStr;
+
+use wasmer::{Store, Module};
+use wasmer_compiler::{CpuFeature, Target, Triple};
+use wasmer_compiler_cranelift::Cranelift;
+//use wasmer_compiler_llvm::LLVM;
+use wasmer_engine_native::Native;
 
 use clap::ArgMatches;
 
@@ -29,7 +37,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     // Download the latest runtime binary
     let runtime_url = &*format!(
         "http://runtime.assemblylift.akkoro.io/aws-lambda/{}/bootstrap.zip",
-        clap::crate_version!()
+        clap::crate_version!(),
     );
     let mut response = reqwest::blocking::get(runtime_url).unwrap();
     if !response.status().is_success() {
@@ -152,9 +160,35 @@ pub fn command(matches: Option<&ArgMatches>) {
             }
 
             let wasm_path = format!("{}/{}.wasm", function_artifact_path.clone(), &function.name);
+            let module_file_path = format!("{}/{}.wasm.bin", function_artifact_path.clone(), &function.name);
+
+            let compiler = Cranelift::default();
+//            let mut compiler = LLVM::default();
+//            compiler.enable_pic();
+            let triple = Triple::from_str("x86_64-linux-unknown").unwrap();
+            let mut cpuid = CpuFeature::set();
+            cpuid.insert(CpuFeature::from_str("sse2").unwrap());
+            cpuid.insert(CpuFeature::from_str("avx2").unwrap());
+            let store = Store::new(&Native::new(compiler)
+                .target(Target::new(triple, cpuid))
+                .engine()
+            );
+
+            let wasm_bytes = match fs::read(wasm_path) {
+                Ok(bytes) => bytes,
+                Err(err) => panic!(err.to_string()),
+            };
+            let module = Module::new(&store, wasm_bytes).unwrap();
+            let module_bytes = module.serialize().unwrap();
+            let mut module_file = match fs::File::create(module_file_path.clone()) {
+                Ok(file) => file,
+                Err(err) => panic!(err.to_string()),
+            };
+            println!("📄 > Wrote {}", module_file_path.clone());
+            module_file.write_all(&module_bytes).unwrap();
 
             artifact::zip_files(
-                vec![wasm_path],
+                vec![module_file_path],
                 format!("{}/{}.zip", function_artifact_path.clone(), &function.name),
                 None,
                 false,
@@ -164,7 +198,10 @@ pub fn command(matches: Option<&ArgMatches>) {
             let tf_function_service = tf_service.clone();
             let tf_function = TerraformFunction {
                 name: function.name.clone(),
-                handler_name: function.handler_name.clone(),
+                handler_name: match &function.handler_name {
+                    Some(name) => name.clone(),
+                    None => String::from("handler"),
+                },
                 service: service.name.clone(),
                 service_has_layer: tf_function_service.has_layer,
                 service_has_http_api: tf_function_service.has_http_api,
@@ -202,6 +239,14 @@ pub fn command(matches: Option<&ArgMatches>) {
                         .clone()
                         .ne("AWS_IAM"),
                     None => false,    
+                },
+                timeout: match &function.timeout_seconds {
+                    Some(timeout) => Some(*timeout),
+                    None => Some(10),
+                },
+                size: match &function.size_mb {
+                    Some(sz) => Some(*sz),
+                    None => Some(1024),
                 },
                 project_name: project.name.clone(),
             };

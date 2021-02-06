@@ -56,6 +56,8 @@ pub struct ApiGatewayEvent {
     pub path_parameters: Option<HashMap<String, String>>,
     #[serde(rename = "stageVariables")]
     pub stage_variables: Option<HashMap<String, String>>,
+    #[serde(rename = "requestContext")]
+    pub request_context: Option<ApiGatewayRequestContext>,
     pub body: Option<String>,
 }
 
@@ -80,6 +82,46 @@ pub struct ApiGatewayError {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum ApiGatewayErrorCode {
     FunctionError = 520,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ApiGatewayRequestContext {
+    pub authorizer: Option<ApiGatewayRequestContextAuthorizer>,
+    pub identity: Option<ApiGatewayRequestContextIdentity>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ApiGatewayRequestContextAuthorizer {
+    pub claims: Option<HashMap<String, String>>,
+    pub scopes: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ApiGatewayRequestContextIdentity {
+    #[serde(rename = "accessKey")]
+    pub access_key: Option<String>,
+    #[serde(rename = "accountId")]
+    pub account_id: Option<String>,
+    pub caller: Option<String>,
+    #[serde(rename = "cognitoAmr")]
+    pub cognito_amr: Option<String>,
+    #[serde(rename = "cognitoAuthenticationProvider")]
+    pub cognito_authentication_provider: Option<String>,
+    #[serde(rename = "cognitoAuthenticationType")]
+    pub cognito_authentication_type: Option<String>,
+    #[serde(rename = "cognitoIdentityId")]
+    pub cognito_identity_id: Option<String>,
+    #[serde(rename = "cognitoIdentityPoolId")]
+    pub cognito_identity_pool_id: Option<String>,
+    #[serde(rename = "principalOrgId")]
+    pub principal_org_id: Option<String>,
+    #[serde(rename = "sourceIp")]
+    pub source_ip: String,
+    pub user: Option<String>,
+    #[serde(rename = "userAgent")]
+    pub user_agent: Option<String>,
+    #[serde(rename = "userArn")]
+    pub user_arn: Option<String>,
 }
 
 impl fmt::Display for ApiGatewayErrorCode {
@@ -168,7 +210,6 @@ macro_rules! handler {
             }
 
             let slice = unsafe { &AWS_EVENT_STRING_BUFFER[event_ptr as usize..event_end as usize] };
-
             let event = match serde_json::from_slice(slice) {
                 Ok(event) => event,
                 Err(why) => {

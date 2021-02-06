@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 use std::future::Future;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use std::mem::ManuallyDrop;
 
 use crossbeam_utils::atomic::AtomicCell;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
+use wasmer::{LazyInit, Memory, WasmerEnv};
 
 use assemblylift_core_io_common::constants::IO_BUFFER_SIZE_BYTES;
 use assemblylift_core_io_common::IoMemoryDocument;
@@ -14,6 +16,13 @@ const BLOCK_SIZE_BYTES: usize = 64;
 const NUM_BLOCKS: usize = IO_BUFFER_SIZE_BYTES / BLOCK_SIZE_BYTES;
 
 static IO_MEMORY: Lazy<Mutex<IoMemory>> = Lazy::new(|| Mutex::new(IoMemory::new()));
+
+#[derive(WasmerEnv, Clone)]
+pub struct ThreaderEnv {
+    pub threader: ManuallyDrop<Arc<Mutex<Threader>>>,
+    #[wasmer(export)]
+    pub memory: LazyInit<Memory>,
+}
 
 pub struct Threader {
     registry_tx: RegistryTx,
@@ -67,12 +76,11 @@ impl Threader {
         &mut self,
         method_path: &str,
         method_input: Vec<u8>,
-        writer: *const AtomicCell<u8>,
+        memory: *const AtomicCell<u8>,
         ioid: u32,
     ) {
-        // FIXME this is a kludge -- I feel like the raw pointer shouldn't be needed
-        let slc = unsafe { std::slice::from_raw_parts(writer, IO_BUFFER_SIZE_BYTES) };
-
+        let slc = unsafe { std::slice::from_raw_parts(memory, IO_BUFFER_SIZE_BYTES) };
+        
         let coords = method_path.split(".").collect::<Vec<&str>>();
         if coords.len() != 4 {
             panic!("Malformed method path @ Threader::invoke") // TODO don't panic

@@ -8,7 +8,7 @@ use clap::crate_version;
 use crossbeam_utils::atomic::AtomicCell;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
-use wasmer_runtime::Instance;
+use wasmer::Instance;
 
 use assemblylift_core::threader::Threader;
 use assemblylift_core::WasmBufferPtr;
@@ -24,15 +24,12 @@ pub static LAMBDA_REQUEST_ID: Lazy<Mutex<RefCell<String>>> =
 
 #[inline(always)]
 fn write_event_buffer(instance: &Instance, event: String) {
-    use wasmer_runtime::Func;
-
-    let wasm_instance_context = instance.context();
-    let wasm_instance_memory = wasm_instance_context.memory(0);
+    let wasm_instance_memory = instance.exports.get_memory("memory").unwrap();
 
     let fn_name = "__asml_guest_get_aws_event_string_buffer_pointer";
-    let get_pointer: Func<(), WasmBufferPtr> = instance
+    let get_pointer = instance
         .exports
-        .get(fn_name)
+        .get_native_function::<(), WasmBufferPtr>(fn_name)
         .expect(&*format!("could not find export in wasm named {}", fn_name));
 
     let event_buffer = get_pointer.call().unwrap();
@@ -77,8 +74,8 @@ async fn main() {
     let task_set = tokio::task::LocalSet::new();
     task_set
         .run_until(async move {
-            let instance = match wasm::build_instance(tx) {
-                Ok(instance) => Arc::new(instance),
+            let (instance, env) = match wasm::build_instance(tx) {
+                Ok(instance) => (Arc::new(instance.0), instance.1),
                 Err(why) => panic!("PANIC {}", why.to_string()),
             };
 
@@ -101,7 +98,8 @@ async fn main() {
                     write_event_buffer(&instance, event.event_body);
                     Threader::__reset_memory();
 
-                    match instance.call(handler_name, &[]) {
+                    let handler_call = instance.exports.get_function(handler_name).unwrap();
+                    match handler_call.call(&[]) {
                         Ok(result) => println!("TRACE: handler returned {:?}", result),
                         Err(error) => println!("ERROR: {}", error.to_string()),
                     }
@@ -109,6 +107,8 @@ async fn main() {
                 .await
                 .unwrap();
             }
+
+            std::mem::drop(env.threader);
         })
         .await;
 }

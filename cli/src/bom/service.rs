@@ -54,10 +54,13 @@ pub struct HttpFunction {
 #[derive(Deserialize)]
 pub struct Function {
     pub name: String,
-    pub handler_name: String,
+    pub handler_name: Option<String>,
 
     pub http: Rc<Option<HttpFunction>>,
     pub authorizer_id: Option<String>,
+
+    pub timeout_seconds: Option<u16>,
+    pub size_mb: Option<u16>,
 }
 
 #[derive(Deserialize)]
