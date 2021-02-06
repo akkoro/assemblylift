@@ -16,7 +16,7 @@ once_cell = "1.4.0"
 tokio = "0.2.21"
 crossbeam-utils = "0.8"
 
-wasmer = { git = "https://github.com/dotxlem/wasmer", branch="atomic_cell" }
+wasmer = { package = "wasmer-asml-fork", version = "1.0" }
 
 assemblylift-core-io-common = { version = "0.2.0", path = "./io/common" }
 assemblylift-core-iomod = { version = "0.2.1", path = "./iomod" }
