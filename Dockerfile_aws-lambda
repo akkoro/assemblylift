@@ -1,7 +1,7 @@
 FROM amazonlinux:2018.03
 
+RUN yum install diffutils xz gcc72 gcc72-c++ openssl-devel pkg-config capnproto -y
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
-RUN yum install diffutils xz-utils gcc72 gcc72-c++ openssl-devel pkg-config capnproto -y
 
 RUN curl -O https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/clang+llvm-11.0.0-x86_64-linux-gnu-ubuntu-20.04.tar.xz && \
         ls -l . && tar -xf ./clang+llvm-11.0.0-x86_64-linux-gnu-ubuntu-20.04.tar.xz 
