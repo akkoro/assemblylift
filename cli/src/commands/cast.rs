@@ -37,7 +37,8 @@ pub fn command(matches: Option<&ArgMatches>) {
     // Download the latest runtime binary
     let runtime_url = &*format!(
         "http://runtime.assemblylift.akkoro.io/aws-lambda/{}/bootstrap.zip",
-        clap::crate_version!(),
+//        clap::crate_version!(),
+    "xlem",
     );
     let mut response = reqwest::blocking::get(runtime_url).unwrap();
     if !response.status().is_success() {
