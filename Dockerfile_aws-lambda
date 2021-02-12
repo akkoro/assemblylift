@@ -11,4 +11,4 @@ RUN wget https://capnproto.org/capnproto-c++-0.8.0.tar.gz && tar zxf capnproto-c
 WORKDIR /usr/src/assemblylift
 COPY . .
 
-RUN LLVM_SYS_110_PREFIX=$HOME/clang+llvm-11.0.0-x86_64-linux-gnu-ubuntu-20.04 $HOME/.cargo/bin/cargo build --release
+RUN ls -l $HOME && export LLVM_SYS_110_PREFIX=$HOME/clang+llvm-11.0.0-x86_64-linux-gnu-ubuntu-20.04 && $HOME/.cargo/bin/cargo build --release
