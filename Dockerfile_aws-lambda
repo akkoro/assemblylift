@@ -4,7 +4,7 @@ RUN yum install wget diffutils xz gcc72 gcc72-c++ openssl-devel pkg-config capnp
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 
 RUN wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/clang+llvm-11.0.0-x86_64-linux-gnu-ubuntu-20.04.tar.xz && \
-        tar -xf ./clang+llvm-11.0.0-x86_64-linux-gnu-ubuntu-20.04.tar.xz 
+        tar -xf ./clang+llvm-11.0.0-x86_64-linux-gnu-ubuntu-20.04.tar.xz && ls -l .
 RUN wget https://capnproto.org/capnproto-c++-0.8.0.tar.gz && tar zxf capnproto-c++-0.8.0.tar.gz && \
     cd capnproto-c++-0.8.0 && ./configure && make -j6 check && make install
 
