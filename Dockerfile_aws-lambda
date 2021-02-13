@@ -3,12 +3,13 @@ FROM amazonlinux:2018.03
 RUN yum install wget diffutils xz gcc72 gcc72-c++ openssl-devel pkg-config capnproto -y
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 
-RUN wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/clang+llvm-11.0.1-x86_64-linux-sles12.4.tar.xz && \
-        tar -xf ./clang+llvm-11.0.1-x86_64-linux-sles12.4.tar.xz 
+RUN wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/llvm-11.0.0.src.tar.xz && \
+    tar -xf llvm-11.0.0.src.tar.xz && cd llvm-11.0.0.src && mkdir build && cd build && cmake ../ && cmake --build . && \
+    cmake --build . --target install
 RUN wget https://capnproto.org/capnproto-c++-0.8.0.tar.gz && tar zxf capnproto-c++-0.8.0.tar.gz && \
     cd capnproto-c++-0.8.0 && ./configure && make -j6 check && make install
 
 WORKDIR /usr/src/assemblylift
 COPY . .
 
-RUN LLVM_SYS_110_PREFIX=/clang+llvm-11.0.1-x86_64-linux-sles12.4 $HOME/.cargo/bin/cargo build --release
+RUN $HOME/.cargo/bin/cargo build --release
