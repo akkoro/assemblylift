@@ -9,9 +9,9 @@ AssemblyLift is a framework for building serverless applications powered by WebA
 
 # Getting Started
 
-Please see the [official documentation](https://docs.assemblylift.akkoro.io) for help with installing & learning to use AssemblyLift.
+Please see the [official documentation](https://docs.assemblylift.akkoro.io) for help with installing & learning to use AssemblyLift, and/or for more information ab out the project.
 
-There is an **examples** repository found [here](https://github.com/akkoro/assemblylift-examples).
+There is an **examples** repository [here](https://github.com/akkoro/assemblylift-examples).
 
 # Contributing
 
