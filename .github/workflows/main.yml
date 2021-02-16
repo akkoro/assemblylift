@@ -18,6 +18,5 @@ jobs:
       uses: appleboy/docker-ecr-action@master
       with:
         dockerfile: docker/asml-lambda-build
-        registry: public.ecr.aws/akkoro
-        repo: assemblylift
+        repo: public.ecr.aws/akkoro/assemblylift
         tags: "latest,$GITHUB_SHA"
