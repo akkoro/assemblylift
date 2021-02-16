@@ -3,10 +3,13 @@ use std::env;
 use std::fs;
 use std::process;
 use std::sync::{Arc, Mutex};
+use std::str::FromStr;
 
 use clap::crate_version;
 use crossbeam_utils::atomic::AtomicCell;
 use once_cell::sync::Lazy;
+use rusoto_core::Region;
+use rusoto_lambda::{Lambda, LambdaClient, Layer, GetFunctionConfigurationRequest};
 use tokio::sync::mpsc;
 use wasmer::Instance;
 
@@ -55,6 +58,25 @@ async fn main() {
         "Starting AssemblyLift AWS Lambda runtime {}",
         crate_version!()
     );
+
+    let aws_region = std::env::var("AWS_REGION").unwrap();
+    let function_name = std::env::var("AWS_LAMBDA_FUNCTION_NAME").unwrap();
+    
+    let mut config_req: GetFunctionConfigurationRequest = Default::default();
+    config_req.function_name = function_name;
+    
+    let lambda_client: LambdaClient = LambdaClient::new(Region::from_str(&aws_region).unwrap());
+    let layers: Vec<Layer> = match lambda_client.get_function_configuration(config_req).await {
+        Ok(response) => response.layers.unwrap_or(Vec::new()),
+        Err(err) => panic!("failed to get function config: {}", err),
+    };
+
+    // fetch layers
+    for layer in layers {
+        let layer_arn = layer.arn.unwrap();
+        let (arn, version) = layer_arn.split_at(layer_arn.rfind(':').unwrap());
+        println!("DEBUG: {}  {}", arn, version);
+    }
 
     let registry_channel = mpsc::channel(100);
     let tx = registry_channel.0.clone();
