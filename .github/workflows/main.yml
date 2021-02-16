@@ -14,14 +14,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: 'build'
-      run: docker build . --file Dockerfile_aws-lambda --tag assemblylift-aws-lambda:$GITHUB_SHA
-    - name: 'copy bootstrap to HOME'
-      run: docker run --rm --entrypoint cat assemblylift-aws-lambda:$GITHUB_SHA /usr/src/assemblylift/target/release/bootstrap > $HOME/bootstrap
-    - name: 'set artifact permissions'
-      run: chmod 777 $HOME/bootstrap
-    - name: 'upload artifact'
-      uses: actions/upload-artifact@v2
+    - name: 'push to ECR @ akkoro-public'
+      uses: appleboy/docker-ecr-action@master
       with:
-        name: bootstrap
-        path: ~/bootstrap
+        dockerfile: docker/asml-lambda-build
+        registry: public.ecr.aws/akkoro
+        repo: assemblylift
+        tags: "latest,$GITHUB_SHA"
