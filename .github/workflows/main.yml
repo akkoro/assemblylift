@@ -17,8 +17,8 @@ jobs:
     - name: 'push to ECR @ akkoro-public'
       uses: appleboy/docker-ecr-action@master
       with:
-        access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        access_key: ${{ secrets.aws_access_key_id }}
+        secret_key: ${{ secrets.aws_secret_access_key }}
         dockerfile: docker/asml-lambda-build
         repo: public.ecr.aws/akkoro/assemblylift
         tags: "latest,$GITHUB_SHA"
