@@ -9,19 +9,18 @@ on:
 jobs:
 
   build:
-    name: 'AWS Lambda Runtime'
+    name: 'AssemblyLift Runtime Images'
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v2
-    - name: 'build'
-      run: docker build . --file Dockerfile_aws-lambda --tag assemblylift-aws-lambda:$GITHUB_SHA
-    - name: 'copy bootstrap to HOME'
-      run: docker run --rm --entrypoint cat assemblylift-aws-lambda:$GITHUB_SHA /usr/src/assemblylift/target/release/bootstrap > $HOME/bootstrap
-    - name: 'set artifact permissions'
-      run: chmod 777 $HOME/bootstrap
-    - name: 'upload artifact'
-      uses: actions/upload-artifact@v2
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
       with:
-        name: bootstrap
-        path: ~/bootstrap
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+    - name: 'ECR Login'
+      run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/akkoro
+    - name: 'Build Images'
+      run: docker build . --file docker/asml-lambda-build --tag asml-lambda-runtime:$GITHUB_SHA
+    - name: 'Push to ECR @ akkoro-public'
+      run: docker image tag asml-lambda-runtime:$GITHUB_SHA public.ecr.aws/akkoro/assemblylift:latest && docker image push public.ecr.aws/akkoro/assemblylift:latest
