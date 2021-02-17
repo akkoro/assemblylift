@@ -17,7 +17,7 @@ jobs:
       AWS_REGION: us-east-1
     steps:
     - name: 'ECR Login'
-      run: AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/akkoro
+      run: "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/akkoro"
     - name: 'Build Images'
       run: docker build . --file docker/asml-lambda-build --tag asml-lambda-runtime:$GITHUB_SHA
     - name: 'Push to ECR @ akkoro-public'
