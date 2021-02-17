@@ -9,16 +9,12 @@ on:
 jobs:
 
   build:
-    name: 'AWS Lambda Runtime'
+    name: 'AssemblyLift Runtime Images'
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
-    - name: 'push to ECR @ akkoro-public'
-      uses: appleboy/docker-ecr-action@master
-      with:
-        access_key: ${{ secrets.aws_access_key_id }}
-        secret_key: ${{ secrets.aws_secret_access_key }}
-        dockerfile: docker/asml-lambda-build
-        repo: public.ecr.aws/akkoro/assemblylift
-        tags: "latest,$GITHUB_SHA"
+    - name: 'Build Images'
+      run: docker build . --file docker/asml-lambda-build --tag asml-lambda-runtime:$GITHUB_SHA
+    - name: 'Push to ECR @ akkoro-public'
+      run: docker image tag asml-lambda-runtime:$GITHUB_SHA public.ecr.aws/akkoro/assemblylift:latest && docker image push public.ecr.aws/akkoro/assemblylift:latest
