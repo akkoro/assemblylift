@@ -16,14 +16,12 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: us-east-1
     steps:
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: env.AWS_ACCESS_KEY_ID
-        aws-secret-access-key: env.AWS_SECRET_ACCESS_KEY
-        aws-region: env.AWS_REGION
     - name: 'ECR Login'
-      run: "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/akkoro"
+      run: AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/akkoro
+      env:
+        AWS_ACCESS_KEY_ID: env.AWS_ACCESS_KEY_ID
+        AWS_SECRET_ACCESS_KEY: env.AWS_SECRET_ACCESS_KEY
+        AWS_REGION: env.AWS_REGION
     - name: 'Build Images'
       run: docker build . --file docker/asml-lambda-build --tag asml-lambda-runtime:$GITHUB_SHA
     - name: 'Push to ECR @ akkoro-public'
