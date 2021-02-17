@@ -25,4 +25,4 @@ jobs:
     - name: 'Build Images'
       run: docker build . --file docker/asml-lambda-build --tag asml-lambda-runtime:$GITHUB_SHA
     - name: 'Push to ECR @ akkoro-public'
-      run: docker image tag asml-lambda-runtime:$GITHUB_SHA public.ecr.aws/b9k6v7n0/assemblylift:latest && docker image push public.ecr.aws/akkoro/assemblylift:latest
+      run: docker image tag asml-lambda-runtime:$GITHUB_SHA public.ecr.aws/b9k6v7n0/assemblylift:latest && docker image push public.ecr.aws/b9k6v7n0/assemblylift:latest
