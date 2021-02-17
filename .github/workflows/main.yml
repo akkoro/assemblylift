@@ -20,6 +20,8 @@ jobs:
         aws-region: us-east-1
     - name: 'ECR Login'
       run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/akkoro
+    - name: 'Checkout'
+      uses: actions/checkout@v2
     - name: 'Build Images'
       run: docker build . --file docker/asml-lambda-build --tag asml-lambda-runtime:$GITHUB_SHA
     - name: 'Push to ECR @ akkoro-public'
