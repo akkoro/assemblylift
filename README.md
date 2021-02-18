@@ -19,7 +19,9 @@ We're open to ideas and PRs! Please start a [discussion](https://github.com/akko
  * Please use [forking workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/forking-workflow) to open a new Pull Request
  * Remember to abide by the [Contributor Covenant](https://www.contributor-covenant.org/)
 
-We're also on [Matrix](https://matrix.org)! Try the [Element client](https://element.io/) and find us at `#assemblylift:matrix.org`
+# Contact & Social
+
+We're on [Matrix](https://matrix.org)! Try the [Element client](https://element.io/) and find us at `#assemblylift:matrix.org` :)
 
 # License
 
