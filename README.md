@@ -16,7 +16,7 @@ There is an **examples** repository [here](https://github.com/akkoro/assemblylif
 # Contributing
 
 We're open to ideas and PRs! Please start a [discussion](https://github.com/akkoro/assemblylift/discussions) if you have a proposal.
- * Please use [forking workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/forking-workflow) to open an new Pull Request
+ * Please use [forking workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/forking-workflow) to open a new Pull Request
  * Remember to abide by the [Contributor Covenant](https://www.contributor-covenant.org/)
 
 We're also on [Matrix](https://matrix.org)! Try the [Element client](https://element.io/) and find us at `#assemblylift:matrix.org`
