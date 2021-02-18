@@ -9,7 +9,7 @@ on:
 jobs:
 
   build:
-    name: 'AssemblyLift Runtime Images'
+    name: 'AWS Lambda Runtime Image'
     runs-on: ubuntu-latest
     steps:
     - name: Configure AWS Credentials
@@ -18,9 +18,13 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1
+    - name: 'Checkout'
+      uses: actions/checkout@v2
+    - name: 'Build Image'
+      run: docker build -t assemblylift/asml-lambda-runtime . --file docker/asml-lambda-build
+    - name: 'Tag Image'
+      run: docker tag assemblylift/asml-lambda-runtime:latest public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-runtime:latest
     - name: 'ECR Login'
-      run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/akkoro
-    - name: 'Build Images'
-      run: docker build . --file docker/asml-lambda-build --tag asml-lambda-runtime:$GITHUB_SHA
+      run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/b9k6v7n0
     - name: 'Push to ECR @ akkoro-public'
-      run: docker image tag asml-lambda-runtime:$GITHUB_SHA public.ecr.aws/akkoro/assemblylift:latest && docker image push public.ecr.aws/akkoro/assemblylift:latest
+      run: docker push public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-runtime:latest
