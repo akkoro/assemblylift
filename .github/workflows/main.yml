@@ -25,6 +25,6 @@ jobs:
     - name: 'Copy Artifacts'
       run: docker run --rm --entrypoint cat assemblylift/asml-lambda-default /usr/src/assemblylift/target/release/bootstrap > $HOME/bootstrap && chmod 777 $HOME/bootstrap
     - name: 'Get Version'
-      run: docker run --rm --entrypoint "/usr/src/assemblylift/target/release/asml --version" assemblylift/asml-lambda-default > $HOME/version && cat $HOME/version
+      run: export ASML_VERSION=$(docker run --rm assemblylift/asml-lambda-default)
     - name: 'Upload to S3 @ akkoro-public'
-      run: aws s3 cp $HOME/bootstrap s3://public.assembly.akkoro.io/runtime/aws-lambda/bootstrap
+      run: aws s3 cp $HOME/bootstrap s3://public.assembly.akkoro.io/runtime/$ASML_VERSION/aws-lambda/bootstrap

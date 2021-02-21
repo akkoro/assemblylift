@@ -10,3 +10,5 @@ WORKDIR /usr/src/assemblylift
 COPY . .
 
 RUN $HOME/.cargo/bin/cargo build --release
+
+CMD cat cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/"//g'
