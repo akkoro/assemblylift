@@ -19,7 +19,6 @@ RUN LLVM_SYS_110_PREFIX=/llvm110 $HOME/.cargo/bin/cargo build --release
 
 
 ## Prod image
-#FROM ubuntu:20.10
 FROM frolvlad/alpine-glibc:glibc-2.32
 
 COPY --from=builder /usr/src/assemblylift/target/release/bootstrap /
