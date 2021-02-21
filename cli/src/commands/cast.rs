@@ -8,7 +8,6 @@ use std::str::FromStr;
 use wasmer::{Store, Module};
 use wasmer_compiler::{CpuFeature, Target, Triple};
 use wasmer_compiler_cranelift::Cranelift;
-use wasmer_compiler_llvm::LLVM;
 use wasmer_engine_native::Native;
 
 use clap::ArgMatches;
@@ -163,8 +162,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             let wasm_path = format!("{}/{}.wasm", function_artifact_path.clone(), &function.name);
             let module_file_path = format!("{}/{}.wasm.bin", function_artifact_path.clone(), &function.name);
 
-//            let compiler = Cranelift::default();
-            let mut compiler = LLVM::default();
+            let compiler = Cranelift::default();
             let triple = Triple::from_str("x86_64-linux-unknown").unwrap();
             let mut cpuid = CpuFeature::set();
             cpuid.insert(CpuFeature::from_str("sse2").unwrap());

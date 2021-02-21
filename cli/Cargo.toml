@@ -28,7 +28,6 @@ walkdir = "2.3.1"
 wasmer = { package = "wasmer-asml-fork", version = "1.0" }
 wasmer-compiler = "1.0"
 wasmer-compiler-cranelift = "1.0"
-wasmer-compiler-llvm = "1.0"
 wasmer-engine-native = "1.0"
 
 [dependencies.reqwest]
