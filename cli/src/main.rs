@@ -8,9 +8,11 @@ use crate::commands::CommandFn;
 use crate::commands::{bind, burn, cast, init, make};
 
 mod artifact;
-mod bom;
 mod commands;
+mod materials;
 mod projectfs;
+mod providers;
+mod templates;
 mod terraform;
 
 fn main() {

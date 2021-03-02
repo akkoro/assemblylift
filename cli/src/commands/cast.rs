@@ -13,8 +13,8 @@ use wasmer_engine_native::Native;
 use clap::ArgMatches;
 
 use crate::artifact;
-use crate::bom;
-use crate::bom::DocumentSet;
+use crate::materials::{hcl, toml, Artifact, Source};
+use crate::templates;
 use crate::projectfs::Project;
 use crate::terraform;
 use crate::terraform::function::TerraformFunction;
@@ -30,7 +30,8 @@ pub fn command(matches: Option<&ArgMatches>) {
 
     // Init the project structure -- panic if the project isn't in the current working dir
     let cwd = std::env::current_dir().unwrap();
-    let asml_manifest = bom::manifest::Manifest::read(&cwd);
+    //let asml_manifest = templates::manifest::Manifest::read(&cwd);
+    let asml_manifest = toml::asml::Manifest::read(&cwd).unwrap();
     let project = Project::new(asml_manifest.project.name.clone(), Some(cwd));
 
     // Download the latest runtime binary
@@ -55,21 +56,22 @@ pub fn command(matches: Option<&ArgMatches>) {
     let mut services: Vec<TerraformService> = Vec::new();
 
     for (_, service) in asml_manifest.services {
-        let service_manifest =
-            bom::service::Manifest::read(&*project.service_dir(service.name.clone()).dir());
-        let service_name = service_manifest.service.name.clone();
-        let service_iomods = service_manifest.iomod.clone();
-        let service_functions = service_manifest.api.functions.clone();
-        let service_authorizers = service_manifest.api.authorizers.clone();
+        let service_manifest = toml::service::Manifest::read(&*project.service_dir(service.name.clone()).dir()).unwrap();
+        let service_name = service_manifest.service().name.clone();
+        //let service_iomods = service_manifest.iomod.clone();
+        let service_functions = service_manifest.functions();
+        //let service_authorizers = service_manifest.api.authorizers.clone();
 
-        let tf_service = TerraformService::from(service_manifest);
-        services.push(tf_service.clone());
+        let service_module = hcl::service::Module::from(service_manifest);
+        //let tf_service = TerraformService::from(service_manifest);
+        //services.push(tf_service.clone());
 
-        terraform::service::write(&*project.dir(), project.name.clone(), tf_service.clone()).unwrap();
+        terraform::service::write(&*project.dir(), project.name.clone(), service.name.clone(), service_module.content());
+        //terraform::service::write(&*project.dir(), project.name.clone(), tf_service.clone()).unwrap();
 
-        if let Some(iomod) = service_iomods.as_ref() {
-            let mut dependencies: Vec<String> = Vec::new();
-            for (name, dependency) in iomod.dependencies.clone().as_ref() {
+        {
+            let dependencies: Vec<String> = Vec::new();
+            for (name, dependency) in service_manifest.iomods() {
                 match dependency.dependency_type.as_str() {
                     "file" => {
                         // copy file & rename it to `name`
@@ -99,7 +101,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             );
         }
 
-        for (_id, function) in service_functions.as_ref() {
+        for (_id, function) in service_functions {
             let function_artifact_path =
                 format!("./net/services/{}/{}", &service_name, function.name);
             fs::create_dir_all(PathBuf::from(function_artifact_path.clone())).expect(&*format!(

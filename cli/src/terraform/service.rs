@@ -7,7 +7,7 @@ use handlebars::{to_json, Handlebars};
 use serde::{Deserialize, Serialize};
 use serde_json::value::{Map, Value as Json};
 
-use crate::bom;
+use crate::templates;
 use crate::terraform::write_to_file;
 
 static TERRAFORM_SERVICE: &str = r#"# Generated with assemblylift-cli {{asml_version}}
@@ -79,8 +79,8 @@ pub struct JwtAuth {
     pub has_next: bool,
 }
 
-impl From<bom::service::Manifest> for TerraformService {
-    fn from(manifest: bom::service::Manifest) -> Self {
+impl From<templates::service::Manifest> for TerraformService {
+    fn from(manifest: templates::service::Manifest) -> Self {
         let service_name = manifest.service.name.clone();
         let manifest_authorizers = manifest.api.authorizers.clone();
         let authorizers = manifest_authorizers.as_ref();
@@ -122,27 +122,13 @@ impl From<bom::service::Manifest> for TerraformService {
     }
 }
 
-pub fn write(project_path: &PathBuf, project_name: String, service: TerraformService) -> Result<(), io::Error> {
+pub fn write(project_path: &PathBuf, project_name: String, service_name: String, service: String) -> Result<(), io::Error> {
     let file_name = "service.tf";
-
-    let mut reg = Handlebars::new();
-    reg.register_template_string(file_name, TERRAFORM_SERVICE)
-        .unwrap(); // templates are known at compile-time
-
-    let mut data = Map::<String, Json>::new();
-    data.insert("asml_version".to_string(), to_json(crate_version!()));
-    data.insert("project_name".to_string(), to_json(project_name));
-    data.insert("name".to_string(), to_json(&service.name));
-    data.insert("has_layer".to_string(), to_json(service.has_layer));
-    data.insert("has_http_api".to_string(), to_json(service.has_http_api));
-    data.insert("jwt_authorizers".to_string(), to_json(service.jwt_authorizers));
-
-    let render = reg.render(file_name, &data).unwrap();
 
     let path = &format!(
         "{}/net/services/{}",
         project_path.clone().into_os_string().into_string().unwrap(),
-        &service.name
+        &service_name
     );
 
     fs::create_dir_all(path).expect(&*format!("unable to create path {:?}", path));
@@ -150,5 +136,5 @@ pub fn write(project_path: &PathBuf, project_name: String, service: TerraformSer
     let file_path = &format!("{}/{}", path, file_name);
     let file_path = path::Path::new(file_path);
 
-    write_to_file(&file_path, render)
+    write_to_file(&file_path, service)
 }

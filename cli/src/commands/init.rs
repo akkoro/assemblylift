@@ -4,8 +4,8 @@ use clap::ArgMatches;
 use handlebars::to_json;
 use serde_json::value::{Map, Value as Json};
 
-use crate::bom;
-use crate::bom::DocumentSet;
+use crate::templates::write_documents;
+use crate::templates::project::{ROOT_DOCUMENTS, RUST_FUNCTION_DOCUMENTS, SERVICE_DOCUMENTS};
 use crate::projectfs::Project;
 use crate::terraform;
 
@@ -26,28 +26,33 @@ pub fn command(matches: Option<&ArgMatches>) {
 
     terraform::fetch(&*project.dir());
 
-    let data = &mut Map::<String, Json>::new();
-    data.insert(
-        "project_name".to_string(),
-        to_json(project_name.to_string()),
-    );
-    data.insert(
-        "default_service_name".to_string(),
-        to_json(default_service_name.to_string()),
-    );
-    bom::manifest::Manifest::write(&*project.dir(), data);
+    {
+        let data = &mut Map::<String, Json>::new();
+        data.insert(
+            "project_name".to_string(),
+            to_json(project_name.to_string()),
+        );
+        data.insert(
+            "default_service_name".to_string(),
+            to_json(default_service_name.to_string()),
+        );
+        write_documents(&*project.dir(), ROOT_DOCUMENTS, data);
+    }
 
-    let data = &mut Map::<String, Json>::new();
-    data.insert(
-        "service_name".to_string(),
-        to_json(default_service_name.to_string()),
-    );
-    bom::service::Manifest::write(
-        &project
-            .service_dir(String::from(default_service_name))
-            .dir(),
-        data,
-    );
+    {
+        let data = &mut Map::<String, Json>::new();
+        data.insert(
+            "service_name".to_string(),
+            to_json(default_service_name.to_string()),
+        );
+        write_documents(
+            &project
+                .service_dir(String::from(default_service_name))
+                .dir(),
+            SERVICE_DOCUMENTS,
+            data,
+        );
+    }
 
     match matches.value_of("language") {
         Some("rust") => {
@@ -58,10 +63,11 @@ pub fn command(matches: Option<&ArgMatches>) {
                 "function_name".to_string(),
                 to_json(default_function_name.to_string()),
             );
-            bom::function::RustFunction::write(
+            write_documents(
                 &project
                     .service_dir(String::from(default_service_name))
                     .function_dir(String::from(default_function_name)),
+                RUST_FUNCTION_DOCUMENTS,
                 data,
             );
         }

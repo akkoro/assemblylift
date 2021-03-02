@@ -3,8 +3,6 @@ use std::{fs, io};
 
 use path_abs::{PathAbs, PathDir};
 
-use crate::bom::{manifest, DocumentSet};
-
 pub struct Project {
     pub name: String,
     project_path: Box<PathBuf>,

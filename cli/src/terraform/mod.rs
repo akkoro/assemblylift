@@ -113,7 +113,7 @@ pub fn fetch(project_path: &PathBuf) {
     let mut perms = fs::metadata(&terraform_path).unwrap().permissions();
     perms.set_mode(0o755);
     if let Err(_) = fs::set_permissions(&terraform_path, perms) {
-        panic!("could not make terraform binary executable")
+        panic!("could not set terraform binary executable (octal 755) permissions")
     }
 }
 
