@@ -6,7 +6,6 @@ use std::path::PathBuf;
 use std::{fs, io, path};
 
 use handlebars::Handlebars;
-use serde::Deserialize;
 use serde_json::value::{Map as SerdeMap, Value as Json};
 
 pub struct Document {

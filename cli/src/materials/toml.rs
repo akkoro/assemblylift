@@ -5,24 +5,25 @@ pub mod asml {
     use crate::materials::StringMap;
     use crate::providers::Transformable;
 
-    // TODO: should this impl Source? will depend on whether it needs to be transpiled
     #[derive(Deserialize)]
     pub struct Manifest {
         pub project: Project,
-        pub services: StringMap<Service>, // map service_id -> service
+        pub services: StringMap<ServiceRef>, // map service_id -> service
     }
 
     impl Transformable for Manifest {
         const TYPE: &'static str = "root";
     }
 
+    // TODO move Project to models.rs
     #[derive(Deserialize)]
     pub struct Project {
         pub name: String,
     }
 
+    /* Represents a reference by name to a service (toml::service::Manifest) */
     #[derive(Deserialize)]
-    pub struct Service {
+    pub struct ServiceRef {
         pub name: String,
     }
 
@@ -50,7 +51,7 @@ pub mod service {
     use std::path::PathBuf;
     use std::rc::Rc;
     use serde::Deserialize;
-    use crate::materials::{models, ContentType, Source};
+    use crate::materials::{models, ContentType};
     
     #[derive(Deserialize)]
     pub struct Manifest {
@@ -66,26 +67,21 @@ pub mod service {
                 Err(why) => Err(io::Error::new(io::ErrorKind::Other, why.to_string())),
             }
         }
-    }
-
-    impl Source for Manifest {
-        fn content_type(&self) -> ContentType {
+        
+        pub fn content_type(&self) -> ContentType {
             ContentType::TOML("TOML")
         } 
 
-        fn service(&self) -> models::Service {
+        pub fn service(&self) -> models::Service {
             self.service
         }
         
-        fn functions(&self) -> models::Functions {
+        pub fn functions(&self) -> models::Functions {
             *self.api.functions
         }
         
-        fn iomods(&self) -> models::Iomods {
-            match *self.iomod {
-                Some(iomod) => *iomod.dependencies,
-                None => models::Iomods::new(),
-            }
+        pub fn iomods(&self) -> Option<models::Iomod> {
+            *self.iomod
         }
     }
 

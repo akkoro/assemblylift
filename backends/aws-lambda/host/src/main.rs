@@ -3,7 +3,6 @@ use std::env;
 use std::fs;
 use std::process;
 use std::sync::{Arc, Mutex};
-use std::str::FromStr;
 
 use clap::crate_version;
 use crossbeam_utils::atomic::AtomicCell;

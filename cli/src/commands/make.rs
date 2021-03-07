@@ -3,7 +3,7 @@ use handlebars::to_json;
 use serde_json::value::{Map, Value as Json};
 
 use crate::templates::write_documents;
-use crate::templates::project::{ROOT_DOCUMENTS, RUST_FUNCTION_DOCUMENTS, SERVICE_DOCUMENTS};
+use crate::templates::project::{ROOT_DOCUMENTS, RUST_FUNCTION_DOCUMENTS};
 use crate::projectfs::{locate_asml_manifest, Project};
 
 pub fn command(matches: Option<&ArgMatches>) {

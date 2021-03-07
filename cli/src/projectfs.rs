@@ -3,6 +3,8 @@ use std::{fs, io};
 
 use path_abs::{PathAbs, PathDir};
 
+use crate::materials::toml;
+
 pub struct Project {
     pub name: String,
     project_path: Box<PathBuf>,
@@ -127,7 +129,7 @@ impl Project {
     }
 }
 
-pub fn locate_asml_manifest() -> Option<(manifest::Manifest, PathBuf)> {
+pub fn locate_asml_manifest() -> Option<(toml::asml::Manifest, PathBuf)> {
     use walkdir::WalkDir;
 
     let mut path: Option<PathBuf> = None;
@@ -144,7 +146,7 @@ pub fn locate_asml_manifest() -> Option<(manifest::Manifest, PathBuf)> {
             let canonical_path = fs::canonicalize(path.clone()).unwrap();
             let parent = canonical_path.parent().unwrap();
             Some((
-                manifest::Manifest::read(&PathBuf::from(parent)),
+                toml::asml::Manifest::read(&PathBuf::from(parent)).expect("could not read assemblylift.toml"),
                 PathBuf::from(parent),
             ))
         }

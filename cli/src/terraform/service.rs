@@ -2,10 +2,7 @@ use std::path;
 use std::path::PathBuf;
 use std::{fs, io};
 
-use clap::crate_version;
-use handlebars::{to_json, Handlebars};
 use serde::{Deserialize, Serialize};
-use serde_json::value::{Map, Value as Json};
 
 use crate::templates;
 use crate::terraform::write_to_file;
@@ -79,62 +76,62 @@ pub struct JwtAuth {
     pub has_next: bool,
 }
 
-impl From<templates::service::Manifest> for TerraformService {
-    fn from(manifest: templates::service::Manifest) -> Self {
-        let service_name = manifest.service.name.clone();
-        let manifest_authorizers = manifest.api.authorizers.clone();
-        let authorizers = manifest_authorizers.as_ref();
-
-        Self {
-            name: service_name.clone(),
-            has_layer: manifest.iomod.is_some(),
-            has_http_api: manifest
-                .api
-                .functions
-                .values()
-                .any(|f| f.http.is_some()),
-            jwt_authorizers: match authorizers.as_ref() {
-                Some(auths) => auths.into_iter()
-                    .filter(|(_,v)| v.auth_type.eq("JWT"))
-                    .enumerate()
-                    .map(|(idx, (k,v))| {
-                        JwtAuth { 
-                            name: String::from(k), 
-                            audience: v.audience
-                                .clone()
-                                .as_ref()
-                                .as_ref()
-                                .unwrap()
-                                .to_vec(), 
-                            issuer: v.issuer
-                                .clone()
-                                .as_ref()
-                                .as_ref()
-                                .unwrap()
-                                .to_string(),
-                            has_next: (idx + 1) < auths.keys().len()
-                        }
-                    })
-                    .collect(),
-                None => Vec::new(),
-            },
-        }
-    }
-}
-
-pub fn write(project_path: &PathBuf, project_name: String, service_name: String, service: String) -> Result<(), io::Error> {
-    let file_name = "service.tf";
-
-    let path = &format!(
-        "{}/net/services/{}",
-        project_path.clone().into_os_string().into_string().unwrap(),
-        &service_name
-    );
-
-    fs::create_dir_all(path).expect(&*format!("unable to create path {:?}", path));
-
-    let file_path = &format!("{}/{}", path, file_name);
-    let file_path = path::Path::new(file_path);
-
-    write_to_file(&file_path, service)
-}
+//impl From<templates::service::Manifest> for TerraformService {
+//    fn from(manifest: templates::service::Manifest) -> Self {
+//        let service_name = manifest.service.name.clone();
+//        let manifest_authorizers = manifest.api.authorizers.clone();
+//        let authorizers = manifest_authorizers.as_ref();
+//
+//        Self {
+//            name: service_name.clone(),
+//            has_layer: manifest.iomod.is_some(),
+//            has_http_api: manifest
+//                .api
+//                .functions
+//                .values()
+//                .any(|f| f.http.is_some()),
+//            jwt_authorizers: match authorizers.as_ref() {
+//                Some(auths) => auths.into_iter()
+//                    .filter(|(_,v)| v.auth_type.eq("JWT"))
+//                    .enumerate()
+//                    .map(|(idx, (k,v))| {
+//                        JwtAuth { 
+//                            name: String::from(k), 
+//                            audience: v.audience
+//                                .clone()
+//                                .as_ref()
+//                                .as_ref()
+//                                .unwrap()
+//                                .to_vec(), 
+//                            issuer: v.issuer
+//                                .clone()
+//                                .as_ref()
+//                                .as_ref()
+//                                .unwrap()
+//                                .to_string(),
+//                            has_next: (idx + 1) < auths.keys().len()
+//                        }
+//                    })
+//                    .collect(),
+//                None => Vec::new(),
+//            },
+//        }
+//    }
+//}
+//
+//pub fn write(project_path: &PathBuf, project_name: String, service_name: String, service: String) -> Result<(), io::Error> {
+//    let file_name = "service.tf";
+//
+//    let path = &format!(
+//        "{}/net/services/{}",
+//        project_path.clone().into_os_string().into_string().unwrap(),
+//        &service_name
+//    );
+//
+//    fs::create_dir_all(path).expect(&*format!("unable to create path {:?}", path));
+//
+//    let file_path = &format!("{}/{}", path, file_name);
+//    let file_path = path::Path::new(file_path);
+//
+//    write_to_file(&file_path, service)
+//}

@@ -2,15 +2,16 @@ pub mod aws_lambda;
 
 use once_cell::unsync::Lazy;
 
-use crate::materials::models;
-use crate::materials::toml;
+use crate::materials::{models, toml, hcl};
 use crate::materials::{StringMap, Artifact};
 
+pub type ServiceList = Vec<Box<hcl::service::Module>>;
 pub type ProviderMap<T> = StringMap<Box<dyn Provider<T>>>;
 
 // TODO statics for each type of provider (service, api, auth, etc)
 pub static SERVICE_PROVIDERS: Lazy<ProviderMap<models::Service>> = Lazy::new(|| ProviderMap::new());
 pub static FUNCTION_PROVIDERS: Lazy<ProviderMap<models::Function>> = Lazy::new(|| ProviderMap::new());
+pub static ROOT_PROVIDERS: Lazy<ProviderMap<toml::asml::Manifest>> = Lazy::new(|| ProviderMap::new());
 
 pub type Options = StringMap<String>;
 
@@ -34,7 +35,17 @@ pub enum ProviderError {
 }
 
 pub struct RootProvider<'a> {
+    services: ServiceList,
     _phantom: std::marker::PhantomData<&'a ()>,
+}
+
+impl RootProvider<'_> {
+    pub fn new(services: ServiceList) -> Self {
+        Self {
+            services,
+            _phantom: std::marker::PhantomData,
+        }
+    }
 }
 
 impl<'a> Provider<toml::asml::Manifest> for RootProvider<'a> {
@@ -42,7 +53,7 @@ impl<'a> Provider<toml::asml::Manifest> for RootProvider<'a> {
         String::from("root")
     }
 
-    fn transform(&self, function: toml::asml::Manifest) -> Result<Box<dyn Artifact>, ProviderError> {
+    fn transform(&self, root: toml::asml::Manifest) -> Result<Box<dyn Artifact>, ProviderError> {
         //
     }
     
@@ -56,4 +67,9 @@ impl<'a> Provider<toml::asml::Manifest> for RootProvider<'a> {
 }
 
 static ROOT_TEMPLATE: &str = r#"
+{{#if user_inject}}
+module "usermod" {
+  source = "../user_tf"
+}
+{{/if}}
 "#;

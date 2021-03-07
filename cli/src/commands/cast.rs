@@ -13,12 +13,9 @@ use wasmer_engine_native::Native;
 use clap::ArgMatches;
 
 use crate::artifact;
-use crate::materials::{hcl, toml, Artifact, Source};
-use crate::templates;
+use crate::materials::{hcl, toml, Artifact};
 use crate::projectfs::Project;
 use crate::terraform;
-use crate::terraform::function::TerraformFunction;
-use crate::terraform::service::TerraformService;
 
 pub fn command(matches: Option<&ArgMatches>) {
     use std::io::Read;
@@ -30,7 +27,6 @@ pub fn command(matches: Option<&ArgMatches>) {
 
     // Init the project structure -- panic if the project isn't in the current working dir
     let cwd = std::env::current_dir().unwrap();
-    //let asml_manifest = templates::manifest::Manifest::read(&cwd);
     let asml_manifest = toml::asml::Manifest::read(&cwd).unwrap();
     let project = Project::new(asml_manifest.project.name.clone(), Some(cwd));
 
@@ -52,26 +48,17 @@ pub fn command(matches: Option<&ArgMatches>) {
 
     terraform::fetch(&*project.dir());
 
-    let mut functions: Vec<TerraformFunction> = Vec::new();
-    let mut services: Vec<TerraformService> = Vec::new();
+    let module = hcl::root::Module::new(project);
+    let hcl_content = module.cast().expect("could not cast HCL modules");
+    println!("DEBUG: {}", hcl_content);
+    
+    let services = module.services.unwrap();
+    for service in services {
+        let service_name = service.name();
 
-    for (_, service) in asml_manifest.services {
-        let service_manifest = toml::service::Manifest::read(&*project.service_dir(service.name.clone()).dir()).unwrap();
-        let service_name = service_manifest.service().name.clone();
-        //let service_iomods = service_manifest.iomod.clone();
-        let service_functions = service_manifest.functions();
-        //let service_authorizers = service_manifest.api.authorizers.clone();
-
-        let service_module = hcl::service::Module::from(service_manifest);
-        //let tf_service = TerraformService::from(service_manifest);
-        //services.push(tf_service.clone());
-
-        terraform::service::write(&*project.dir(), project.name.clone(), service.name.clone(), service_module.content());
-        //terraform::service::write(&*project.dir(), project.name.clone(), tf_service.clone()).unwrap();
-
-        {
+        if let Some(iomods) = service.iomods {
             let dependencies: Vec<String> = Vec::new();
-            for (name, dependency) in service_manifest.iomods() {
+            for (name, dependency) in iomods {
                 match dependency.dependency_type.as_str() {
                     "file" => {
                         // copy file & rename it to `name`
@@ -101,168 +88,112 @@ pub fn command(matches: Option<&ArgMatches>) {
             );
         }
 
-        for (_id, function) in service_functions {
-            let function_artifact_path =
-                format!("./net/services/{}/{}", &service_name, function.name);
-            fs::create_dir_all(PathBuf::from(function_artifact_path.clone())).expect(&*format!(
-                "unable to create path {}",
-                function_artifact_path
-            ));
+        if let Some(functions) = service.functions {
+            for function_box in functions {
+                let function = *function_box;
+                let function_name = function.name();
+                let function_artifact_path =
+                    format!("./net/services/{}/{}", &service_name, function_name);
+                fs::create_dir_all(PathBuf::from(function_artifact_path.clone())).expect(&*format!(
+                    "unable to create path {}",
+                    function_artifact_path
+                ));
 
-            // Compile the function
-            // TODO switch on function language, toggle compilation on/off
+                // Compile the function
+                // TODO switch on function language, toggle compilation on/off
 
-            let function_path = PathBuf::from(format!(
-                "{}/Cargo.toml",
-                project
-                    .service_dir(service_name.clone())
-                    .function_dir(function.name.clone())
-                    .into_os_string()
-                    .into_string()
-                    .unwrap()
-            ));
-
-            let mode = "release"; // TODO should this really be the default?
-
-            let mut cargo_build = process::Command::new("cargo")
-                .arg("build")
-                .arg(format!("--{}", mode))
-                .arg("--manifest-path")
-                .arg(function_path)
-                .arg("--target")
-                .arg("wasm32-unknown-unknown")
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit())
-                .spawn()
-                .unwrap();
-
-            match cargo_build.wait() {
-                Ok(_) => {}
-                Err(_) => {}
-            }
-
-            let function_name_snaked = function.name.replace("-", "_");
-            let copy_result = fs::copy(
-                format!(
-                    "{}/target/wasm32-unknown-unknown/{}/{}.wasm",
+                let function_path = PathBuf::from(format!(
+                    "{}/Cargo.toml",
                     project
                         .service_dir(service_name.clone())
-                        .function_dir(function.name.clone())
+                        .function_dir(function_name.clone())
                         .into_os_string()
                         .into_string()
-                        .unwrap(),
-                    mode,
-                    function_name_snaked
-                ),
-                format!("{}/{}.wasm", function_artifact_path.clone(), &function.name),
-            );
+                        .unwrap()
+                ));
 
-            if copy_result.is_err() {
-                println!("ERROR: {:?}", copy_result.err());
+                let mode = "release"; // TODO should this really be the default?
+
+                let mut cargo_build = process::Command::new("cargo")
+                    .arg("build")
+                    .arg(format!("--{}", mode))
+                    .arg("--manifest-path")
+                    .arg(function_path)
+                    .arg("--target")
+                    .arg("wasm32-unknown-unknown")
+                    .stdout(Stdio::inherit())
+                    .stderr(Stdio::inherit())
+                    .spawn()
+                    .unwrap();
+
+                match cargo_build.wait() {
+                    Ok(_) => {}
+                    Err(_) => {}
+                }
+
+                let function_name_snaked = function_name.replace("-", "_");
+                let copy_result = fs::copy(
+                    format!(
+                        "{}/target/wasm32-unknown-unknown/{}/{}.wasm",
+                        project
+                            .service_dir(service_name.clone())
+                            .function_dir(function_name.clone())
+                            .into_os_string()
+                            .into_string()
+                            .unwrap(),
+                        mode,
+                        function_name_snaked
+                    ),
+                    format!("{}/{}.wasm", function_artifact_path.clone(), &function_name),
+                );
+
+                if copy_result.is_err() {
+                    println!("ERROR: {:?}", copy_result.err());
+                }
+
+                let wasm_path = format!("{}/{}.wasm", function_artifact_path.clone(), &function_name);
+                let module_file_path = format!("{}/{}.wasm.bin", function_artifact_path.clone(), &function_name);
+
+                let compiler = Cranelift::default();
+                let triple = Triple::from_str("x86_64-linux-unknown").unwrap();
+                let mut cpuid = CpuFeature::set();
+                cpuid.insert(CpuFeature::from_str("sse2").unwrap());
+                cpuid.insert(CpuFeature::from_str("avx2").unwrap());
+                let store = Store::new(&Native::new(compiler)
+                    .target(Target::new(triple, cpuid))
+                    .engine()
+                );
+
+                let wasm_bytes = match fs::read(wasm_path) {
+                    Ok(bytes) => bytes,
+                    Err(err) => panic!(err.to_string()),
+                };
+                let module = Module::new(&store, wasm_bytes).unwrap();
+                let module_bytes = module.serialize().unwrap();
+                let mut module_file = match fs::File::create(module_file_path.clone()) {
+                    Ok(file) => file,
+                    Err(err) => panic!(err.to_string()),
+                };
+                println!("📄 > Wrote {}", module_file_path.clone());
+                module_file.write_all(&module_bytes).unwrap();
+
+                artifact::zip_files(
+                    vec![module_file_path],
+                    format!("{}/{}.zip", function_artifact_path.clone(), &function_name),
+                    None,
+                    false,
+                );
             }
-
-            let wasm_path = format!("{}/{}.wasm", function_artifact_path.clone(), &function.name);
-            let module_file_path = format!("{}/{}.wasm.bin", function_artifact_path.clone(), &function.name);
-
-            let compiler = Cranelift::default();
-            let triple = Triple::from_str("x86_64-linux-unknown").unwrap();
-            let mut cpuid = CpuFeature::set();
-            cpuid.insert(CpuFeature::from_str("sse2").unwrap());
-            cpuid.insert(CpuFeature::from_str("avx2").unwrap());
-            let store = Store::new(&Native::new(compiler)
-                .target(Target::new(triple, cpuid))
-                .engine()
-            );
-
-            let wasm_bytes = match fs::read(wasm_path) {
-                Ok(bytes) => bytes,
-                Err(err) => panic!(err.to_string()),
-            };
-            let module = Module::new(&store, wasm_bytes).unwrap();
-            let module_bytes = module.serialize().unwrap();
-            let mut module_file = match fs::File::create(module_file_path.clone()) {
-                Ok(file) => file,
-                Err(err) => panic!(err.to_string()),
-            };
-            println!("📄 > Wrote {}", module_file_path.clone());
-            module_file.write_all(&module_bytes).unwrap();
-
-            artifact::zip_files(
-                vec![module_file_path],
-                format!("{}/{}.zip", function_artifact_path.clone(), &function.name),
-                None,
-                false,
-            );
-
-            let function_http = function.http.clone();
-            let tf_function_service = tf_service.clone();
-            let tf_function = TerraformFunction {
-                name: function.name.clone(),
-                handler_name: match &function.handler_name {
-                    Some(name) => name.clone(),
-                    None => String::from("handler"),
-                },
-                service: service.name.clone(),
-                service_has_layer: tf_function_service.has_layer,
-                service_has_http_api: tf_function_service.has_http_api,
-                http_verb: match function_http.as_ref() {
-                    Some(http) => Some(http.verb.to_string()),
-                    None => None,
-                },
-                http_path: match function_http.as_ref() {
-                    Some(http) => Some(http.path.to_string()),
-                    None => None,
-                },
-                auth_name: match &function.authorizer_id {
-                    Some(id) => id.to_string(),
-                    None => "".to_string(),
-                },
-                auth_type: match &function.authorizer_id {
-                    Some(id) => service_authorizers
-                        .as_ref()
-                        .as_ref()
-                        .expect("no authorizers defined in api.authorizers")
-                        .get(id)
-                        .expect(&format!("authorizer {} not found", id))
-                        .auth_type
-                        .clone(),
-                    None => "NONE".to_string(),
-                },
-                auth_has_id: match &function.authorizer_id {
-                    Some(id) => service_authorizers
-                        .as_ref()
-                        .as_ref()
-                        .expect("no authorizers defined in api.authorizers")
-                        .get(id)
-                        .expect(&format!("authorizer {} not found", id))
-                        .auth_type
-                        .clone()
-                        .ne("AWS_IAM"),
-                    None => false,    
-                },
-                timeout: match &function.timeout_seconds {
-                    Some(timeout) => Some(*timeout),
-                    None => Some(10),
-                },
-                size: match &function.size_mb {
-                    Some(sz) => Some(*sz),
-                    None => Some(1024),
-                },
-                project_name: project.name.clone(),
-            };
-
-            terraform::function::write(&*project.dir(), &tf_function).unwrap();
-            functions.push(tf_function.clone());
         }
     }
 
-    terraform::write(
-        &*project.dir(),
-        asml_manifest.project.name,
-        functions,
-        services,
-    )
-    .unwrap();
+    //terraform::write(
+    //    &*project.dir(),
+    //    asml_manifest.project.name,
+    //    functions,
+    //    services,
+    //)
+    //.unwrap();
 
     terraform::commands::init();
     terraform::commands::plan();
