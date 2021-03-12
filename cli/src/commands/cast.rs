@@ -118,6 +118,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                         .into_string()
                         .unwrap()
                 ));
+                println!("function_path: {:?}", function_path);
 
                 let mode = "release"; // TODO should this really be the default?
 

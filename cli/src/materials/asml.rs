@@ -15,6 +15,7 @@ impl Context {
         let mut ctx_services: Vec<Service> = Vec::new();
         let mut ctx_functions: Vec<Function> = Vec::new();
         let mut ctx_authorizers: Vec<Authorizer> = Vec::new();
+        let mut ctx_iomods: Vec<Iomod> = Vec::new();
 
         for (_id, service_ref) in &*manifest.services {
             let mut service_path = project.service_dir(service_ref.name.clone()).dir();
@@ -23,6 +24,7 @@ impl Context {
 
             let service = service_manifest.service();
             let functions = service_manifest.functions();
+            let iomods = service_manifest.iomods();
 
             let service_provider = service.provider.clone();
 
@@ -37,6 +39,17 @@ impl Context {
                 ctx_functions.push(Function {
                     name: function.name.clone(),
                     provider: service_provider.clone(),
+                    service_name: service.name.clone(),
+                    handler_name: match &function.clone().handler_name {
+                        Some(name) => name.clone(),
+                        None => String::from("handler"),
+                    },
+                });
+            }
+
+            for (id, iomod) in iomods.as_ref() {
+                ctx_iomods.push(Iomod {
+                    name: id.clone(),
                     service_name: service.name.clone(),
                 });
             }
@@ -68,9 +81,16 @@ pub struct Function {
     pub name: String,
     pub provider: String,
     pub service_name: String,
+
+    pub handler_name: String,
 }
 
 pub struct Authorizer {
+    pub name: String,
+    pub service_name: String,
+}
+
+pub struct Iomod {
     pub name: String,
     pub service_name: String,
 }

@@ -100,12 +100,12 @@ pub mod service {
                     let service_provider = SERVICE_PROVIDERS.get(&provider_name)
                         .expect(&format!("could not find service provider named {}", provider_name));
 
-                    let service_artifact = service_provider.transform(self.ctx.clone(), service_name)
+                    let service_artifact = service_provider.transform(self.ctx.clone(), service_name.clone())
                         .expect("unexpected error transforming service");
                     content.push_str(&service_artifact.content().as_ref().as_ref().unwrap());
 
                     let mut function_modules: ArtifactList = ArtifactList::new();
-                    for function in functions {
+                    for function in functions.iter().filter(|&f| *f.service_name == service_name.clone()) {
                         let mut module = hcl::function::Module::new(self.ctx.clone(), function.name.clone());
                         content.push_str(&module.cast().unwrap());
                         function_modules.push(Box::new(module));

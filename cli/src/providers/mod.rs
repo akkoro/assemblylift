@@ -12,10 +12,14 @@ use crate::materials::{StringMap, Artifact, ArtifactError, ContentType};
 pub type ProviderMap = StringMap<Box<dyn Provider + Send + Sync>>;
 
 pub static SERVICE_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
-    ProviderMap::new()
+    let mut map = ProviderMap::new();
+    map.insert(String::from("aws_lambda"), Box::new(aws_lambda::ServiceProvider));
+    map
 });
 pub static FUNCTION_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
-    ProviderMap::new()
+    let mut map = ProviderMap::new();
+    map.insert(String::from("aws_lambda"), Box::new(aws_lambda::FunctionProvider));
+    map
 });
 pub static ROOT_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     let mut map = ProviderMap::new();
@@ -71,6 +75,7 @@ impl Artifact for ProviderArtifact {
 
 #[derive(Serialize)]
 pub struct RootData {
+    pub project_name: String,
     pub user_inject: bool,
 }
 
@@ -102,6 +107,7 @@ impl<'a> Provider for RootProvider<'a> {
         let user_inject: bool = fs::metadata(usermod_path).is_ok();
         
         let data = RootData { 
+            project_name: ctx.project.name.clone(),
             user_inject,
         };
         let data = to_json(data);
@@ -124,6 +130,10 @@ impl<'a> Provider for RootProvider<'a> {
 }
 
 static ROOT_TEMPLATE: &str = r#"
+locals {
+    project_name = "{{project_name}}"
+}
+
 {{#if user_inject}}
 module "usermod" {
   source = "../user_tf"

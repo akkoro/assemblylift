@@ -8,7 +8,9 @@ use crate::providers::{Options, Provider, ProviderArtifact, ProviderError};
 
 #[derive(Serialize)]
 pub struct ServiceData {
+    pub name: String,
     pub aws_region: String,
+    pub hcl_provider: String,
     pub layer_name: String,
 }
 
@@ -30,40 +32,30 @@ pub struct FunctionData {
 //    pub size: Option<u16>,
 //    pub timeout: Option<u16>,
 //
-//    pub project_name: String,
+    pub project_name: String,
 }
 
+pub struct ServiceProvider;
 
-pub struct ServiceProvider<'a> {
-    reg: Box<Handlebars<'a>>,
-}
-
-impl<'a> ServiceProvider<'a> {
-    pub fn new() -> Self {
-        let mut reg = Box::new(Handlebars::new()); 
-        
-        reg.register_template_string("service", SERVICE_TEMPLATE)
-            .unwrap();
-        reg.register_template_string("function", FUNCTION_TEMPLATE)
-            .unwrap();
-        
-        Self { reg }
-    }
-}
-
-impl<'a> Provider for ServiceProvider<'a> {
+impl Provider for ServiceProvider {
     fn name(&self) -> String {
         String::from("aws_lambda")
     }
     
     fn transform(&self, ctx: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError> {
+        let mut reg = Box::new(Handlebars::new()); 
+        reg.register_template_string("service", SERVICE_TEMPLATE)
+            .unwrap();
+
         let data = ServiceData { 
+            name: name.clone(),
             aws_region: String::from("us-east-1"),
-            layer_name: format!("asml-{}-runtime", name),
+            hcl_provider: String::from("aws"),
+            layer_name: format!("asml-{}-runtime", name.clone()),
         };
         let data = to_json(data);
         
-        let rendered = self.reg.render("service", &data).unwrap();
+        let rendered = reg.render("service", &data).unwrap();
 
         Ok(Box::new(ProviderArtifact::new(rendered)))
     }
@@ -77,46 +69,55 @@ impl<'a> Provider for ServiceProvider<'a> {
     }
 }
 
-//impl<'a> Provider for ServiceProvider<'a> {
-//    fn name(&self) -> String {
-//        String::from("aws-lambda")
-//    }
-//
-//    fn transform(&self, function: Rc<asml::Context>) -> Result<Box<dyn Artifact>, ProviderError> {
-//        let service = function.service.clone();
-//        let data = FunctionData {
-//            name: function.name.clone(),
-//            handler_name: match &function.handler_name {
-//                Some(name) => name.clone(),
-//                None => String::from("handler"),
-//            },
-//            // TODO can we look for the service info some other way?
-//            //          set the `layers` field directly?
-//            service: service.clone().as_ref().borrow().as_ref().as_ref().unwrap().name.clone(),
-//            layers: Vec::new(), // TODO vec of arns
-//        };
-//        let data = to_json(data);
-//        
-//        let rendered = self.reg.render("function", &data).unwrap();
-//
-//        Ok(Box::new(ProviderArtifact::new(rendered)))
-//    }
-//    
-//    fn options(&self) -> Options {
-//        Options::new()
-//    }
-//
-//    fn set_options(&mut self, opts: Options) -> Result<(), ProviderError> {
-//        Ok(())
-//    }
-//}
+pub struct FunctionProvider;
+
+impl Provider for FunctionProvider {
+    fn name(&self) -> String {
+        String::from("aws-lambda")
+    }
+
+    fn transform(&self, ctx: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError> {
+        let mut reg = Box::new(Handlebars::new()); 
+        reg.register_template_string("function", FUNCTION_TEMPLATE)
+            .unwrap();
+
+        match ctx.functions.iter().find(|&f| *f.name == name.clone()) {
+            Some(function) => {
+                let service = function.service_name.clone();
+                let data = FunctionData {
+                    name: function.name.clone(),
+                    handler_name: function.handler_name.clone(),
+                    service: service.clone(),
+                    layers: Vec::new(), // TODO vec of arns
+                    project_name: ctx.project.name.clone(),
+                };
+                let data = to_json(data);
+                
+                let rendered = reg.render("function", &data).unwrap();
+
+                Ok(Box::new(ProviderArtifact::new(rendered)))
+            }
+            None => Err(ProviderError::TransformationError(format!("unable to find function {} in context", name.clone()))),
+        }
+
+    }
+    
+    fn options(&self) -> Options {
+        Options::new()
+    }
+
+    fn set_options(&mut self, opts: Options) -> Result<(), ProviderError> {
+        Ok(())
+    }
+}
 
 static SERVICE_TEMPLATE: &str = 
 r#"provider "aws" {
+    alias  = "{{name}}"
     region = "{{aws_region}}"
 }
 
-resource "aws_lambda_layer_version" "asml_runtime_layer" {
+resource "aws_lambda_layer_version" "asml_{{name}}_runtime_layer" {
   filename   = "${path.module}/../.asml/runtime/bootstrap.zip"
   layer_name = "{{layer_name}}"
 
@@ -126,6 +127,8 @@ resource "aws_lambda_layer_version" "asml_runtime_layer" {
 
 static FUNCTION_TEMPLATE: &str =
 r#"resource "aws_lambda_function" "asml_{{service}}_{{name}}_lambda" {
+    provider = aws.{{service}}
+
     function_name = "asml-{{project_name}}-{{service}}-{{name}}"
     role          = aws_iam_role.lambda_iam_role.arn
     runtime       = "provided"

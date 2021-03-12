@@ -82,8 +82,11 @@ pub mod service {
             self.api.functions.clone()
         }
         
-        pub fn iomods(&self) -> Rc<Option<Iomod>> {
-            self.iomod.clone()
+        pub fn iomods(&self) -> Rc<Iomods> {
+            match self.iomod.as_ref() {
+                Some(iomod) => iomod.dependencies.clone(),
+                None => Rc::new(Iomods::new()),
+            }
         }
     }
 
