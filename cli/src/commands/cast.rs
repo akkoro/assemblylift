@@ -28,7 +28,10 @@ pub fn command(matches: Option<&ArgMatches>) {
 
     // Init the project structure -- panic if the project isn't in the current working dir
     let cwd = std::env::current_dir().unwrap();
-    let asml_manifest = toml::asml::Manifest::read(&cwd).unwrap();
+    let mut manifest_path = cwd.clone();
+    manifest_path.push("assemblylift.toml");
+    
+    let asml_manifest = toml::asml::Manifest::read(&manifest_path).unwrap();
     let project = Rc::new(Project::new(asml_manifest.project.name.clone(), Some(cwd)));
 
     // Download the latest runtime binary

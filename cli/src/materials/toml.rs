@@ -136,7 +136,8 @@ pub mod service {
     #[derive(Deserialize)]
     pub struct Function {
         pub name: String,
-        pub provider: Option<String>,
+        #[serde(default = "default_provider")]
+        pub provider: String,
         pub handler_name: Option<String>,
 
         pub http: Rc<Option<HttpFunction>>,

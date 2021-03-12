@@ -144,10 +144,9 @@ pub fn locate_asml_manifest() -> Option<(toml::asml::Manifest, PathBuf)> {
     match path {
         Some(path) => {
             let canonical_path = fs::canonicalize(path.clone()).unwrap();
-            let parent = canonical_path.parent().unwrap();
             Some((
-                toml::asml::Manifest::read(&PathBuf::from(parent)).expect("could not read assemblylift.toml"),
-                PathBuf::from(parent),
+                toml::asml::Manifest::read(&PathBuf::from(canonical_path.clone())).expect("could not read assemblylift.toml"),
+                PathBuf::from(canonical_path.clone()),
             ))
         }
         None => None,

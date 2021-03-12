@@ -56,7 +56,7 @@ impl<'a> Provider for ServiceProvider<'a> {
         String::from("aws_lambda")
     }
     
-    fn transform(&self, service: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError> {
+    fn transform(&self, ctx: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError> {
         let data = ServiceData { 
             aws_region: String::from("us-east-1"),
             layer_name: format!("asml-{}-runtime", name),

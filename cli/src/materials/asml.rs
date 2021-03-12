@@ -17,7 +17,9 @@ impl Context {
         let mut ctx_authorizers: Vec<Authorizer> = Vec::new();
 
         for (_id, service_ref) in &*manifest.services {
-            let service_manifest = toml::service::Manifest::read(&*project.service_dir(service_ref.name.clone()).dir()).unwrap();
+            let mut service_path = project.service_dir(service_ref.name.clone()).dir();
+            service_path.push("service.toml");
+            let service_manifest = toml::service::Manifest::read(&service_path).unwrap();
 
             let service = service_manifest.service();
             let functions = service_manifest.functions();

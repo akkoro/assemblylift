@@ -6,16 +6,22 @@ use handlebars::{to_json, Handlebars};
 use once_cell::sync::Lazy;
 use serde::Serialize;
 
-use crate::materials::{asml, toml, hcl};
+use crate::materials::asml;
 use crate::materials::{StringMap, Artifact, ArtifactError, ContentType};
 
-pub type ServiceList = Vec<Box<hcl::service::Module>>;
 pub type ProviderMap = StringMap<Box<dyn Provider + Send + Sync>>;
 
-// TODO where do these get initialized?
-pub static SERVICE_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| ProviderMap::new());
-pub static FUNCTION_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| ProviderMap::new());
-pub static ROOT_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| ProviderMap::new());
+pub static SERVICE_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
+    ProviderMap::new()
+});
+pub static FUNCTION_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
+    ProviderMap::new()
+});
+pub static ROOT_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
+    let mut map = ProviderMap::new();
+    map.insert(String::from("root"), Box::new(RootProvider::new()));
+    map
+});
 
 pub type Options = StringMap<String>;
 
@@ -69,14 +75,12 @@ pub struct RootData {
 }
 
 pub struct RootProvider<'a> {
-    services: ServiceList,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 
 impl RootProvider<'_> {
-    pub fn new(services: ServiceList) -> Self {
+    pub fn new() -> Self {
         Self {
-            services,
             _phantom: std::marker::PhantomData,
         }
     }

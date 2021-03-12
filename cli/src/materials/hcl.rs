@@ -97,7 +97,8 @@ pub mod service {
                     let functions = &self.ctx.functions;
 
                     let provider_name = service.provider.clone();
-                    let service_provider = SERVICE_PROVIDERS.get(&provider_name).expect("could not find provider by name");
+                    let service_provider = SERVICE_PROVIDERS.get(&provider_name)
+                        .expect(&format!("could not find service provider named {}", provider_name));
 
                     let service_artifact = service_provider.transform(self.ctx.clone(), service_name)
                         .expect("unexpected error transforming service");
