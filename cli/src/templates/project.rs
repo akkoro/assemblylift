@@ -1,3 +1,7 @@
+use std::sync::Arc;
+
+use once_cell::sync::Lazy;
+
 use crate::templates::Document;
 
 static ROOT_GITIGNORE: &str = r#".asml/
@@ -14,7 +18,7 @@ version = "0.1.0"
 default = { name = "{{default_service_name}}" }
 "#;
 
-pub static ROOT_DOCUMENTS: Vec<Document> = Vec::from([
+pub static ROOT_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
     Document {
         file_name: "assemblylift.toml",
         document: String::from(ASSEMBLYLIFT_TOML),
@@ -23,7 +27,7 @@ pub static ROOT_DOCUMENTS: Vec<Document> = Vec::from([
         file_name: ".gitignore",
         document: String::from(ROOT_GITIGNORE),
     },
-]);
+])));
 
 static SERVICE_TOML: &str = r#"# Generated with assemblylift-cli {{asml_version}}
 
@@ -35,12 +39,12 @@ name = "my-function"
 handler_name = "handler"
 "#;
 
-pub static SERVICE_DOCUMENTS: Vec<Document> = Vec::from([
+pub static SERVICE_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
     Document {
         file_name: "service.toml",
         document: String::from(SERVICE_TOML),
     },
-]);
+])));
 
 static FUNCTION_CARGO_TOML: &str = r#"# Generated with assemblylift-cli {{asml_version}}
 
@@ -89,7 +93,7 @@ target/
 build/
 "#;
 
-pub static RUST_FUNCTION_DOCUMENTS: Vec<Document> = Vec::from([
+pub static RUST_FUNCTION_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
     Document {
         file_name: "Cargo.toml",
         document: String::from(FUNCTION_CARGO_TOML),
@@ -106,4 +110,4 @@ pub static RUST_FUNCTION_DOCUMENTS: Vec<Document> = Vec::from([
         file_name: ".gitignore",
         document: String::from(FUNCTION_GITIGNORE),
     },
-]);
+])));

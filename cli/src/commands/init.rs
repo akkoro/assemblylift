@@ -36,7 +36,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             "default_service_name".to_string(),
             to_json(default_service_name.to_string()),
         );
-        write_documents(&*project.dir(), ROOT_DOCUMENTS, data);
+        write_documents(&*project.dir(), (*ROOT_DOCUMENTS).clone().as_ref(), data);
     }
 
     {
@@ -49,7 +49,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             &project
                 .service_dir(String::from(default_service_name))
                 .dir(),
-            SERVICE_DOCUMENTS,
+            (*SERVICE_DOCUMENTS).clone().as_ref(),
             data,
         );
     }
@@ -67,7 +67,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                 &project
                     .service_dir(String::from(default_service_name))
                     .function_dir(String::from(default_function_name)),
-                RUST_FUNCTION_DOCUMENTS,
+                (*RUST_FUNCTION_DOCUMENTS).clone().as_ref(),
                 data,
             );
         }

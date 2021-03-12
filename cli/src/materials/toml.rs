@@ -1,6 +1,8 @@
 pub mod asml {
     use std::io;
     use std::path::PathBuf;
+    use std::rc::Rc;
+
     use serde::Deserialize;
     use crate::materials::StringMap;
     use crate::providers::Transformable;
@@ -8,14 +10,13 @@ pub mod asml {
     #[derive(Deserialize)]
     pub struct Manifest {
         pub project: Project,
-        pub services: StringMap<ServiceRef>, // map service_id -> service
+        pub services: Rc<StringMap<Rc<ServiceRef>>>, // map service_id -> service
     }
 
     impl Transformable for Manifest {
         const TYPE: &'static str = "root";
     }
 
-    // TODO move Project to models.rs
     #[derive(Deserialize)]
     pub struct Project {
         pub name: String,
@@ -51,13 +52,14 @@ pub mod service {
     use std::path::PathBuf;
     use std::rc::Rc;
     use serde::Deserialize;
-    use crate::materials::{models, ContentType};
+    use crate::materials::{ContentType, StringMap};
+    use crate::providers::Transformable;
     
     #[derive(Deserialize)]
     pub struct Manifest {
-        service: models::Service,
-        api: models::Api,
-        iomod: Rc<Option<models::Iomod>>,
+        service: Rc<Service>,
+        api: Api,
+        iomod: Rc<Option<Iomod>>,
     }
 
     impl Manifest {
@@ -72,16 +74,16 @@ pub mod service {
             ContentType::TOML("TOML")
         } 
 
-        pub fn service(&self) -> models::Service {
-            self.service
+        pub fn service(&self) -> Rc<Service> {
+            self.service.clone()
         }
         
-        pub fn functions(&self) -> models::Functions {
-            *self.api.functions
+        pub fn functions(&self) -> Rc<Functions> {
+            self.api.functions.clone()
         }
         
-        pub fn iomods(&self) -> Option<models::Iomod> {
-            *self.iomod
+        pub fn iomods(&self) -> Rc<Option<Iomod>> {
+            self.iomod.clone()
         }
     }
 
@@ -92,5 +94,72 @@ pub mod service {
                 Err(why) => panic!("error parsing ServiceManifest: {}", why.to_string()),
             }
         }
+    }
+
+    pub type Functions = StringMap<Function>;
+    pub type Iomods = StringMap<Dependency>;
+
+    fn default_provider() -> String {
+        String::from("aws_lambda")
+    }
+
+    #[derive(Deserialize)]
+    pub struct Service {
+        pub name: String,
+        #[serde(default = "default_provider")]
+        pub provider: String,
+    }
+
+    impl Transformable for Service {
+        const TYPE: &'static str = "service";
+    }
+
+    #[derive(Deserialize)]
+    pub struct Api {
+        pub functions: Rc<StringMap<Function>>, // map function_id -> function
+        pub authorizers: Rc<Option<StringMap<HttpAuth>>> // map auth_id -> authorizer
+    }
+
+    #[derive(Deserialize)]
+    pub struct HttpAuth {
+        pub auth_type: String,
+        pub audience: Rc<Option<Vec<String>>>, // TODO do these actually need to be Rc?
+        pub issuer: Rc<Option<String>>,
+    }
+
+    #[derive(Deserialize)]
+    pub struct HttpFunction {
+        pub verb: String,
+        pub path: String,
+    }
+
+    #[derive(Deserialize)]
+    pub struct Function {
+        pub name: String,
+        pub provider: Option<String>,
+        pub handler_name: Option<String>,
+
+        pub http: Rc<Option<HttpFunction>>,
+        pub authorizer_id: Option<String>,
+
+        pub timeout_seconds: Option<u16>,
+        pub size_mb: Option<u16>,
+    }
+
+    impl Transformable for Function {
+        const TYPE: &'static str = "function";
+    }
+
+    #[derive(Deserialize)]
+    pub struct Iomod {
+        pub dependencies: Rc<StringMap<Dependency>>, // map dependency_id -> dependency
+    }
+
+    #[derive(Clone, Deserialize)]
+    pub struct Dependency {
+        pub from: String,
+        pub version: String,
+        #[serde(alias = "type")]
+        pub dependency_type: String,
     }
 }

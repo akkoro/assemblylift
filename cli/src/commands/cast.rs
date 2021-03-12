@@ -13,12 +13,13 @@ use wasmer_engine_native::Native;
 use clap::ArgMatches;
 
 use crate::artifact;
-use crate::materials::{hcl, toml, Artifact};
+use crate::materials::{asml, hcl, toml, Artifact};
 use crate::projectfs::Project;
 use crate::terraform;
 
 pub fn command(matches: Option<&ArgMatches>) {
     use std::io::Read;
+    use std::rc::Rc;
 
     let _matches = match matches {
         Some(matches) => matches,
@@ -28,7 +29,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     // Init the project structure -- panic if the project isn't in the current working dir
     let cwd = std::env::current_dir().unwrap();
     let asml_manifest = toml::asml::Manifest::read(&cwd).unwrap();
-    let project = Project::new(asml_manifest.project.name.clone(), Some(cwd));
+    let project = Rc::new(Project::new(asml_manifest.project.name.clone(), Some(cwd)));
 
     // Download the latest runtime binary
     let runtime_url = &*format!(
@@ -48,7 +49,9 @@ pub fn command(matches: Option<&ArgMatches>) {
 
     terraform::fetch(&*project.dir());
 
-    let module = hcl::root::Module::new(project);
+    let ctx = asml::Context::from_project(project.clone(), asml_manifest)
+        .expect("could not make context from manifest");
+    let mut module = hcl::root::Module::new(Rc::new(ctx));
     let hcl_content = module.cast().expect("could not cast HCL modules");
     println!("DEBUG: {}", hcl_content);
     
@@ -57,7 +60,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         let service_name = service.name();
 
         if let Some(iomods) = service.iomods {
-            let dependencies: Vec<String> = Vec::new();
+            let mut dependencies: Vec<String> = Vec::new();
             for (name, dependency) in iomods {
                 match dependency.dependency_type.as_str() {
                     "file" => {
@@ -105,6 +108,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                 let function_path = PathBuf::from(format!(
                     "{}/Cargo.toml",
                     project
+                        .clone()
                         .service_dir(service_name.clone())
                         .function_dir(function_name.clone())
                         .into_os_string()
@@ -136,6 +140,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                     format!(
                         "{}/target/wasm32-unknown-unknown/{}/{}.wasm",
                         project
+                            .clone()
                             .service_dir(service_name.clone())
                             .function_dir(function_name.clone())
                             .into_os_string()

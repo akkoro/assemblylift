@@ -3,7 +3,7 @@ use handlebars::to_json;
 use serde_json::value::{Map, Value as Json};
 
 use crate::templates::write_documents;
-use crate::templates::project::{ROOT_DOCUMENTS, RUST_FUNCTION_DOCUMENTS};
+use crate::templates::project::{RUST_FUNCTION_DOCUMENTS, SERVICE_DOCUMENTS};
 use crate::projectfs::{locate_asml_manifest, Project};
 
 pub fn command(matches: Option<&ArgMatches>) {
@@ -42,7 +42,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             let path = project
                 .service_dir(String::from(resource_name.unwrap()))
                 .dir();
-            write_documents(&path, ROOT_DOCUMENTS, data);
+            write_documents(&path, (*SERVICE_DOCUMENTS).clone().as_ref(), data);
         }
 
         Some("function") => {
@@ -58,7 +58,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             let path = project
                 .service_dir(String::from(function_name[0]))
                 .function_dir(String::from(function_name[1]));
-            write_documents(&path, RUST_FUNCTION_DOCUMENTS, data);
+            write_documents(&path, (*RUST_FUNCTION_DOCUMENTS).clone().as_ref(), data);
         }
 
         Some(_) => panic!("must specify either 'service' or 'function' as an argument to make"),

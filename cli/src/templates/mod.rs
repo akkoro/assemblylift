@@ -15,12 +15,12 @@ pub struct Document {
 
 pub fn write_documents(
     path: &PathBuf,
-    docs: Vec<Document>,
+    docs: &Vec<Document>,
     data: &mut SerdeMap<String, Json>,
 ) {
     let mut reg = Handlebars::new();
     for doc in docs {
-        reg.register_template_string(doc.file_name, doc.document)
+        reg.register_template_string(doc.file_name, doc.document.clone())
             .unwrap();
 
         let render = reg.render(doc.file_name, &data).unwrap();

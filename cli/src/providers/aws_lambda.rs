@@ -1,9 +1,10 @@
+use std::rc::Rc;
+
 use handlebars::{to_json, Handlebars};
 use serde::Serialize;
 
-use crate::materials::{Artifact, ArtifactError, ContentType};
-use crate::materials::models;
-use crate::providers::{Options, Provider, ProviderError};
+use crate::materials::{asml, Artifact};
+use crate::providers::{Options, Provider, ProviderArtifact, ProviderError};
 
 #[derive(Serialize)]
 pub struct ServiceData {
@@ -16,44 +17,22 @@ pub struct FunctionData {
     pub name: String,
     pub handler_name: String,
     pub service: String,
-    pub service_has_layer: bool,
-    pub service_has_http_api: bool,
-    pub http_verb: Option<String>,
-    pub http_path: Option<String>,
-
-    pub auth_name: String,
-    pub auth_type: String,
-    pub auth_has_id: bool,
-
-    pub size: Option<u16>,
-    pub timeout: Option<u16>,
-
-    pub project_name: String,
+    pub layers: Vec<String>,
+//    pub service_has_layer: bool,
+//    pub service_has_http_api: bool,
+//    pub http_verb: Option<String>,
+//    pub http_path: Option<String>,
+//
+//    pub auth_name: String,
+//    pub auth_type: String,
+//    pub auth_has_id: bool,
+//
+//    pub size: Option<u16>,
+//    pub timeout: Option<u16>,
+//
+//    pub project_name: String,
 }
 
-pub struct ProviderArtifact {
-    content: String,
-}
-
-impl ProviderArtifact {
-    pub fn new(content: String) -> Self {
-        ProviderArtifact { content }
-    }
-}
-
-impl Artifact for ProviderArtifact {
-    fn content_type(&self) -> ContentType {
-        ContentType::HCL("HCL")
-    }
-    
-    fn content(&self) -> Option<String> {
-        Some(self.content)
-    }
-
-    fn cast(&self) -> Result<String, ArtifactError> {
-        Ok(self.content)
-    }
-}
 
 pub struct ServiceProvider<'a> {
     reg: Box<Handlebars<'a>>,
@@ -72,15 +51,15 @@ impl<'a> ServiceProvider<'a> {
     }
 }
 
-impl<'a> Provider<models::Service> for ServiceProvider<'a> {
+impl<'a> Provider for ServiceProvider<'a> {
     fn name(&self) -> String {
-        String::from("aws-lambda")
+        String::from("aws_lambda")
     }
     
-    fn transform(&self, service: models::Service) -> Result<Box<dyn Artifact>, ProviderError> {
+    fn transform(&self, service: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError> {
         let data = ServiceData { 
             aws_region: String::from("us-east-1"),
-            layer_name: format!("asml-{}-runtime", service.name),
+            layer_name: format!("asml-{}-runtime", name),
         };
         let data = to_json(data);
         
@@ -98,37 +77,39 @@ impl<'a> Provider<models::Service> for ServiceProvider<'a> {
     }
 }
 
-impl<'a> Provider<models::Function> for ServiceProvider<'a> {
-    fn name(&self) -> String {
-        String::from("aws-lambda")
-    }
-
-    fn transform(&self, function: models::Function) -> Result<Box<dyn Artifact>, ProviderError> {
-        let data = FunctionData {
-            name: function.name.clone(),
-            handler_name: match &function.handler_name {
-                Some(name) => name.clone(),
-                None => String::from("handler"),
-            },
-            service: service.name.clone(),
-            service_has_layer: tf_function_service.has_layer,
-            service_has_http_api: tf_function_service.has_http_api,
-        };
-        let data = to_json(data);
-        
-        let rendered = self.reg.render("function", &data).unwrap();
-
-        Ok(Box::new(ProviderArtifact::new(rendered)))
-    }
-    
-    fn options(&self) -> Options {
-        Options::new()
-    }
-
-    fn set_options(&mut self, opts: Options) -> Result<(), ProviderError> {
-        Ok(())
-    }
-}
+//impl<'a> Provider for ServiceProvider<'a> {
+//    fn name(&self) -> String {
+//        String::from("aws-lambda")
+//    }
+//
+//    fn transform(&self, function: Rc<asml::Context>) -> Result<Box<dyn Artifact>, ProviderError> {
+//        let service = function.service.clone();
+//        let data = FunctionData {
+//            name: function.name.clone(),
+//            handler_name: match &function.handler_name {
+//                Some(name) => name.clone(),
+//                None => String::from("handler"),
+//            },
+//            // TODO can we look for the service info some other way?
+//            //          set the `layers` field directly?
+//            service: service.clone().as_ref().borrow().as_ref().as_ref().unwrap().name.clone(),
+//            layers: Vec::new(), // TODO vec of arns
+//        };
+//        let data = to_json(data);
+//        
+//        let rendered = self.reg.render("function", &data).unwrap();
+//
+//        Ok(Box::new(ProviderArtifact::new(rendered)))
+//    }
+//    
+//    fn options(&self) -> Options {
+//        Options::new()
+//    }
+//
+//    fn set_options(&mut self, opts: Options) -> Result<(), ProviderError> {
+//        Ok(())
+//    }
+//}
 
 static SERVICE_TEMPLATE: &str = 
 r#"provider "aws" {
@@ -153,11 +134,7 @@ r#"resource "aws_lambda_function" "asml_{{service}}_{{name}}_lambda" {
     timeout       = {{timeout}}
     memory_size   = {{size}}
 
-    {{#if service_has_layer}}
-    layers = [var.runtime_layer_arn, var.service_layer_arn]
-    {{else}}
-    layers = [var.runtime_layer_arn]
-    {{/if}}
+    layers = {{layers}}
 
     source_code_hash = filebase64sha256("${path.module}/{{name}}.zip")
 }
