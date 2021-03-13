@@ -13,12 +13,12 @@ pub type ProviderMap = StringMap<Box<dyn Provider + Send + Sync>>;
 
 pub static SERVICE_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     let mut map = ProviderMap::new();
-    map.insert(String::from("aws_lambda"), Box::new(aws_lambda::ServiceProvider));
+    map.insert(String::from("aws-lambda"), Box::new(aws_lambda::ServiceProvider));
     map
 });
 pub static FUNCTION_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     let mut map = ProviderMap::new();
-    map.insert(String::from("aws_lambda"), Box::new(aws_lambda::FunctionProvider));
+    map.insert(String::from("aws-lambda"), Box::new(aws_lambda::FunctionProvider));
     map
 });
 pub static ROOT_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
@@ -28,10 +28,6 @@ pub static ROOT_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
 });
 
 pub type Options = StringMap<String>;
-
-pub trait Transformable {
-    const TYPE: &'static str;
-}
 
 pub trait Provider {
     fn name(&self) -> String;
@@ -76,6 +72,7 @@ impl Artifact for ProviderArtifact {
 #[derive(Serialize)]
 pub struct RootData {
     pub project_name: String,
+    pub project_path: String,
     pub user_inject: bool,
 }
 
@@ -108,6 +105,7 @@ impl<'a> Provider for RootProvider<'a> {
         
         let data = RootData { 
             project_name: ctx.project.name.clone(),
+            project_path: ctx.project.path.clone(),
             user_inject,
         };
         let data = to_json(data);
@@ -132,6 +130,7 @@ impl<'a> Provider for RootProvider<'a> {
 static ROOT_TEMPLATE: &str = r#"
 locals {
     project_name = "{{project_name}}"
+    project_path = "{{project_path}}"
 }
 
 {{#if user_inject}}
@@ -139,4 +138,5 @@ module "usermod" {
   source = "../user_tf"
 }
 {{/if}}
+
 "#;

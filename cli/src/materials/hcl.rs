@@ -90,7 +90,7 @@ pub mod service {
 
         fn cast(&mut self) -> Result<String, ArtifactError> {
             let service_name = self.name.clone();
-            let mut content = format!("# Begin service {}\r\n", service_name.clone());
+            let mut content = format!("# Begin service `{}`\r\n", service_name.clone());
 
             match self.ctx.services.iter().find(|&s| *s.name == self.name.clone()) {
                 Some(service) => {
@@ -157,7 +157,7 @@ pub mod function {
                 Some(function) => {
                     let provider_name = function.provider.clone();
                     let function_provider = FUNCTION_PROVIDERS.get(&provider_name)
-                        .expect("could not find provider by name");
+                        .expect(&format!("could not find function provider named {}", self.name.clone()));
 
                     let mut function_artifact = function_provider.transform(self.ctx.clone(), function.name.clone())
                         .expect("unexpected error transforming function");

@@ -5,7 +5,6 @@ use std::{fs, io};
 use serde::{Deserialize, Serialize};
 
 use crate::templates;
-use crate::terraform::write_to_file;
 
 static TERRAFORM_SERVICE: &str = r#"# Generated with assemblylift-cli {{asml_version}}
 {{#if has_layer}}

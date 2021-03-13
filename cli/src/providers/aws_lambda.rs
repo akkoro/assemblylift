@@ -19,7 +19,8 @@ pub struct FunctionData {
     pub name: String,
     pub handler_name: String,
     pub service: String,
-    pub layers: Vec<String>,
+    pub runtime_layer: String,
+    pub service_layer: String,
 //    pub service_has_layer: bool,
 //    pub service_has_http_api: bool,
 //    pub http_verb: Option<String>,
@@ -39,7 +40,7 @@ pub struct ServiceProvider;
 
 impl Provider for ServiceProvider {
     fn name(&self) -> String {
-        String::from("aws_lambda")
+        String::from("aws-lambda")
     }
     
     fn transform(&self, ctx: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError> {
@@ -47,11 +48,17 @@ impl Provider for ServiceProvider {
         reg.register_template_string("service", SERVICE_TEMPLATE)
             .unwrap();
 
+        let layer_name = format!("asml-{}-{}-{}-runtime", 
+            ctx.project.name.clone(), 
+            name.clone(), 
+            self.name().clone(),
+        ); 
+
         let data = ServiceData { 
             name: name.clone(),
             aws_region: String::from("us-east-1"),
             hcl_provider: String::from("aws"),
-            layer_name: format!("asml-{}-runtime", name.clone()),
+            layer_name,
         };
         let data = to_json(data);
         
@@ -84,11 +91,19 @@ impl Provider for FunctionProvider {
         match ctx.functions.iter().find(|&f| *f.name == name.clone()) {
             Some(function) => {
                 let service = function.service_name.clone();
+
+                // find dependencies for service
+                let iomod_names: Vec<String> = ctx.services.iter()
+                    .filter(|&s| *s.name == service.clone())
+                    .map(|s| s.name.clone())
+                    .collect();
+
                 let data = FunctionData {
                     name: function.name.clone(),
                     handler_name: function.handler_name.clone(),
                     service: service.clone(),
-                    layers: Vec::new(), // TODO vec of arns
+                    runtime_layer: format!("aws_lambda_layer_version.asml_{}_runtime.arn", service.clone()),
+                    service_layer: format!("aws_lambda_layer_version.asml_{}_service.arn", service.clone()),
                     project_name: ctx.project.name.clone(),
                 };
                 let data = to_json(data);
@@ -117,28 +132,37 @@ r#"provider "aws" {
     region = "{{aws_region}}"
 }
 
-resource "aws_lambda_layer_version" "asml_{{name}}_runtime_layer" {
-  filename   = "${path.module}/../.asml/runtime/bootstrap.zip"
+resource "aws_lambda_layer_version" "asml_{{name}}_runtime" {
+  filename   = "${local.project_path}/.asml/runtime/bootstrap.zip"
   layer_name = "{{layer_name}}"
 
-  source_code_hash = filebase64sha256("${path.module}/../.asml/runtime/bootstrap.zip")
+  source_code_hash = filebase64sha256("${local.project_path}/.asml/runtime/bootstrap.zip")
 }
+
+resource "aws_lambda_layer_version" "asml_{{name}}_service" {
+  filename   = "${local.project_path}/.asml/runtime/{{name}}.zip"
+  layer_name = "asml-${local.project_name}-{{name}}-service"
+
+  source_code_hash = filebase64sha256("${local.project_path}/.asml/runtime/{{name}}.zip")
+}
+
 "#;
 
 static FUNCTION_TEMPLATE: &str =
-r#"resource "aws_lambda_function" "asml_{{service}}_{{name}}_lambda" {
+r#"resource "aws_lambda_function" "asml_{{service}}_{{name}}" {
     provider = aws.{{service}}
 
     function_name = "asml-{{project_name}}-{{service}}-{{name}}"
     role          = aws_iam_role.lambda_iam_role.arn
     runtime       = "provided"
     handler       = "{{name}}.{{handler_name}}"
-    filename      = "${path.module}/{{name}}.zip"
+    filename      = "${local.project_path}/net/services/{{service}}/{{name}}/{{name}}.zip"
     timeout       = {{timeout}}
     memory_size   = {{size}}
 
-    layers = {{layers}}
+    layers = [{{runtime_layer}}, {{service_layer}}]
 
-    source_code_hash = filebase64sha256("${path.module}/{{name}}.zip")
+    source_code_hash = filebase64sha256("${local.project_path}/net/services/{{service}}/{{name}}/{{name}}.zip")
 }
+
 "#;

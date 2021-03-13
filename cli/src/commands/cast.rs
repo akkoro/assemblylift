@@ -35,6 +35,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     let project = Rc::new(Project::new(asml_manifest.project.name.clone(), Some(cwd)));
 
     // Download the latest runtime binary
+    // TODO this needs to be triggerd by use in a Provider
     let runtime_url = &*format!(
         "http://runtime.assemblylift.akkoro.io/aws-lambda/{}/bootstrap.zip",
 //        clap::crate_version!(),
@@ -56,7 +57,6 @@ pub fn command(matches: Option<&ArgMatches>) {
         .expect("could not make context from manifest");
     let mut module = hcl::root::Module::new(Rc::new(ctx));
     let hcl_content = module.cast().expect("could not cast HCL modules");
-    println!("DEBUG: {}", hcl_content);
     
     let services = module.services.unwrap();
     for service in services {
@@ -196,13 +196,20 @@ pub fn command(matches: Option<&ArgMatches>) {
         }
     }
 
-    //terraform::write(
-    //    &*project.dir(),
-    //    asml_manifest.project.name,
-    //    functions,
-    //    services,
-    //)
-    //.unwrap();
+    {
+        let path = String::from("./net/plan.tf");
+        let mut file = match fs::File::create(path.clone()) {
+            Err(why) => panic!(
+                "couldn't create file {}: {}",
+                path.clone(),
+                why.to_string()
+            ),
+            Ok(file) => file,
+        };
+
+        println!("📄 > Wrote {}", path.clone());
+        file.write_all(hcl_content.as_bytes()).expect("could not write plan.tf");
+    }
 
     terraform::commands::init();
     terraform::commands::plan();

@@ -1,17 +1,8 @@
 use std::fs;
-use std::io;
-use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
-use std::path;
 use std::path::{Path, PathBuf};
 
-use clap::crate_version;
-use handlebars::{to_json, Handlebars};
-use serde_json::value::{Map, Value as Json};
-
 use crate::artifact;
-use crate::terraform::function::TerraformFunction;
-use crate::terraform::service::TerraformService;
 
 pub mod commands;
 pub mod function;
@@ -115,54 +106,4 @@ pub fn fetch(project_path: &PathBuf) {
     if let Err(_) = fs::set_permissions(&terraform_path, perms) {
         panic!("could not set terraform binary executable (octal 755) permissions")
     }
-}
-
-pub fn write(
-    project_path: &PathBuf,
-    project_name: String,
-    functions: Vec<TerraformFunction>,
-    services: Vec<TerraformService>,
-) -> Result<(), io::Error> {
-    let file_name = "main.tf";
-
-    let mut reg = Handlebars::new();
-    reg.register_template_string(file_name, TERRAFORM_ROOT)
-        .unwrap();
-
-    let mut data = Map::<String, Json>::new();
-    data.insert("asml_version".to_string(), to_json(crate_version!()));
-    data.insert("aws_region".to_string(), to_json("us-east-1"));
-    data.insert("project_name".to_string(), to_json(project_name));
-    data.insert("functions".to_string(), to_json(functions));
-    data.insert("services".to_string(), to_json(services));
-
-    let mut usermod_path = PathBuf::from(project_path);
-    usermod_path.push("user_tf/");
-    let usermod: bool = fs::metadata(usermod_path).is_ok();
-    data.insert("user_inject".to_string(), to_json(usermod));
-
-    let render = reg.render(file_name, &data).unwrap();
-
-    let path_str = &format!(
-        "{}/net/{}",
-        project_path.clone().into_os_string().into_string().unwrap(),
-        file_name
-    );
-    let path = path::Path::new(path_str);
-
-    write_to_file(&path, render)
-}
-
-fn write_to_file(path: &path::Path, contents: String) -> Result<(), io::Error> {
-    let mut file = match fs::File::create(path) {
-        Err(why) => panic!(
-            "couldn't create file {}: {}",
-            path.display(),
-            why.to_string()
-        ),
-        Ok(file) => file,
-    };
-
-    println!("📄 > Wrote {}", path.display());
-    file.write_all(contents.as_bytes())
 }

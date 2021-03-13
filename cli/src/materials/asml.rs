@@ -58,6 +58,7 @@ impl Context {
         Ok(Context {
             project: Project {
                 name: manifest.project.name.clone(),
+                path: (*project.dir()).into_os_string().into_string().unwrap(),
             },
             services: ctx_services,
             functions: ctx_functions,
@@ -68,6 +69,7 @@ impl Context {
 
 pub struct Project {
     pub name: String,
+    pub path: String,
 //    pub version: String,
 }
 

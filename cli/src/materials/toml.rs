@@ -5,16 +5,11 @@ pub mod asml {
 
     use serde::Deserialize;
     use crate::materials::StringMap;
-    use crate::providers::Transformable;
 
     #[derive(Deserialize)]
     pub struct Manifest {
         pub project: Project,
         pub services: Rc<StringMap<Rc<ServiceRef>>>, // map service_id -> service
-    }
-
-    impl Transformable for Manifest {
-        const TYPE: &'static str = "root";
     }
 
     #[derive(Deserialize)]
@@ -53,7 +48,6 @@ pub mod service {
     use std::rc::Rc;
     use serde::Deserialize;
     use crate::materials::{ContentType, StringMap};
-    use crate::providers::Transformable;
     
     #[derive(Deserialize)]
     pub struct Manifest {
@@ -103,7 +97,7 @@ pub mod service {
     pub type Iomods = StringMap<Dependency>;
 
     fn default_provider() -> String {
-        String::from("aws_lambda")
+        String::from("aws-lambda")
     }
 
     #[derive(Deserialize)]
@@ -111,10 +105,6 @@ pub mod service {
         pub name: String,
         #[serde(default = "default_provider")]
         pub provider: String,
-    }
-
-    impl Transformable for Service {
-        const TYPE: &'static str = "service";
     }
 
     #[derive(Deserialize)]
@@ -148,10 +138,6 @@ pub mod service {
 
         pub timeout_seconds: Option<u16>,
         pub size_mb: Option<u16>,
-    }
-
-    impl Transformable for Function {
-        const TYPE: &'static str = "function";
     }
 
     #[derive(Deserialize)]
