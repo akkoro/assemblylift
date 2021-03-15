@@ -1,0 +1,165 @@
+pub mod asml {
+    use std::io;
+    use std::path::PathBuf;
+    use std::rc::Rc;
+
+    use serde::Deserialize;
+    use crate::transpiler::StringMap;
+
+    #[derive(Deserialize)]
+    pub struct Manifest {
+        pub project: Project,
+        pub services: Rc<StringMap<Rc<ServiceRef>>>, // map service_id -> service
+    }
+
+    #[derive(Deserialize)]
+    pub struct Project {
+        pub name: String,
+    }
+
+    /* Represents a reference by name to a service (toml::service::Manifest) */
+    #[derive(Deserialize)]
+    pub struct ServiceRef {
+        pub name: String,
+    }
+
+    impl Manifest {
+        pub fn read(path: &PathBuf) -> Result<Self, io::Error> {
+            match std::fs::read_to_string(path) {
+                Ok(contents) => Ok(Self::from(contents)),
+                Err(why) => Err(io::Error::new(io::ErrorKind::Other, why.to_string())),
+            }
+        }
+    }
+    
+    impl From<String> for Manifest {
+        fn from(string: String) -> Self {
+            match toml::from_str(&string) {
+                Ok(manifest) => manifest,
+                Err(why) => panic!("error parsing ServiceManifest: {}", why.to_string()),
+            }
+        }
+    }
+}
+
+pub mod service {
+    use std::io;
+    use std::path::PathBuf;
+    use std::rc::Rc;
+    use serde::Deserialize;
+    use crate::transpiler::StringMap;
+    
+    #[derive(Deserialize)]
+    pub struct Manifest {
+        service: Rc<Service>,
+        api: Api,
+        iomod: Rc<Option<Iomod>>,
+    }
+
+    impl Manifest {
+        pub fn read(path: &PathBuf) -> Result<Self, io::Error> {
+            match std::fs::read_to_string(path) {
+                Ok(contents) => Ok(Self::from(contents)),
+                Err(why) => Err(io::Error::new(io::ErrorKind::Other, why.to_string())),
+            }
+        }
+
+        pub fn service(&self) -> Rc<Service> {
+            self.service.clone()
+        }
+        
+        pub fn functions(&self) -> Rc<Functions> {
+            self.api.functions.clone()
+        }
+        
+        pub fn iomods(&self) -> Rc<Iomods> {
+            match self.iomod.as_ref() {
+                Some(iomod) => iomod.dependencies.clone(),
+                None => Rc::new(Iomods::new()),
+            }
+        }
+
+        pub fn authorizers(&self) -> Rc<Authorizers> {
+            match self.api.authorizers.as_ref() {
+                Some(auth) => auth.clone(),
+                None => Rc::new(Authorizers::new()),
+            }
+        }
+    }
+
+    impl From<String> for Manifest {
+        fn from(string: String) -> Self {
+            match toml::from_str(&string) {
+                Ok(manifest) => manifest,
+                Err(why) => panic!("error parsing ServiceManifest: {}", why.to_string()),
+            }
+        }
+    }
+
+    pub type Functions = StringMap<Function>;
+    pub type Iomods = StringMap<Dependency>;
+    pub type Authorizers = StringMap<HttpAuth>;
+
+    fn default_svc_provider() -> String {
+        String::from("aws-lambda")
+    }
+
+    fn default_api_provider() -> String {
+        String::from("aws-apigw")
+    }
+
+    #[derive(Deserialize)]
+    pub struct Service {
+        pub name: String,
+        #[serde(default = "default_svc_provider")]
+        pub provider: String,
+    }
+
+    #[derive(Deserialize)]
+    pub struct Api {
+        #[serde(default = "default_api_provider")]
+        pub provider: String,
+        pub functions: Rc<StringMap<Function>>, // map function_id -> function
+        pub authorizers: Option<Rc<StringMap<HttpAuth>>> // map auth_id -> authorizer
+    }
+
+    #[derive(Deserialize)]
+    pub struct HttpAuth {
+        pub auth_type: String,
+        pub audience: Rc<Option<Rc<Vec<String>>>>, 
+        pub issuer: Rc<Option<String>>,
+    }
+
+    #[derive(Deserialize)]
+    pub struct HttpFunction {
+        pub verb: String,
+        pub path: String,
+    }
+
+    #[derive(Deserialize)]
+    pub struct Function {
+        pub name: String,
+        #[serde(default = "default_svc_provider")]
+        pub provider: String,
+        pub handler_name: Option<String>,
+
+        pub http: Rc<Option<HttpFunction>>,
+        pub authorizer_id: Option<String>,
+
+        pub timeout_seconds: Option<u16>,
+        pub size_mb: Option<u16>,
+    }
+
+    #[derive(Deserialize)]
+    pub struct Iomod {
+        pub dependencies: Rc<StringMap<Dependency>>, // map dependency_id -> dependency
+    }
+
+    #[derive(Clone, Deserialize)]
+    pub struct Dependency {
+        pub from: String,
+        pub version: String,
+        #[serde(alias = "type")]
+        pub dependency_type: String,
+    }
+}
