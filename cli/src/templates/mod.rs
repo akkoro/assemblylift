@@ -1,5 +1,4 @@
 pub mod project;
-pub mod terraform;
 
 use std::io::Write;
 use std::path::PathBuf;

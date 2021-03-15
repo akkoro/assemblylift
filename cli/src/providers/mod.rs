@@ -26,13 +26,6 @@ pub static ROOT_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     map.insert(String::from("root"), Box::new(RootProvider::new()));
     map
 });
-//pub static PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
-//    let mut map = ProviderMap::new();
-//    map.insert(String::from("aws-lambda-service"), Box::new(aws_lambda::ServiceProvider));
-//    map.insert(String::from("aws-lambda-function"), Box::new(aws_lambda::FunctionProvider));
-//    map.insert(String::from("root"), Box::new(RootProvider::new()));
-//    map
-//});
 
 pub type Options = StringMap<String>;
 
@@ -48,7 +41,6 @@ pub trait Provider {
 #[derive(Debug)]
 pub enum ProviderError {
     TransformationError(String),
-    UnknownError(String),
 }
 
 pub struct ProviderArtifact {
@@ -100,7 +92,7 @@ impl<'a> Provider for RootProvider<'a> {
         String::from("root")
     }
 
-    fn transform(&self, ctx: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError> {
+    fn transform(&self, ctx: Rc<asml::Context>, _name: String) -> Result<Box<dyn Artifact>, ProviderError> {
         use std::path::PathBuf;
         use std::fs;
 
@@ -129,7 +121,7 @@ impl<'a> Provider for RootProvider<'a> {
         Options::new()
     }
 
-    fn set_options(&mut self, opts: Options) -> Result<(), ProviderError> {
+    fn set_options(&mut self, _opts: Options) -> Result<(), ProviderError> {
         Ok(())
     }
 }

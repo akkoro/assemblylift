@@ -59,7 +59,7 @@ impl Context {
                 });
             }
 
-            for (id, iomod) in iomods.as_ref() {
+            for (id, _iomod) in iomods.as_ref() {
                 ctx_iomods.push(Iomod {
                     name: id.clone(),
                     service_name: service.name.clone(),

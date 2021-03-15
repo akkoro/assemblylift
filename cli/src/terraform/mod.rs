@@ -5,57 +5,6 @@ use std::path::{Path, PathBuf};
 use crate::artifact;
 
 pub mod commands;
-pub mod function;
-pub mod service;
-
-static TERRAFORM_ROOT: &str = r#"# Generated with assemblylift-cli {{asml_version}}
-
-provider "aws" {
-    region = "{{aws_region}}"
-}
-
-resource "aws_lambda_layer_version" "asml_runtime_layer" {
-  filename   = "${path.module}/../.asml/runtime/bootstrap.zip"
-  layer_name = "asml-{{project_name}}-runtime"
-
-  source_code_hash = filebase64sha256("${path.module}/../.asml/runtime/bootstrap.zip")
-}
-
-{{#if user_inject}}
-module "usermod" {
-  source = "../user_tf"
-}
-{{/if}}
-
-{{#each services}}
-module "{{this.name}}" {
-  source = "./services/{{this.name}}"
-}
-{{/each}}
-
-{{#each functions}}
-module "{{this.name}}" {
-  source = "./services/{{this.service}}/{{this.name}}"
-
-  runtime_layer_arn = aws_lambda_layer_version.asml_runtime_layer.arn
-  {{#if this.service_has_layer}}
-  service_layer_arn = module.{{this.service}}.service_layer_arn
-  {{/if}}
-
-  {{#if this.service_has_http_api}}
-  service_http_api_id    = module.{{this.service}}.http_api_id
-  http_api_execution_arn = module.{{this.service}}.http_api_execution_arn
-  http_verb = "{{this.http_verb}}"
-  http_path = "{{this.http_path}}"
-  {{#if this.auth_has_id}}
-  http_authorizer_id = module.{{this.service}}.{{this.auth_name}}_authorizer_id
-  {{/if}}
-  {{/if}}
-}
-
-{{/each}}
-
-"#;
 
 pub fn relative_binary_path() -> &'static str {
     ".asml/bin/terraform"

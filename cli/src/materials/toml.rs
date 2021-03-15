@@ -47,7 +47,7 @@ pub mod service {
     use std::path::PathBuf;
     use std::rc::Rc;
     use serde::Deserialize;
-    use crate::materials::{ContentType, StringMap};
+    use crate::materials::StringMap;
     
     #[derive(Deserialize)]
     pub struct Manifest {
@@ -63,10 +63,6 @@ pub mod service {
                 Err(why) => Err(io::Error::new(io::ErrorKind::Other, why.to_string())),
             }
         }
-        
-        pub fn content_type(&self) -> ContentType {
-            ContentType::TOML("TOML")
-        } 
 
         pub fn service(&self) -> Rc<Service> {
             self.service.clone()

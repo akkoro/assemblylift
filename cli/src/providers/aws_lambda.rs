@@ -25,18 +25,8 @@ pub struct FunctionData {
     pub service_layer: Option<String>,
     pub http: Option<HttpData>,
     pub auth: Option<FunctionAuthData>,
-//    pub service_has_layer: bool,
-//    pub service_has_http_api: bool,
-//    pub http_verb: Option<String>,
-//    pub http_path: Option<String>,
-//
-//    pub auth_name: String,
-//    pub auth_type: String,
-//    pub auth_has_id: bool,
-//
     pub size: u16,
     pub timeout: u16,
-//
     pub project_name: String,
 }
 
@@ -138,7 +128,7 @@ impl Provider for ServiceProvider {
         Options::new()
     }
 
-    fn set_options(&mut self, opts: Options) -> Result<(), ProviderError> {
+    fn set_options(&mut self, _opts: Options) -> Result<(), ProviderError> {
         Ok(())
     }
 }
@@ -226,7 +216,7 @@ impl Provider for FunctionProvider {
         Options::new()
     }
 
-    fn set_options(&mut self, opts: Options) -> Result<(), ProviderError> {
+    fn set_options(&mut self, _opts: Options) -> Result<(), ProviderError> {
         Ok(())
     }
 }
