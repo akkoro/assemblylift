@@ -8,6 +8,7 @@ pub struct Context {
     pub services: Vec<Service>,
     pub functions: Vec<Function>,
     pub authorizers: Vec<Authorizer>,
+    pub iomods: Vec<Iomod>,
 }
 
 impl Context {
@@ -100,6 +101,7 @@ impl Context {
             services: ctx_services,
             functions: ctx_functions,
             authorizers: ctx_authorizers,
+            iomods: ctx_iomods,
         })
     }
 }

@@ -150,10 +150,9 @@ impl Provider for FunctionProvider {
                 let service = function.service_name.clone();
 
                 // find dependencies for service
-                // TODO this isn't correct
-                let iomod_names: Vec<String> = ctx.services.iter()
-                    .filter(|&s| *s.name == service.clone())
-                    .map(|s| s.name.clone())
+                let iomod_names: Vec<String> = ctx.iomods.iter()
+                    .filter(|&m| *m.service_name == service.clone())
+                    .map(|m| m.name.clone())
                     .collect();
 
                 // find authorizers for service
