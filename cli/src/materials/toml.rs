@@ -82,6 +82,13 @@ pub mod service {
                 None => Rc::new(Iomods::new()),
             }
         }
+
+        pub fn authorizers(&self) -> Rc<Authorizers> {
+            match self.api.authorizers.as_ref() {
+                Some(auth) => auth.clone(),
+                None => Rc::new(Authorizers::new()),
+            }
+        }
     }
 
     impl From<String> for Manifest {
@@ -95,28 +102,35 @@ pub mod service {
 
     pub type Functions = StringMap<Function>;
     pub type Iomods = StringMap<Dependency>;
+    pub type Authorizers = StringMap<HttpAuth>;
 
-    fn default_provider() -> String {
+    fn default_svc_provider() -> String {
         String::from("aws-lambda")
+    }
+
+    fn default_api_provider() -> String {
+        String::from("aws-apigw")
     }
 
     #[derive(Deserialize)]
     pub struct Service {
         pub name: String,
-        #[serde(default = "default_provider")]
+        #[serde(default = "default_svc_provider")]
         pub provider: String,
     }
 
     #[derive(Deserialize)]
     pub struct Api {
+        #[serde(default = "default_api_provider")]
+        pub provider: String,
         pub functions: Rc<StringMap<Function>>, // map function_id -> function
-        pub authorizers: Rc<Option<StringMap<HttpAuth>>> // map auth_id -> authorizer
+        pub authorizers: Option<Rc<StringMap<HttpAuth>>> // map auth_id -> authorizer
     }
 
     #[derive(Deserialize)]
     pub struct HttpAuth {
         pub auth_type: String,
-        pub audience: Rc<Option<Vec<String>>>, // TODO do these actually need to be Rc?
+        pub audience: Rc<Option<Rc<Vec<String>>>>, 
         pub issuer: Rc<Option<String>>,
     }
 
@@ -129,7 +143,7 @@ pub mod service {
     #[derive(Deserialize)]
     pub struct Function {
         pub name: String,
-        #[serde(default = "default_provider")]
+        #[serde(default = "default_svc_provider")]
         pub provider: String,
         pub handler_name: Option<String>,
 

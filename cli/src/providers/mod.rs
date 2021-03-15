@@ -26,6 +26,13 @@ pub static ROOT_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     map.insert(String::from("root"), Box::new(RootProvider::new()));
     map
 });
+//pub static PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
+//    let mut map = ProviderMap::new();
+//    map.insert(String::from("aws-lambda-service"), Box::new(aws_lambda::ServiceProvider));
+//    map.insert(String::from("aws-lambda-function"), Box::new(aws_lambda::FunctionProvider));
+//    map.insert(String::from("root"), Box::new(RootProvider::new()));
+//    map
+//});
 
 pub type Options = StringMap<String>;
 
@@ -132,11 +139,9 @@ locals {
     project_name = "{{project_name}}"
     project_path = "{{project_path}}"
 }
-
 {{#if user_inject}}
 module "usermod" {
   source = "../user_tf"
 }
 {{/if}}
-
 "#;

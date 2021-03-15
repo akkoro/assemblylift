@@ -25,6 +25,7 @@ impl Context {
             let service = service_manifest.service();
             let functions = service_manifest.functions();
             let iomods = service_manifest.iomods();
+            let authorizers = service_manifest.authorizers();
 
             let service_provider = service.provider.clone();
 
@@ -33,7 +34,6 @@ impl Context {
                 provider: service_provider.clone(),
                 project_name: project.name.clone(),
             });
-
 
             for (_id, function) in functions.as_ref() {
                 ctx_functions.push(Function {
@@ -44,6 +44,18 @@ impl Context {
                         Some(name) => name.clone(),
                         None => String::from("handler"),
                     },
+                    size: function.size_mb.unwrap_or(1024u16),
+                    timeout: function.timeout_seconds.unwrap_or(5u16),
+                    http: match &function.clone().http.as_ref() {
+                        Some(http) => {
+                            Some(Http {
+                                verb: http.verb.clone(),
+                                path: http.path.clone(),
+                            })
+                        },
+                        None => None,
+                    },
+                    authorizer_id: function.authorizer_id.clone(),
                 });
             }
 
@@ -52,6 +64,31 @@ impl Context {
                     name: id.clone(),
                     service_name: service.name.clone(),
                 });
+            }
+
+            for (id, authorizer) in authorizers.as_ref() {
+                ctx_authorizers.push(Authorizer {
+                    id: id.clone(),
+                    service_name: service.name.clone(),
+                    r#type: authorizer.auth_type.clone(),
+                    jwt_config: match authorizer.auth_type.clone().to_lowercase().as_str() {
+                        "jwt" => {
+                            Some(AuthorizerJwt {
+                                audience: authorizer.clone()
+                                    .audience.clone()
+                                    .as_ref().as_ref()
+                                    .expect("JWT authorizer requires audience field")
+                                    .clone(),
+                                issuer: authorizer.clone()
+                                    .issuer.clone()
+                                    .as_ref().as_ref()
+                                    .expect("JWT authorizer requires issuer field")
+                                    .clone(),
+                            })
+                        }
+                        _ => None,
+                    },
+                })
             }
         }
 
@@ -84,12 +121,29 @@ pub struct Function {
     pub provider: String,
     pub service_name: String,
 
+    pub http: Option<Http>,
+    pub authorizer_id: Option<String>,
+
     pub handler_name: String,
+    pub size: u16,
+    pub timeout: u16,
+}
+
+pub struct Http {
+    pub verb: String,
+    pub path: String,
 }
 
 pub struct Authorizer {
-    pub name: String,
+    pub id: String,
     pub service_name: String,
+    pub r#type: String,
+    pub jwt_config: Option<AuthorizerJwt>,
+}
+
+pub struct AuthorizerJwt {
+    pub issuer: String,
+    pub audience: Rc<Vec<String>>,
 }
 
 pub struct Iomod {
