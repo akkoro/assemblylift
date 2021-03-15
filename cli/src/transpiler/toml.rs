@@ -4,7 +4,7 @@ pub mod asml {
     use std::rc::Rc;
 
     use serde::Deserialize;
-    use crate::materials::StringMap;
+    use crate::transpiler::StringMap;
 
     #[derive(Deserialize)]
     pub struct Manifest {
@@ -47,7 +47,7 @@ pub mod service {
     use std::path::PathBuf;
     use std::rc::Rc;
     use serde::Deserialize;
-    use crate::materials::StringMap;
+    use crate::transpiler::StringMap;
     
     #[derive(Deserialize)]
     pub struct Manifest {

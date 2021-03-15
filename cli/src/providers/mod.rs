@@ -6,8 +6,8 @@ use handlebars::{to_json, Handlebars};
 use once_cell::sync::Lazy;
 use serde::Serialize;
 
-use crate::materials::asml;
-use crate::materials::{StringMap, Artifact, ArtifactError, ContentType};
+use crate::transpiler::asml;
+use crate::transpiler::{StringMap, Artifact, ArtifactError, ContentType};
 
 pub type ProviderMap = StringMap<Box<dyn Provider + Send + Sync>>;
 

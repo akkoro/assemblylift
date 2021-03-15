@@ -3,7 +3,7 @@ use std::rc::Rc;
 use handlebars::{to_json, Handlebars};
 use serde::Serialize;
 
-use crate::materials::{asml, Artifact};
+use crate::transpiler::{asml, Artifact};
 use crate::providers::{Options, Provider, ProviderArtifact, ProviderError};
 
 #[derive(Serialize)]

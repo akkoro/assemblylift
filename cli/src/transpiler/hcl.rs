@@ -4,7 +4,7 @@ pub mod root {
     use clap::crate_version;
 
     use crate::providers::*;
-    use crate::materials::{asml, hcl, Artifact, ArtifactError, ContentType};
+    use crate::transpiler::{asml, hcl, Artifact, ArtifactError, ContentType};
 
     pub type ArtifactList = Vec<Box<hcl::service::Module>>;
 
@@ -57,7 +57,7 @@ pub mod service {
     use std::rc::Rc;
 
     use crate::providers::*;
-    use crate::materials::{asml, hcl, toml, Artifact, ArtifactError, ContentType, StringMap};
+    use crate::transpiler::{asml, hcl, toml, Artifact, ArtifactError, ContentType, StringMap};
 
     pub type ArtifactList = Vec<Box<hcl::function::Module>>;
 
@@ -125,7 +125,7 @@ pub mod function {
     use std::rc::Rc;
 
     use crate::providers::*;
-    use crate::materials::{asml, Artifact, ArtifactError, ContentType};
+    use crate::transpiler::{asml, Artifact, ArtifactError, ContentType};
 
     pub struct Module {
         hcl: Rc<Option<String>>,

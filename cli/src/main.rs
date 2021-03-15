@@ -9,11 +9,11 @@ use crate::commands::{bind, burn, cast, init, make};
 
 mod artifact;
 mod commands;
-mod materials;
 mod projectfs;
 mod providers;
 mod templates;
 mod terraform;
+mod transpiler;
 
 fn main() {
     let app = App::new("asml")

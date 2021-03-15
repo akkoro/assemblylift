@@ -13,7 +13,7 @@ use wasmer_engine_native::Native;
 use clap::ArgMatches;
 
 use crate::artifact;
-use crate::materials::{asml, hcl, toml, Artifact};
+use crate::transpiler::{asml, hcl, toml, Artifact};
 use crate::projectfs::Project;
 use crate::terraform;
 
