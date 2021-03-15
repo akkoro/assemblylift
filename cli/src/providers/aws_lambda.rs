@@ -44,7 +44,7 @@ pub struct FunctionData {
 pub struct FunctionAuthData {
     pub id: Option<String>,
     pub r#type: String,
-    pub scopes: String,
+    pub scopes: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -179,7 +179,10 @@ impl Provider for FunctionProvider {
                                 _ => Some(format!("aws_apigatewayv2_authorizer.{}_{}.id", service.clone(), id)),
                             },
                             r#type: authorizer.r#type.clone(),
-                            scopes: render_string_list(Rc::new(vec!["email".to_string(), "openid".to_string()])),
+                            scopes: match authorizer.r#type.clone().to_lowercase().as_str() {
+                                "aws_iam" => None,
+                                _ => Some(render_string_list(Rc::new(vec!["email".to_string(), "openid".to_string()]))),
+                            },
                         })
                     },
                     None => None,
