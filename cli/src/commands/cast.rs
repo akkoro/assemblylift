@@ -18,7 +18,6 @@ use crate::projectfs::Project;
 use crate::terraform;
 
 pub fn command(matches: Option<&ArgMatches>) {
-    use std::io::Read;
     use std::rc::Rc;
 
     let _matches = match matches {
@@ -34,23 +33,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     let asml_manifest = toml::asml::Manifest::read(&manifest_path).unwrap();
     let project = Rc::new(Project::new(asml_manifest.project.name.clone(), Some(cwd)));
 
-    // Download the latest runtime binary
-    // TODO this needs to be triggerd by use in a Provider
-    let runtime_url = &*format!(
-        "http://runtime.assemblylift.akkoro.io/aws-lambda/{}/bootstrap.zip",
-//        clap::crate_version!(),
-    "xlem",
-    );
-    let mut response = reqwest::blocking::get(runtime_url).unwrap();
-    if !response.status().is_success() {
-        panic!("unable to fetch asml runtime from {}", runtime_url);
-    }
-    let mut response_buffer = Vec::new();
-    response.read_to_end(&mut response_buffer).unwrap();
-
-    fs::create_dir_all("./.asml/runtime").unwrap();
-    fs::write("./.asml/runtime/bootstrap.zip", response_buffer).unwrap();
-
+    // Fetch the latest terraform binary to the project directory
     terraform::fetch(&*project.dir());
 
     let ctx = asml::Context::from_project(project.clone(), asml_manifest)

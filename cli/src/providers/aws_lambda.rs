@@ -74,6 +74,27 @@ impl Provider for ServiceProvider {
     fn name(&self) -> String {
         String::from("aws-lambda")
     }
+
+    fn init(&self) -> Result<(), ProviderError> {
+        use std::io::Read;
+
+        let runtime_url = &*format!(
+            "http://public.assemblylift.akkoro.io/runtime/{}/aws-lambda/bootstrap.zip",
+            clap::crate_version!(),
+        );
+        let mut response = reqwest::blocking::get(runtime_url)
+            .expect("could not download bootstrap.zip");
+        if !response.status().is_success() {
+            panic!("unable to fetch asml runtime from {}", runtime_url);
+        }
+        let mut response_buffer = Vec::new();
+        response.read_to_end(&mut response_buffer).unwrap();
+
+        std::fs::create_dir_all("./.asml/runtime").unwrap();
+        std::fs::write("./.asml/runtime/bootstrap.zip", response_buffer).unwrap();
+
+        Ok(())
+    }
     
     fn transform(&self, ctx: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError> {
         let mut reg = Box::new(Handlebars::new()); 
@@ -138,6 +159,10 @@ pub struct FunctionProvider;
 impl Provider for FunctionProvider {
     fn name(&self) -> String {
         String::from("aws-lambda")
+    }
+    
+    fn init(&self) -> Result<(), ProviderError> {
+        Ok(())
     }
 
     fn transform(&self, ctx: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError> {
