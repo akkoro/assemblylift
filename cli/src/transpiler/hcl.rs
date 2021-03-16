@@ -90,7 +90,7 @@ pub mod service {
 
         fn cast(&mut self) -> Result<String, ArtifactError> {
             let service_name = self.name.clone();
-            let mut content = format!("# Begin service `{}`\r\n", service_name.clone());
+            let mut content = format!("# Begin service `{}`\n", service_name.clone());
 
             match self.ctx.services.iter().find(|&s| *s.name == self.name.clone()) {
                 Some(service) => {
@@ -99,6 +99,9 @@ pub mod service {
                     let provider_name = service.provider.clone();
                     let service_provider = SERVICE_PROVIDERS.get(&provider_name)
                         .expect(&format!("could not find service provider named {}", provider_name));
+
+                    service_provider.init()
+                        .expect("unable to initialize service provider");
 
                     let service_artifact = service_provider.transform(self.ctx.clone(), service_name.clone())
                         .expect("unexpected error transforming service");

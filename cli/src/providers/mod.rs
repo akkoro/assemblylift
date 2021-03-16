@@ -32,6 +32,7 @@ pub type Options = StringMap<String>;
 pub trait Provider {
     fn name(&self) -> String;
 
+    fn init(&self) -> Result<(), ProviderError>;
     fn transform(&self, ctx: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError>;
 
     fn options(&self) -> Options;
@@ -90,6 +91,10 @@ impl RootProvider<'_> {
 impl<'a> Provider for RootProvider<'a> {
     fn name(&self) -> String {
         String::from("root")
+    }
+
+    fn init(&self) -> Result<(), ProviderError> {
+        Ok(())
     }
 
     fn transform(&self, ctx: Rc<asml::Context>, _name: String) -> Result<Box<dyn Artifact>, ProviderError> {
