@@ -41,13 +41,13 @@ jobs:
         aws-region: us-east-1
     - name: 'Checkout'
       uses: actions/checkout@v2
-    - name: 'Build Image'
-      run: docker build -t assemblylift/asml-lambda-runtime . --file docker/asml-lambda-alpine
     - name: 'Get Version'
-      run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
-    - name: 'Tag Image'
-      run: docker tag assemblylift/asml-lambda-runtime:latest public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-runtime:latest && docker tag assemblylift/asml-lambda-runtime:latest assemblylift/asml-lambda-runtime:$ASML_VERSION
+      run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV && echo $ASML_VERSION
+    - name: 'Build Image'
+      run: docker build -t assemblylift/asml-lambda-alpine:latest -t assemblylift/asml-lambda-alpine:$ASML_VERSION . --file docker/asml-lambda-alpine
+    - name: 'Add ECR Tag'
+      run: docker tag assemblylift/asml-lambda-alpine:latest public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-alpine:latest
     - name: 'ECR Login'
       run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/b9k6v7n0
     - name: 'Push to ECR @ akkoro-public'
-      run: docker push public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-runtime:latest
+      run: docker push public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-alpine:latest
