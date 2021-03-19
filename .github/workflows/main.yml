@@ -42,7 +42,7 @@ jobs:
     - name: 'Checkout'
       uses: actions/checkout@v2
     - name: 'Get Version'
-      run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV && echo $ASML_VERSION
+      run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV && echo $GITHUB_ENV
     - name: 'Build Image'
       run: docker build -t assemblylift/asml-lambda-alpine:latest -t assemblylift/asml-lambda-alpine:$ASML_VERSION . --file docker/asml-lambda-alpine
     - name: 'Add ECR Tag'
