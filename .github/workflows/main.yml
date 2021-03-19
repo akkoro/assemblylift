@@ -8,7 +8,7 @@ on:
 
 jobs:
 
-  build:
+  build-default:
     name: 'AWS Lambda Default Runtime'
     runs-on: ubuntu-latest
     steps:
@@ -28,3 +28,26 @@ jobs:
       run: echo "ASML_VERSION=$(docker run --rm assemblylift/asml-lambda-default)" >> $GITHUB_ENV 
     - name: 'Upload to S3 @ akkoro-public'
       run: aws s3 cp $HOME/bootstrap.zip s3://public.assemblylift.akkoro.io/runtime/$ASML_VERSION/aws-lambda/bootstrap.zip --acl public-read
+
+  build-alpine:
+    name: 'AWS Lambda Alpine Image'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+    - name: 'Checkout'
+      uses: actions/checkout@v2
+    - name: 'Build Image'
+      run: docker build -t assemblylift/asml-lambda-runtime . --file docker/asml-lambda-alpine
+    - name: 'Get Version'
+      run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
+    - name: 'Tag Image'
+      run: docker tag assemblylift/asml-lambda-runtime:latest public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-runtime:latest && docker tag assemblylift/asml-lambda-runtime:latest assemblylift/asml-lambda-runtime:$ASML_VERSION
+    - name: 'ECR Login'
+      run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/b9k6v7n0
+    - name: 'Push to ECR @ akkoro-public'
+      run: docker push public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-runtime:latest
