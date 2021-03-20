@@ -41,6 +41,8 @@ jobs:
         aws-region: us-east-1
     - name: 'Checkout'
       uses: actions/checkout@v2
+    - name: 'Debug'
+      run: ls -l .
     - name: 'Get Version'
       run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV && echo $GITHUB_ENV
     - name: 'Build Image'
