@@ -78,7 +78,7 @@ impl iomod::Server for Iomod {
         params: iomod::InvokeParams,
         mut results: iomod::InvokeResults,
     ) -> Promise<(), Error> {
-        let mut tx = self.tx.clone();
+        let tx = self.tx.clone();
 
         Promise::from_future(async move {
             let coords = params.get().unwrap().get_coordinates().unwrap().to_owned();

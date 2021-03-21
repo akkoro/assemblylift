@@ -9,6 +9,7 @@ use crate::commands::{bind, burn, cast, init, make};
 
 mod artifact;
 mod commands;
+mod docker;
 mod projectfs;
 mod providers;
 mod templates;

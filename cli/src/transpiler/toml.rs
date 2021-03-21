@@ -46,6 +46,7 @@ pub mod service {
     use std::io;
     use std::path::PathBuf;
     use std::rc::Rc;
+    use std::sync::Arc;
     use serde::Deserialize;
     use crate::transpiler::StringMap;
     
@@ -100,19 +101,30 @@ pub mod service {
     pub type Iomods = StringMap<Dependency>;
     pub type Authorizers = StringMap<HttpAuth>;
 
-    fn default_svc_provider() -> String {
-        String::from("aws-lambda")
-    }
-
     fn default_api_provider() -> String {
         String::from("aws-apigw")
     }
 
     #[derive(Deserialize)]
+    pub struct Provider {
+        pub name: String,
+        pub options: Arc<StringMap<String>>,
+    }
+
+    #[derive(Deserialize)]
     pub struct Service {
         pub name: String,
-        #[serde(default = "default_svc_provider")]
-        pub provider: String,
+        #[serde(default)]
+        pub provider: Rc<Provider>,
+    }
+
+    impl Default for Provider {
+        fn default() -> Self {
+            Provider {
+                name: String::from("aws-lambda"),
+                options: Default::default(),
+            }
+        }
     }
 
     #[derive(Deserialize)]
@@ -139,8 +151,8 @@ pub mod service {
     #[derive(Deserialize)]
     pub struct Function {
         pub name: String,
-        #[serde(default = "default_svc_provider")]
-        pub provider: String,
+        #[serde(default)]
+        pub provider: Rc<Provider>,
         pub handler_name: Option<String>,
 
         pub http: Rc<Option<HttpFunction>>,

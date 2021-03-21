@@ -1,6 +1,8 @@
 pub mod aws_lambda;
+pub mod aws_lambda_alpine;
 
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use handlebars::{to_json, Handlebars};
 use once_cell::sync::Lazy;
@@ -9,21 +11,23 @@ use serde::Serialize;
 use crate::transpiler::asml;
 use crate::transpiler::{StringMap, Artifact, ArtifactError, ContentType};
 
-pub type ProviderMap = StringMap<Box<dyn Provider + Send + Sync>>;
+pub type ProviderMap = StringMap<Mutex<Box<dyn Provider + Send + Sync>>>;
 
 pub static SERVICE_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     let mut map = ProviderMap::new();
-    map.insert(String::from("aws-lambda"), Box::new(aws_lambda::ServiceProvider));
+    map.insert(String::from("aws-lambda"), Mutex::new(Box::new(aws_lambda::ServiceProvider)));
+    map.insert(String::from("aws-lambda-alpine"), Mutex::new(Box::new(aws_lambda_alpine::ServiceProvider::new())));
     map
 });
 pub static FUNCTION_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     let mut map = ProviderMap::new();
-    map.insert(String::from("aws-lambda"), Box::new(aws_lambda::FunctionProvider));
+    map.insert(String::from("aws-lambda"), Mutex::new(Box::new(aws_lambda::FunctionProvider)));
+    map.insert(String::from("aws-lambda-alpine"), Mutex::new(Box::new(aws_lambda_alpine::FunctionProvider::new())));
     map
 });
 pub static ROOT_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     let mut map = ProviderMap::new();
-    map.insert(String::from("root"), Box::new(RootProvider::new()));
+    map.insert(String::from("root"), Mutex::new(Box::new(RootProvider::new())));
     map
 });
 
@@ -32,16 +36,28 @@ pub type Options = StringMap<String>;
 pub trait Provider {
     fn name(&self) -> String;
 
-    fn init(&self) -> Result<(), ProviderError>;
+    fn init(&self, ctx: Rc<asml::Context>, name: String) -> Result<(), ProviderError>;
     fn transform(&self, ctx: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError>;
 
-    fn options(&self) -> Options;
-    fn set_options(&mut self, opts: Options) -> Result<(), ProviderError>;
+    fn options(&self) -> Arc<Options>;
+    fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError>;
 }
 
 #[derive(Debug)]
 pub enum ProviderError {
     TransformationError(String),
+}
+
+pub fn render_string_list(list: Rc<Vec<String>>) -> String {
+    let mut out = String::from("[");
+    for (i, l) in list.iter().enumerate() {
+        out.push_str(&format!("\"{}\"", l));
+        if i < list.len() - 1 {
+            out.push_str(",");
+        }
+    }
+    out.push_str("]");
+    out
 }
 
 pub struct ProviderArtifact {
@@ -93,7 +109,7 @@ impl<'a> Provider for RootProvider<'a> {
         String::from("root")
     }
 
-    fn init(&self) -> Result<(), ProviderError> {
+    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
         Ok(())
     }
 
@@ -122,11 +138,11 @@ impl<'a> Provider for RootProvider<'a> {
         Ok(Box::new(ProviderArtifact::new(rendered)))
     }
     
-    fn options(&self) -> Options {
-        Options::new()
+    fn options(&self) -> Arc<Options> {
+        Arc::new(Options::new())
     }
 
-    fn set_options(&mut self, _opts: Options) -> Result<(), ProviderError> {
+    fn set_options(&mut self, _opts: Arc<Options>) -> Result<(), ProviderError> {
         Ok(())
     }
 }

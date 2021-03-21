@@ -1,36 +1,56 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
+use clap::crate_version;
 use handlebars::{to_json, Handlebars};
 use serde::Serialize;
 
 use crate::transpiler::{asml, Artifact};
 use crate::providers::{render_string_list, Options, Provider, ProviderArtifact, ProviderError};
 
-pub struct ServiceProvider;
+pub struct ServiceProvider {
+    options: Arc<Options>,
+}
+
+impl ServiceProvider {
+    pub fn new() -> Self {
+        Self { options: Arc::new(Options::new()) }
+    }
+}
 
 impl Provider for ServiceProvider {
     fn name(&self) -> String {
-        String::from("aws-lambda")
+        String::from("aws-lambda-alpine")
     }
 
-    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
-        use std::io::Read;
+    fn init(&self, ctx: Rc<asml::Context>, name: String) -> Result<(), ProviderError> {
+        use std::io::Write;
+        use crate::docker;
 
-        let runtime_url = &*format!(
-            "http://public.assemblylift.akkoro.io/runtime/{}/aws-lambda/bootstrap.zip",
-            clap::crate_version!(),
-        );
-        let mut response = reqwest::blocking::get(runtime_url)
-            .expect("could not download bootstrap.zip");
-        if !response.status().is_success() {
-            panic!("unable to fetch asml runtime from {}", runtime_url);
+        let registry_url = self.options.get("registry")
+            .expect("service provider requires `registry` option");
+        let version = crate_version!();
+
+        let public = &format!("public.ecr.aws/akkoro/assemblylift/asml-lambda-alpine:{}", version);
+        let local = &format!("{}/assemblylift/asml-lambda-alpine:{}", registry_url, version);
+        let layer_name = format!("{}-{}", ctx.project.name.clone(), name.clone()); 
+        let service_tag = &format!("{}/assemblylift/asml-lambda-alpine:{}-{}", registry_url, version, layer_name);
+
+        {
+            let mut contents: String = format!("FROM {}\n", public);
+            for iomod in ctx.iomods.iter().filter(|i| i.service_name == name.clone()) {
+                contents.push_str(&format!("ADD ./.asml/runtime/{} /opt/iomod/\n", iomod.name.clone()));
+            }
+
+            std::fs::create_dir_all("./.asml/runtime").unwrap();
+            let mut file = std::fs::File::create("./.asml/runtime/Dockerfile")
+                .expect("could not create runtime Dockerfile");
+            file.write_all(contents.as_bytes()).expect("could not write runtime Dockerfile");
         }
-        let mut response_buffer = Vec::new();
-        response.read_to_end(&mut response_buffer).unwrap();
 
-        std::fs::create_dir_all("./.asml/runtime").unwrap();
-        std::fs::write("./.asml/runtime/bootstrap.zip", response_buffer).unwrap();
+        docker::build(local, "./.asml/runtime/Dockerfile").expect("could not build docker image");
+        docker::tag(local, service_tag).expect("could not tag docker image");
+        docker::push(service_tag).expect("could not push docker image");
 
         Ok(())
     }
@@ -85,15 +105,24 @@ impl Provider for ServiceProvider {
     }
 
     fn options(&self) -> Arc<Options> {
-        Arc::new(Options::new())
+        self.options.clone()
     }
 
-    fn set_options(&mut self, _opts: Arc<Options>) -> Result<(), ProviderError> {
+    fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError> {
+        self.options = opts;
         Ok(())
     }
 }
 
-pub struct FunctionProvider;
+pub struct FunctionProvider {
+    options: Arc<Options>,
+}
+
+impl FunctionProvider {
+    pub fn new() -> Self {
+        Self { options: Arc::new(Options::new()) }
+    }
+}
 
 impl Provider for FunctionProvider {
     fn name(&self) -> String {
@@ -140,16 +169,18 @@ impl Provider for FunctionProvider {
                     },
                     None => None,
                 };
+        
+                let registry_url = self.options.get("registry")
+                    .expect("service provider requires `registry` option");
+                let version = crate_version!();
+                let layer_name = format!("{}-{}", ctx.project.name.clone(), service.clone()); 
+                let image_uri = format!("{}/assemblylift/asml-lambda-alpine:{}-{}", registry_url, version, layer_name);
 
                 let data = FunctionData {
                     name: function.name.clone(),
                     handler_name: function.handler_name.clone(),
                     service: service.clone(),
-                    runtime_layer: format!("aws_lambda_layer_version.asml_{}_runtime.arn", service.clone()),
-                    service_layer: match iomod_names.len() {
-                        0 => None,
-                        _ => Some(format!("aws_lambda_layer_version.asml_{}_service.arn", service.clone())),
-                    },
+                    image_uri,
                     project_name: ctx.project.name.clone(),
                     size: function.size,
                     timeout: function.timeout,
@@ -176,10 +207,11 @@ impl Provider for FunctionProvider {
     }
     
     fn options(&self) -> Arc<Options> {
-        Arc::new(Options::new())
+        self.options.clone()
     }
 
-    fn set_options(&mut self, _opts: Arc<Options>) -> Result<(), ProviderError> {
+    fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError> {
+        self.options = opts;
         Ok(())
     }
 }
@@ -199,8 +231,7 @@ pub struct FunctionData {
     pub name: String,
     pub handler_name: String,
     pub service: String,
-    pub runtime_layer: String,
-    pub service_layer: Option<String>,
+    pub image_uri: String,
     pub http: Option<HttpData>,
     pub auth: Option<FunctionAuthData>,
     pub size: u16,
@@ -234,29 +265,12 @@ pub struct HttpData {
     pub path: String,
 }
 
-static SERVICE_TEMPLATE: &str = 
+static SERVICE_TEMPLATE: &str =
 r#"provider "aws" {
     alias  = "{{name}}"
     region = "{{aws_region}}"
 }
 
-resource "aws_lambda_layer_version" "asml_{{name}}_runtime" {
-    provider = aws.{{name}}
-
-    filename   = "${local.project_path}/.asml/runtime/bootstrap.zip"
-    layer_name = "{{layer_name}}"
-
-    source_code_hash = filebase64sha256("${local.project_path}/.asml/runtime/bootstrap.zip")
-}
-
-resource "aws_lambda_layer_version" "asml_{{name}}_service" {
-    provider = aws.{{name}}
-    
-    filename   = "${local.project_path}/.asml/runtime/{{name}}.zip"
-    layer_name = "asml-${local.project_name}-{{name}}-service"
-
-    source_code_hash = filebase64sha256("${local.project_path}/.asml/runtime/{{name}}.zip")
-}
 {{#if use_apigw}}
 resource "aws_apigatewayv2_api" "{{name}}_http_api" {
     provider      = aws.{{name}}
@@ -296,13 +310,11 @@ r#"resource "aws_lambda_function" "asml_{{service}}_{{name}}" {
     role          = aws_iam_role.{{service}}_{{name}}_lambda_iam_role.arn
     runtime       = "provided"
     handler       = "{{name}}.{{handler_name}}"
-    filename      = "${local.project_path}/net/services/{{service}}/{{name}}/{{name}}.zip"
     timeout       = {{timeout}}
     memory_size   = {{size}}
 
-    layers = [{{runtime_layer}}{{#if service_layer}}, {{service_layer}}{{/if}}]
-
-    source_code_hash = filebase64sha256("${local.project_path}/net/services/{{service}}/{{name}}/{{name}}.zip")
+    package_type  = "Image"
+    image_uri     = "{{image_uri}}"
 }
 
 resource "aws_iam_role" "{{service}}_{{name}}_lambda_iam_role" {

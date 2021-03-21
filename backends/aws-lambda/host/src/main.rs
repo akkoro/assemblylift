@@ -100,7 +100,7 @@ async fn main() {
 
                     let handler_call = instance.exports.get_function(handler_name).unwrap();
                     match handler_call.call(&[]) {
-                        Ok(result) => println!("TRACE: handler returned {:?}", result),
+                        Ok(result) => println!("SUCCESS: handler returned {:?}", result),
                         Err(error) => println!("ERROR: {}", error.to_string()),
                     }
                 })

@@ -13,7 +13,7 @@ readme = "README.md"
 [dependencies]
 lazy_static = "1.4.0"
 once_cell = "1.4.0"
-tokio = "0.2.21"
+tokio = "1.4"
 crossbeam-utils = "0.8"
 
 wasmer = { package = "wasmer-asml-fork", version = "1.0" }

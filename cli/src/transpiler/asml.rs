@@ -1,6 +1,7 @@
 use std::rc::Rc;
+use std::sync::Arc;
 
-use crate::transpiler::toml;
+use crate::transpiler::{toml, StringMap};
 use crate::projectfs::Project as ProjectFs;
 
 pub struct Context {
@@ -32,14 +33,20 @@ impl Context {
 
             ctx_services.push(Service {
                 name: service.name.clone(),
-                provider: service_provider.clone(),
+                provider: Rc::new(Provider {
+                    name: service_provider.name.clone(),
+                    options: service_provider.options.clone(),
+                }),
                 project_name: project.name.clone(),
             });
 
             for (_id, function) in functions.as_ref() {
                 ctx_functions.push(Function {
                     name: function.name.clone(),
-                    provider: service_provider.clone(),
+                    provider: Rc::new(Provider {
+                        name: function.provider.name.clone(),
+                        options: function.provider.options.clone(),
+                    }),
                     service_name: service.name.clone(),
                     handler_name: match &function.clone().handler_name {
                         Some(name) => name.clone(),
@@ -114,13 +121,18 @@ pub struct Project {
 
 pub struct Service {
     pub name: String,
-    pub provider: String,
+    pub provider: Rc<Provider>,
     pub project_name: String,
+}
+
+pub struct Provider {
+    pub name: String,
+    pub options: Arc<StringMap<String>>,
 }
 
 pub struct Function {
     pub name: String,
-    pub provider: String,
+    pub provider: Rc<Provider>,
     pub service_name: String,
 
     pub http: Option<Http>,

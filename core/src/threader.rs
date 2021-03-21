@@ -89,40 +89,38 @@ impl Threader {
         let iomod_coords = format!("{}.{}.{}", coords[0], coords[1], coords[2]);
         let method_name = format!("{}", coords[3]);
 
-        let mut registry_tx = self.registry_tx.clone();
+        let registry_tx = self.registry_tx.clone();
         let (local_tx, mut local_rx) = mpsc::channel(100);
 
         let hnd = self.runtime.handle().clone();
-        std::thread::spawn(move || {
-            hnd.enter(|| {
-                tokio::spawn(async move {
-                    registry_tx
-                        .send(RegistryChannelMessage {
-                            iomod_coords,
-                            method_name,
-                            payload_type: "IOMOD_REQUEST",
-                            payload: method_input,
-                            responder: Some(local_tx.clone()),
-                        })
-                        .await
-                        .unwrap();
-                });
+        hnd.spawn(async move {
+            tokio::spawn(async move {
+                registry_tx
+                    .send(RegistryChannelMessage {
+                        iomod_coords,
+                        method_name,
+                        payload_type: "IOMOD_REQUEST",
+                        payload: method_input,
+                        responder: Some(local_tx.clone()),
+                    })
+                    .await
+                    .unwrap();
+            });
 
-                tokio::spawn(async move {
-                    if let Some(response) = local_rx.recv().await {
-                        IO_MEMORY
-                            .lock()
-                            .unwrap()
-                            .write_vec_at(slc, response.payload, ioid);
-                    }
-                });
+            tokio::spawn(async move {
+                if let Some(response) = local_rx.recv().await {
+                    IO_MEMORY
+                        .lock()
+                        .unwrap()
+                        .write_vec_at(slc, response.payload, ioid);
+                }
             });
         });
     }
 
     pub fn spawn(&self, future: impl Future<Output = Result<(), std::io::Error>> + Send + 'static) {
         let hnd = self.runtime.handle();
-        hnd.enter(|| tokio::spawn(future));
+        hnd.spawn(future);
     }
 
     pub fn __reset_memory() {

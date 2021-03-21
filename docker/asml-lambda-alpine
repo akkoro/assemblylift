@@ -22,5 +22,5 @@ RUN LLVM_SYS_110_PREFIX=/llvm110 $HOME/.cargo/bin/cargo build --release
 FROM frolvlad/alpine-glibc:glibc-2.32
 
 COPY --from=builder /usr/src/assemblylift/target/release/bootstrap /
-
-ENTRYPOINT /bootstrap
+WORKDIR /
+CMD /bootstrap
