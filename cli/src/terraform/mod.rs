@@ -2,7 +2,7 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use crate::artifact;
+use crate::archive;
 
 pub mod commands;
 
@@ -48,7 +48,7 @@ pub fn fetch(project_path: &PathBuf) {
         panic!("could not create directory ./.asml/bin")
     }
 
-    artifact::unzip_to(terraform_zip, &terraform_path).unwrap();
+    archive::unzip_to(terraform_zip, &terraform_path).unwrap();
 
     let mut perms = fs::metadata(&terraform_path).unwrap().permissions();
     perms.set_mode(0o755);

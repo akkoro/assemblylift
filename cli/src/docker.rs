@@ -4,6 +4,7 @@ use std::process::{ExitStatus, Stdio};
 pub fn build(tag: &str, dockerfile: &str) -> Result<ExitStatus, std::io::Error> {
     process::Command::new("docker")
         .arg("build")
+        .arg("--pull")
         .arg("-t")
         .arg(tag)
         .arg(".")

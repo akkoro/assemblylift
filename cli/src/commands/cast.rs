@@ -12,7 +12,7 @@ use wasmer_engine_native::Native;
 
 use clap::ArgMatches;
 
-use crate::artifact;
+use crate::archive;
 use crate::transpiler::{asml, hcl, toml, Artifact};
 use crate::projectfs::Project;
 use crate::terraform;
@@ -68,7 +68,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             }
         }
 
-        artifact::zip_files(
+        archive::zip_files(
             dependencies,
             format!("./.asml/runtime/{}.zip", &service_name),
             Some("iomod/"),
@@ -166,7 +166,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             println!("📄 > Wrote {}", module_file_path.clone());
             module_file.write_all(&module_bytes).unwrap();
 
-            artifact::zip_files(
+            archive::zip_files(
                 vec![module_file_path],
                 format!("{}/{}.zip", function_artifact_path.clone(), &function_name),
                 None,

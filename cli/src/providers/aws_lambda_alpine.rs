@@ -41,6 +41,11 @@ impl Provider for ServiceProvider {
             for iomod in ctx.iomods.iter().filter(|i| i.service_name == name.clone()) {
                 contents.push_str(&format!("ADD ./.asml/runtime/{} /opt/iomod/\n", iomod.name.clone()));
             }
+            for function in ctx.functions.iter().filter(|f| f.service_name == name.clone()) {
+                let function_path = format!("./net/services/{}/{}", name.clone(), function.name.clone());
+                contents.push_str(&format!("ADD {}/{}.wasm.bin /opt/\n", function_path, function.name.clone()));
+            }
+            contents.push_str("RUN chmod -R 755 /opt\n");
 
             std::fs::create_dir_all("./.asml/runtime").unwrap();
             let mut file = std::fs::File::create("./.asml/runtime/Dockerfile")
@@ -308,13 +313,14 @@ r#"resource "aws_lambda_function" "asml_{{service}}_{{name}}" {
 
     function_name = "asml-{{project_name}}-{{service}}-{{name}}"
     role          = aws_iam_role.{{service}}_{{name}}_lambda_iam_role.arn
-    runtime       = "provided"
-    handler       = "{{name}}.{{handler_name}}"
     timeout       = {{timeout}}
     memory_size   = {{size}}
-
     package_type  = "Image"
     image_uri     = "{{image_uri}}"
+
+    image_config {
+        working_directory = "/"
+    }
 }
 
 resource "aws_iam_role" "{{service}}_{{name}}_lambda_iam_role" {
