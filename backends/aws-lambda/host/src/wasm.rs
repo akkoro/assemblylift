@@ -25,7 +25,8 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
     let file_path = format!("{}/{}.wasm.bin", lambda_path, file_name);
     
     let store = Store::new(&Native::headless().engine());
-    let module = unsafe { Module::deserialize_from_file(&store, file_path) }.unwrap();
+    let module = unsafe { Module::deserialize_from_file(&store, file_path.clone()) }
+        .expect(&format!("could not load wasm from {}", file_path.clone()));
 
     let env = ThreaderEnv {
         threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx)))),

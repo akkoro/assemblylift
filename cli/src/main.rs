@@ -7,7 +7,7 @@ use clap::{crate_version, App, Arg};
 use crate::commands::CommandFn;
 use crate::commands::{bind, burn, cast, init, make};
 
-mod artifact;
+mod archive;
 mod commands;
 mod docker;
 mod projectfs;
@@ -35,7 +35,7 @@ fn main() {
                         .long("name")
                         .required(true)
                         .takes_value(true),
-                ), // TODO this is going to need an argument to specify the backend (ie aws-lambda, azure, etc)
+                ),
         )
         .subcommand(App::new("make")
             .about("Make a new service or function")

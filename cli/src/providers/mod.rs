@@ -147,7 +147,16 @@ impl<'a> Provider for RootProvider<'a> {
     }
 }
 
-static ROOT_TEMPLATE: &str = r#"
+static ROOT_TEMPLATE: &str = 
+r#"terraform {
+    required_providers {
+        docker = {
+            source  = "kreuzwerker/docker"
+            version = "2.11.0"
+        }
+    }
+}
+
 locals {
     project_name = "{{project_name}}"
     project_path = "{{project_path}}"

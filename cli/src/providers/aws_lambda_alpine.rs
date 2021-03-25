@@ -23,35 +23,7 @@ impl Provider for ServiceProvider {
         String::from("aws-lambda-alpine")
     }
 
-    fn init(&self, ctx: Rc<asml::Context>, name: String) -> Result<(), ProviderError> {
-        use std::io::Write;
-        use crate::docker;
-
-        let registry_url = self.options.get("registry")
-            .expect("service provider requires `registry` option");
-        let version = crate_version!();
-
-        let public = &format!("public.ecr.aws/akkoro/assemblylift/asml-lambda-alpine:{}", version);
-        let local = &format!("{}/assemblylift/asml-lambda-alpine:{}", registry_url, version);
-        let layer_name = format!("{}-{}", ctx.project.name.clone(), name.clone()); 
-        let service_tag = &format!("{}/assemblylift/asml-lambda-alpine:{}-{}", registry_url, version, layer_name);
-
-        {
-            let mut contents: String = format!("FROM {}\n", public);
-            for iomod in ctx.iomods.iter().filter(|i| i.service_name == name.clone()) {
-                contents.push_str(&format!("ADD ./.asml/runtime/{} /opt/iomod/\n", iomod.name.clone()));
-            }
-
-            std::fs::create_dir_all("./.asml/runtime").unwrap();
-            let mut file = std::fs::File::create("./.asml/runtime/Dockerfile")
-                .expect("could not create runtime Dockerfile");
-            file.write_all(contents.as_bytes()).expect("could not write runtime Dockerfile");
-        }
-
-        docker::build(local, "./.asml/runtime/Dockerfile").expect("could not build docker image");
-        docker::tag(local, service_tag).expect("could not tag docker image");
-        docker::push(service_tag).expect("could not push docker image");
-
+    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
         Ok(())
     }
     
@@ -89,8 +61,11 @@ impl Provider for ServiceProvider {
             })
             .collect();
 
+        let aws_account_id = self.options.get("aws_account_id")
+            .expect("service provider requires `aws_account_id` option");
         let data = ServiceData { 
             name: name.clone(),
+            aws_account_id: aws_account_id.clone(), 
             aws_region: String::from("us-east-1"),
             hcl_provider: String::from("aws"),
             layer_name,
@@ -134,6 +109,8 @@ impl Provider for FunctionProvider {
     }
 
     fn transform(&self, ctx: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError> {
+        use std::io::Write;
+
         let mut reg = Box::new(Handlebars::new()); 
         reg.register_template_string("function", FUNCTION_TEMPLATE)
             .unwrap();
@@ -142,11 +119,24 @@ impl Provider for FunctionProvider {
             Some(function) => {
                 let service = function.service_name.clone();
 
-                // find dependencies for service
-                let iomod_names: Vec<String> = ctx.iomods.iter()
-                    .filter(|&m| *m.service_name == service.clone())
-                    .map(|m| m.name.clone())
-                    .collect();
+                // build docker image
+                {
+                    let version = crate_version!();
+                    let public = &format!("public.ecr.aws/akkoro/assemblylift/asml-lambda-alpine:{}", version);
+                    let mut contents: String = format!("FROM {}\n", public);
+                    contents.push_str("WORKDIR /\n");
+                    contents.push_str(&format!("ENV _HANDLER \"{}.handler\"\n", function.name.clone()));
+                    contents.push_str("ENV LAMBDA_TASK_ROOT /opt");
+                    for iomod in ctx.iomods.iter().filter(|i| i.service_name == service.clone()) {
+                        contents.push_str(&format!("ADD ./iomods/{} /opt/iomod/\n", iomod.name.clone()));
+                    }
+                    contents.push_str(&format!("ADD ./{}/{}.wasm.bin /opt/\n", function.name.clone(), function.name.clone()));
+                    contents.push_str("RUN chmod -R 755 /opt\n");
+
+                    let mut file = std::fs::File::create(format!("./net/services/{}/{}/Dockerfile", service.clone(), function.name.clone()))
+                        .expect("could not create runtime Dockerfile");
+                    file.write_all(contents.as_bytes()).expect("could not write runtime Dockerfile");
+                }
 
                 // find authorizers for service
                 let auth = match &function.authorizer_id {
@@ -170,17 +160,10 @@ impl Provider for FunctionProvider {
                     None => None,
                 };
         
-                let registry_url = self.options.get("registry")
-                    .expect("service provider requires `registry` option");
-                let version = crate_version!();
-                let layer_name = format!("{}-{}", ctx.project.name.clone(), service.clone()); 
-                let image_uri = format!("{}/assemblylift/asml-lambda-alpine:{}-{}", registry_url, version, layer_name);
-
                 let data = FunctionData {
                     name: function.name.clone(),
                     handler_name: function.handler_name.clone(),
                     service: service.clone(),
-                    image_uri,
                     project_name: ctx.project.name.clone(),
                     size: function.size,
                     timeout: function.timeout,
@@ -219,6 +202,7 @@ impl Provider for FunctionProvider {
 #[derive(Serialize)]
 pub struct ServiceData {
     pub name: String,
+    pub aws_account_id: String,
     pub aws_region: String,
     pub hcl_provider: String,
     pub layer_name: String,
@@ -231,7 +215,6 @@ pub struct FunctionData {
     pub name: String,
     pub handler_name: String,
     pub service: String,
-    pub image_uri: String,
     pub http: Option<HttpData>,
     pub auth: Option<FunctionAuthData>,
     pub size: u16,
@@ -266,9 +249,26 @@ pub struct HttpData {
 }
 
 static SERVICE_TEMPLATE: &str =
-r#"provider "aws" {
+r#"locals {
+    ecr = "{{aws_account_id}}.dkr.ecr.{{aws_region}}.amazonaws.com"
+}
+
+provider "aws" {
     alias  = "{{name}}"
     region = "{{aws_region}}"
+}
+
+data "aws_ecr_authorization_token" "{{name}}_token" {
+    provider = aws.{{name}}
+}
+
+provider "docker" {
+    alias   = "{{name}}"
+    registry_auth {
+        address  = local.ecr
+        password = data.aws_ecr_authorization_token.{{name}}_token.password
+        username = data.aws_ecr_authorization_token.{{name}}_token.user_name
+    }
 }
 
 {{#if use_apigw}}
@@ -303,18 +303,44 @@ resource "aws_apigatewayv2_authorizer" "{{../name}}_{{this.id}}" {
 "#;
 
 static FUNCTION_TEMPLATE: &str =
-r#"resource "aws_lambda_function" "asml_{{service}}_{{name}}" {
+r#"resource "aws_ecr_repository" "{{service}}_{{name}}" {
+    provider = aws.{{service}}
+    name = "asml-{{project_name}}-{{service}}-{{name}}"
+}
+
+resource "random_id" "{{service}}_{{name}}_image" {
+    byte_length = 8
+    keepers = {
+        source_hash = filebase64sha256("${path.module}/services/{{service}}/{{name}}/Dockerfile")
+    }
+}
+
+resource "docker_registry_image" "{{service}}_{{name}}" {
+    provider = docker.{{service}}
+    name = "${aws_ecr_repository.{{service}}_{{name}}.repository_url}:${random_id.{{service}}_{{name}}_image.hex}"
+  
+    build {
+        context      = "${path.module}/services/{{service}}"
+        dockerfile   = "{{name}}/Dockerfile"
+        pull_parent  = true
+        force_remove = true
+    }
+}
+
+resource "aws_lambda_function" "asml_{{service}}_{{name}}" {
     provider = aws.{{service}}
 
     function_name = "asml-{{project_name}}-{{service}}-{{name}}"
     role          = aws_iam_role.{{service}}_{{name}}_lambda_iam_role.arn
-    runtime       = "provided"
-    handler       = "{{name}}.{{handler_name}}"
     timeout       = {{timeout}}
     memory_size   = {{size}}
-
     package_type  = "Image"
-    image_uri     = "{{image_uri}}"
+    image_uri     = docker_registry_image.{{service}}_{{name}}.name
+
+    image_config {
+        command = ["{{name}}.handler"]
+        working_directory = "/"
+    }
 }
 
 resource "aws_iam_role" "{{service}}_{{name}}_lambda_iam_role" {

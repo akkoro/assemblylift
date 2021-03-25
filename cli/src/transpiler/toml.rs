@@ -108,6 +108,7 @@ pub mod service {
     #[derive(Deserialize)]
     pub struct Provider {
         pub name: String,
+        #[serde(default)]
         pub options: Arc<StringMap<String>>,
     }
 
