@@ -32,37 +32,40 @@ pub fn command(matches: Option<&ArgMatches>) {
     
     let asml_manifest = toml::asml::Manifest::read(&manifest_path).expect("could not read assemblylift.toml");
     let project = Rc::new(Project::new(asml_manifest.project.name.clone(), Some(cwd)));
+    let project_path = project.dir().into_os_string().into_string().unwrap();
 
     // Fetch the latest terraform binary to the project directory
     terraform::fetch(&*project.dir());
 
     let services = asml_manifest.services.clone();
     for (_id, service_ref) in services.as_ref() {
-        let mut service_path = project.service_dir(service_ref.name.clone()).dir();
-        service_path.push("service.toml");
-        let service_manifest = toml::service::Manifest::read(&service_path).unwrap();
-
+        let mut service_toml = project.service_dir(service_ref.name.clone()).dir();
+        service_toml.push("service.toml");
+        let service_manifest = toml::service::Manifest::read(&service_toml).unwrap();
         let service_name = service_manifest.service().name.clone();
+
+        fs::create_dir_all(format!("{}/net/services/{}/iomods", project_path, service_name)).unwrap();
 
         let iomods = service_manifest.iomods().clone();
         let mut dependencies: Vec<String> = Vec::new();
-        for (name, dependency) in iomods.as_ref() {
+        for (id, dependency) in iomods.as_ref() {
             match dependency.dependency_type.as_str() {
                 "file" => {
                     // copy file & rename it to `name`
 
-                    let dependency_name = name.clone();
+                    let dependency_name = id.clone();
 
-                    let runtime_path = format!("./.asml/runtime/{}", dependency_name);
+                    let dependency_path = format!("{}/net/services/{}/iomods/{}", project_path, service_name, dependency_name);
+
                     match fs::metadata(dependency.from.clone()) {
                         Ok(_) => {
-                            fs::copy(dependency.from.clone(), &runtime_path).unwrap();
+                            fs::copy(dependency.from.clone(), &dependency_path).unwrap();
                             ()
                         },
                         Err(_) => panic!("ERROR: could not find file-type dependency named {} (check path)", dependency_name),
                     }
 
-                    dependencies.push(runtime_path);
+                    dependencies.push(dependency_path);
                 }
                 _ => unimplemented!("only type=file is available currently"),
             }
