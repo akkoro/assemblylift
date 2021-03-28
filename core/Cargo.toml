@@ -19,4 +19,4 @@ crossbeam-utils = "0.8"
 wasmer = { package = "wasmer-asml-fork", version = "1.0" }
 
 assemblylift-core-io-common = { version = "0.2.0", path = "./io/common" }
-assemblylift-core-iomod = { version = "0.2.1", path = "./iomod" }
+assemblylift-core-iomod = { version = "0.3.0", path = "./iomod" }
