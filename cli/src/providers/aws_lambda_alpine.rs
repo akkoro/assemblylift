@@ -119,14 +119,14 @@ impl Provider for FunctionProvider {
             Some(function) => {
                 let service = function.service_name.clone();
 
-                // build docker image
+                // write Dockerfile for function
                 {
                     let version = crate_version!();
                     let public = &format!("public.ecr.aws/akkoro/assemblylift/asml-lambda-alpine:{}", version);
                     let mut contents: String = format!("FROM {}\n", public);
                     contents.push_str(&format!("ENV _HANDLER \"{}.handler\"\n", function.name.clone()));
-                    contents.push_str("ENV LAMBDA_TASK_ROOT /var/task\n");
-                    contents.push_str("ENV RUST_BACKTRACE full\n");
+                    //contents.push_str("ENV LAMBDA_TASK_ROOT /var/task\n");
+                    //contents.push_str("ENV RUST_BACKTRACE full\n");
                     for iomod in ctx.iomods.iter().filter(|i| i.service_name == service.clone()) {
                         contents.push_str(&format!("ADD ./iomods/{} /opt/iomod/\n", iomod.name.clone()));
                     }
