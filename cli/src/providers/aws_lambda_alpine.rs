@@ -309,10 +309,18 @@ r#"resource "aws_ecr_repository" "{{service}}_{{name}}" {
     name = "asml-{{project_name}}-{{service}}-{{name}}"
 }
 
+data "archive_file" "{{service}}_{{name}}_iomods" {
+    type        = "zip"
+    source_dir  = "${path.module}/services/{{service}}/iomods"
+    output_path = "${path.module}/services/{{service}}/iomods.zip"
+}
+
 resource "random_id" "{{service}}_{{name}}_image" {
     byte_length = 8
     keepers = {
-        source_hash = filebase64sha256("${path.module}/services/{{service}}/{{name}}/Dockerfile")
+        dockerfile_hash = filebase64sha256("${path.module}/services/{{service}}/{{name}}/Dockerfile")
+        wasm_hash       = filebase64sha256("${path.module}/services/{{service}}/{{name}}/{{name}}.wasm.bin")
+        iomods_hash     = data.archive_file.{{service}}_{{name}}_iomods.output_sha
     }
 }
 

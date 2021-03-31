@@ -8,6 +8,7 @@ use std::str::FromStr;
 use wasmer::{Store, Module};
 use wasmer_compiler::{CpuFeature, Target, Triple};
 use wasmer_compiler_cranelift::Cranelift;
+//use wasmer_compiler_llvm::LLVM;
 use wasmer_engine_native::Native;
 
 use clap::ArgMatches;
@@ -44,7 +45,9 @@ pub fn command(matches: Option<&ArgMatches>) {
         let service_manifest = toml::service::Manifest::read(&service_toml).unwrap();
         let service_name = service_manifest.service().name.clone();
 
-        fs::create_dir_all(format!("{}/net/services/{}/iomods", project_path, service_name)).unwrap();
+        let iomod_path = format!("{}/net/services/{}/iomods", project_path, service_name);
+        fs::remove_dir_all(iomod_path.clone()).unwrap(); // we don't care about this result
+        fs::create_dir_all(iomod_path.clone()).unwrap();
 
         let iomods = service_manifest.iomods().clone();
         let mut dependencies: Vec<String> = Vec::new();
@@ -146,7 +149,9 @@ pub fn command(matches: Option<&ArgMatches>) {
             let wasm_path = format!("{}/{}.wasm", function_artifact_path.clone(), &function_name);
             let module_file_path = format!("{}/{}.wasm.bin", function_artifact_path.clone(), &function_name);
 
+            // TODO switch compiler
             let compiler = Cranelift::default();
+//            let compiler = LLVM::default();
             let triple = Triple::from_str("x86_64-linux-unknown").unwrap();
             let mut cpuid = CpuFeature::set();
             cpuid.insert(CpuFeature::from_str("sse2").unwrap());
