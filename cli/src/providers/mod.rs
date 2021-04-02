@@ -120,8 +120,9 @@ impl<'a> Provider for RootProvider<'a> {
         let mut usermod_path = PathBuf::from(
             crate::projectfs::locate_asml_manifest().expect("could not locate assemblylift.toml").1
         );
+        usermod_path.pop();
         usermod_path.push("user_tf/");
-        let user_inject: bool = fs::metadata(usermod_path).is_ok();
+        let user_inject: bool = fs::metadata(usermod_path.clone()).is_ok();
         
         let data = RootData { 
             project_name: ctx.project.name.clone(),

@@ -46,8 +46,8 @@ pub fn command(matches: Option<&ArgMatches>) {
         let service_name = service_manifest.service().name.clone();
 
         let iomod_path = format!("{}/net/services/{}/iomods", project_path, service_name);
-        fs::remove_dir_all(iomod_path.clone()).unwrap(); // we don't care about this result
-        fs::create_dir_all(iomod_path.clone()).unwrap();
+        let _ = fs::remove_dir_all(iomod_path.clone()); // we don't care about this result
+        fs::create_dir_all(iomod_path.clone()).expect("could not create iomod directory");
 
         let iomods = service_manifest.iomods().clone();
         let mut dependencies: Vec<String> = Vec::new();
