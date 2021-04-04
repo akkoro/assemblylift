@@ -2,7 +2,7 @@ use std::io::prelude::*;
 
 use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::fmt;
 
 use zip;
@@ -70,7 +70,37 @@ pub fn zip_files(
         }
     }
 
-    println!("🗜 > Wrote zip artifact {}", file_out.as_ref().display());
+    println!("🗜  > Wrote zip artifact {}", file_out.as_ref().display());
+}
+
+pub fn zip_dir(dir_in: PathBuf, file_out: impl AsRef<Path>) -> Result<(), ()> {
+    use walkdir::WalkDir;
+
+    let file = match fs::File::create(&file_out) {
+        Ok(file) => file,
+        Err(why) => panic!("could not create zip archive: {}", why.to_string()),
+    };
+
+    let mut zip = zip::ZipWriter::new(file);
+    let options = FileOptions::default()
+        .compression_method(zip::CompressionMethod::Stored)
+        .unix_permissions(0o777); 
+    
+    for entry in WalkDir::new(dir_in.clone()).into_iter().filter_map(|e| e.ok()) {
+        let zip_path = entry.path().to_str().unwrap().replace(dir_in.to_str().unwrap(), "");
+
+        let mut file_bytes = match fs::read(&entry.path()) {
+            Ok(bytes) => bytes,
+            Err(_) => continue,
+        };
+
+        zip.start_file(&zip_path, options).expect("could not create zip archive");
+        zip.write_all(file_bytes.as_mut_slice()).expect("could not create zip archive");
+    }
+
+    println!("🗜  > Wrote zip artifact {}", file_out.as_ref().display());
+    
+    Ok(())
 }
 
 pub fn unzip_to(bytes_in: Vec<u8>, out_dir: &str) -> Result<(), ArtifactError> {
