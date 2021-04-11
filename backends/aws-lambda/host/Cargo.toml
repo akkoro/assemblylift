@@ -22,6 +22,7 @@ clap = "3.0.0-beta.1"
 reqwest = { version = "0.11", features = ["blocking"] }
 wasmer = { package = "wasmer-asml-fork", version = "1.0" }
 wasmer-engine-native = "1.0"
+wasmer-engine-jit = "1.0"
 
 assemblylift_core = { version = "0.2.3", package = "assemblylift-core", path = "../../../core" }
 assemblylift_core_iomod = { version = "0.3.0", package = "assemblylift-core-iomod", path = "../../../core/iomod" }

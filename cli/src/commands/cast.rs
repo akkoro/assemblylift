@@ -161,21 +161,21 @@ pub fn command(matches: Option<&ArgMatches>) {
                 .engine()
             );
 
-            let wasm_bytes = match fs::read(wasm_path) {
+            let wasm_bytes = match fs::read(wasm_path.clone()) {
                 Ok(bytes) => bytes,
-                Err(err) => panic!(err.to_string()),
+                Err(err) => panic!("{}", err.to_string()),
             };
             let module = Module::new(&store, wasm_bytes).unwrap();
             let module_bytes = module.serialize().unwrap();
             let mut module_file = match fs::File::create(module_file_path.clone()) {
                 Ok(file) => file,
-                Err(err) => panic!(err.to_string()),
+                Err(err) => panic!("{}", err.to_string()),
             };
             println!("📄 > Wrote {}", module_file_path.clone());
             module_file.write_all(&module_bytes).unwrap();
 
             archive::zip_files(
-                vec![module_file_path],
+                vec![wasm_path.clone(), module_file_path],
                 format!("{}/{}.zip", function_artifact_path.clone(), &function_name),
                 None,
                 false,

@@ -379,7 +379,7 @@ resource "aws_lambda_permission" "asml_{{service}}_{{name}}" {
     function_name = "asml-{{project_name}}-{{service}}-{{name}}"
     principal     = "apigateway.amazonaws.com"
   
-    source_arn = aws_apigatewayv2_api.{{service}}_http_api.execution_arn
+    source_arn = "${aws_apigatewayv2_api.{{service}}_http_api.execution_arn}/*"
 }
 {{/if}}
 "#;

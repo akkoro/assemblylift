@@ -64,6 +64,7 @@ dependencies = [
  "reqwest 0.11.2",
  "tokio 1.4.0",
  "wasmer-asml-fork",
+ "wasmer-engine-jit",
  "wasmer-engine-native",
 ]
 

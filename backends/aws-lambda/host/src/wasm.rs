@@ -7,6 +7,7 @@ use std::mem::ManuallyDrop;
 
 use wasmer::{imports, Function, Instance, InstantiationError, MemoryView, Module, Store};
 use wasmer_engine_native::Native;
+use wasmer_engine_jit::JIT;
 
 use assemblylift_core::abi::{
     asml_abi_io_len, asml_abi_io_ptr, asml_abi_invoke, asml_abi_poll, asml_abi_clock_time_get,
@@ -22,9 +23,11 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
     // handler coordinates are expected to be <file name>.<function name>
     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
     let file_name = coords[0];
-    let file_path = format!("{}/{}.wasm.bin", lambda_path, file_name);
-    
-    let store = Store::new(&Native::headless().engine());
+//    let file_path = format!("{}/{}.wasm.bin", lambda_path, file_name);
+    let file_path = format!("{}/{}.wasm", lambda_path, file_name);
+
+//    let store = Store::new(&Native::headless().engine());
+    let store = Store::new(&JIT::headless().engine());
     let module = unsafe { Module::deserialize_from_file(&store, file_path.clone()) }
         .expect(&format!("could not load wasm from {}", file_path.clone()));
 
