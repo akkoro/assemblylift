@@ -23,8 +23,7 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
     // handler coordinates are expected to be <file name>.<function name>
     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
     let file_name = coords[0];
-//    let file_path = format!("{}/{}.wasm.bin", lambda_path, file_name);
-    let file_path = format!("{}/{}.wasm", lambda_path, file_name);
+    let file_path = format!("{}/{}.wasm.bin", lambda_path, file_name);
 
 //    let store = Store::new(&Native::headless().engine());
     let store = Store::new(&JIT::headless().engine());
