@@ -84,6 +84,7 @@ dependencies = [
  "wasmer-asml-fork",
  "wasmer-compiler",
  "wasmer-compiler-cranelift",
+ "wasmer-engine-jit",
  "wasmer-engine-native",
  "zip",
 ]
