@@ -16,8 +16,10 @@ pub fn command(matches: Option<&ArgMatches>) {
         Some(manifest) => manifest,
         None => panic!("could not find assemblylift.toml in tree"),
     };
+    let mut manifest_dir = manifest.1;
+    manifest_dir.pop();
 
-    let project = Project::new(manifest.0.project.name, Some(manifest.1));
+    let project = Project::new(manifest.0.project.name, Some(manifest_dir));
 
     let mut resource_type: Option<&str> = None;
     let mut resource_name: Option<&str> = None;

@@ -6,7 +6,7 @@ use std::{env, io};
 use std::mem::ManuallyDrop;
 
 use wasmer::{imports, Function, Instance, InstantiationError, MemoryView, Module, Store};
-use wasmer_engine_native::Native;
+//use wasmer_engine_native::Native;
 use wasmer_engine_jit::JIT;
 
 use assemblylift_core::abi::{
