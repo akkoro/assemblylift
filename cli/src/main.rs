@@ -2,7 +2,7 @@ extern crate serde_json;
 
 use clap::{crate_version, App, Arg};
 
-use crate::commands::{bind, burn, cast, init, make, pack};
+use crate::commands::{bind, burn, cast, init, make, pack, user};
 
 mod archive;
 mod commands;
@@ -66,6 +66,14 @@ fn main() {
                                 .takes_value(true)
                         )
                 ),
+        )
+        .subcommand(
+            App::new("user")
+                .about("User authentication & information")
+                .subcommand(
+                    App::new("login")
+                        .about("Login to the IOmod registry")
+                ),
         );
     let matches = app.get_matches();
 
@@ -76,6 +84,7 @@ fn main() {
         ("burn", matches) => burn::command(matches),
         ("make", matches) => make::command(matches),
         ("pack", matches) => pack::command(matches),
-        _ => println!("{}", "missing subcommand. try `asml pack help` for options."),
+        ("user", matches) => user::command(matches),
+        _ => println!("{}", "missing subcommand. try `asml help` for options."),
     }
 }
