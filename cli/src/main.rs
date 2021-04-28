@@ -2,7 +2,7 @@ extern crate serde_json;
 
 use clap::{crate_version, App, Arg};
 
-use crate::commands::{bind, burn, cast, init, make, pack, user};
+use crate::commands::{bind, burn, cast, init, make, pack, push, user};
 
 mod archive;
 mod commands;
@@ -68,6 +68,20 @@ fn main() {
                 ),
         )
         .subcommand(
+            App::new("push")
+                .about("Push artifacts to a registry")
+                .subcommand(
+                    App::new("iomod")
+                        .about("Publish an IOmod to the public registry")
+                        .arg(
+                            Arg::with_name("auth-header")
+                                .long("auth-header")
+                                .required(true) // temporarily true until user login is finished
+                                .takes_value(true)
+                        )
+                ),
+        )
+        .subcommand(
             App::new("user")
                 .about("User authentication & information")
                 .subcommand(
@@ -84,7 +98,8 @@ fn main() {
         ("burn", matches) => burn::command(matches),
         ("make", matches) => make::command(matches),
         ("pack", matches) => pack::command(matches),
+        ("push", matches) => push::command(matches),
         ("user", matches) => user::command(matches),
-        _ => println!("{}", "missing subcommand. try `asml help` for options."),
+        (cmd, _) => println!("Invalid subcommand `{}`. Try `asml help` for options.", cmd),
     }
 }
