@@ -41,9 +41,9 @@ fn write_event_buffer(instance: &Instance, event: String) {
     for (i, b) in bytes.clone().enumerate() {
         memory_writer[i].store(b);
     }
-    if 8191 > bytes.clone().len() {
+    if 8192 > bytes.clone().len() {
         // FIXME magic number -- equiv to AWS_EVENT_STRING_BUFFER_SIZE
-        for i in bytes.len()..8191 {
+        for i in bytes.len()..8192 {
             memory_writer[i].store('\0' as u8)
         }
     }
