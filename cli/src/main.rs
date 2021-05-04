@@ -64,7 +64,7 @@ fn main() {
                                 .short("o")
                                 .required(true)
                                 .takes_value(true)
-                        )
+                        ),
                 ),
         )
         .subcommand(
@@ -79,6 +79,18 @@ fn main() {
                                 .required(true) // temporarily true until user login is finished
                                 .takes_value(true)
                         )
+                        .arg(
+                            Arg::with_name("package")
+                                .long("package")
+                                .required(true)
+                                .takes_value(true)
+                        )
+                        .arg(
+                            Arg::with_name("coords")
+                                .long("coords")
+                                .required(true)
+                                .takes_value(true)
+                        ),
                 ),
         )
         .subcommand(
