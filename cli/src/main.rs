@@ -67,5 +67,3 @@ fn main() {
         (name, matches) => command_map[name](matches),
     }
 }
-
-pub fn printl_help(ar: Option<&ArgMatches>, app: App) {}
