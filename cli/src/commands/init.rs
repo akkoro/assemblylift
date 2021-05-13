@@ -1,10 +1,12 @@
-use std::fs;
-use std::path;
 use std::process;
 
 use clap::ArgMatches;
+use handlebars::to_json;
+use serde_json::value::{Map, Value as Json};
 
-use crate::projectfs;
+use crate::bom;
+use crate::bom::DocumentSet;
+use crate::projectfs::Project;
 use crate::terraform;
 
 pub fn command(matches: Option<&ArgMatches>) {
@@ -17,60 +19,57 @@ pub fn command(matches: Option<&ArgMatches>) {
     let default_function_name = "my-function";
     let project_name = matches.value_of("project_name").unwrap();
 
-    projectfs::initialize_project_directories(
-        project_name,
-        default_service_name,
-        default_function_name,
-    )
-    .unwrap();
-
-    let canonical_project_path =
-        &fs::canonicalize(path::Path::new(&format!("./{}", project_name))).unwrap();
-
-    terraform::extract(canonical_project_path);
-
-    projectfs::write_project_gitignore(canonical_project_path).unwrap();
-    projectfs::write_project_manifest(canonical_project_path, project_name, default_service_name)
+    let project = Project::new(project_name.parse().unwrap(), None);
+    project
+        .init(default_service_name, default_function_name)
         .unwrap();
-    projectfs::write_service_manifest(canonical_project_path, default_service_name).unwrap();
+
+    terraform::fetch(&*project.dir());
+
+    let data = &mut Map::<String, Json>::new();
+    data.insert(
+        "project_name".to_string(),
+        to_json(project_name.to_string()),
+    );
+    data.insert(
+        "default_service_name".to_string(),
+        to_json(default_service_name.to_string()),
+    );
+    bom::manifest::Manifest::write(&*project.dir(), data);
+
+    let data = &mut Map::<String, Json>::new();
+    data.insert(
+        "service_name".to_string(),
+        to_json(default_service_name.to_string()),
+    );
+    bom::service::Manifest::write(
+        &project
+            .service_dir(String::from(default_service_name))
+            .dir(),
+        data,
+    );
 
     match matches.value_of("language") {
         Some("rust") => {
             assert_prereqs();
 
-            projectfs::write_function_manifest(
-                canonical_project_path,
-                default_service_name,
-                default_function_name,
-            )
-            .unwrap();
-            projectfs::write_function_cargo_config(
-                canonical_project_path,
-                default_service_name,
-                default_function_name,
-            )
-            .unwrap();
-            projectfs::write_function_lib(
-                canonical_project_path,
-                default_service_name,
-                default_function_name,
-            )
-            .unwrap();
-            projectfs::write_function_gitignore(
-                canonical_project_path,
-                default_service_name,
-                default_function_name,
-            )
-            .unwrap();
+            let data = &mut Map::<String, Json>::new();
+            data.insert(
+                "function_name".to_string(),
+                to_json(default_function_name.to_string()),
+            );
+            bom::function::RustFunction::write(
+                &project
+                    .service_dir(String::from(default_service_name))
+                    .function_dir(String::from(default_function_name)),
+                data,
+            );
         }
         Some(unknown) => panic!("unsupported language: {}", unknown),
         _ => {}
     }
 
-    println!(
-        "\r\n✅  Done! Your project root is: {}",
-        canonical_project_path.display()
-    )
+    println!("\r\n✅  Done! Your project root is: {:?}", project.dir())
 }
 
 fn check_rust_prereqs() -> bool {

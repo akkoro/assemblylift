@@ -1,0 +1,26 @@
+## Build image
+FROM ubuntu:20.10 AS builder
+
+RUN apt-get update && apt-get install build-essential zlib1g-dev libffi-dev libtinfo-dev curl libssl-dev libxml2-dev pkg-config wget xz-utils -y
+
+RUN wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.1/clang+llvm-11.0.1-x86_64-linux-gnu-ubuntu-20.10.tar.xz
+RUN tar -xvf clang+llvm-11.0.1-x86_64-linux-gnu-ubuntu-20.10.tar.xz && mv clang+llvm-11.0.1-x86_64-linux-gnu-ubuntu-20.10 llvm110
+RUN /llvm110/bin/clang-11 --version
+RUN rm clang+llvm-11.0.1-x86_64-linux-gnu-ubuntu-20.10.tar.xz
+
+RUN wget https://capnproto.org/capnproto-c++-0.8.0.tar.gz && tar zxf capnproto-c++-0.8.0.tar.gz && \
+    cd capnproto-c++-0.8.0 && ./configure && make -j6 check && make install
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+
+WORKDIR /usr/src/assemblylift
+COPY . .
+
+RUN LLVM_SYS_110_PREFIX=/llvm110 $HOME/.cargo/bin/cargo build --release
+
+
+## Prod image
+FROM frolvlad/alpine-glibc:glibc-2.32
+
+COPY --from=builder /usr/src/assemblylift/target/release/bootstrap /
+
+ENTRYPOINT /bootstrap

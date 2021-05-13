@@ -3,82 +3,27 @@
 </p>
 
 ![AssemblyLift CI](https://github.com/akkoro/assemblylift/workflows/AssemblyLift%20CI/badge.svg)
+![Crates.io](https://img.shields.io/crates/v/assemblylift-cli)
 
-AssemblyLift is a framework for building serverless applications with WebAssembly (WASM).
+AssemblyLift is a framework for building serverless applications powered by WebAssembly (WASM).
 
-Highlight reel:
+# Getting Started
 
-- ["IO Modules"](backends/aws-lambda/iomod) (eventually to be shipped as packages/plugins) provide an interface for both the host and WASM guest,
-  allowing guests to **safely** make calls to the outside world without needing elevated access.
-- Currently focusing on support for guests written in **Rust**, but other languages targeting WASM are possible. PR's welcome!
-- IOmods are **asynchronous** (using [tokio](https://github.com/tokio-rs/tokio)), and guests written using Rust fully support **async/await**.
-- Planned support for multiple backends, but the focus is currently on _AWS Lambda_
-- Built using the [Wasmer](https://wasmer.io) interpreter
+Please see the [official documentation](https://docs.assemblylift.akkoro.io) for help with installing & learning to use AssemblyLift, and/or for more information about the project.
 
-**Examples** can be found [here](/examples).
-
-# Overview
-
-The three primary aims of this project, are to provide you with an _ergonomic_ development framework for building serverless applications
-which are both _efficient_, and _safe_.
-
-## Efficiency
-
-WebAssembly modules [are smaller and faster](https://medium.com/@OPTASY.com/webassembly-vs-javascript-is-wasm-faster-than-js-when-does-javascript-perform-better-db86d2ecf2cc)
-than their NodeJS counterparts. Combined with the IOmod framework, most of the heavy lifting (such as a call to an AWS
-service) is handled by the host runtime (which is native code, written in Rust).
-
-## Safety
-
-WebAssembly modules are isolated -- they are sandboxed with their own memory, and have no access to the outside world
-(such as by opening a socket connection). This allows your serverless guest code to be _untrusted_.
-
-A side-effect of this with respect to an IOmod, is that the guest code has to ask the host to execute
-any third-party dependency code which needs network access. Ideally this will help you prevent unwanted version changes that
-have a habit of sneaking into function code, keeping your entire project in sync and giving you tighter control over
-your dependency supply chain.
-
-## Ergonomics
-
-It's still early days, so there's nothing in this repo right now which I would characterize as ergonomic. In terms of
-plans in this area, I intend for the tooling to abstract away as much of the underlying backend as possible (ie AWS vs Azure).
-
-# Building
-
-To build using your local Cargo installation, run  
-`./build.rb build local {optional Cargo build args}`
-
-To generate a build of `bootstrap` to deploy to AWS Lambda, run  
-`./build.rb build deploy (optional Cargo build args}`
-
-If using Ruby as a build front-end is problematic in your environment, please [file an issue](https://github.com/akkoro/assemblylift/issues/new?labels=bug)!
-
-# Roadmap
-
-## 0.1
-
-- [x] Build system incl. Docker [#2](https://github.com/akkoro/assemblylift/issues/2)
-- [ ] Unit tests [#3](https://github.com/akkoro/assemblylift/issues/3)
-- [x] Start the CLI [#13](https://github.com/akkoro/assemblylift/pull/13) [#14](https://github.com/akkoro/assemblylift/issues/14)
-- [x] Set up a CI/CD pipeline [#2](https://github.com/akkoro/assemblylift/issues/2) [#11](https://github.com/akkoro/assemblylift/pull/11)
-- [x] Handle more of those `unwrap`s
-- [x] Clean up warnings
-- [x] Macros for iomod implementation [#10](https://github.com/akkoro/assemblylift/pull/10)
-
-## 0.2
-
-- [ ] ❗ Proper implementation of [Threader](/core/event/src/threader.rs) memory manager
-- [ ] ❗ Plugin framework for IOmods
-- [ ] More examples
-- [ ] Logging system
+There is an **examples** repository [here](https://github.com/akkoro/assemblylift-examples).
 
 # Contributing
 
-I'd like to figure this part out collaboratively. Just in terms of getting code merged though,
-I'm a big fan of [forking workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/forking-workflow),
-so let's start there 🙂.
+We're open to ideas and PRs! Please start a [discussion](https://github.com/akkoro/assemblylift/discussions) if you have a proposal.
+ * Please use [forking workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/forking-workflow) to open a new Pull Request
+ * Remember to abide by the [Contributor Covenant](CODE_OF_CONDUCT.md)
+
+# Contact & Social
+
+We're on [Matrix](https://matrix.org)! Try the [Element client](https://element.io/) and find us at `#assemblylift:matrix.org` :)
 
 # License
 
-The AssemblyLift source code is licensed under the [Hippocratic License 2.1](/LICENSE.md).  
-The AssemblyLift CLI embeds [HashiCorp Terraform](https://terraform.io), which is licensed under the [Mozilla Public License 2.0](https://www.mozilla.org/en-US/MPL/2.0/).
+The AssemblyLift source code is licensed under [Hippocratic License 2.1](/LICENSE.md).  
+The AssemblyLift CLI delegates some tasks to [HashiCorp Terraform](https://terraform.io), which is licensed under [Mozilla Public License 2.0](https://www.mozilla.org/en-US/MPL/2.0/).

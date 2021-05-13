@@ -1,19 +1,20 @@
 use std::cell::Cell;
 use std::error::Error;
-use std::ffi::c_void;
-use std::fs::{canonicalize, File};
-use std::io::{ErrorKind, Read};
-use std::sync::Mutex;
+use std::io::ErrorKind;
+use std::sync::{Arc, Mutex};
 use std::{env, io};
+use std::mem::ManuallyDrop;
 
-use wasmer_runtime::memory::MemoryView;
-use wasmer_runtime_core::vm::Ctx;
-use wasmer_runtime_core::Instance;
+use wasmer::{imports, Function, Instance, InstantiationError, MemoryView, Module, Store};
+use wasmer_engine_native::Native;
 
-use assemblylift_core::iomod::*;
-use assemblylift_core_event::threader::Threader;
+use assemblylift_core::abi::{
+    asml_abi_io_len, asml_abi_io_ptr, asml_abi_invoke, asml_abi_poll, asml_abi_clock_time_get,
+};
+use assemblylift_core::threader::{Threader, ThreaderEnv};
+use assemblylift_core_iomod::registry::RegistryTx;
 
-pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
+pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), InstantiationError> {
     // let panic if these aren't set
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
@@ -21,42 +22,31 @@ pub fn build_instance() -> Result<Mutex<Box<Instance>>, io::Error> {
     // handler coordinates are expected to be <file name>.<function name>
     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
     let file_name = coords[0];
+    let file_path = format!("{}/{}.wasm.bin", lambda_path, file_name);
+    
+    let store = Store::new(&Native::headless().engine());
+    let module = unsafe { Module::deserialize_from_file(&store, file_path) }.unwrap();
 
-    let get_instance = canonicalize(format!("{}/{}.wasm", lambda_path, file_name))
-        .and_then(|path| File::open(path))
-        .and_then(|mut file: File| {
-            let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer)
-                .map(move |_| buffer)
-                .map_err(to_io_error)
-        })
-        .and_then(|buffer| {
-            use wasmer_runtime::{func, imports, instantiate};
-            let import_object = imports! {
-                "env" => {
-                    "__asml_abi_console_log" => func!(runtime_console_log),
-                    "__asml_abi_success" => func!(runtime_success),
-                    "__asml_abi_invoke" => func!(asml_abi_invoke),
-                    "__asml_abi_poll" => func!(asml_abi_poll),
-                    "__asml_abi_event_ptr" => func!(asml_abi_event_ptr),
-                    "__asml_abi_event_len" => func!(asml_abi_event_len),
-                },
-            };
+    let env = ThreaderEnv {
+        threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx)))),
+        memory: Default::default(),
+    };
 
-            instantiate(&buffer[..], &import_object).map_err(to_io_error)
-        });
+    let import_object = imports! {
+        "env" => {
+            "__asml_abi_console_log" => Function::new_native_with_env(&store, env.clone(), runtime_console_log),
+            "__asml_abi_success" => Function::new_native_with_env(&store, env.clone(), runtime_success),
+            "__asml_abi_invoke" => Function::new_native_with_env(&store, env.clone(), asml_abi_invoke),
+            "__asml_abi_poll" => Function::new_native_with_env(&store, env.clone(), asml_abi_poll),
+            "__asml_abi_io_ptr" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_ptr),
+            "__asml_abi_io_len" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_len),
+            "__asml_abi_clock_time_get" => Function::new_native_with_env(&store, env.clone(), asml_abi_clock_time_get),
+        },
+    };
 
-    match get_instance {
-        Ok(instance) => {
-            let threader = Box::into_raw(Box::from(Threader::new()));
-            let mut boxed_instance = Box::new(instance);
-            boxed_instance.context_mut().data = threader as *mut _ as *mut c_void;
-
-            let guarded_instance = Mutex::new(boxed_instance);
-
-            Ok(guarded_instance)
-        }
-        Err(error) => Err(to_io_error(error)),
+    match Instance::new(&module, &import_object) {
+        Ok(instance) => Ok((instance, env)),
+        Err(err) => Err(err),
     }
 }
 
@@ -64,19 +54,24 @@ fn to_io_error<E: Error>(err: E) -> io::Error {
     io::Error::new(ErrorKind::Other, err.to_string())
 }
 
-fn runtime_console_log(ctx: &mut Ctx, ptr: u32, len: u32) {
-    let string = runtime_ptr_to_string(ctx, ptr, len).unwrap();
+fn runtime_console_log(env: &ThreaderEnv, ptr: u32, len: u32) {
+    let string = runtime_ptr_to_string(env, ptr, len).unwrap();
     println!("LOG: {}", string);
 }
 
-fn runtime_success(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<(), io::Error> {
+fn runtime_success(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<(), io::Error> {
     let lambda_runtime = &crate::LAMBDA_RUNTIME;
-    let response = runtime_ptr_to_string(ctx, ptr, len).unwrap();
-    lambda_runtime.respond(response.to_string())
+    let response = runtime_ptr_to_string(env, ptr, len).unwrap();
+
+    let threader = env.threader.clone();
+
+    let respond = lambda_runtime.respond(response.to_string());
+    threader.lock().unwrap().spawn(respond);
+    Ok(())
 }
 
-fn runtime_ptr_to_string(ctx: &mut Ctx, ptr: u32, len: u32) -> Result<String, io::Error> {
-    let memory = ctx.memory(0);
+fn runtime_ptr_to_string(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<String, io::Error> {
+    let memory = env.memory_ref().unwrap();
     let view: MemoryView<u8> = memory.view();
 
     let mut str_vec: Vec<u8> = Vec::new();

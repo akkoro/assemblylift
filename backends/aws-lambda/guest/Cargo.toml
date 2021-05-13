@@ -1,18 +1,18 @@
 [package]
 name = "assemblylift-awslambda-guest"
-version = "0.1.0"
+version = "0.2.4"
 description = "AssemblyLift AWS Lambda WASM guest library"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
-license = "Hippocratic-2.1"
+license-file = "../../../LICENSE.md"
 repository = "https://github.com/akkoro/assemblylift"
 readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = "1.0.106"
-serde_json = "1.0.53"
+serde = "1.0.118"
+serde_json = "1.0.61"
 direct-executor = "0.3.0"
-assemblylift_core_guest = { package = "assemblylift-core-guest", path = "../../../core/guest" }
-assemblylift_core_event_guest = { package = "assemblylift-core-event-guest", path = "../../../core/event/guest" }
+assemblylift_core_guest = { version = "0.2.0", package = "assemblylift-core-guest", path = "../../../core/guest" }
+assemblylift_core_io_guest = { version = "0.2.1", package = "assemblylift-core-io-guest", path = "../../../core/io/guest" }

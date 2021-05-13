@@ -1,3 +1,7 @@
 target/
 **/target/**
 .DS_Store
+bootstrap
+bootstrap.zip
+*_capnp.rs
+.idea/
