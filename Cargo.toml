@@ -2,16 +2,12 @@
 members = [
     "backends/aws-lambda/host",
     "backends/aws-lambda/guest",
-    "backends/aws-lambda/iomod",
-    "backends/aws-lambda/iomod/guest",
     "core",
     "core/guest",
-    "core/event",
-    "core/event/guest",
-    "core/event/common",
+    "core/iomod",
+    "core/iomod/guest",
+    "core/io",
+    "core/io/guest",
+    "core/io/common",
     "cli"
-]
-exclude = [
-    "examples/hello-world",
-    "examples/todo"
 ]

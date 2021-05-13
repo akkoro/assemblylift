@@ -1,13 +1,39 @@
 use std::io::prelude::*;
 
 use std::fs;
+use std::io;
 use std::path::Path;
+use std::fmt;
 
 use zip;
 use zip::write::FileOptions;
 
-pub fn zip_files(files_in: Vec<&Path>, file_out: &Path) {
-    let file = match fs::File::create(file_out) {
+#[derive(Debug)]
+pub struct ArtifactError {
+    why: String,
+}
+
+impl ArtifactError {
+    pub fn new(why: String) -> Self {
+        ArtifactError { why }
+    }
+}
+
+impl std::error::Error for ArtifactError {}
+
+impl fmt::Display for ArtifactError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.why)
+    }
+}
+
+pub fn zip_files(
+    files_in: Vec<impl AsRef<Path>>,
+    file_out: impl AsRef<Path>,
+    prefix_path: Option<&str>,
+    ro: bool,
+) {
+    let file = match fs::File::create(&file_out) {
         Ok(file) => file,
         Err(why) => panic!("could not create zip archive: {}", why.to_string()),
     };
@@ -15,18 +41,27 @@ pub fn zip_files(files_in: Vec<&Path>, file_out: &Path) {
     let mut zip = zip::ZipWriter::new(file);
     let options = FileOptions::default()
         .compression_method(zip::CompressionMethod::Stored)
-        .unix_permissions(0o777); // full access
+        .unix_permissions(if ro == true { 0o444 } else { 0o777 }); // read-only or full access
 
     for path in files_in {
-        let mut file_bytes = match fs::read(path) {
+        let mut file_bytes = match fs::read(&path) {
             Ok(bytes) => bytes,
-            Err(why) => panic!("could not create zip archive: {}", why.to_string()),
+            Err(why) => panic!(
+                "could read file at {:?}: {}",
+                path.as_ref(),
+                why.to_string()
+            ),
         };
 
         // unwrap: path always has a file name at this point
-        let path_str = path.file_name().unwrap().to_str().unwrap();
+        let path_str = path.as_ref().file_name().unwrap().to_str().unwrap();
 
-        if let Err(why) = zip.start_file(path_str, options) {
+        let mut zip_path = String::from(path_str);
+        if prefix_path.is_some() {
+            zip_path = format!("{}{}", prefix_path.unwrap(), path_str);
+        }
+
+        if let Err(why) = zip.start_file(&zip_path, options) {
             panic!("could not create zip archive: {}", why.to_string())
         }
 
@@ -35,5 +70,17 @@ pub fn zip_files(files_in: Vec<&Path>, file_out: &Path) {
         }
     }
 
-    println!("🗜 > Wrote zip artifact {}", file_out.display());
+    println!("🗜 > Wrote zip artifact {}", file_out.as_ref().display());
+}
+
+pub fn unzip_to(bytes_in: Vec<u8>, out_dir: &str) -> Result<(), ArtifactError> {
+    let reader = std::io::Cursor::new(bytes_in);
+    let mut archive = zip::ZipArchive::new(reader).unwrap();
+    let mut file_out = archive.by_name("terraform").unwrap();
+
+    let mut outfile = fs::File::create(out_dir).unwrap();
+    match io::copy(&mut file_out, &mut outfile) {
+        Ok(_) => Ok(()),
+        Err(why) => Err(ArtifactError::new(why.to_string())),
+    }
 }

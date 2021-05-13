@@ -2,26 +2,29 @@ name: AssemblyLift CI
 
 on:
   push:
-    branches: [ research ]
+    branches: [ mainline, v0.3 ]
   pull_request:
-    branches: [ research ]
+    branches: [ mainline, v0.3 ]
 
 jobs:
 
   build:
-    name: 'AWS Lambda Runtime'
+    name: 'AWS Lambda Default Runtime'
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v2
-    - name: 'build'
-      run: docker build . --file Dockerfile_aws-lambda --tag assemblylift-aws-lambda:$GITHUB_SHA
-    - name: 'copy bootstrap to HOME'
-      run: docker run --rm --entrypoint cat assemblylift-aws-lambda:$GITHUB_SHA /usr/src/assemblylift/target/release/bootstrap > $HOME/bootstrap
-    - name: 'set artifact permissions'
-      run: chmod 777 $HOME/bootstrap
-    - name: 'upload artifact'
-      uses: actions/upload-artifact@v2
+    - name: 'Configure AWS Credentials'
+      uses: aws-actions/configure-aws-credentials@v1
       with:
-        name: bootstrap
-        path: ~/bootstrap
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+    - name: 'Checkout'
+      uses: actions/checkout@v2
+    - name: 'Build Image'
+      run: docker build -t assemblylift/asml-lambda-default . --file docker/asml-lambda-default
+    - name: 'Copy Artifacts'
+      run: docker run --rm --entrypoint cat assemblylift/asml-lambda-default /usr/src/assemblylift/target/release/bootstrap > $HOME/bootstrap && chmod 777 $HOME/bootstrap
+    - name: 'Get Version'
+      run: echo "ASML_VERSION=$(docker run --rm assemblylift/asml-lambda-default)" >> $GITHUB_ENV 
+    - name: 'Upload to S3 @ akkoro-public'
+      run: aws s3 cp $HOME/bootstrap s3://public.assemblylift.akkoro.io/runtime/$ASML_VERSION/aws-lambda/bootstrap
