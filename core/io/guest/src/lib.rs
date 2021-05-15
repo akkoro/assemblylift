@@ -6,7 +6,7 @@ use std::task::{Context, Poll, Waker};
 use serde::Deserialize;
 use serde_json;
 
-use assemblylift_core_io_common::constants::IO_BUFFER_SIZE_BYTES;
+use assemblylift_core_io_common::constants::{FUNCTION_INPUT_BUFFER_SIZE, IO_BUFFER_SIZE_BYTES};
 
 extern "C" {
     // IO
@@ -89,7 +89,6 @@ unsafe fn read_response<'a, R: Deserialize<'a>>(id: u32) -> Option<R> {
 
 // Function Input Buffer
 
-pub const FUNCTION_INPUT_BUFFER_SIZE: usize = 8192;
 pub static mut FUNCTION_INPUT_BUFFER: [u8; FUNCTION_INPUT_BUFFER_SIZE] =
     [0; FUNCTION_INPUT_BUFFER_SIZE];
 
@@ -103,13 +102,12 @@ pub struct FunctionInputBuffer {
     total_bytes_read: usize,
     window_start: usize,
     window_end: usize,
-    test_buffer: Option<[u8; FUNCTION_INPUT_BUFFER_SIZE]>,
 }
 
 impl FunctionInputBuffer {
-    pub fn new(test_buffer: Option<[u8; FUNCTION_INPUT_BUFFER_SIZE]>) -> Self {
-//        unsafe { __asml_abi_input_start() };
-        Self { test_buffer, total_bytes_read: 0usize, window_start: 0usize, window_end: 0usize }
+    pub fn new() -> Self {
+        unsafe { __asml_abi_input_start() };
+        Self { total_bytes_read: 0usize, window_start: 0usize, window_end: 0usize }
     }
 }
 
@@ -123,16 +121,15 @@ impl std::io::Read for FunctionInputBuffer {
             }
             let mut bytes_read: usize = 0;
             for (i, wi) in (self.window_start..self.window_end).enumerate() {
-                if self.total_bytes_read >= unsafe { 27usize/*__asml_abi_input_length_get() as usize*/ } {
+                if self.total_bytes_read >= unsafe { __asml_abi_input_length_get() as usize } {
                     break;    
                 }
                 if wi < FUNCTION_INPUT_BUFFER_SIZE {
-                    buf[i] = unsafe { self.test_buffer.unwrap()[wi]/*FUNCTION_INPUT_BUFFER[wi]*/ };
+                    buf[i] = unsafe { FUNCTION_INPUT_BUFFER[wi] };
                     bytes_read += 1;
                     self.total_bytes_read += 1;
                 } else {
-//                    let r = unsafe { __asml_abi_input_next() };
-                    let r = 0i32;
+                    let r = unsafe { __asml_abi_input_next() };
                     if r == -1 {
                         return Err(std::io::Error::new(
                                 std::io::ErrorKind::Other, 
@@ -146,21 +143,19 @@ impl std::io::Read for FunctionInputBuffer {
             }
             self.window_start = self.window_end;
             self.window_end = self.window_end + buf.len();
-            println!("{}", bytes_read);
             return Ok(bytes_read);
         } else {
             // else we can read whole FIB on this read
             let mut bytes_read: usize = 0;
             for idx in 0..FUNCTION_INPUT_BUFFER_SIZE {
-                if self.total_bytes_read >= unsafe { 27usize/*__asml_abi_input_length_get() as usize*/ } {
+                if self.total_bytes_read >= unsafe { __asml_abi_input_length_get() as usize } {
                     return Ok(bytes_read);    
                 }
-                buf[idx] = unsafe { self.test_buffer.unwrap()[idx]/*FUNCTION_INPUT_BUFFER[idx]*/ };
+                buf[idx] = unsafe { FUNCTION_INPUT_BUFFER[idx] };
                 bytes_read += 1;
                 self.total_bytes_read += 1;
             }
-//            let r = unsafe { __asml_abi_input_next() };
-            let r = 0i32;
+            let r = unsafe { __asml_abi_input_next() };
             if r == -1 {
                 return Err(std::io::Error::new(
                         std::io::ErrorKind::Other, 
@@ -191,7 +186,7 @@ mod tests {
         }
 
         let mut buf = [0; 13];
-        let mut fib = FunctionInputBuffer::new(Some(FIB));
+        let mut fib = FunctionInputBuffer::new();
         
         let n = fib.read(&mut buf).unwrap();
         assert_eq!(n, 13);
@@ -218,7 +213,7 @@ mod tests {
         }
 
         let mut buf = [0; FUNCTION_INPUT_BUFFER_SIZE];
-        let mut fib = FunctionInputBuffer::new(Some(FIB));
+        let mut fib = FunctionInputBuffer::new();
         let n = fib.read(&mut buf).unwrap();
         
         assert_eq!(n, 27);

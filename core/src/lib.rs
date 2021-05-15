@@ -9,6 +9,7 @@ use crate::threader::ThreaderEnv;
 pub type WasmBufferPtr = WasmPtr<u8, Array>;
 
 pub mod abi;
+pub mod buffers;
 pub mod threader;
 
 #[inline(always)]

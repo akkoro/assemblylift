@@ -67,6 +67,16 @@ pub fn asml_abi_clock_time_get(_env: &ThreaderEnv) -> u64 {
     unix_time.as_secs() * 1000u64
 }
 
+pub fn asml_abi_input_start(env: &ThreaderEnv) -> i32 {
+    env.host_input_buffer
+        .get_ref()
+        .unwrap()
+        .clone()
+        .lock()
+        .unwrap()
+        .start()
+}
+
 #[inline]
 fn env_ptr_to_string(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<String, io::Error> {
     let mem = env.memory_ref().unwrap();

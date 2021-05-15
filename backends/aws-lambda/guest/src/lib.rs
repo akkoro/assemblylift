@@ -9,15 +9,15 @@ use serde::{Deserialize, Serialize};
 
 use assemblylift_core_guest::*;
 
-pub const AWS_EVENT_STRING_BUFFER_SIZE: usize = 8192;
-pub static mut AWS_EVENT_STRING_BUFFER: [u8; AWS_EVENT_STRING_BUFFER_SIZE] =
-    [0; AWS_EVENT_STRING_BUFFER_SIZE];
-
-// provided TO the wasm runtime (host)
-#[no_mangle]
-pub fn __asml_guest_get_aws_event_string_buffer_pointer() -> *const u8 {
-    unsafe { AWS_EVENT_STRING_BUFFER.as_ptr() }
-}
+//pub const AWS_EVENT_STRING_BUFFER_SIZE: usize = 8192;
+//pub static mut AWS_EVENT_STRING_BUFFER: [u8; AWS_EVENT_STRING_BUFFER_SIZE] =
+//    [0; AWS_EVENT_STRING_BUFFER_SIZE];
+//
+//// provided TO the wasm runtime (host)
+//#[no_mangle]
+//pub fn __asml_guest_get_aws_event_string_buffer_pointer() -> *const u8 {
+//    unsafe { AWS_EVENT_STRING_BUFFER.as_ptr() }
+//}
 
 // these are provided BY the wasm runtime (host)
 extern "C" {
@@ -180,37 +180,39 @@ macro_rules! handler {
     ($context:ident: $type:ty, $async_handler:expr) => {
         #[no_mangle]
         pub fn handler() -> i32 {
-            use asml_awslambda::{AWS_EVENT_STRING_BUFFER, AWS_EVENT_STRING_BUFFER_SIZE};
+            use assemblylift_core_io_guest;
+            //use asml_awslambda::{AWS_EVENT_STRING_BUFFER, AWS_EVENT_STRING_BUFFER_SIZE};
             use direct_executor;
 
             let client = AwsLambdaClient::new();
+            let mut fib = assemblylift_core_io_guest::FunctionInputBuffer::new();
+            
+            //let mut event_ptr: i32 = -1;
+            //let mut event_end: i32 = -1;
+            //unsafe {
+            //    for (i, &b) in AWS_EVENT_STRING_BUFFER.iter().enumerate() {
+            //        if event_ptr == -1 {
+            //            if b != '\0' as u8 {
+            //                event_ptr = i as i32;
+            //            }
+            //        } else {
+            //            if event_end == -1 {
+            //                if b == '\0' as u8 {
+            //                    event_end = i as i32;
+            //                    break;
+            //                }
+            //            }
+            //        }
+            //    }
+            //}
 
-            let mut event_ptr: i32 = -1;
-            let mut event_end: i32 = -1;
-            unsafe {
-                for (i, &b) in AWS_EVENT_STRING_BUFFER.iter().enumerate() {
-                    if event_ptr == -1 {
-                        if b != '\0' as u8 {
-                            event_ptr = i as i32;
-                        }
-                    } else {
-                        if event_end == -1 {
-                            if b == '\0' as u8 {
-                                event_end = i as i32;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
+            //if event_ptr == -1 || event_end == -1 {
+            //    AwsLambdaClient::console_log(format!("ERROR reading Lambda Event from buffer"));
+            //    return -1;
+            //}
 
-            if event_ptr == -1 || event_end == -1 {
-                AwsLambdaClient::console_log(format!("ERROR reading Lambda Event from buffer"));
-                return -1;
-            }
-
-            let slice = unsafe { &AWS_EVENT_STRING_BUFFER[event_ptr as usize..event_end as usize] };
-            let event = match serde_json::from_slice(slice) {
+            //let slice = unsafe { &AWS_EVENT_STRING_BUFFER[event_ptr as usize..event_end as usize] };
+            let event = match serde_json::from_reader(fib) {
                 Ok(event) => event,
                 Err(why) => {
                     AwsLambdaClient::console_log(format!(

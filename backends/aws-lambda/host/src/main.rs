@@ -5,13 +5,10 @@ use std::process;
 use std::sync::{Arc, Mutex};
 
 use clap::crate_version;
-use crossbeam_utils::atomic::AtomicCell;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
-use wasmer::Instance;
 
 use assemblylift_core::threader::Threader;
-use assemblylift_core::WasmBufferPtr;
 use assemblylift_core_iomod::registry;
 use runtime::AwsLambdaRuntime;
 
@@ -21,33 +18,6 @@ mod wasm;
 pub static LAMBDA_RUNTIME: Lazy<AwsLambdaRuntime> = Lazy::new(|| AwsLambdaRuntime::new());
 pub static LAMBDA_REQUEST_ID: Lazy<Mutex<RefCell<String>>> =
     Lazy::new(|| Mutex::new(RefCell::new(String::new())));
-
-#[inline(always)]
-fn write_event_buffer(instance: &Instance, event: String) {
-    let wasm_instance_memory = instance.exports.get_memory("memory").unwrap();
-
-    let fn_name = "__asml_guest_get_aws_event_string_buffer_pointer";
-    let get_pointer = instance
-        .exports
-        .get_native_function::<(), WasmBufferPtr>(fn_name)
-        .expect(&*format!("could not find export in wasm named {}", fn_name));
-
-    let event_buffer = get_pointer.call().unwrap();
-    let memory_writer: &[AtomicCell<u8>] = event_buffer
-        .deref(wasm_instance_memory, 0, 8192u32)
-        .unwrap();
-
-    let bytes = event.bytes();
-    for (i, b) in bytes.clone().enumerate() {
-        memory_writer[i].store(b);
-    }
-    if 8192 > bytes.clone().len() {
-        // FIXME magic number -- equiv to AWS_EVENT_STRING_BUFFER_SIZE
-        for i in bytes.len()..8192 {
-            memory_writer[i].store('\0' as u8)
-        }
-    }
-}
 
 #[tokio::main]
 async fn main() {
@@ -91,11 +61,10 @@ async fn main() {
                 let instance = instance.clone();
                 tokio::task::spawn_local(async move {
                     // handler coordinates are expected to be <file name>.<function name>
-                    let handler_coordinates = env::var("_HANDLER").unwrap();
+                    let handler_coordinates = std::env::var("_HANDLER").unwrap();
                     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
                     let handler_name = coords[1];
 
-                    write_event_buffer(&instance, event.event_body);
                     Threader::__reset_memory();
 
                     let handler_call = instance.exports.get_function(handler_name).unwrap();
@@ -107,8 +76,8 @@ async fn main() {
                 .await
                 .unwrap();
             }
-
-            std::mem::drop(env.threader);
+            
+            std::mem::drop(env.clone().threader);
         })
         .await;
 }
