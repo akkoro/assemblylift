@@ -43,7 +43,7 @@ impl FunctionInputBuffer {
     }
 
     #[inline(always)]
-    pub(crate) fn write_wasm_buffer(&self, input: &[u8]) {
+    fn write_wasm_buffer(&self, input: &[u8]) {
         let env = self.env
             .clone();
         let env = env
