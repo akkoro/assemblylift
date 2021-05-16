@@ -87,14 +87,14 @@ pub fn asml_abi_input_next(env: &ThreaderEnv) -> i32 {
         .next()
 }
 
-pub fn asml_abi_input_length_get(env: &ThreaderEnv) -> i64 {
+pub fn asml_abi_input_length_get(env: &ThreaderEnv) -> u64 {
     env.host_input_buffer
         .get_ref()
         .unwrap()
         .clone()
         .lock()
         .unwrap()
-        .len() as i64
+        .len() as u64
 }
 
 #[inline]
