@@ -10,7 +10,7 @@ use wasmer::{imports, Function, Instance, InstantiationError, LazyInit, MemoryVi
 use wasmer_engine_jit::JIT;
 
 use assemblylift_core::abi::{
-    asml_abi_clock_time_get, asml_abi_input_content_length_get, asml_abi_input_next,
+    asml_abi_clock_time_get, asml_abi_input_length_get, asml_abi_input_next,
     asml_abi_input_start, asml_abi_invoke, asml_abi_io_len, asml_abi_io_ptr, asml_abi_poll,
 };
 use assemblylift_core::buffers::FunctionInputBuffer;
@@ -55,7 +55,7 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
             "__asml_abi_clock_time_get" => Function::new_native_with_env(&store, env.clone(), asml_abi_clock_time_get),
             "__asml_abi_input_start" => Function::new_native_with_env(&store, env.clone(), asml_abi_input_start),
             "__asml_abi_input_next" => Function::new_native_with_env(&store, env.clone(), asml_abi_input_next),
-            "__asml_abi_input_content_length_get" => Function::new_native_with_env(&store, env.clone(), asml_abi_input_content_length_get),
+            "__asml_abi_input_length_get" => Function::new_native_with_env(&store, env.clone(), asml_abi_input_length_get),
         },
     };
 
