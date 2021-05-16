@@ -1,5 +1,3 @@
-extern crate lazy_static;
-
 use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::Pin;
@@ -8,20 +6,30 @@ use std::task::{Context, Poll, Waker};
 use serde::Deserialize;
 use serde_json;
 
-use assemblylift_core_io_common::constants::IO_BUFFER_SIZE_BYTES;
+use assemblylift_core_io_common::constants::{FUNCTION_INPUT_BUFFER_SIZE, IO_BUFFER_SIZE_BYTES};
 
 extern "C" {
-    fn __asml_abi_poll(id: u32) -> i32;
+    // IO
+    fn __asml_abi_poll(id: u32) -> i32; // TODO rename __asml_abi_io_poll for consistency in prefixing
     fn __asml_abi_io_ptr(id: u32) -> u32;
     fn __asml_abi_io_len(id: u32) -> u32;
+
+    // System clock
     fn __asml_abi_clock_time_get() -> u64;
 
+    // Console
     fn __asml_abi_console_log(ptr: *const u8, len: usize);
+
+    // Input
+    fn __asml_abi_input_start() -> i32;
+    fn __asml_abi_input_next() -> i32;
+    fn __asml_abi_input_length_get() -> u64;
 }
 
 // Raw buffer holding serialized IO data
 pub static mut IO_BUFFER: [u8; IO_BUFFER_SIZE_BYTES] = [0; IO_BUFFER_SIZE_BYTES];
 
+// TODO this should be renamed get_io_buffer & aws event buffer to just event
 #[no_mangle]
 pub fn __asml_get_event_buffer_pointer() -> *const u8 {
     unsafe { IO_BUFFER.as_ptr() }
@@ -76,5 +84,139 @@ unsafe fn read_response<'a, R: Deserialize<'a>>(id: u32) -> Option<R> {
             console_log(format!("[ERROR] {}", why.to_string()));
             None
         }
+    }
+}
+
+// Function Input Buffer
+
+pub static mut FUNCTION_INPUT_BUFFER: [u8; FUNCTION_INPUT_BUFFER_SIZE] =
+    [0; FUNCTION_INPUT_BUFFER_SIZE];
+
+// provided TO the wasm runtime (host)
+#[no_mangle]
+pub fn __asml_guest_get_function_input_buffer_pointer() -> *const u8 {
+    unsafe { FUNCTION_INPUT_BUFFER.as_ptr() }
+}
+
+pub struct FunctionInputBuffer {
+    total_bytes_read: usize,
+    window_start: usize,
+    window_end: usize,
+}
+
+impl FunctionInputBuffer {
+    pub fn new() -> Self {
+        unsafe { __asml_abi_input_start() };
+        Self { total_bytes_read: 0usize, window_start: 0usize, window_end: 0usize }
+    }
+}
+
+impl std::io::Read for FunctionInputBuffer {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
+        let is_buffer_short: bool = buf.len() < FUNCTION_INPUT_BUFFER_SIZE;
+        if is_buffer_short {
+            // if buffer is short, we need windowed read
+            if self.window_end == 0 {
+                self.window_end = buf.len();
+            }
+            let mut bytes_read: usize = 0;
+            for (i, wi) in (self.window_start..self.window_end).enumerate() {
+                if self.total_bytes_read >= unsafe { __asml_abi_input_length_get() as usize } {
+                    break;    
+                }
+                if wi < FUNCTION_INPUT_BUFFER_SIZE {
+                    buf[i] = unsafe { FUNCTION_INPUT_BUFFER[wi] };
+                    bytes_read += 1;
+                    self.total_bytes_read += 1;
+                } else {
+                    let r = unsafe { __asml_abi_input_next() };
+                    if r == -1 {
+                        return Err(std::io::Error::new(
+                                std::io::ErrorKind::Other, 
+                                "host could not get next input chunk",
+                        ));
+                    }
+                    self.window_start = 0usize;
+                    self.window_end = buf.len();
+                    break;
+                }
+            }
+            self.window_start = self.window_end;
+            self.window_end = self.window_end + buf.len();
+            return Ok(bytes_read);
+        } else {
+            // else we can read whole FIB on this read
+            let mut bytes_read: usize = 0;
+            for idx in 0..FUNCTION_INPUT_BUFFER_SIZE {
+                if self.total_bytes_read >= unsafe { __asml_abi_input_length_get() as usize } {
+                    return Ok(bytes_read);    
+                }
+                buf[idx] = unsafe { FUNCTION_INPUT_BUFFER[idx] };
+                bytes_read += 1;
+                self.total_bytes_read += 1;
+            }
+            let r = unsafe { __asml_abi_input_next() };
+            if r == -1 {
+                return Err(std::io::Error::new(
+                        std::io::ErrorKind::Other, 
+                        "host could not get next input chunk",
+                ));
+            }
+            return Ok(bytes_read);
+        }
+    }
+}
+
+// FIXME This requires some manual intervention above as the abi calls are not mocked.
+//       For the same reason, this doesn't properly test the functionality around input_next().
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Read;
+
+    #[test]
+    fn short_buffer_read() {
+        // Setup
+        let mut FIB = [0u8; FUNCTION_INPUT_BUFFER_SIZE];
+        {
+            let s = "hello world! this is a test";
+            for (i, c) in s.as_bytes().iter().enumerate() {
+                 FIB[i] = *c;
+            }
+        }
+
+        let mut buf = [0; 13];
+        let mut fib = FunctionInputBuffer::new();
+        
+        let n = fib.read(&mut buf).unwrap();
+        assert_eq!(n, 13);
+        assert_eq!(buf[0..n], FIB[0..13]);
+        
+        let n = fib.read(&mut buf).unwrap();
+        assert_eq!(n, 13);
+        assert_eq!(buf[0..n], FIB[13..26]);
+        
+        let n = fib.read(&mut buf).unwrap();
+        assert_eq!(n, 1);
+        assert_eq!(buf[0..n], FIB[26..27]);
+    }
+
+    #[test]
+    fn long_buffer_read() {
+        // Setup
+        let mut FIB = [0u8; FUNCTION_INPUT_BUFFER_SIZE];
+        {
+            let s = "hello world! this is a test";
+            for (i, c) in s.as_bytes().iter().enumerate() {
+                 FIB[i] = *c;
+            }
+        }
+
+        let mut buf = [0; FUNCTION_INPUT_BUFFER_SIZE];
+        let mut fib = FunctionInputBuffer::new();
+        let n = fib.read(&mut buf).unwrap();
+        
+        assert_eq!(n, 27);
+        assert_eq!(buf[0..n], FIB[0..27]);
     }
 }

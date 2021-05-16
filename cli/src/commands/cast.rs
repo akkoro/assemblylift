@@ -9,7 +9,7 @@ use wasmer::{Store, Module};
 use wasmer_compiler::{CpuFeature, Target, Triple};
 use wasmer_compiler_cranelift::Cranelift;
 //use wasmer_compiler_llvm::LLVM;
-use wasmer_engine_native::Native;
+//use wasmer_engine_native::Native;
 use wasmer_engine_jit::JIT;
 
 use clap::ArgMatches;

@@ -6,7 +6,7 @@ use std::mem::ManuallyDrop;
 use crossbeam_utils::atomic::AtomicCell;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
-use wasmer::{LazyInit, Memory, WasmerEnv};
+use wasmer::{Array, LazyInit, Memory, NativeFunc, WasmerEnv, WasmPtr};
 
 use assemblylift_core_io_common::constants::IO_BUFFER_SIZE_BYTES;
 use assemblylift_core_io_common::IoMemoryDocument;
@@ -20,8 +20,11 @@ static IO_MEMORY: Lazy<Mutex<IoMemory>> = Lazy::new(|| Mutex::new(IoMemory::new(
 #[derive(WasmerEnv, Clone)]
 pub struct ThreaderEnv {
     pub threader: ManuallyDrop<Arc<Mutex<Threader>>>,
+    pub host_input_buffer: LazyInit<Arc<Mutex<crate::buffers::FunctionInputBuffer>>>,
     #[wasmer(export)]
     pub memory: LazyInit<Memory>,
+    #[wasmer(export(name = "__asml_guest_get_function_input_buffer_pointer"))]
+    pub get_function_input_buffer: LazyInit<NativeFunc<(), (WasmPtr<u8, Array>, i32)>>,
 }
 
 pub struct Threader {
