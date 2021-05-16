@@ -2,7 +2,7 @@ extern crate serde_json;
 
 use std::collections::HashMap;
 
-use clap::{crate_version, App, Arg};
+use clap::{crate_version, App, AppSettings, Arg, ArgMatches};
 
 use crate::commands::CommandFn;
 use crate::commands::{bind, burn, cast, init, make};
@@ -54,7 +54,7 @@ fn main() {
                 .about("Destroy all infrastructure created by 'bind'")
                 .after_help("Equivalent to 'terraform destroy'"),
         );
-    let matches = app.get_matches();
+    let matches = app.setting(AppSettings::ArgRequiredElseHelp).get_matches();
 
     let mut command_map = HashMap::<&str, CommandFn>::new();
     command_map.insert("init", init::command);
