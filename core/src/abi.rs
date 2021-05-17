@@ -72,7 +72,7 @@ pub fn asml_abi_input_start(env: &ThreaderEnv) -> i32 {
         .clone()
         .lock()
         .unwrap()
-        .start()
+        .start(env)
 }
 
 pub fn asml_abi_input_next(env: &ThreaderEnv) -> i32 {
@@ -80,7 +80,7 @@ pub fn asml_abi_input_next(env: &ThreaderEnv) -> i32 {
         .clone()
         .lock()
         .unwrap()
-        .next()
+        .next(env)
 }
 
 pub fn asml_abi_input_length_get(env: &ThreaderEnv) -> u64 {
