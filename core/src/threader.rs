@@ -24,7 +24,7 @@ pub struct ThreaderEnv {
     #[wasmer(export)]
     pub memory: LazyInit<Memory>,
     #[wasmer(export(name = "__asml_guest_get_function_input_buffer_pointer"))]
-    pub get_function_input_buffer: LazyInit<NativeFunc<(), (WasmPtr<u8, Array>, i32)>>,
+    pub get_function_input_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
 }
 
 pub struct Threader {

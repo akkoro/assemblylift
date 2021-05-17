@@ -57,11 +57,10 @@ impl FunctionInputBuffer {
             .unwrap();
         let wasm_memory = env.memory.get_ref().unwrap();
         let memory_writer: &[AtomicCell<u8>] = input_buffer
-            .0
             .deref(
                 &wasm_memory,
                 0,
-                input_buffer.1 as u32,
+                FUNCTION_INPUT_BUFFER_SIZE as u32,
             )
             .unwrap();
 
