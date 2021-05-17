@@ -23,9 +23,17 @@ impl FunctionInputBuffer {
         self.env = Some(env);
     }
 
+    pub fn set_buffer(&mut self, buffer: Vec<u8>) {
+        self.buffer = buffer;
+    }
+
     pub fn start(&mut self) -> i32 {
+        let end: usize = match self.buffer.len() < FUNCTION_INPUT_BUFFER_SIZE {
+            true => self.buffer.len(),
+            false => FUNCTION_INPUT_BUFFER_SIZE,
+        };
         self.write_wasm_buffer(
-            &self.buffer[0..FUNCTION_INPUT_BUFFER_SIZE],
+            &self.buffer[0..end],
         );
         self.buffer_idx = 0usize;
         0

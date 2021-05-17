@@ -58,6 +58,8 @@ async fn main() {
                     ref_cell.replace(event.request_id.clone());
                 }
 
+                env.clone().host_input_buffer.clone().lock().unwrap().set_buffer(event.event_body.into_bytes());
+
                 let instance = instance.clone();
                 tokio::task::spawn_local(async move {
                     // handler coordinates are expected to be <file name>.<function name>
