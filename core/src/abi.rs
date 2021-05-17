@@ -69,8 +69,6 @@ pub fn asml_abi_clock_time_get(_env: &ThreaderEnv) -> u64 {
 
 pub fn asml_abi_input_start(env: &ThreaderEnv) -> i32 {
     env.host_input_buffer
-        .get_ref()
-        .unwrap()
         .clone()
         .lock()
         .unwrap()
@@ -79,8 +77,6 @@ pub fn asml_abi_input_start(env: &ThreaderEnv) -> i32 {
 
 pub fn asml_abi_input_next(env: &ThreaderEnv) -> i32 {
     env.host_input_buffer
-        .get_ref()
-        .unwrap()
         .clone()
         .lock()
         .unwrap()
@@ -89,8 +85,6 @@ pub fn asml_abi_input_next(env: &ThreaderEnv) -> i32 {
 
 pub fn asml_abi_input_length_get(env: &ThreaderEnv) -> u64 {
     env.host_input_buffer
-        .get_ref()
-        .unwrap()
         .clone()
         .lock()
         .unwrap()

@@ -7,16 +7,20 @@ use assemblylift_core_io_common::constants::FUNCTION_INPUT_BUFFER_SIZE;
 pub struct FunctionInputBuffer {
     buffer: Vec<u8>,
     buffer_idx: usize,
-    env: Arc<Mutex<crate::threader::ThreaderEnv>>,
+    env: Option<Arc<Mutex<crate::threader::ThreaderEnv>>>,
 }
 
 impl FunctionInputBuffer {
-    pub fn new(env: Arc<Mutex<crate::threader::ThreaderEnv>>) -> Self {
+    pub fn new() -> Self {
         Self {
             buffer: Vec::new(),
             buffer_idx: 0usize,
-            env,
+            env: None,
         }
+    }
+
+    pub fn set_env(&mut self, env: Arc<Mutex<crate::threader::ThreaderEnv>>) {
+        self.env = Some(env);
     }
 
     pub fn start(&mut self) -> i32 {
@@ -45,6 +49,8 @@ impl FunctionInputBuffer {
     #[inline(always)]
     fn write_wasm_buffer(&self, input: &[u8]) {
         let env = self.env
+            .as_ref()
+            .unwrap()
             .clone();
         let env = env
             .lock()

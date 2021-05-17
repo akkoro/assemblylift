@@ -20,7 +20,7 @@ static IO_MEMORY: Lazy<Mutex<IoMemory>> = Lazy::new(|| Mutex::new(IoMemory::new(
 #[derive(WasmerEnv, Clone)]
 pub struct ThreaderEnv {
     pub threader: ManuallyDrop<Arc<Mutex<Threader>>>,
-    pub host_input_buffer: LazyInit<Arc<Mutex<crate::buffers::FunctionInputBuffer>>>,
+    pub host_input_buffer: Arc<Mutex<crate::buffers::FunctionInputBuffer>>,
     #[wasmer(export)]
     pub memory: LazyInit<Memory>,
     #[wasmer(export(name = "__asml_guest_get_function_input_buffer_pointer"))]
