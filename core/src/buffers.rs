@@ -7,7 +7,7 @@ use assemblylift_core_io_common::constants::FUNCTION_INPUT_BUFFER_SIZE;
 pub struct FunctionInputBuffer {
     buffer: Vec<u8>,
     buffer_idx: usize,
-    env: Option<Arc<crate::threader::ThreaderEnv>>,
+    env: Option<crate::threader::ThreaderEnv>,
 }
 
 impl FunctionInputBuffer {
@@ -19,7 +19,7 @@ impl FunctionInputBuffer {
         }
     }
 
-    pub fn set_env(&mut self, env: Arc<crate::threader::ThreaderEnv>) {
+    pub fn set_env(&mut self, env: crate::threader::ThreaderEnv) {
         println!("DEBUG: set_env");
         self.env = Some(env);
     }

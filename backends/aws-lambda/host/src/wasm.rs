@@ -40,7 +40,7 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
         host_input_buffer: fib.clone(),
     };
 
-    fib.clone().lock().unwrap().set_env(Arc::from(env.clone()));
+    fib.clone().lock().unwrap().set_env(env.clone());
     
     let import_object = imports! {
         "env" => {
