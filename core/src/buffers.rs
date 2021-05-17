@@ -7,7 +7,7 @@ use assemblylift_core_io_common::constants::FUNCTION_INPUT_BUFFER_SIZE;
 pub struct FunctionInputBuffer {
     buffer: Vec<u8>,
     buffer_idx: usize,
-    env: Option<Arc<Mutex<crate::threader::ThreaderEnv>>>,
+    env: Option<Arc<crate::threader::ThreaderEnv>>,
 }
 
 impl FunctionInputBuffer {
@@ -19,7 +19,7 @@ impl FunctionInputBuffer {
         }
     }
 
-    pub fn set_env(&mut self, env: Arc<Mutex<crate::threader::ThreaderEnv>>) {
+    pub fn set_env(&mut self, env: Arc<crate::threader::ThreaderEnv>) {
         println!("DEBUG: set_env");
         self.env = Some(env);
     }
@@ -62,9 +62,9 @@ impl FunctionInputBuffer {
             .as_ref()
             .unwrap()
             .clone();
-        let env = env
-            .lock()
-            .unwrap();
+        // let env = env
+        //     .lock()
+        //     .unwrap();
         println!("DEBUG: write_wasm_buffer OK env");
         let wasm_memory = env.memory.get_ref().unwrap();
         println!("DEBUG: write_wasm_buffer OK wasm_memory");
