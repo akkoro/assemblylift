@@ -20,10 +20,12 @@ impl FunctionInputBuffer {
     }
 
     pub fn set_env(&mut self, env: Arc<Mutex<crate::threader::ThreaderEnv>>) {
+        println!("DEBUG: set_env");
         self.env = Some(env);
     }
 
     pub fn set_buffer(&mut self, buffer: Vec<u8>) {
+        println!("DEBUG: set_buffer len={}", buffer.len());
         self.buffer = buffer;
     }
 
@@ -63,13 +65,16 @@ impl FunctionInputBuffer {
         let env = env
             .lock()
             .unwrap();
+        println!("DEBUG: write_wasm_buffer OK env");
+        let wasm_memory = env.memory.get_ref().unwrap();
+        println!("DEBUG: write_wasm_buffer OK wasm_memory");
         let input_buffer = env
             .get_function_input_buffer
             .get_ref()
             .unwrap()
             .call()
             .unwrap();
-        let wasm_memory = env.memory.get_ref().unwrap();
+        println!("DEBUG: write_wasm_buffer OK input_buffer");
         let memory_writer: &[AtomicCell<u8>] = input_buffer
             .deref(
                 &wasm_memory,
