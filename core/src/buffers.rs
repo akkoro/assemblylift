@@ -62,11 +62,8 @@ impl FunctionInputBuffer {
             .as_ref()
             .unwrap()
             .clone();
-        // let env = env
-        //     .lock()
-        //     .unwrap();
         println!("DEBUG: write_wasm_buffer OK env");
-        let wasm_memory = env.memory.get_ref().unwrap();
+        let wasm_memory = env.memory_ref().unwrap();
         println!("DEBUG: write_wasm_buffer OK wasm_memory");
         let input_buffer = env
             .get_function_input_buffer

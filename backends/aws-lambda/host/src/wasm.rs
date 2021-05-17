@@ -32,7 +32,7 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
     let module = unsafe { wasmer::Module::deserialize_from_file(&store, file_path.clone()) }
         .expect(&format!("could not load wasm from {}", file_path.clone()));
 
-    let mut fib = Arc::new(Mutex::new(FunctionInputBuffer::new()));
+    let fib = Arc::new(Mutex::new(FunctionInputBuffer::new()));
     let env = ThreaderEnv {
         threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx)))),
         memory: Default::default(),
