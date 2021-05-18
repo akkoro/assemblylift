@@ -51,17 +51,14 @@ impl FunctionInputBuffer {
         self.buffer.len()
     }
 
-    #[inline(always)]
     fn write_wasm_buffer(&self, env: &ThreaderEnv, input: &[u8]) {
         let wasm_memory = env.memory_ref().unwrap();
-        println!("DEBUG: write_wasm_buffer OK wasm_memory");
         let input_buffer = env
             .get_function_input_buffer
             .get_ref()
             .unwrap()
             .call()
             .unwrap();
-        println!("DEBUG: write_wasm_buffer OK input_buffer");
         let memory_writer: &[AtomicCell<u8>] = input_buffer
             .deref(
                 &wasm_memory,
