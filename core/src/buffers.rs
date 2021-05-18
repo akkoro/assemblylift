@@ -41,7 +41,7 @@ impl FunctionInputBuffer {
             self.write_wasm_buffer(
                 env,
                 &self.buffer[FUNCTION_INPUT_BUFFER_SIZE * self.buffer_idx
-                    ..FUNCTION_INPUT_BUFFER_SIZE * (self.buffer_idx + 1)],
+                    ..std::cmp::min(FUNCTION_INPUT_BUFFER_SIZE * (self.buffer_idx + 1), self.buffer.len())],
             );
         }
         0

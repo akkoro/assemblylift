@@ -107,8 +107,9 @@ impl FunctionInputBuffer {
 
 impl std::io::Read for FunctionInputBuffer {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
+        // console_log(format!("WASM: buf.len={}", buf.len()));
         let is_buffer_short: bool = buf.len() < FUNCTION_INPUT_BUFFER_SIZE;
-        if is_buffer_short {
+        return if is_buffer_short {
             // if buffer is short, we need windowed read
             if self.window_end == 0 {
                 self.window_end = buf.len();
@@ -116,7 +117,7 @@ impl std::io::Read for FunctionInputBuffer {
             let mut bytes_read: usize = 0;
             for (i, wi) in (self.window_start..self.window_end).enumerate() {
                 if self.total_bytes_read >= unsafe { __asml_abi_input_length_get() as usize } {
-                    break;    
+                    break;
                 }
                 if wi < FUNCTION_INPUT_BUFFER_SIZE {
                     buf[i] = unsafe { FUNCTION_INPUT_BUFFER[wi] };
@@ -126,24 +127,28 @@ impl std::io::Read for FunctionInputBuffer {
                     let r = unsafe { __asml_abi_input_next() };
                     if r == -1 {
                         return Err(std::io::Error::new(
-                                std::io::ErrorKind::Other, 
-                                "host could not get next input chunk",
+                            std::io::ErrorKind::Other,
+                            "host could not get next input chunk",
                         ));
                     }
-                    self.window_start = 0usize;
-                    self.window_end = buf.len();
-                    break;
+                    self.window_start = 1usize;
+                    self.window_end = buf.len() + 1usize;
+                    buf[i] = unsafe { FUNCTION_INPUT_BUFFER[0] };
+                    bytes_read += 1;
+                    self.total_bytes_read += 1;
+                    return Ok(bytes_read)
                 }
             }
             self.window_start = self.window_end;
             self.window_end = self.window_end + buf.len();
-            return Ok(bytes_read);
+            // console_log(format!("WASM: bytes_read={}", bytes_read));
+            Ok(bytes_read)
         } else {
             // else we can read whole FIB on this read
             let mut bytes_read: usize = 0;
             for idx in 0..FUNCTION_INPUT_BUFFER_SIZE {
                 if self.total_bytes_read >= unsafe { __asml_abi_input_length_get() as usize } {
-                    return Ok(bytes_read);    
+                    return Ok(bytes_read);
                 }
                 buf[idx] = unsafe { FUNCTION_INPUT_BUFFER[idx] };
                 bytes_read += 1;
@@ -152,11 +157,12 @@ impl std::io::Read for FunctionInputBuffer {
             let r = unsafe { __asml_abi_input_next() };
             if r == -1 {
                 return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other, 
-                        "host could not get next input chunk",
+                    std::io::ErrorKind::Other,
+                    "host could not get next input chunk",
                 ));
             }
-            return Ok(bytes_read);
+            // console_log(format!("WASM: bytes_read={}", bytes_read));
+            Ok(bytes_read)
         }
     }
 }
