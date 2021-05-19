@@ -107,6 +107,7 @@ pub fn asml_abi_z85_encode(env: &ThreaderEnv, ptr: u32, len: u32, out_ptr: WasmP
 pub fn asml_abi_z85_decode(env: &ThreaderEnv, ptr: u32, len: u32, out_ptr: WasmPtr<u8, Array>) -> i32 {
     if let Ok(input) = env_ptr_to_bytes(env, ptr, len) {
         if let Ok(output) = z85::decode(input) {
+            println!("DEBUG: output.len={}", output.len());
             return match write_bytes_to_ptr(env, output, out_ptr) {
                 Ok(_) => 0i32,
                 Err(_) => -1i32,
