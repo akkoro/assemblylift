@@ -137,6 +137,7 @@ fn env_ptr_to_string(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<String, io
 }
 
 fn write_bytes_to_ptr(env: &ThreaderEnv, s: Vec<u8>, ptr: WasmPtr<u8, Array>) -> Result<(), io::Error> {
+    println!("DEBUG: write bytes at addr={}", ptr.offset());
     let mem = env.memory_ref().unwrap();
     let memory_writer = ptr
         .deref(&mem, 0u32, s.len() as u32)
