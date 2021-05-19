@@ -1,6 +1,5 @@
 use std::fs;
 
-use base64::encode;
 use clap::ArgMatches;
 use reqwest;
 use reqwest::StatusCode;
@@ -37,18 +36,19 @@ fn command_iomod(matches: Option<&ArgMatches>) {
     let version: Vec<&str> = version_string.split('.').collect();
 
     let package_bytes = fs::read(package_path).expect("unable to read package file");
+    let part_size_bytes: usize = 2097152;
     let size_mb: f32 = package_bytes.len() as f32 / 1048576f32;
     println!("size_mb: {}", size_mb);
 
-    if size_mb > 1f32 {
-        let num_parts: u32 = (package_bytes.len() as f32 / 262144f32).ceil() as u32;
+    if size_mb > (part_size_bytes as f32 / 1048576f32) {
+        let num_parts: u32 = (package_bytes.len() as f32 / part_size_bytes as f32).ceil() as u32;
         println!("num parts: {}", num_parts);
         for idx in 0usize..num_parts as usize {
             println!("uploading part #{}", idx);
             upload_part(
                 coordinates.clone(),
                 version.clone(),
-                package_bytes[(idx * 262144usize)..(idx + 1usize) * 262144usize].to_vec(),
+                package_bytes[(idx * part_size_bytes)..std::cmp::min((idx + 1usize) * part_size_bytes, package_bytes.len())].to_vec(),
                 auth_header.to_string(),
                 Some(idx as u32),
             )
@@ -88,7 +88,7 @@ fn upload_part(
         },
         payload_part_id: part_id,
         payload_content_type: String::from("iomod/zip"), // TODO detect this
-        payload_base64: encode(part_content),
+        payload_base64: z85::encode(part_content),
     };
 
     let client = reqwest::blocking::ClientBuilder::new()

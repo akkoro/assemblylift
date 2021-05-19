@@ -24,6 +24,10 @@ extern "C" {
     fn __asml_abi_input_start() -> i32;
     fn __asml_abi_input_next() -> i32;
     fn __asml_abi_input_length_get() -> u64;
+
+    // Z85
+    fn __asml_expabi_z85_encode(ptr: *const u8, len: usize, out_ptr: *const u8) -> i32;
+    fn __asml_expabi_z85_decode(ptr: *const u8, len: usize, out_ptr: *const u8) -> i32;
 }
 
 // Raw buffer holding serialized IO data

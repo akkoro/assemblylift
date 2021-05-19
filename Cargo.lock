@@ -91,6 +91,7 @@ dependencies = [
  "wasmer-compiler-cranelift",
  "wasmer-engine-jit",
  "wasmer-engine-native",
+ "z85",
  "zip",
 ]
 
@@ -105,6 +106,7 @@ dependencies = [
  "once_cell",
  "tokio",
  "wasmer-asml-fork",
+ "z85",
 ]
 
 [[package]]
@@ -2454,6 +2456,12 @@ checksum = "0120db82e8a1e0b9fb3345a539c478767c0048d842860994d96113d5b667bd69"
 dependencies = [
  "winapi",
 ]
+
+[[package]]
+name = "z85"
+version = "3.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75c69f27582f73d565dca17eae9845e34dff848542fcfddf5c53fc293f65abd9"
 
 [[package]]
 name = "zip"

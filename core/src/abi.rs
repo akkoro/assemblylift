@@ -2,11 +2,13 @@ use std::cell::Cell;
 use std::error::Error;
 use std::io;
 use std::io::ErrorKind;
-
-use crate::threader::ThreaderEnv;
-use crate::{invoke_io, WasmBufferPtr};
 use std::time::{SystemTime, UNIX_EPOCH};
-use wasmer::MemoryView;
+
+use crossbeam_utils::atomic::AtomicCell;
+use wasmer::{MemoryView, WasmPtr, Array};
+
+use crate::{invoke_io, WasmBufferPtr};
+use crate::threader::ThreaderEnv;
 
 pub type AsmlAbiFn = fn(&ThreaderEnv, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
 
@@ -91,6 +93,29 @@ pub fn asml_abi_input_length_get(env: &ThreaderEnv) -> u64 {
         .len() as u64
 }
 
+pub fn asml_abi_z85_encode(env: &ThreaderEnv, ptr: u32, len: u32, out_ptr: WasmPtr<u8, Array>) -> i32 {
+    if let Ok(input) = env_ptr_to_bytes(env, ptr, len) {
+        let output = z85::encode(input);
+        return match write_bytes_to_ptr(env, output.into_bytes(), out_ptr) {
+            Ok(_) => 0i32,
+            Err(_) => -1i32,
+        }
+    }
+    -1i32
+}
+
+pub fn asml_abi_z85_decode(env: &ThreaderEnv, ptr: u32, len: u32, out_ptr: WasmPtr<u8, Array>) -> i32 {
+    if let Ok(input) = env_ptr_to_bytes(env, ptr, len) {
+        if let Ok(output) = z85::decode(input) {
+            return match write_bytes_to_ptr(env, output, out_ptr) {
+                Ok(_) => 0i32,
+                Err(_) => -1i32,
+            }
+        }
+    }
+    -1i32
+}
+
 #[inline]
 fn env_ptr_to_string(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<String, io::Error> {
     let mem = env.memory_ref().unwrap();
@@ -107,6 +132,17 @@ fn env_ptr_to_string(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<String, io
     std::str::from_utf8(str_vec.as_slice())
         .map(String::from)
         .map_err(to_io_error)
+}
+
+fn write_bytes_to_ptr(env: &ThreaderEnv, s: Vec<u8>, ptr: WasmPtr<u8, Array>) -> Result<(), io::Error> {
+    let mem = env.memory_ref().unwrap();
+    let memory_writer = ptr
+        .deref(&mem, 0u32, s.len() as u32)
+        .expect("could not deref wasm memory");
+    for (i, b) in s.iter().enumerate() {
+        memory_writer[i].store(*b);
+    }
+    Ok(())
 }
 
 #[inline]

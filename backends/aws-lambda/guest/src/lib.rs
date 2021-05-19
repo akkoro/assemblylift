@@ -170,10 +170,12 @@ macro_rules! handler {
         #[no_mangle]
         pub fn handler() -> i32 {
             use assemblylift_core_io_guest;
+            use assemblylift_core_io_guest::get_time;
             use direct_executor;
 
             let client = AwsLambdaClient::new();
             let mut fib = assemblylift_core_io_guest::FunctionInputBuffer::new();
+            AwsLambdaClient::console_log(format!("t0={}", get_time()));
             let event = match serde_json::from_reader(fib) {
                 Ok(event) => event,
                 Err(why) => {
@@ -184,6 +186,7 @@ macro_rules! handler {
                     return -1;
                 }
             };
+            AwsLambdaClient::console_log(format!("t1={}", get_time()));
 
             let $context: $type = LambdaContext { client, event, _phantom: std::marker::PhantomData };
 
