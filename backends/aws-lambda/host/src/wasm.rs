@@ -5,7 +5,7 @@ use std::io::ErrorKind;
 use std::mem::ManuallyDrop;
 use std::sync::{Arc, Mutex};
 
-use wasmer::{Function, imports, Instance, InstantiationError, LazyInit, MemoryView, Store};
+use wasmer::{Function, imports, Instance, InstantiationError, MemoryView, Store};
 //use wasmer_engine_native::Native;
 use wasmer_engine_jit::JIT;
 

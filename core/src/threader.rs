@@ -247,6 +247,7 @@ impl IoMemory {
             }
         }
 
+        println!("DEBUG: available_blocks={} needed_blocks={}", available_blocks, needed_blocks);
         if available_blocks < needed_blocks {
             panic!("unable to allocate memory in Threader")
         }

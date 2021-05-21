@@ -41,6 +41,7 @@ fn command_iomod(matches: Option<&ArgMatches>) {
     println!("size_mb: {}", size_mb);
 
     if size_mb > (part_size_bytes as f32 / 1048576f32) {
+        // TODO upload parts async
         let num_parts: u32 = (package_bytes.len() as f32 / part_size_bytes as f32).ceil() as u32;
         println!("num parts: {}", num_parts);
         for idx in 0usize..num_parts as usize {
@@ -88,7 +89,7 @@ fn upload_part(
         },
         payload_part_id: part_id,
         payload_content_type: String::from("iomod/zip"), // TODO detect this
-        payload_base64: z85::encode(part_content),
+        payload_z85: z85::encode(part_content),
     };
 
     let client = reqwest::blocking::ClientBuilder::new()
