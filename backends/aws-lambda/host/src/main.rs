@@ -8,6 +8,7 @@ use clap::crate_version;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
 
+use assemblylift_core::buffers::PagedBuffer;
 use assemblylift_core::threader::Threader;
 use assemblylift_core_iomod::registry;
 use runtime::AwsLambdaRuntime;
@@ -58,7 +59,7 @@ async fn main() {
                     ref_cell.replace(event.request_id.clone());
                 }
 
-                env.clone().host_input_buffer.clone().lock().unwrap().set_buffer(event.event_body.into_bytes());
+                env.clone().host_input_buffer.clone().lock().unwrap().initialize(event.event_body.into_bytes());
 
                 let instance = instance.clone();
                 tokio::task::spawn_local(async move {

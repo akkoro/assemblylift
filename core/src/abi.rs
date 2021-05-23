@@ -4,10 +4,10 @@ use std::io;
 use std::io::ErrorKind;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crossbeam_utils::atomic::AtomicCell;
 use wasmer::{MemoryView, WasmPtr, Array};
 
 use crate::{invoke_io, WasmBufferPtr};
+use crate::buffers::PagedBuffer;
 use crate::threader::ThreaderEnv;
 
 pub type AsmlAbiFn = fn(&ThreaderEnv, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
@@ -74,7 +74,7 @@ pub fn asml_abi_input_start(env: &ThreaderEnv) -> i32 {
         .clone()
         .lock()
         .unwrap()
-        .start(env)
+        .first(env)
 }
 
 pub fn asml_abi_input_next(env: &ThreaderEnv) -> i32 {

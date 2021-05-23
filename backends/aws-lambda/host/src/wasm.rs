@@ -33,6 +33,7 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
         threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx)))),
         memory: Default::default(),
         get_function_input_buffer: Default::default(),
+        get_io_buffer: Default::default(),
         host_input_buffer: Arc::new(Mutex::new(FunctionInputBuffer::new())),
     };
 

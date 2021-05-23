@@ -12,6 +12,8 @@ use assemblylift_core_io_common::constants::IO_BUFFER_SIZE_BYTES;
 use assemblylift_core_io_common::IoMemoryDocument;
 use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
+use crate::buffers::{PagedBuffer, IoBuffer};
+
 const BLOCK_SIZE_BYTES: usize = 64;
 const NUM_BLOCKS: usize = IO_BUFFER_SIZE_BYTES / BLOCK_SIZE_BYTES;
 
@@ -25,6 +27,8 @@ pub struct ThreaderEnv {
     pub memory: LazyInit<Memory>,
     #[wasmer(export(name = "__asml_guest_get_function_input_buffer_pointer"))]
     pub get_function_input_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
+    #[wasmer(export(name = "__asml_guest_get_io_buffer_pointer"))]
+    pub get_io_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
 }
 
 pub struct Threader {
@@ -164,26 +168,29 @@ impl Default for BlockList {
 
 struct IoMemory {
     _next_id: u32,
+    blocks: BlockList,
+    buffer: IoBuffer,
     document_map: HashMap<u32, IoMemoryDocument>,
     io_status: HashMap<u32, bool>,
-    blocks: BlockList,
 }
 
 impl IoMemory {
     fn new() -> Self {
         IoMemory {
             _next_id: 1, // id 0 is reserved (null)
+            blocks: Default::default(),
+            buffer: IoBuffer::new(),
             document_map: Default::default(),
             io_status: Default::default(),
-            blocks: Default::default(),
         }
     }
 
     fn reset(&mut self) {
         self._next_id = 1;
+        self.blocks = Default::default();
+        self.buffer = IoBuffer::new();
         self.document_map.clear();
         self.io_status.clear();
-        self.blocks = Default::default();
     }
 
     fn next_id(&mut self) -> Option<u32> {
@@ -202,11 +209,12 @@ impl IoMemory {
         }
     }
 
+    // TODO this moves to IoBuffer, partially (where do we update doc map?)
     fn write_vec_at(&mut self, writer: &[AtomicCell<u8>], vec: Vec<u8>, ioid: u32) {
         // Serialize the response
-        let response_len = vec.len();
-        let start = self.alloc(writer, response_len, ioid);
-        let end = start + response_len;
+        let vec_len = vec.len();
+        let start = self.alloc(writer, vec_len, ioid);
+        let end = start + vec_len;
         for i in start..end {
             writer[i].store(vec[i - start]);
         }
@@ -216,7 +224,7 @@ impl IoMemory {
             ioid,
             IoMemoryDocument {
                 start,
-                length: response_len,
+                length: vec_len,
             },
         );
 

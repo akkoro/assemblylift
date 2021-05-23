@@ -33,6 +33,11 @@ extern "C" {
 // Raw buffer holding serialized IO data
 pub static mut IO_BUFFER: [u8; IO_BUFFER_SIZE_BYTES] = [0; IO_BUFFER_SIZE_BYTES];
 
+#[no_mangle]
+pub fn __asml_guest_get_io_buffer_pointer() -> *const u8 {
+    unsafe { IO_BUFFER.as_ptr() }
+}
+
 fn console_log(message: String) {
     unsafe { __asml_abi_console_log(message.as_ptr(), message.len()) }
 }
