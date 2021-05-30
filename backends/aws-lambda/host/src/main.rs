@@ -8,7 +8,7 @@ use clap::crate_version;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
 
-use assemblylift_core::buffers::PagedBuffer;
+use assemblylift_core::buffers::LinearBuffer;
 use assemblylift_core::threader::Threader;
 use assemblylift_core_iomod::registry;
 use runtime::AwsLambdaRuntime;
