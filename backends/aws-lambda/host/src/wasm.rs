@@ -9,7 +9,7 @@ use wasmer::{Function, imports, Instance, InstantiationError, MemoryView, Store}
 //use wasmer_engine_native::Native;
 use wasmer_engine_jit::JIT;
 
-use assemblylift_core::abi::{asml_abi_clock_time_get, asml_abi_input_length_get, asml_abi_input_next, asml_abi_input_start, asml_abi_invoke, asml_abi_io_len, asml_abi_io_ptr, asml_abi_poll, asml_abi_z85_decode, asml_abi_z85_encode};
+use assemblylift_core::abi::{asml_abi_clock_time_get, asml_abi_input_length_get, asml_abi_input_next, asml_abi_input_start, asml_abi_invoke, asml_abi_io_len, asml_abi_io_load, asml_abi_io_next, asml_abi_io_poll, asml_abi_z85_decode, asml_abi_z85_encode};
 use assemblylift_core::buffers::FunctionInputBuffer;
 use assemblylift_core::threader::{Threader, ThreaderEnv};
 use assemblylift_core_iomod::registry::RegistryTx;
@@ -42,9 +42,11 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
             "__asml_abi_console_log" => Function::new_native_with_env(&store, env.clone(), runtime_console_log),
             "__asml_abi_success" => Function::new_native_with_env(&store, env.clone(), runtime_success),
             "__asml_abi_invoke" => Function::new_native_with_env(&store, env.clone(), asml_abi_invoke),
-            "__asml_abi_poll" => Function::new_native_with_env(&store, env.clone(), asml_abi_poll),
-            "__asml_abi_io_ptr" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_ptr),
+            "__asml_abi_io_poll" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_poll),
+//            "__asml_abi_io_ptr" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_ptr),
             "__asml_abi_io_len" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_len),
+            "__asml_abi_io_load" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_load),
+            "__asml_abi_io_next" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_next),
             "__asml_abi_clock_time_get" => Function::new_native_with_env(&store, env.clone(), asml_abi_clock_time_get),
             "__asml_abi_input_start" => Function::new_native_with_env(&store, env.clone(), asml_abi_input_start),
             "__asml_abi_input_next" => Function::new_native_with_env(&store, env.clone(), asml_abi_input_next),

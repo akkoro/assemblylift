@@ -4,17 +4,12 @@ use std::iter::Extend;
 use std::sync::{Arc, Mutex};
 use std::mem::ManuallyDrop;
 
-use crossbeam_utils::atomic::AtomicCell;
-use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
 use wasmer::{Array, LazyInit, Memory, NativeFunc, WasmerEnv, WasmPtr};
 
-use assemblylift_core_io_common::constants::IO_BUFFER_SIZE_BYTES;
 use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
-use crate::buffers::{LinearBuffer, IoBuffer};
-
-static IO_MEMORY: Lazy<Mutex<IoMemory>> = Lazy::new(|| Mutex::new(IoMemory::new(64, 8192)));
+use crate::buffers::{LinearBuffer, IoBuffer, PagedWasmBuffer};
 
 #[derive(WasmerEnv, Clone)]
 pub struct ThreaderEnv {
@@ -29,6 +24,7 @@ pub struct ThreaderEnv {
 }
 
 pub struct Threader {
+    io_memory: Arc<Mutex<IoMemory>>,
     registry_tx: RegistryTx,
     runtime: tokio::runtime::Runtime,
 }
@@ -36,20 +32,21 @@ pub struct Threader {
 impl Threader {
     pub fn new(tx: RegistryTx) -> Self {
         Threader {
+            io_memory: Arc::new(Mutex::new(IoMemory::new(64, 8192))),
             registry_tx: tx,
             runtime: tokio::runtime::Runtime::new().unwrap(),
         }
     }
 
     pub fn next_ioid(&mut self) -> Option<u32> {
-        match IO_MEMORY.lock() {
+        match self.io_memory.clone().lock() {
             Ok(mut memory) => memory.next_id(),
             Err(_) => None,
         }
     }
 
     pub fn get_io_memory_document(&mut self, ioid: u32) -> Option<IoMemoryDocument> {
-        match IO_MEMORY.lock() {
+        match self.io_memory.clone().lock() {
             Ok(memory) => match memory.document_map.get(&ioid) {
                 Some(doc) => Some(doc.clone()),
                 None => None,
@@ -58,12 +55,22 @@ impl Threader {
         }
     }
 
+    pub fn document_load(&mut self, env: &ThreaderEnv, ioid: u32) -> Result<(), ()> {
+        let doc = self.get_io_memory_document(ioid).unwrap();
+        self.io_memory.lock().unwrap().buffer.first(env, Some(doc.start));
+        Ok(())
+    }
+
+    pub fn document_next(&mut self, env: &ThreaderEnv) -> Result<(), ()> {
+        self.io_memory.lock().unwrap().buffer.next(env);
+        Ok(())
+    }
+    
     pub fn poll(&mut self, ioid: u32) -> bool {
-        match IO_MEMORY.lock() {
+        match self.io_memory.clone().lock() {
             Ok(mut memory) => {
                 match memory.poll(ioid) {
                     true => {
-                        // TODO below maybe not true now
                         // At this point, the document "contents" have already been written to the WASM buffer
                         //    and are read on the guest side immediately after poll() exits.
                         // We can free the host-side memory structure here.
@@ -81,10 +88,9 @@ impl Threader {
         &mut self,
         method_path: &str,
         method_input: Vec<u8>,
-//        memory: *const AtomicCell<u8>,
         ioid: u32,
     ) {
-//        let slc = unsafe { std::slice::from_raw_parts(memory, IO_BUFFER_SIZE_BYTES) };
+        let io_memory = self.io_memory.clone();
         
         let coords = method_path.split(".").collect::<Vec<&str>>();
         if coords.len() != 4 {
@@ -114,7 +120,7 @@ impl Threader {
 
             tokio::spawn(async move {
                 if let Some(response) = local_rx.recv().await {
-                    IO_MEMORY
+                    io_memory
                         .lock()
                         .unwrap()
                         .handle_response(response.payload, ioid);
@@ -128,8 +134,8 @@ impl Threader {
         hnd.spawn(future);
     }
 
-    pub fn __reset_memory() {
-        if let Ok(mut memory) = IO_MEMORY.lock() {
+    pub fn __reset_memory(&self) {
+        if let Ok(mut memory) = self.io_memory.clone().lock() {
             memory.reset();
         }
     }
@@ -232,9 +238,7 @@ impl IoMemory {
     fn next_id(&mut self) -> Option<u32> {
         let next_id = self._next_id.clone();
         self._next_id += 1;
-
         self.io_status.insert(next_id, false);
-
         Some(next_id)
     }
 

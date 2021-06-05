@@ -15,8 +15,8 @@ pub trait WasmBuffer {
     fn copy_to_wasm(&self, env: &ThreaderEnv, src: (usize, usize), dst: (usize, usize)) -> Result<(), ()>;
 }
 
-pub trait PagedBuffer: WasmBuffer {
-    fn first(&mut self, env: &ThreaderEnv) -> i32;
+pub trait PagedWasmBuffer: WasmBuffer {
+    fn first(&mut self, env: &ThreaderEnv, offset: Option<usize>) -> i32;
     fn next(&mut self, env: &ThreaderEnv) -> i32;
 }
 
@@ -66,8 +66,8 @@ impl LinearBuffer for FunctionInputBuffer {
     }
 }
 
-impl PagedBuffer for FunctionInputBuffer {
-    fn first(&mut self, env: &ThreaderEnv) -> i32 {
+impl PagedWasmBuffer for FunctionInputBuffer {
+    fn first(&mut self, env: &ThreaderEnv, _offset: Option<usize>) -> i32 {
         let end: usize = match self.buffer.len() < FUNCTION_INPUT_BUFFER_SIZE {
             true => self.buffer.len(),
             false => FUNCTION_INPUT_BUFFER_SIZE,
@@ -167,14 +167,22 @@ impl LinearBuffer for IoBuffer {
     }
 }
 
-impl PagedBuffer for IoBuffer {
-    fn first(&mut self, env: &ThreaderEnv) -> i32 {
-        let end: usize = match self.buffer.len() < IO_BUFFER_SIZE_BYTES {
-            true => self.buffer.len(),
-            false => IO_BUFFER_SIZE_BYTES,
-        };
-        self.copy_to_wasm(env, (0usize, end), (0usize, IO_BUFFER_SIZE_BYTES)).unwrap();
-        self.page_idx = 0usize;
+impl PagedWasmBuffer for IoBuffer {
+    fn first(&mut self, env: &ThreaderEnv, offset: Option<usize>) -> i32 {
+        use std::cmp::min;
+        let offset = offset.unwrap_or(0);
+        if offset > IO_BUFFER_SIZE_BYTES {
+            self.page_idx = (offset as f32 / IO_BUFFER_SIZE_BYTES as f32).floor() as usize;
+        } else {
+            self.page_idx = 0usize;
+        }
+
+        let page_offset = self.page_idx * IO_BUFFER_SIZE_BYTES;
+        self.copy_to_wasm(
+            env, 
+            (page_offset, min(page_offset + IO_BUFFER_SIZE_BYTES, self.buffer.len())), 
+            (0usize, IO_BUFFER_SIZE_BYTES),
+        ).unwrap();
         0
     }
 
@@ -182,10 +190,11 @@ impl PagedBuffer for IoBuffer {
         use std::cmp::min;
         if self.buffer.len() > IO_BUFFER_SIZE_BYTES {
             self.page_idx += 1;
+            let page_offset = self.page_idx * IO_BUFFER_SIZE_BYTES;
             self.copy_to_wasm(
                 env, 
-                (IO_BUFFER_SIZE_BYTES * self.page_idx, min(IO_BUFFER_SIZE_BYTES * (self.page_idx + 1), self.buffer.len())), 
-                (0usize, IO_BUFFER_SIZE_BYTES)
+                (page_offset, min(page_offset + IO_BUFFER_SIZE_BYTES, self.buffer.len())), 
+                (0usize, IO_BUFFER_SIZE_BYTES),
             ).unwrap();
         }
         0
