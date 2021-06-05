@@ -4,10 +4,10 @@ use std::io;
 use std::io::ErrorKind;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crossbeam_utils::atomic::AtomicCell;
 use wasmer::{MemoryView, WasmPtr, Array};
 
 use crate::{invoke_io, WasmBufferPtr};
+use crate::buffers::{LinearBuffer, PagedWasmBuffer};
 use crate::threader::ThreaderEnv;
 
 pub type AsmlAbiFn = fn(&ThreaderEnv, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
@@ -18,7 +18,6 @@ fn to_io_error<E: Error>(err: E) -> io::Error {
 
 pub fn asml_abi_invoke(
     env: &ThreaderEnv,
-    mem: WasmBufferPtr,
     name_ptr: u32,
     name_len: u32,
     input: u32,
@@ -26,14 +25,14 @@ pub fn asml_abi_invoke(
 ) -> i32 {
     if let Ok(method_path) = env_ptr_to_string(env, name_ptr, name_len) {
         if let Ok(input) = env_ptr_to_bytes(env, input, input_len) {
-            return invoke_io(env, mem, &*method_path, input);
+            return invoke_io(env, &*method_path, input);
         }
     }
 
     -1i32 // error
 }
 
-pub fn asml_abi_poll(env: &ThreaderEnv, id: u32) -> i32 {
+pub fn asml_abi_io_poll(env: &ThreaderEnv, id: u32) -> i32 {
     env.threader
         .clone()
         .lock()
@@ -41,15 +40,15 @@ pub fn asml_abi_poll(env: &ThreaderEnv, id: u32) -> i32 {
         .poll(id) as i32
 }
 
-pub fn asml_abi_io_ptr(env: &ThreaderEnv, id: u32) -> u32 {
-    env.threader
-        .clone()
-        .lock()
-        .unwrap()
-        .get_io_memory_document(id)
-        .unwrap()
-        .start as u32
-}
+//pub fn asml_abi_io_ptr(env: &ThreaderEnv, id: u32) -> u32 {
+//    env.threader
+//        .clone()
+//        .lock()
+//        .unwrap()
+//        .get_io_memory_document(id)
+//        .unwrap()
+//        .start as u32
+//}
 
 pub fn asml_abi_io_len(env: &ThreaderEnv, id: u32) -> u32 {
     env.threader
@@ -59,6 +58,28 @@ pub fn asml_abi_io_len(env: &ThreaderEnv, id: u32) -> u32 {
         .get_io_memory_document(id)
         .unwrap()
         .length as u32
+}
+
+pub fn asml_abi_io_load(env: &ThreaderEnv, id: u32) -> i32 {
+    match env.threader
+        .lock()
+        .unwrap()
+        .document_load(env, id)
+    {
+        Ok(_) => 0,
+        Err(_) => -1,
+    }
+}
+
+pub fn asml_abi_io_next(env: &ThreaderEnv) -> i32 {
+    match env.threader
+        .lock()
+        .unwrap()
+        .document_next(env)
+    {
+        Ok(_) => 0,
+        Err(_) => -1,
+    }
 }
 
 pub fn asml_abi_clock_time_get(_env: &ThreaderEnv) -> u64 {
@@ -74,7 +95,7 @@ pub fn asml_abi_input_start(env: &ThreaderEnv) -> i32 {
         .clone()
         .lock()
         .unwrap()
-        .start(env)
+        .first(env, None)
 }
 
 pub fn asml_abi_input_next(env: &ThreaderEnv) -> i32 {
@@ -118,7 +139,6 @@ pub fn asml_abi_z85_decode(env: &ThreaderEnv, ptr: u32, len: u32, out_ptr: WasmP
     -1i32
 }
 
-#[inline]
 fn env_ptr_to_string(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<String, io::Error> {
     let mem = env.memory_ref().unwrap();
     let view: MemoryView<u8> = mem.view();
@@ -148,7 +168,6 @@ fn write_bytes_to_ptr(env: &ThreaderEnv, s: Vec<u8>, ptr: WasmPtr<u8, Array>) ->
     Ok(())
 }
 
-#[inline]
 fn env_ptr_to_bytes(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<Vec<u8>, io::Error> {
     let mem = env.memory_ref().unwrap();
     let view: MemoryView<u8> = mem.view();

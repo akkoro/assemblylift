@@ -1,18 +1,19 @@
 use std::future::Future;
+use std::io::BufReader;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 
-use serde::Deserialize;
-use serde_json;
+use serde::{Deserialize, de::DeserializeOwned};
 
 use assemblylift_core_io_common::constants::{FUNCTION_INPUT_BUFFER_SIZE, IO_BUFFER_SIZE_BYTES};
 
 extern "C" {
     // IO
-    fn __asml_abi_poll(id: u32) -> i32; // TODO rename __asml_abi_io_poll for consistency in prefixing
-    fn __asml_abi_io_ptr(id: u32) -> u32;
+    fn __asml_abi_io_poll(id: u32) -> i32;
     fn __asml_abi_io_len(id: u32) -> u32;
+    fn __asml_abi_io_load(id: u32) -> i32;
+    fn __asml_abi_io_next() -> i32;
 
     // System clock
     fn __asml_abi_clock_time_get() -> u64;
@@ -33,12 +34,50 @@ extern "C" {
 // Raw buffer holding serialized IO data
 pub static mut IO_BUFFER: [u8; IO_BUFFER_SIZE_BYTES] = [0; IO_BUFFER_SIZE_BYTES];
 
+#[no_mangle]
+pub fn __asml_guest_get_io_buffer_pointer() -> *const u8 {
+    unsafe { IO_BUFFER.as_ptr() }
+}
+
 fn console_log(message: String) {
     unsafe { __asml_abi_console_log(message.as_ptr(), message.len()) }
 }
 
 pub fn get_time() -> u64 {
     unsafe { __asml_abi_clock_time_get() }
+}
+
+pub struct IoDocument {
+    bytes_read: usize,
+    pages_read: usize,
+    length: usize,
+}
+
+impl IoDocument {
+    pub fn new(ioid: u32) -> Self {
+        unsafe { __asml_abi_io_load(ioid) };
+        Self {
+            bytes_read: 0,
+            pages_read: 0,
+            length: unsafe { __asml_abi_io_len(ioid) } as usize,
+        }
+    }
+}
+
+impl std::io::Read for IoDocument {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
+        if self.bytes_read < self.length {
+            buf[self.bytes_read] = unsafe { 
+                IO_BUFFER[self.bytes_read - (self.pages_read * IO_BUFFER_SIZE_BYTES)]
+            };
+        }
+        self.bytes_read += 1;
+        if self.bytes_read == IO_BUFFER_SIZE_BYTES {
+            unsafe { __asml_abi_io_next() };
+            self.pages_read += 1;
+        }
+        Ok(1)
+    }
 }
 
 #[derive(Clone)]
@@ -58,12 +97,15 @@ impl<'a, R: Deserialize<'a>> Io<'_, R> {
     }
 }
 
-impl<'a, R: Deserialize<'a>> Future for Io<'_, R> {
+impl<'a, R> Future for Io<'_, R> 
+where
+    R: DeserializeOwned,
+{
     type Output = R;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        match unsafe { __asml_abi_poll(self.id) } {
-            1 => Poll::Ready(unsafe { read_response::<Self::Output>(self.id).unwrap() }),
+        match unsafe { __asml_abi_io_poll(self.id) } {
+            1 => Poll::Ready(read_response::<Self::Output>(self.id).unwrap()),
             _ => {
                 self.waker = Box::new(Some(cx.waker().clone()));
                 Poll::Pending
@@ -72,11 +114,12 @@ impl<'a, R: Deserialize<'a>> Future for Io<'_, R> {
     }
 }
 
-unsafe fn read_response<'a, R: Deserialize<'a>>(id: u32) -> Option<R> {
-    let ptr = __asml_abi_io_ptr(id) as usize;
-    let end = __asml_abi_io_len(id) as usize + ptr;
-
-    match serde_json::from_slice::<R>(&IO_BUFFER[ptr..end]) {
+fn read_response<'a, T>(id: u32) -> Option<T>
+where
+    T: DeserializeOwned,
+{
+    let doc = BufReader::new(IoDocument::new(id));
+    match serde_json::from_reader::<BufReader<IoDocument>, T>(doc) {
         Ok(response) => Some(response),
         Err(why) => {
             console_log(format!("[ERROR] {}", why.to_string()));
