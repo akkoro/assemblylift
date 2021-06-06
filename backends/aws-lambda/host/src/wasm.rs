@@ -43,7 +43,6 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
             "__asml_abi_success" => Function::new_native_with_env(&store, env.clone(), runtime_success),
             "__asml_abi_invoke" => Function::new_native_with_env(&store, env.clone(), asml_abi_invoke),
             "__asml_abi_io_poll" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_poll),
-//            "__asml_abi_io_ptr" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_ptr),
             "__asml_abi_io_len" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_len),
             "__asml_abi_io_load" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_load),
             "__asml_abi_io_next" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_next),
