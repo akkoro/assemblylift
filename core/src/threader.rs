@@ -156,12 +156,14 @@ struct Block {
 
 impl Block {
     fn free(&mut self) {
+        println!("DEBUG: freeing block {:?}", self.event_ptr);
         self.status = BlockStatus::Free;
         self.offset = None;
         self.event_ptr = None;
     }
 
     fn set(&mut self, ioid: u32, offset: usize) {
+        println!("DEBUG: setting block {}", ioid);
         self.status = BlockStatus::Used;
         self.event_ptr = Some(ioid);
         self.offset = Some(offset);
@@ -250,6 +252,7 @@ impl IoMemory {
     }
 
     fn handle_response(&mut self, response: Vec<u8>, ioid: u32) {
+        println!("DEBUG: handle response for {}", ioid);
         let offset = self.alloc(response.len(), ioid);
         self.buffer.write(response.as_slice(), offset);
         self.io_status.insert(ioid, true);
@@ -260,6 +263,8 @@ impl IoMemory {
         let needed_bytes = needed_blocks * self.block_size;
         let mut available_blocks = 0usize;
         let mut block_list_offset = 0usize;
+
+        println!("DEBUG: allocating {} bytes ({} blocks) for {}", needed_blocks, needed_bytes, ioid);
 
         if self.buffer.capacity() < needed_bytes {
             self.grow();
@@ -303,6 +308,7 @@ impl IoMemory {
     }
 
     fn grow(&mut self) {
+        println!("DEBUG: growing IO buffer capacity");
         self.buffer.double();
         self.blocks.reserve(self.num_blocks);
         self.blocks.extend(vec![Block {
