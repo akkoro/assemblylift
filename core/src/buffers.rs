@@ -136,8 +136,8 @@ impl IoBuffer {
 
     #[inline(always)]
     fn push(&mut self, idx: usize) {
-        if idx > self.buffer.len() {
-            let diff = idx - self.buffer.len();
+        if idx >= self.buffer.len() {
+            let diff = std::cmp::max(idx - self.buffer.len(), 1);
             for _ in 0..diff {
                 self.buffer.push(0)
             }
