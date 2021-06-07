@@ -264,7 +264,7 @@ impl IoMemory {
         let mut available_blocks = 0usize;
         let mut block_list_offset = 0usize;
 
-        println!("DEBUG: allocating {} bytes ({} blocks) for {}", needed_blocks, needed_bytes, ioid);
+        println!("DEBUG: allocating {} blocks ({} bytes) for {}", needed_blocks, needed_bytes, ioid);
 
         if self.buffer.capacity() < needed_bytes {
             self.grow();
