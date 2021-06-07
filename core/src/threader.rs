@@ -218,9 +218,16 @@ struct IoMemory {
 
 impl IoMemory {
     fn new(block_size: usize, num_blocks: usize) -> Self {
+        let mut blocks = BlockList::new(num_blocks);
+        blocks.extend(vec![Block {
+            event_ptr: None,
+            offset: None,
+            status: BlockStatus::Free,
+        }; num_blocks]);
+
         IoMemory {
             _next_id: 1, // id 0 is reserved (null)
-            blocks: BlockList::new(num_blocks),
+            blocks,
             block_size,
             buffer: IoBuffer::new(block_size * num_blocks),
             document_map: Default::default(),
