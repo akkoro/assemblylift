@@ -156,14 +156,14 @@ struct Block {
 
 impl Block {
     fn free(&mut self) {
-        println!("DEBUG: freeing block {:?}", self.event_ptr);
+        println!("DEBUG: freeing block for ioid#{:?}", self.event_ptr);
         self.status = BlockStatus::Free;
         self.offset = None;
         self.event_ptr = None;
     }
 
     fn set(&mut self, ioid: u32, offset: usize) {
-        println!("DEBUG: setting block {}", ioid);
+        println!("DEBUG: setting block at {} for ioid#{}", offset, ioid);
         self.status = BlockStatus::Used;
         self.event_ptr = Some(ioid);
         self.offset = Some(offset);
@@ -171,19 +171,25 @@ impl Block {
 }
 
 #[derive(Clone)]
-struct BlockList(Vec<Block>);
+struct BlockList {
+    block_size: usize,
+    list: Vec<Block>,
+}
 
 impl BlockList {
-    fn new(num_blocks: usize) -> Self {
-        Self(Vec::with_capacity(num_blocks))
+    fn new(block_size: usize, num_blocks: usize) -> Self {
+        Self {
+            block_size,
+            list: Vec::with_capacity(num_blocks),
+        }
     }
 
     #[inline(always)]
     fn push(&mut self, idx: usize) {
-        if idx >= self.0.len() {
-            let diff = std::cmp::max(idx - self.0.len(), 1);
+        if idx >= self.list.len() {
+            let diff = std::cmp::max(idx - self.list.len(), 1);
             for _ in 0..diff {
-                self.0.push(Block {
+                self.list.push(Block {
                     event_ptr: None,
                     offset: None,
                     status: BlockStatus::Free,
@@ -194,13 +200,13 @@ impl BlockList {
     
     fn set(&mut self, idx: usize, ioid: u32) {
         self.push(idx);
-        self.0.get_mut(idx)
+        self.list.get_mut(idx)
             .expect(&format!("could not get block idx {} for ioid {}", idx, ioid))
-            .set(ioid, idx);
+            .set(ioid, idx * self.block_size);
     }
 
     fn reserve(&mut self, num_blocks: usize) {
-        self.0.reserve(num_blocks);
+        self.list.reserve(num_blocks);
     }
 }
 
@@ -209,7 +215,7 @@ impl Extend<Block> for BlockList {
         println!("DEBUG: extending BlockList");
         let mut count = 0usize;
         for e in iter {
-            self.0.push(e);
+            self.list.push(e);
             count += 1;
         }
         println!("DEBUG: added {} blocks", count);
@@ -221,7 +227,7 @@ impl IntoIterator for BlockList {
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+        self.list.into_iter()
     }
 }
 
@@ -243,7 +249,7 @@ struct IoMemory {
 
 impl IoMemory {
     fn new(block_size: usize, num_blocks: usize) -> Self {
-        let mut blocks = BlockList::new(num_blocks);
+        let mut blocks = BlockList::new(block_size, num_blocks);
         blocks.extend(vec![Block {
             event_ptr: None,
             offset: None,
@@ -263,7 +269,7 @@ impl IoMemory {
 
     fn reset(&mut self) {
         self._next_id = 1;
-        self.blocks = BlockList::new(self.num_blocks);
+        self.blocks = BlockList::new(self.block_size, self.num_blocks);
         self.buffer = IoBuffer::new(self.block_size * self.num_blocks);
         self.document_map.clear();
         self.io_status.clear();
@@ -324,7 +330,7 @@ impl IoMemory {
         for i in block_range {
             println!("DEBUG: initializing block {}", i);
             self.buffer.erase(i * self.block_size, (i * self.block_size) + self.block_size);
-            self.blocks.set(i * self.block_size, ioid);
+            self.blocks.set(i, ioid);
         }
 
         let start = block_list_offset * self.block_size;
