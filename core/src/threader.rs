@@ -185,9 +185,13 @@ impl BlockList {
 
 impl Extend<Block> for BlockList {
     fn extend<T: IntoIterator<Item=Block>>(&mut self, iter: T) {
+        println!("DEBUG: extending BlockList");
+        let mut count = 0usize;
         for e in iter {
             self.0.push(e);
+            count += 1;
         }
+        println!("DEBUG: added {} blocks", count);
     }
 }
 
@@ -297,6 +301,7 @@ impl IoMemory {
 
         let block_range = block_list_offset..(block_list_offset + needed_blocks);
         for i in block_range {
+            println!("DEBUG: initializing block {}", i);
             self.buffer.erase(i * self.block_size, (i * self.block_size) + self.block_size);
             self.blocks.0.get_mut(i).unwrap().set(ioid, i * self.block_size);
         }
