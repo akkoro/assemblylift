@@ -178,6 +178,27 @@ impl BlockList {
         Self(Vec::with_capacity(num_blocks))
     }
 
+    #[inline(always)]
+    fn push(&mut self, idx: usize) {
+        if idx >= self.0.len() {
+            let diff = std::cmp::max(idx - self.0.len(), 1);
+            for _ in 0..diff {
+                self.0.push(Block {
+                    event_ptr: None,
+                    offset: None,
+                    status: BlockStatus::Free,
+                })
+            }
+        }
+    }
+    
+    fn set(&mut self, idx: usize, ioid: u32) {
+        self.push(idx);
+        self.0.get_mut(idx)
+            .expect(&format!("could not get block idx {} for ioid {}", idx, ioid))
+            .set(ioid, idx);
+    }
+
     fn reserve(&mut self, num_blocks: usize) {
         self.0.reserve(num_blocks);
     }
@@ -303,7 +324,7 @@ impl IoMemory {
         for i in block_range {
             println!("DEBUG: initializing block {}", i);
             self.buffer.erase(i * self.block_size, (i * self.block_size) + self.block_size);
-            self.blocks.0.get_mut(i).unwrap().set(ioid, i * self.block_size);
+            self.blocks.set(i * self.block_size, ioid);
         }
 
         let start = block_list_offset * self.block_size;
