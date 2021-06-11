@@ -291,6 +291,7 @@ impl IoMemory {
 
     fn handle_response(&mut self, response: Vec<u8>, ioid: u32) {
         println!("DEBUG: handle response for {}", ioid);
+        println!("DEBUG: response: {}", std::str::from_utf8(response.as_slice()).unwrap());
         let offset = self.alloc(response.len(), ioid);
         self.buffer.write(response.as_slice(), offset);
         self.io_status.insert(ioid, true);

@@ -170,10 +170,10 @@ impl LinearBuffer for IoBuffer {
         bytes_written
     }
     
-    fn erase(&mut self, offset: usize, len: usize) -> usize {
-        println!("DEBUG: erasing bytes from {} to {}", offset, offset + len);
+    fn erase(&mut self, offset: usize, end: usize) -> usize {
+        println!("DEBUG: erasing bytes from {} to {}", offset, end);
         let mut bytes_erased = 0usize;
-        for idx in offset..len {
+        for idx in offset..end {
             self.erase_byte(idx);
             bytes_erased += 1;
         }
