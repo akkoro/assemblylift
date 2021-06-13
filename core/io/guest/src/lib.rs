@@ -70,6 +70,7 @@ impl std::io::Read for IoDocument {
             buf[self.bytes_read] = unsafe { 
                 IO_BUFFER[self.bytes_read - (self.pages_read * IO_BUFFER_SIZE_BYTES)]
             };
+            console_log(format!("DEBUG: {}", buf[self.bytes_read]));
         }
         self.bytes_read += 1;
         if self.bytes_read == IO_BUFFER_SIZE_BYTES {
