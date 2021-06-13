@@ -241,6 +241,7 @@ impl WasmBuffer for IoBuffer {
             .unwrap();
 
         println!("DEBUG: IoBuffer::copy_to_wasm src={:?} dst={:?}", src, dst);
+        println!("DEBUG:    data_utf8={:?}", std::str::from_utf8(&self.buffer[src.0..src.1]).unwrap());
 
         for (i, b) in self.buffer[src.0..src.1].iter().enumerate() {
             let idx = i + dst.0;
