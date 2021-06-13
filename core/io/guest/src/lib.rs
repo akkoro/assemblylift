@@ -66,12 +66,13 @@ impl IoDocument {
 
 impl std::io::Read for IoDocument {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
+        console_log(format!("DEBUG: IoDocument::read bytes_read={} length={}", self.bytes_read, self.length));
         if self.bytes_read < self.length {
             buf[self.bytes_read] = unsafe { 
                 IO_BUFFER[self.bytes_read - (self.pages_read * IO_BUFFER_SIZE_BYTES)]
             };
-            console_log(format!("DEBUG: {}", buf[self.bytes_read]));
         }
+        console_log(format!("DEBUG: {:?}", std::str::from_utf8(buf).unwrap()));
         self.bytes_read += 1;
         if self.bytes_read == IO_BUFFER_SIZE_BYTES {
             unsafe { __asml_abi_io_next() };

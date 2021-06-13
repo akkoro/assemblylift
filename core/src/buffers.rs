@@ -167,6 +167,7 @@ impl LinearBuffer for IoBuffer {
             self.set_byte(bytes[idx - at_offset], idx);
             bytes_written += 1;
         }
+        println!("DEBUG: wrote {:?}", std::str::from_utf8(self.buffer.as_slice()).unwrap());
         bytes_written
     }
     
