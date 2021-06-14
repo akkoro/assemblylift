@@ -161,6 +161,7 @@ impl LinearBuffer for IoBuffer {
     }
 
     fn write(&mut self, bytes: &[u8], at_offset: usize) -> usize {
+        println!("DEBUG: write at_offset={}", at_offset);
         let mut bytes_written = 0usize;
         for idx in at_offset..bytes.len() {
             self.set_byte(bytes[idx - at_offset], idx);
