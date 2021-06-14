@@ -74,7 +74,7 @@ impl Threader {
                         // At this point, the document "contents" have already been written to the WASM buffer
                         //    and are read on the guest side immediately after poll() exits.
                         // We can free the host-side memory structure here.
-                        memory.free(ioid);
+//                        memory.free(ioid);
                         true
                     }
                     false => false,
