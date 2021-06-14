@@ -156,14 +156,12 @@ struct Block {
 
 impl Block {
     fn free(&mut self) {
-        println!("DEBUG: freeing block for ioid#{:?}", self.event_ptr);
         self.status = BlockStatus::Free;
         self.offset = None;
         self.event_ptr = None;
     }
 
     fn set(&mut self, ioid: u32, offset: usize) {
-        println!("DEBUG: setting block at {} for ioid#{}", offset, ioid);
         self.status = BlockStatus::Used;
         self.event_ptr = Some(ioid);
         self.offset = Some(offset);
@@ -291,7 +289,6 @@ impl IoMemory {
 
     fn handle_response(&mut self, response: Vec<u8>, ioid: u32) {
         println!("DEBUG: handle response for {}", ioid);
-        println!("DEBUG: response: {}", std::str::from_utf8(response.as_slice()).unwrap());
         let offset = self.alloc(response.len(), ioid);
         self.buffer.write(response.as_slice(), offset);
         self.io_status.insert(ioid, true);
@@ -329,7 +326,6 @@ impl IoMemory {
 
         let block_range = block_list_offset..(block_list_offset + needed_blocks);
         for i in block_range {
-            println!("DEBUG: initializing block {}", i);
             self.buffer.erase(i * self.block_size, (i * self.block_size) + self.block_size);
             self.blocks.set(i, ioid);
         }

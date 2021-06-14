@@ -161,18 +161,15 @@ impl LinearBuffer for IoBuffer {
     }
 
     fn write(&mut self, bytes: &[u8], at_offset: usize) -> usize {
-        println!("DEBUG: writing {} bytes from {}", bytes.len(), at_offset);
         let mut bytes_written = 0usize;
         for idx in at_offset..bytes.len() {
             self.set_byte(bytes[idx - at_offset], idx);
             bytes_written += 1;
         }
-        println!("DEBUG: wrote {:?}", std::str::from_utf8(self.buffer.as_slice()).unwrap());
         bytes_written
     }
     
     fn erase(&mut self, offset: usize, end: usize) -> usize {
-        println!("DEBUG: erasing bytes from {} to {}", offset, end);
         let mut bytes_erased = 0usize;
         for idx in offset..end {
             self.erase_byte(idx);
@@ -240,9 +237,6 @@ impl WasmBuffer for IoBuffer {
                 dst.1 as u32,
             )
             .unwrap();
-
-        println!("DEBUG: IoBuffer::copy_to_wasm src={:?} dst={:?}", src, dst);
-        println!("DEBUG:    data_utf8={:?}", std::str::from_utf8(&self.buffer[src.0..src.1]).unwrap());
 
         for (i, b) in self.buffer[src.0..src.1].iter().enumerate() {
             let idx = i + dst.0;
