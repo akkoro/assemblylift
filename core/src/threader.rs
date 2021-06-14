@@ -32,7 +32,7 @@ pub struct Threader {
 impl Threader {
     pub fn new(tx: RegistryTx) -> Self {
         Threader {
-            io_memory: Arc::new(Mutex::new(IoMemory::new(64, 8192))),
+            io_memory: Arc::new(Mutex::new(IoMemory::new(256, 16384))),
             registry_tx: tx,
             runtime: tokio::runtime::Runtime::new().unwrap(),
         }
@@ -302,7 +302,7 @@ impl IoMemory {
 
         println!("DEBUG: allocating {} blocks ({} bytes) for {}", needed_blocks, needed_bytes, ioid);
 
-        if self.buffer.capacity() < needed_bytes {
+        while self.buffer.capacity() < needed_bytes {
             self.grow();
         }
 
