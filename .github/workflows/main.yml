@@ -3,8 +3,8 @@ name: AssemblyLift CI
 on:
   push:
     branches: [ mainline, v0.3 ]
-  pull_request:
-    branches: [ mainline, v0.3 ]
+    #  pull_request:
+    #    branches: [ mainline, v0.3 ]
 
 jobs:
 
