@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crossbeam_utils::atomic::AtomicCell;
 use assemblylift_core_io_common::constants::{FUNCTION_INPUT_BUFFER_SIZE, IO_BUFFER_SIZE_BYTES};
 
@@ -118,112 +120,79 @@ impl WasmBuffer for FunctionInputBuffer {
 }
 
 pub struct IoBuffer {
-    buffer: Vec<u8>,
-    page_idx: usize,
+    active_buffer: usize,
+    buffers: HashMap<usize, Vec<u8>>,
+    page_indices: HashMap<usize, usize>,
 }
 
 impl IoBuffer {
-    pub fn new(capacity: usize) -> Self {
+    pub fn new() -> Self {
         Self {
-            buffer: Vec::with_capacity(capacity),
-            page_idx: 0usize,
+            active_buffer: 0usize,
+            buffers: Default::default(),
+            page_indices: Default::default(),
         }
     }
 
-    pub fn double(&mut self) {
-        self.buffer.reserve(self.buffer.capacity());
+    pub fn len(&self, ioid: usize) -> usize {
+        self.buffers.get(&ioid).unwrap().len()
     }
-
-    #[inline(always)]
-    fn push(&mut self, idx: usize) {
-        if idx >= self.buffer.len() {
-            let diff = std::cmp::max(idx - self.buffer.len(), 1);
-            for _ in 0..diff {
-                self.buffer.push(0)
-            }
+    
+    pub fn with_capacity(num_buffers: usize, buffer_capacity: usize) -> Self {
+        let mut buffers: HashMap<usize, Vec<u8>> = HashMap::new();
+        let mut indices: HashMap<usize, usize> = HashMap::new();
+        for idx in 0..num_buffers {
+            buffers.insert(idx, Vec::with_capacity(buffer_capacity));
+            indices.insert(idx, 0);
+        }
+        Self {
+            active_buffer: 0usize,
+            buffers,
+            page_indices: indices,
         }
     }
 
-    fn set_byte(&mut self, byte: u8, idx: usize) {
-        self.push(idx);
-        self.buffer[idx] = byte;
-    }
-
-    fn erase_byte(&mut self, idx: usize) {
-        self.push(idx);
-        self.buffer[idx] = 0;
-    }
-}
-
-impl LinearBuffer for IoBuffer {
-    fn initialize(&mut self, buffer: Vec<u8>) {
-        self.buffer = buffer;
-    }
-
-    fn write(&mut self, bytes: &[u8], at_offset: usize) -> usize {
-        println!("DEBUG: write at_offset={}", at_offset);
+    pub fn write(&mut self, ioid: usize, bytes: &[u8]) -> usize {
+        println!("DEBUG: write ioid={}", ioid);
         let mut bytes_written = 0usize;
-        for idx in at_offset..bytes.len() {
-            self.set_byte(bytes[idx - at_offset], idx);
+        let buffer = self.buffers.get_mut(&ioid).unwrap();
+        for idx in 0..bytes.len() {
+            buffer.push(bytes[idx]);
             bytes_written += 1;
         }
         bytes_written
-    }
-    
-    fn erase(&mut self, offset: usize, end: usize) -> usize {
-        let mut bytes_erased = 0usize;
-        for idx in offset..end {
-            self.erase_byte(idx);
-            bytes_erased += 1;
-        }
-        bytes_erased
-    }
-
-    fn len(&self) -> usize {
-        self.buffer.len()
-    }
-
-    fn capacity(&self) -> usize {
-        self.buffer.capacity()
     }
 }
 
 impl PagedWasmBuffer for IoBuffer {
     fn first(&mut self, env: &ThreaderEnv, offset: Option<usize>) -> i32 {
-        use std::cmp::min;
-        let offset = offset.unwrap_or(0);
-        if offset > IO_BUFFER_SIZE_BYTES {
-            self.page_idx = (offset as f32 / IO_BUFFER_SIZE_BYTES as f32).floor() as usize;
-        } else {
-            self.page_idx = 0usize;
-        }
+        self.active_buffer = offset.unwrap_or(0);
+        self.page_indices.insert(self.active_buffer, 0usize);
 
-        let page_offset = self.page_idx * IO_BUFFER_SIZE_BYTES;
         self.copy_to_wasm(
             env, 
-            (page_offset, min(page_offset + IO_BUFFER_SIZE_BYTES, self.buffer.len())), 
+            (self.active_buffer, 0usize), 
             (0usize, IO_BUFFER_SIZE_BYTES),
         ).unwrap();
         0
     }
 
     fn next(&mut self, env: &ThreaderEnv) -> i32 {
-        use std::cmp::min;
-        if self.buffer.len() > IO_BUFFER_SIZE_BYTES {
-            self.page_idx += 1;
-            let page_offset = self.page_idx * IO_BUFFER_SIZE_BYTES;
-            self.copy_to_wasm(
-                env, 
-                (page_offset, min(page_offset + IO_BUFFER_SIZE_BYTES, self.buffer.len())), 
-                (0usize, IO_BUFFER_SIZE_BYTES),
-            ).unwrap();
-        }
+        let page_idx = self.page_indices.get(&self.active_buffer).unwrap() + 1;
+        let page_offset = page_idx * IO_BUFFER_SIZE_BYTES;
+        self.copy_to_wasm(
+            env, 
+            (self.active_buffer, page_offset), 
+            (0usize, IO_BUFFER_SIZE_BYTES),
+        ).unwrap();
+        *self.page_indices.get_mut(&self.active_buffer).unwrap() = page_idx;
         0
     }
 }
 
 impl WasmBuffer for IoBuffer {
     fn copy_to_wasm(&self, env: &ThreaderEnv, src: (usize, usize), dst: (usize, usize)) -> Result<(), ()> {
+        use std::cmp::min;
         let wasm_memory = env.memory_ref().unwrap();
         let io_buffer = env
             .get_io_buffer
@@ -239,9 +208,9 @@ impl WasmBuffer for IoBuffer {
             )
             .unwrap();
 
-        for (i, b) in self.buffer[src.0..src.1].iter().enumerate() {
-            let idx = i + dst.0;
-            memory_writer[idx].store(*b);
+        let buffer = self.buffers.get(&src.0).unwrap();
+        for (i, b) in buffer[src.1..min(src.1 + IO_BUFFER_SIZE_BYTES, buffer.len())].iter().enumerate() {
+            memory_writer[i].store(*b);
         }
 
         Ok(())
