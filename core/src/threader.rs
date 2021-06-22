@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::future::Future;
-use std::iter::Extend;
 use std::sync::{Arc, Mutex};
 use std::mem::ManuallyDrop;
 
@@ -9,7 +8,7 @@ use wasmer::{Array, LazyInit, Memory, NativeFunc, WasmerEnv, WasmPtr};
 
 use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
-use crate::buffers::{LinearBuffer, IoBuffer, PagedWasmBuffer};
+use crate::buffers::{IoBuffer, PagedWasmBuffer};
 
 #[derive(WasmerEnv, Clone)]
 pub struct ThreaderEnv {
@@ -32,7 +31,7 @@ pub struct Threader {
 impl Threader {
     pub fn new(tx: RegistryTx) -> Self {
         Threader {
-            io_memory: Arc::new(Mutex::new(IoMemory::new(256, 16384))),
+            io_memory: Arc::new(Mutex::new(IoMemory::new())),
             registry_tx: tx,
             runtime: tokio::runtime::Runtime::new().unwrap(),
         }
@@ -68,7 +67,7 @@ impl Threader {
     
     pub fn poll(&mut self, ioid: u32) -> bool {
         match self.io_memory.clone().lock() {
-            Ok(mut memory) => {
+            Ok(memory) => {
                 match memory.poll(ioid) {
                     true => {
                         // At this point, the document "contents" have already been written to the WASM buffer
@@ -141,94 +140,6 @@ impl Threader {
     }
 }
 
-#[derive(Copy, Clone)]
-enum BlockStatus {
-    Free,
-    Used,
-}
-
-#[derive(Copy, Clone)]
-struct Block {
-    event_ptr: Option<u32>,
-    offset: Option<usize>,
-    status: BlockStatus,
-}
-
-impl Block {
-    fn free(&mut self) {
-        self.status = BlockStatus::Free;
-        self.offset = None;
-        self.event_ptr = None;
-    }
-
-    fn set(&mut self, ioid: u32, offset: usize) {
-        self.status = BlockStatus::Used;
-        self.event_ptr = Some(ioid);
-        self.offset = Some(offset);
-    }
-}
-
-#[derive(Clone)]
-struct BlockList {
-    block_size: usize,
-    list: Vec<Block>,
-}
-
-impl BlockList {
-    fn new(block_size: usize, num_blocks: usize) -> Self {
-        Self {
-            block_size,
-            list: Vec::with_capacity(num_blocks),
-        }
-    }
-
-    #[inline(always)]
-    fn push(&mut self, idx: usize) {
-        if idx >= self.list.len() {
-            let diff = std::cmp::max(idx - self.list.len(), 1);
-            for _ in 0..diff {
-                self.list.push(Block {
-                    event_ptr: None,
-                    offset: None,
-                    status: BlockStatus::Free,
-                })
-            }
-        }
-    }
-    
-    fn set(&mut self, idx: usize, ioid: u32) {
-        self.push(idx);
-        self.list.get_mut(idx)
-            .expect(&format!("could not get block idx {} for ioid {}", idx, ioid))
-            .set(ioid, idx * self.block_size);
-    }
-
-    fn reserve(&mut self, num_blocks: usize) {
-        self.list.reserve(num_blocks);
-    }
-}
-
-impl Extend<Block> for BlockList {
-    fn extend<T: IntoIterator<Item=Block>>(&mut self, iter: T) {
-        println!("DEBUG: extending BlockList");
-        let mut count = 0usize;
-        for e in iter {
-            self.list.push(e);
-            count += 1;
-        }
-        println!("DEBUG: added {} blocks", count);
-    }
-}
-
-impl IntoIterator for BlockList {
-    type Item = Block;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.list.into_iter()
-    }
-}
-
 #[derive(Clone)]
 pub struct IoMemoryDocument {
     pub start: usize,
@@ -237,37 +148,23 @@ pub struct IoMemoryDocument {
 
 struct IoMemory {
     _next_id: u32,
-    blocks: BlockList,
-    block_size: usize,
     buffer: IoBuffer,
     document_map: HashMap<u32, IoMemoryDocument>,
     io_status: HashMap<u32, bool>,
-    num_blocks: usize,
 }
 
 impl IoMemory {
-    fn new(block_size: usize, num_blocks: usize) -> Self {
-        let mut blocks = BlockList::new(block_size, num_blocks);
-        blocks.extend(vec![Block {
-            event_ptr: None,
-            offset: None,
-            status: BlockStatus::Free,
-        }; num_blocks]);
-
+    fn new() -> Self {
         IoMemory {
             _next_id: 1, // id 0 is reserved (null)
-            blocks,
-            block_size,
             buffer: IoBuffer::new(),
             document_map: Default::default(),
             io_status: Default::default(),
-            num_blocks,
         }
     }
 
     fn reset(&mut self) {
         self._next_id = 1;
-        self.blocks = BlockList::new(self.block_size, self.num_blocks);
         self.buffer = IoBuffer::new();
         self.document_map.clear();
         self.io_status.clear();
@@ -291,15 +188,5 @@ impl IoMemory {
         println!("DEBUG: handle response for {}", ioid);
         self.buffer.write(ioid as usize, response.as_slice());
         self.io_status.insert(ioid, true);
-    }
-
-    fn free(&mut self, ioid: u32) {
-         for mut block in self.blocks.clone().into_iter() {
-            if let Some(event_ptr) = block.event_ptr {
-                if event_ptr == ioid {
-                    block.free();
-                }
-            }
-        }
     }
 }
