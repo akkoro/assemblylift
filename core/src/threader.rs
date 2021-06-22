@@ -188,5 +188,12 @@ impl IoMemory {
         println!("DEBUG: handle response for {}", ioid);
         self.buffer.write(ioid as usize, response.as_slice());
         self.io_status.insert(ioid, true);
+        self.document_map.insert(
+            ioid,
+            IoMemoryDocument {
+                start: ioid as usize,
+                length: response.len(),
+            },
+        );
     }
 }
