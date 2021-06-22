@@ -258,7 +258,7 @@ impl IoMemory {
             _next_id: 1, // id 0 is reserved (null)
             blocks,
             block_size,
-            buffer: IoBuffer::new(block_size * num_blocks),
+            buffer: IoBuffer::new(),
             document_map: Default::default(),
             io_status: Default::default(),
             num_blocks,
@@ -268,7 +268,7 @@ impl IoMemory {
     fn reset(&mut self) {
         self._next_id = 1;
         self.blocks = BlockList::new(self.block_size, self.num_blocks);
-        self.buffer = IoBuffer::new(self.block_size * self.num_blocks);
+        self.buffer = IoBuffer::new();
         self.document_map.clear();
         self.io_status.clear();
     }
@@ -289,70 +289,8 @@ impl IoMemory {
 
     fn handle_response(&mut self, response: Vec<u8>, ioid: u32) {
         println!("DEBUG: handle response for {}", ioid);
-        let offset = self.alloc(response.len(), ioid);
-        self.buffer.write(response.as_slice(), offset);
+        self.buffer.write(ioid as usize, response.as_slice());
         self.io_status.insert(ioid, true);
-    }
-
-    fn alloc(&mut self, byte_length: usize, ioid: u32) -> usize {
-        let needed_blocks = (byte_length as f64 / self.block_size as f64).ceil() as usize;
-        let needed_bytes = needed_blocks * self.block_size;
-        let mut available_blocks = 0usize;
-        let mut block_list_offset = 0usize;
-
-        println!("DEBUG: allocating {} blocks ({} bytes) for {}", needed_blocks, needed_bytes, ioid);
-
-        while self.buffer.capacity() < needed_bytes {
-            self.grow();
-        }
-
-        for (i, block) in self.blocks.clone().into_iter().enumerate() {
-            match block.status {
-                BlockStatus::Free => {
-                    if available_blocks == 0 {
-                        block_list_offset = i;
-                    }
-                    available_blocks += 1;
-                    if available_blocks >= needed_blocks {
-                        break;
-                    }
-                }
-
-                BlockStatus::Used => {
-                    available_blocks = 0;
-                }
-            }
-        }
-
-        let block_range = block_list_offset..(block_list_offset + needed_blocks);
-        for i in block_range {
-            self.buffer.erase(i * self.block_size, (i * self.block_size) + self.block_size);
-            self.blocks.set(i, ioid);
-        }
-
-        let start = block_list_offset * self.block_size;
-
-        self.document_map.insert(
-            ioid,
-            IoMemoryDocument {
-                start,
-                length: byte_length,
-            },
-        );
-
-        start
-    }
-
-    fn grow(&mut self) {
-        println!("DEBUG: growing IO buffer capacity");
-        self.buffer.double();
-        self.blocks.reserve(self.num_blocks);
-        self.blocks.extend(vec![Block {
-            event_ptr: None,
-            offset: None,
-            status: BlockStatus::Free,
-        }; self.num_blocks]);
-        self.num_blocks *= 2;
     }
 
     fn free(&mut self, ioid: u32) {
