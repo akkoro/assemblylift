@@ -155,10 +155,17 @@ impl IoBuffer {
     pub fn write(&mut self, ioid: usize, bytes: &[u8]) -> usize {
         println!("DEBUG: write ioid={}", ioid);
         let mut bytes_written = 0usize;
-        let buffer = self.buffers.get_mut(&ioid).unwrap();
-        for idx in 0..bytes.len() {
-            buffer.push(bytes[idx]);
-            bytes_written += 1;
+        match self.buffers.get_mut(&ioid) {
+            Some(buffer) => {
+                for idx in 0..bytes.len() {
+                    buffer.push(bytes[idx]);
+                    bytes_written += 1;
+                }
+            }
+            None => {
+                self.buffers.insert(ioid, Vec::new());
+                return self.write(ioid, bytes);
+            }
         }
         bytes_written
     }
