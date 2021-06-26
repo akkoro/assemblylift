@@ -153,7 +153,6 @@ impl IoBuffer {
     }
 
     pub fn write(&mut self, ioid: usize, bytes: &[u8]) -> usize {
-        println!("DEBUG: write ioid={}", ioid);
         let mut bytes_written = 0usize;
         match self.buffers.get_mut(&ioid) {
             Some(buffer) => {

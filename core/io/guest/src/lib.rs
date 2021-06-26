@@ -73,7 +73,6 @@ impl std::io::Read for IoDocument {
         let mut bytes_read = 0usize;
         if self.bytes_read < self.length {
             for idx in 0..std::cmp::min(self.length, buf.len()) {
-//                console_log(format!("DEBUG: read idx={} total_bytes={} length={} total_pages={}", idx, self.bytes_read, self.length, self.pages_read));
                 // unsafe: bytes_read is always positive, mod IO_BUFFER_SIZE_BYTES 
                 //         is always less than IO_BUFFER_SIZE_BYTES
                 buf[idx] = unsafe { 
@@ -130,7 +129,6 @@ where
     T: DeserializeOwned,
 {
     let doc = IoDocument::new(id);
-    console_log(format!("DEBUG: read_response id={} len={}", id, doc.len()));
     let doc = BufReader::with_capacity(doc.len(), doc);
     match serde_json::from_reader::<BufReader<IoDocument>, T>(doc) {
         Ok(response) => Some(response),

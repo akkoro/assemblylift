@@ -185,7 +185,6 @@ impl IoMemory {
     }
 
     fn handle_response(&mut self, response: Vec<u8>, ioid: u32) {
-        println!("DEBUG: handle response for {}", ioid);
         self.buffer.write(ioid as usize, response.as_slice());
         self.io_status.insert(ioid, true);
         self.document_map.insert(

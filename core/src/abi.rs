@@ -127,9 +127,7 @@ pub fn asml_abi_z85_encode(env: &ThreaderEnv, ptr: u32, len: u32, out_ptr: WasmP
 
 pub fn asml_abi_z85_decode(env: &ThreaderEnv, ptr: u32, len: u32, out_ptr: WasmPtr<u8, Array>) -> i32 {
     if let Ok(input) = env_ptr_to_bytes(env, ptr, len) {
-        println!("DEBUG: input.len={}", input.len());
         if let Ok(output) = z85::decode(input) {
-            println!("DEBUG: output.len={}", output.len());
             return match write_bytes_to_ptr(env, output, out_ptr) {
                 Ok(_) => 0i32,
                 Err(_) => -1i32,
@@ -157,7 +155,6 @@ fn env_ptr_to_string(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<String, io
 }
 
 fn write_bytes_to_ptr(env: &ThreaderEnv, s: Vec<u8>, ptr: WasmPtr<u8, Array>) -> Result<(), io::Error> {
-    println!("DEBUG: write bytes at addr={}", ptr.offset());
     let mem = env.memory_ref().unwrap();
     let memory_writer = ptr
         .deref(&mem, 0u32, s.len() as u32)
