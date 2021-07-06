@@ -170,9 +170,14 @@ pub mod service {
 
     #[derive(Clone, Deserialize)]
     pub struct Dependency {
-        pub from: String,
+        #[serde(alias = "type", default = "default_dependency_type")]
+        pub dependency_type: Option<String>,
+        pub from: Option<String>,
         pub version: String,
-        #[serde(alias = "type")]
-        pub dependency_type: String,
+        pub coordinates: String,
+    }
+
+    fn default_dependency_type() -> Option<String> {
+        Some("registry".to_string())
     }
 }

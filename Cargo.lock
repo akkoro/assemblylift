@@ -36,8 +36,6 @@ dependencies = [
 [[package]]
 name = "asml-iomod-registry-common"
 version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bfa137d064b08b73cc7ec03367feaf8980a11f367502fed6d9acfb2d7599244"
 dependencies = [
  "assemblylift-iomod-dynamodb-guest",
  "serde",
@@ -48,7 +46,7 @@ name = "assemblylift-awslambda-guest"
 version = "0.3.0"
 dependencies = [
  "assemblylift-core-guest",
- "assemblylift-core-io-guest 0.3.0",
+ "assemblylift-core-io-guest",
  "direct-executor",
  "serde",
  "serde_json",
@@ -59,7 +57,7 @@ name = "assemblylift-awslambda-host"
 version = "0.3.0"
 dependencies = [
  "assemblylift-core",
- "assemblylift-core-io-common 0.3.0",
+ "assemblylift-core-io-common",
  "assemblylift-core-iomod",
  "clap 3.0.0-beta.2",
  "crossbeam-utils 0.8.5",
@@ -99,7 +97,7 @@ dependencies = [
 name = "assemblylift-core"
 version = "0.3.0"
 dependencies = [
- "assemblylift-core-io-common 0.3.0",
+ "assemblylift-core-io-common",
  "assemblylift-core-iomod",
  "crossbeam-utils 0.8.5",
  "lazy_static",
@@ -122,15 +120,6 @@ version = "0.2.1"
 
 [[package]]
 name = "assemblylift-core-io-common"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02d8ad05b439cbbe9c029e0e4b6298ef1fa49dd1f23981ae5769e9123a9a1b32"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "assemblylift-core-io-common"
 version = "0.3.0"
 dependencies = [
  "serde",
@@ -138,22 +127,9 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-io-guest"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed7a4de2ad1d7f992235bf2a6d57f66a8a39a338286f09f32f0a8f6e5ea3ad3c"
-dependencies = [
- "assemblylift-core-io-common 0.2.0",
- "futures",
- "lazy_static",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "assemblylift-core-io-guest"
 version = "0.3.0"
 dependencies = [
- "assemblylift-core-io-common 0.3.0",
+ "assemblylift-core-io-common",
  "futures",
  "lazy_static",
  "serde",
@@ -164,7 +140,7 @@ dependencies = [
 name = "assemblylift-core-iomod"
 version = "0.3.0"
 dependencies = [
- "assemblylift-core-io-common 0.3.0",
+ "assemblylift-core-io-common",
  "capnp",
  "capnp-rpc",
  "capnpc",
@@ -183,22 +159,20 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-iomod-guest"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63e743cfd0978c79067008117b1de642660f8ba809acb9648d6a078c09c7b723"
+version = "0.3.0"
 
 [[package]]
 name = "assemblylift-core-iomod-guest"
 version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe67bf81dc238b04f9eef535b22e80f19a928e202e56e7f2261a065bc7ca1e70"
 
 [[package]]
 name = "assemblylift-iomod-dynamodb-guest"
 version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a2f01846f694b2489c428132f84106045003e3bb7a6ff9f35ebcc35800d1cab"
 dependencies = [
- "assemblylift-core-io-guest 0.2.1",
- "assemblylift-core-iomod-guest 0.2.0",
+ "assemblylift-core-io-guest",
+ "assemblylift-core-iomod-guest 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "base64 0.12.3",
  "bytes 0.5.6",
  "serde",

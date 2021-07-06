@@ -13,6 +13,9 @@ use wasmer_compiler_cranelift::Cranelift;
 use wasmer_engine_jit::JIT;
 
 use clap::ArgMatches;
+use reqwest;
+
+use registry_common::models::GetIomodAtResponse;
 
 use crate::archive;
 use crate::transpiler::{asml, hcl, toml, Artifact};
@@ -31,8 +34,9 @@ pub fn command(matches: Option<&ArgMatches>) {
     let cwd = std::env::current_dir().unwrap();
     let mut manifest_path = cwd.clone();
     manifest_path.push("assemblylift.toml");
-    
-    let asml_manifest = toml::asml::Manifest::read(&manifest_path).expect("could not read assemblylift.toml");
+
+    let asml_manifest = toml::asml::Manifest::read(&manifest_path)
+        .expect("could not read assemblylift.toml");
     let project = Rc::new(Project::new(asml_manifest.project.name.clone(), Some(cwd)));
     let project_path = project.dir().into_os_string().into_string().unwrap();
 
@@ -53,25 +57,50 @@ pub fn command(matches: Option<&ArgMatches>) {
         let iomods = service_manifest.iomods().clone();
         let mut dependencies: Vec<String> = Vec::new();
         for (id, dependency) in iomods.as_ref() {
-            match dependency.dependency_type.as_str() {
-                "file" => {
-                    // copy file & rename it to `name`
-
-                    let dependency_name = id.clone();
-
-                    let dependency_path = format!("{}/net/services/{}/iomods/{}", project_path, service_name, dependency_name);
-
-                    match fs::metadata(dependency.from.clone()) {
+            let dependency_name = id.clone();
+            let dependency_path = format!("{}/net/services/{}/iomods/{}", project_path, service_name, dependency_name);
+            match dependency.dependency_type.as_deref() {
+                Some("file") => {
+                    let dependency_from = dependency.from.as_ref()
+                        .expect("`from` must be defined when dependency type is `file`");
+                    match fs::metadata(dependency_from.clone()) {
                         Ok(_) => {
-                            fs::copy(dependency.from.clone(), &dependency_path).unwrap();
+                            fs::copy(dependency_from.clone(), &dependency_path).unwrap();
                             ()
-                        },
+                        }
                         Err(_) => panic!("ERROR: could not find file-type dependency named {} (check path)", dependency_name),
                     }
 
                     dependencies.push(dependency_path);
                 }
-                _ => unimplemented!("only type=file is available currently"),
+                Some("registry") => {
+                    fs::create_dir_all(dependency_path.clone())
+                        .expect("could not create iomod directory");
+                    let client = reqwest::blocking::ClientBuilder::new()
+                        .build()
+                        .expect("could not build blocking HTTP client");
+                    let registry_url = format!(
+                        "https://registry.assemblylift.akkoro.io/iomod/{}/{}",
+                        dependency.coordinates,
+                        dependency.version
+                    );
+                    let res: GetIomodAtResponse = client.get(registry_url)
+                        .send()
+                        .unwrap()
+                        .json()
+                        .unwrap();
+                    let bytes = client.get(res.url)
+                        .send()
+                        .unwrap()
+                        .bytes()
+                        .unwrap();
+                    archive::unzip_iomod(Vec::from(&*bytes), &dependency_path);
+
+                    // TODO read iomod.toml and add entrypoint path to dependencies
+                    //      may eventually want to copy a designated resource path w/ entrypoint
+                    //          |-> may require keeping bin/ prefix & updating runtime host as such
+                }
+                _ => unimplemented!("invalid dependency type (supported: [file, registry])"),
             }
         }
 
@@ -105,7 +134,6 @@ pub fn command(matches: Option<&ArgMatches>) {
                     .into_string()
                     .unwrap()
             ));
-            println!("function_path: {:?}", function_path);
 
             let mode = "release"; // TODO should this really be the default?
 

@@ -9,19 +9,19 @@ use zip;
 use zip::write::FileOptions;
 
 #[derive(Debug)]
-pub struct ArtifactError {
+pub struct ArchiveError {
     why: String,
 }
 
-impl ArtifactError {
+impl ArchiveError {
     pub fn new(why: String) -> Self {
-        ArtifactError { why }
+        ArchiveError { why }
     }
 }
 
-impl std::error::Error for ArtifactError {}
+impl std::error::Error for ArchiveError {}
 
-impl fmt::Display for ArtifactError {
+impl fmt::Display for ArchiveError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.why)
     }
@@ -94,7 +94,7 @@ pub fn zip_dir(dir_in: PathBuf, file_out: impl AsRef<Path>) -> Result<(), ()> {
             Err(_) => continue,
         };
 
-        zip.start_file(&zip_path, options).expect("could not create zip archive");
+        zip.start_file(&format!("./{}", zip_path), options).expect("could not create zip archive");
         zip.write_all(file_bytes.as_mut_slice()).expect("could not create zip archive");
     }
 
@@ -103,7 +103,7 @@ pub fn zip_dir(dir_in: PathBuf, file_out: impl AsRef<Path>) -> Result<(), ()> {
     Ok(())
 }
 
-pub fn unzip_to(bytes_in: Vec<u8>, out_dir: &str) -> Result<(), ArtifactError> {
+pub fn unzip_terraform(bytes_in: Vec<u8>, out_dir: &str) -> Result<(), ArchiveError> {
     let reader = std::io::Cursor::new(bytes_in);
     let mut archive = zip::ZipArchive::new(reader).unwrap();
     let mut file_out = archive.by_name("terraform").unwrap();
@@ -111,6 +111,12 @@ pub fn unzip_to(bytes_in: Vec<u8>, out_dir: &str) -> Result<(), ArtifactError> {
     let mut outfile = fs::File::create(out_dir).unwrap();
     match io::copy(&mut file_out, &mut outfile) {
         Ok(_) => Ok(()),
-        Err(why) => Err(ArtifactError::new(why.to_string())),
+        Err(why) => Err(ArchiveError::new(why.to_string())),
     }
+}
+
+pub fn unzip_iomod(bytes: Vec<u8>, out_dir: &str) {
+    let reader = std::io::Cursor::new(bytes);
+    let mut archive = zip::ZipArchive::new(reader).unwrap();
+    archive.extract(out_dir).expect("could not extract IOmod package");
 }
