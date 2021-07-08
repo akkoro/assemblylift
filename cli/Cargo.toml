@@ -35,6 +35,8 @@ wasmer-compiler-cranelift = "1.0"
 wasmer-engine-native = "1.0"
 wasmer-engine-jit = "1.0"
 
+assemblylift_core_iomod = { version = "0.3.0", package = "assemblylift-core-iomod", path = "../core/iomod" }
+
 registry_common = { version = "0.1", package = "asml-iomod-registry-common", path = "../../assemblylift-iomod-registry/crates/asml-iomod-registry-common" }
 
 [dependencies.reqwest]

@@ -1,3 +1,4 @@
+use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::env;
 use std::fs;
@@ -7,10 +8,14 @@ use std::sync::{Arc, Mutex};
 use clap::crate_version;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
+use zip;
 
 use assemblylift_core::buffers::LinearBuffer;
-use assemblylift_core_iomod::registry;
+use assemblylift_core_iomod::{package::IomodManifest, registry};
 use runtime::AwsLambdaRuntime;
+use std::io::{BufReader, Read, Write};
+use std::ffi::OsStr;
+use std::fs::File;
 
 mod runtime;
 mod wasm;
@@ -36,7 +41,48 @@ async fn main() {
         for entry in rd {
             let entry = entry.unwrap();
             if entry.file_type().unwrap().is_file() {
-                process::Command::new(entry.path()).spawn().unwrap();
+                // this makes the assumption that the
+                // IOmod entrypoint is always an executable binary
+                match entry.path().extension() {
+                    Some(os_str) => {
+                        match os_str.to_str() {
+                            Some("iomod") => {
+                                let file = fs::File::open(&entry.path()).unwrap();
+                                let reader = BufReader::new(file);
+                                let mut archive = RefCell::new(zip::ZipArchive::new(reader).unwrap());
+                                let mut manifest_str: String = Default::default();
+                                {
+                                    let mut archive = archive.borrow_mut();
+                                    let mut manifest = archive.by_name("iomod.toml")
+                                        .expect("could not find IOmod manifest");
+                                    manifest.read_to_string(&mut manifest_str);
+                                }
+                                {
+                                    let mut archive = archive.borrow_mut();
+                                    let iomod_manifest = IomodManifest::from(manifest_str);
+                                    let entrypoint = iomod_manifest.process.entrypoint;
+                                    let mut entrypoint_binary = archive.by_name(&*entrypoint)
+                                        .expect("could not find entrypoint in package");
+                                    let path = &*format!(
+                                        "/opt/iomod/{}@{}/{}",
+                                        iomod_manifest.iomod.coordinates,
+                                        iomod_manifest.iomod.version,
+                                        entrypoint
+                                    );
+                                    let path = std::path::Path::new(path);
+                                    fs::create_dir_all(path.parent().unwrap()).unwrap();
+                                    let mut entrypoint_file = File::create(path).unwrap();
+                                    std::io::copy(&mut entrypoint_binary, &mut entrypoint_file).unwrap();
+                                    process::Command::new(path).spawn().unwrap();
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    None => {
+                        process::Command::new(entry.path()).spawn().unwrap();
+                    }
+                }
             }
         }
     }

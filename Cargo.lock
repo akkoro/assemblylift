@@ -64,9 +64,11 @@ dependencies = [
  "once_cell",
  "reqwest",
  "tokio",
+ "toml",
  "wasmer-asml-fork",
  "wasmer-engine-jit",
  "wasmer-engine-native",
+ "zip",
 ]
 
 [[package]]
@@ -74,6 +76,7 @@ name = "assemblylift-cli"
 version = "0.3.0"
 dependencies = [
  "asml-iomod-registry-common",
+ "assemblylift-core-iomod",
  "base64 0.13.0",
  "clap 2.33.3",
  "handlebars",
@@ -155,6 +158,7 @@ dependencies = [
  "serde",
  "tokio",
  "tokio-util",
+ "toml",
 ]
 
 [[package]]

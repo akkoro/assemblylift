@@ -3,6 +3,8 @@ use std::{io, path::PathBuf};
 use clap::ArgMatches;
 use serde::Deserialize;
 
+use assemblylift_core_iomod::package::IomodManifest;
+
 use crate::archive;
 
 pub fn command(matches: Option<&ArgMatches>) {
@@ -41,40 +43,4 @@ fn command_iomod(matches: Option<&ArgMatches>) {
     let out_path = matches.value_of("out").unwrap(); // unwrap: this arg is required
 
     archive::zip_dir(cwd, out_path).expect("zip_dir failed during pack");
-}
-
-#[derive(Deserialize)]
-pub struct IomodManifest {
-    pub iomod: ManifestHeader,
-    pub process: Process,
-}
-
-impl IomodManifest {
-    pub fn read(path: &PathBuf) -> Result<Self, io::Error> {
-        match std::fs::read_to_string(path) {
-            Ok(contents) => Ok(Self::from(contents)),
-            Err(why) => Err(io::Error::new(io::ErrorKind::Other, why.to_string())),
-        }
-    }
-}
-
-impl From<String> for IomodManifest {
-    fn from(string: String) -> Self {
-        match toml::from_str(&string) {
-            Ok(manifest) => manifest,
-            Err(why) => panic!("error parsing ServiceManifest: {}", why.to_string()),
-        }
-    }
-}
-
-#[derive(Deserialize)]
-pub struct ManifestHeader {
-    pub coordinates: String,
-    pub version: String,
-}
-
-#[derive(Deserialize)]
-pub struct Process {
-   entrypoint: String,
-   arguments: Option<Vec<String>>,
 }

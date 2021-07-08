@@ -12,6 +12,7 @@ use crate::iomod_capnp::{agent, iomod};
 
 pub mod iomod_capnp;
 pub mod macros;
+pub mod package;
 pub mod registry;
 
 pub struct CallRequest {

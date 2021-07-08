@@ -58,9 +58,9 @@ pub fn command(matches: Option<&ArgMatches>) {
         let mut dependencies: Vec<String> = Vec::new();
         for (id, dependency) in iomods.as_ref() {
             let dependency_name = id.clone();
-            let dependency_path = format!("{}/net/services/{}/iomods/{}", project_path, service_name, dependency_name);
-            match dependency.dependency_type.as_deref() {
+era            match dependency.dependency_type.as_deref() {
                 Some("file") => {
+                    let dependency_path = format!("{}/net/services/{}/iomods/{}", project_path, service_name, dependency_name);
                     let dependency_from = dependency.from.as_ref()
                         .expect("`from` must be defined when dependency type is `file`");
                     match fs::metadata(dependency_from.clone()) {
@@ -74,8 +74,13 @@ pub fn command(matches: Option<&ArgMatches>) {
                     dependencies.push(dependency_path);
                 }
                 Some("registry") => {
-                    fs::create_dir_all(dependency_path.clone())
-                        .expect("could not create iomod directory");
+                    let dependency_path = format!(
+                        "{}/net/services/{}/iomods/{}@{}.iomod",
+                        project_path,
+                        service_name,
+                        dependency.coordinates,
+                        dependency.version,
+                    );
                     let client = reqwest::blocking::ClientBuilder::new()
                         .build()
                         .expect("could not build blocking HTTP client");
@@ -94,11 +99,8 @@ pub fn command(matches: Option<&ArgMatches>) {
                         .unwrap()
                         .bytes()
                         .unwrap();
-                    archive::unzip_iomod(Vec::from(&*bytes), &dependency_path);
-
-                    // TODO read iomod.toml and add entrypoint path to dependencies
-                    //      may eventually want to copy a designated resource path w/ entrypoint
-                    //          |-> may require keeping bin/ prefix & updating runtime host as such
+                    fs::write(&dependency_path, &*bytes).expect("could not write iomod package");
+                    dependencies.push(dependency_path);
                 }
                 _ => unimplemented!("invalid dependency type (supported: [file, registry])"),
             }
