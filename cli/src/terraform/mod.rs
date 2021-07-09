@@ -50,7 +50,7 @@ pub fn fetch(project_path: &PathBuf) {
         panic!("could not create directory ./.asml/bin")
     }
 
-    archive::unzip_to(terraform_zip, &terraform_path).unwrap();
+    archive::unzip_terraform(terraform_zip, &terraform_path).unwrap();
 
     let mut perms = fs::metadata(&terraform_path).unwrap().permissions();
     perms.set_mode(0o755);
