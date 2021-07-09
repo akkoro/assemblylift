@@ -19,7 +19,7 @@ impl From<String> for IomodManifest {
     fn from(string: String) -> Self {
         match toml::from_str(&string) {
             Ok(manifest) => manifest,
-            Err(why) => panic!("error parsing ServiceManifest: {}", why.to_string()),
+            Err(why) => panic!("error parsing IomodManifest: {}", why.to_string()),
         }
     }
 }
