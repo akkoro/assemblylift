@@ -53,6 +53,9 @@ async fn main() {
                                 let mut manifest_str: String = Default::default();
                                 {
                                     let mut archive = archive.borrow_mut();
+                                    for name in archive.file_names() {
+                                        println!("DEBUG file_name={}", name);
+                                    }
                                     let mut manifest = archive.by_name("iomod.toml")
                                         .expect("could not find IOmod manifest");
                                     manifest.read_to_string(&mut manifest_str);
