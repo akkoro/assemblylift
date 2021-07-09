@@ -40,6 +40,7 @@ async fn main() {
     if let Ok(rd) = fs::read_dir("/opt/iomod") {
         for entry in rd {
             let entry = entry.unwrap();
+            println!("DEBUG: entry.path={:?}", entry.path());
             if entry.file_type().unwrap().is_file() {
                 // this makes the assumption that the
                 // IOmod entrypoint is always an executable binary
@@ -50,21 +51,20 @@ async fn main() {
                                 let file = fs::File::open(&entry.path()).unwrap();
                                 let reader = BufReader::new(file);
                                 let mut archive = RefCell::new(zip::ZipArchive::new(reader).unwrap());
-                                println!("DEBUG: file_path={:?}", entry.path());
                                 let mut manifest_str: String = Default::default();
                                 {
                                     let mut archive = archive.borrow_mut();
                                     for name in archive.file_names() {
                                         println!("DEBUG file_name={}", name);
                                     }
-                                    let mut manifest = archive.by_name("iomod.toml")
+                                    let mut manifest = archive.by_name("/iomod.toml")
                                         .expect("could not find IOmod manifest");
                                     manifest.read_to_string(&mut manifest_str);
                                 }
                                 {
                                     let mut archive = archive.borrow_mut();
                                     let iomod_manifest = IomodManifest::from(manifest_str);
-                                    let entrypoint = iomod_manifest.process.entrypoint;
+                                    let entrypoint = format!("/{}", iomod_manifest.process.entrypoint);
                                     let mut entrypoint_binary = archive.by_name(&*entrypoint)
                                         .expect("could not find entrypoint in package");
                                     let path = &*format!(
