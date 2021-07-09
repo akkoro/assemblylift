@@ -50,6 +50,7 @@ async fn main() {
                                 let file = fs::File::open(&entry.path()).unwrap();
                                 let reader = BufReader::new(file);
                                 let mut archive = RefCell::new(zip::ZipArchive::new(reader).unwrap());
+                                println!("DEBUG: file_path={:?}", entry.path());
                                 let mut manifest_str: String = Default::default();
                                 {
                                     let mut archive = archive.borrow_mut();
