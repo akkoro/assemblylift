@@ -58,7 +58,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         let mut dependencies: Vec<String> = Vec::new();
         for (id, dependency) in iomods.as_ref() {
             let dependency_name = id.clone();
-era            match dependency.dependency_type.as_deref() {
+            match dependency.dependency_type.as_deref() {
                 Some("file") => {
                     let dependency_path = format!("{}/net/services/{}/iomods/{}", project_path, service_name, dependency_name);
                     let dependency_from = dependency.from.as_ref()
