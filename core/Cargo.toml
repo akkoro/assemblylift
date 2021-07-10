@@ -17,5 +17,5 @@ z85 = "3"
 
 wasmer = { package = "wasmer-asml-fork", version = "1.0" }
 
-assemblylift-core-io-common = { version = "0.3.0", path = "./io/common" }
-assemblylift-core-iomod = { version = "0.3.0", path = "./iomod" }
+assemblylift-core-io-common = { version = "0.3", path = "./io/common" }
+assemblylift-core-iomod = { version = "0.3", path = "./iomod" }
