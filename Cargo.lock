@@ -62,7 +62,7 @@ dependencies = [
  "assemblylift-core-io-common 0.3.0",
  "assemblylift-core-iomod",
  "clap 3.0.0-beta.2",
- "crossbeam-utils 0.8.5",
+ "crossbeam-utils",
  "once_cell",
  "reqwest",
  "tokio",
@@ -104,7 +104,7 @@ version = "0.3.0"
 dependencies = [
  "assemblylift-core-io-common 0.3.0",
  "assemblylift-core-iomod",
- "crossbeam-utils 0.8.5",
+ "crossbeam-utils",
  "lazy_static",
  "once_cell",
  "tokio",
@@ -116,7 +116,7 @@ dependencies = [
 name = "assemblylift-core-guest"
 version = "0.2.0"
 dependencies = [
- "paste",
+ "paste 0.1.18",
 ]
 
 [[package]]
@@ -141,19 +141,6 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-io-guest"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56b626a433f48044fa2436ad00a50bfd0c7c4598e8ef467adbe31518b3060839"
-dependencies = [
- "assemblylift-core-io-common 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "futures",
- "lazy_static",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "assemblylift-core-io-guest"
 version = "0.3.1"
 dependencies = [
  "assemblylift-core-io-common 0.3.0",
@@ -164,20 +151,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "assemblylift-core-io-guest"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9b38bbf85dfe778a02451e6b2b7eb8ae2075160e1ff9de07030d52284d8c93d"
+dependencies = [
+ "assemblylift-core-io-common 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures",
+ "lazy_static",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "assemblylift-core-iomod"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "assemblylift-core-io-common 0.3.0",
  "capnp",
  "capnp-rpc",
  "capnpc",
- "crossbeam-utils 0.7.2",
+ "crossbeam-utils",
  "futures",
  "futures-util",
  "lazy_static",
- "libloading",
  "once_cell",
- "paste",
+ "paste 1.0.5",
  "rustc_version",
  "serde",
  "tokio",
@@ -201,7 +200,7 @@ version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d3dc97d52df35e3f04f2588947c539ab05caeb12fd52ae66e45eab8b892e18a"
 dependencies = [
- "assemblylift-core-io-guest 0.3.0",
+ "assemblylift-core-io-guest 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "assemblylift-core-iomod-guest 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "base64 0.12.3",
  "bytes 0.5.6",
@@ -342,15 +341,15 @@ dependencies = [
 
 [[package]]
 name = "capnp"
-version = "0.13.6"
+version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e76a319e55a4ef27c8c383215fa3160167bd8a883e8d27c0ecd57ed81bca2af"
+checksum = "57a0c69996d49009cc837defe299dabc9bd722cfb7029837b71fe33a76bc8dd6"
 
 [[package]]
 name = "capnp-futures"
-version = "0.13.2"
+version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc7bd6f6a6240f4f0a39b89c731916b15eefa26d31f90dffc1d232b7981d09a3"
+checksum = "4a15248c8facb189a3c5fee74fbf1ff3adc134261d27da663b89c7d19ebaf983"
 dependencies = [
  "capnp",
  "futures",
@@ -358,9 +357,9 @@ dependencies = [
 
 [[package]]
 name = "capnp-rpc"
-version = "0.13.1"
+version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37998522d42bbe4a1d266f418b1a053b679a338e904e55afd5ff22333df0e09e"
+checksum = "4c4f17f96f68f2c1168ed7105d9e5cb4a095a5bef3578aee0f9c0644b85ca95e"
 dependencies = [
  "capnp",
  "capnp-futures",
@@ -369,9 +368,9 @@ dependencies = [
 
 [[package]]
 name = "capnpc"
-version = "0.13.1"
+version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81855cee80548f7a2ee549d3bc2e55ed5f7cabe469e85614046e5475712f75c1"
+checksum = "b47bce811162518b5c38f746ed584bd2922ae7bb560ef64f230d2e4ee0d111fe"
 dependencies = [
  "capnp",
 ]
@@ -538,7 +537,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06ed27e177f16d65f0f0c22a213e17c696ace5dd64b14258b52f9417ccb52db4"
 dependencies = [
  "cfg-if 1.0.0",
- "crossbeam-utils 0.8.5",
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -549,7 +548,7 @@ checksum = "94af6efb46fef72616855b036a624cf27ba656ffc9be1b9a3c931cfc7749a9a9"
 dependencies = [
  "cfg-if 1.0.0",
  "crossbeam-epoch",
- "crossbeam-utils 0.8.5",
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -559,21 +558,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ec02e091aa634e2c3ada4a392989e7c3116673ef0ac5b72232439094d73b7fd"
 dependencies = [
  "cfg-if 1.0.0",
- "crossbeam-utils 0.8.5",
+ "crossbeam-utils",
  "lazy_static",
  "memoffset",
  "scopeguard",
-]
-
-[[package]]
-name = "crossbeam-utils"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3c7c73a2d1e9fc0886a08b93e98eb643461230d5f1925e4036204d5f2e261a8"
-dependencies = [
- "autocfg",
- "cfg-if 0.1.10",
- "lazy_static",
 ]
 
 [[package]]
@@ -1282,6 +1270,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "paste"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "acbf547ad0c65e31259204bd90935776d1c693cec2f4ff7abb7a1bbbd40dfe58"
+
+[[package]]
 name = "paste-impl"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1495,7 +1489,7 @@ checksum = "d78120e2c850279833f1dd3582f730c4ab53ed95aeaaaa862a2a5c71b1656d8e"
 dependencies = [
  "crossbeam-channel",
  "crossbeam-deque",
- "crossbeam-utils 0.8.5",
+ "crossbeam-utils",
  "lazy_static",
  "num_cpus",
 ]
@@ -1607,9 +1601,9 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustc_version"
-version = "0.2.3"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
+checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
 dependencies = [
  "semver",
 ]
@@ -1670,18 +1664,9 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "0.9.0"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
-dependencies = [
- "semver-parser",
-]
-
-[[package]]
-name = "semver-parser"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
+checksum = "5f3aac57ee7f3272d8395c6e4f502f434f0e289fcd62876f70daa008c20dcabe"
 
 [[package]]
 name = "serde"
@@ -2192,7 +2177,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a083910da02907c16d82c46cdcb66f0058ac7b42d4950061459f0134d207642"
 dependencies = [
  "cfg-if 0.1.10",
- "crossbeam-utils 0.8.5",
+ "crossbeam-utils",
  "indexmap",
  "more-asserts",
  "target-lexicon",
