@@ -48,7 +48,7 @@ name = "assemblylift-awslambda-guest"
 version = "0.3.0"
 dependencies = [
  "assemblylift-core-guest",
- "assemblylift-core-io-guest 0.3.0",
+ "assemblylift-core-io-guest 0.3.1",
  "direct-executor",
  "serde",
  "serde_json",
@@ -142,8 +142,10 @@ dependencies = [
 [[package]]
 name = "assemblylift-core-io-guest"
 version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56b626a433f48044fa2436ad00a50bfd0c7c4598e8ef467adbe31518b3060839"
 dependencies = [
- "assemblylift-core-io-common 0.3.0",
+ "assemblylift-core-io-common 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures",
  "lazy_static",
  "serde",
@@ -152,11 +154,9 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-io-guest"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56b626a433f48044fa2436ad00a50bfd0c7c4598e8ef467adbe31518b3060839"
+version = "0.3.1"
 dependencies = [
- "assemblylift-core-io-common 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "assemblylift-core-io-common 0.3.0",
  "futures",
  "lazy_static",
  "serde",
@@ -201,7 +201,7 @@ version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d3dc97d52df35e3f04f2588947c539ab05caeb12fd52ae66e45eab8b892e18a"
 dependencies = [
- "assemblylift-core-io-guest 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "assemblylift-core-io-guest 0.3.0",
  "assemblylift-core-iomod-guest 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "base64 0.12.3",
  "bytes 0.5.6",
