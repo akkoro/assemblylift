@@ -67,7 +67,7 @@ async fn main() {
                                     let mut entrypoint_binary = archive.by_name(&*entrypoint)
                                         .expect("could not find entrypoint in package");
                                     let path = &*format!(
-                                        "/opt/iomod/{}@{}/{}",
+                                        "/tmp/iomod/{}@{}/{}",
                                         iomod_manifest.iomod.coordinates,
                                         iomod_manifest.iomod.version,
                                         entrypoint
