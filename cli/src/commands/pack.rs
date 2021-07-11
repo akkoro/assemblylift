@@ -1,7 +1,4 @@
-use std::{io, path::PathBuf};
-
 use clap::ArgMatches;
-use serde::Deserialize;
 
 use assemblylift_core_iomod::package::IomodManifest;
 

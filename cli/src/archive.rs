@@ -94,7 +94,7 @@ pub fn zip_dir(dir_in: PathBuf, file_out: impl AsRef<Path>) -> Result<(), ()> {
             Err(_) => continue,
         };
 
-        zip.start_file(&format!("./{}", zip_path), options).expect("could not create zip archive");
+        zip.start_file(&format!(".{}", zip_path), options).expect("could not create zip archive");
         zip.write_all(file_bytes.as_mut_slice()).expect("could not create zip archive");
     }
 

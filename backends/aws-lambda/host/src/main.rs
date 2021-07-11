@@ -1,4 +1,3 @@
-use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::env;
 use std::fs;
@@ -13,8 +12,7 @@ use zip;
 use assemblylift_core::buffers::LinearBuffer;
 use assemblylift_core_iomod::{package::IomodManifest, registry};
 use runtime::AwsLambdaRuntime;
-use std::io::{BufReader, Read, Write};
-use std::ffi::OsStr;
+use std::io::{BufReader, Read};
 use std::fs::File;
 
 mod runtime;
@@ -50,21 +48,22 @@ async fn main() {
                             Some("iomod") => {
                                 let file = fs::File::open(&entry.path()).unwrap();
                                 let reader = BufReader::new(file);
-                                let mut archive = RefCell::new(zip::ZipArchive::new(reader).unwrap());
+                                let archive = RefCell::new(zip::ZipArchive::new(reader).unwrap());
                                 let mut manifest_str: String = Default::default();
                                 {
                                     let mut archive = archive.borrow_mut();
                                     for name in archive.file_names() {
-                                        println!("DEBUG file_name={}", name);
+                                        println!("DEBUG: file_name={}", name);
                                     }
-                                    let mut manifest = archive.by_name(".//iomod.toml")
+                                    let mut manifest = archive.by_name("./iomod.toml")
                                         .expect("could not find IOmod manifest");
-                                    manifest.read_to_string(&mut manifest_str);
+                                    manifest.read_to_string(&mut manifest_str)
+                                        .expect("could not read iomod.toml");
                                 }
                                 {
                                     let mut archive = archive.borrow_mut();
                                     let iomod_manifest = IomodManifest::from(manifest_str);
-                                    let entrypoint = format!(".//{}", iomod_manifest.process.entrypoint);
+                                    let entrypoint = format!("./{}", iomod_manifest.process.entrypoint);
                                     let mut entrypoint_binary = archive.by_name(&*entrypoint)
                                         .expect("could not find entrypoint in package");
                                     let path = &*format!(
