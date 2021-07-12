@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::env;
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::process;
 use std::sync::{Arc, Mutex};
 
@@ -80,6 +81,10 @@ async fn main() {
                                         .expect(&*format!("unable to create file at {:?}", path));
                                     std::io::copy(&mut entrypoint_binary, &mut entrypoint_file)
                                         .expect("unable to copy entrypoint");
+                                    let mut perms = fs::metadata(&path).unwrap().permissions();
+                                    perms.set_mode(0o755);
+                                    fs::set_permissions(&path, perms)
+                                        .expect("could not set IOmod binary executable (octal 755) permissions");
                                     process::Command::new(path).spawn().unwrap();
                                 }
                             }
