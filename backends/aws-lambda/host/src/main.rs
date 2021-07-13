@@ -85,7 +85,7 @@ async fn main() {
                                     perms.set_mode(0o755);
                                     fs::set_permissions(&path, perms)
                                         .expect("could not set IOmod binary executable (octal 755) permissions");
-                                    process::Command::new(path).spawn().unwrap();
+                                    while let Err(_) = process::Command::new(path).spawn() { continue }
                                 }
                             }
                             _ => {}
