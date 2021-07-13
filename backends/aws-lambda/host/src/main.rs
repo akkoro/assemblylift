@@ -82,6 +82,10 @@ async fn main() {
                                             .expect(&*format!("unable to create file at {:?}", path));
                                         std::io::copy(&mut entrypoint_binary, &mut entrypoint_file)
                                             .expect("unable to copy entrypoint");
+                                        let mut perms: std::fs::Permissions = fs::metadata(&path).unwrap().permissions();
+                                        perms.set_mode(0o755);
+                                        entrypoint_file.set_permissions(perms)
+                                            .expect("could not set IOmod binary executable (octal 755) permissions");
                                     }
                                     process::Command::new(path).spawn().unwrap();
                                 }
