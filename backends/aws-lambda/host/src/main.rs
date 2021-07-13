@@ -74,18 +74,16 @@ async fn main() {
                                         entrypoint
                                     );
                                     let path = std::path::Path::new(path);
-                                    let path_prefix = path.parent().unwrap();
-                                    fs::create_dir_all(path_prefix)
-                                        .expect(&*format!("unable to create directory {:?}", path_prefix));
-                                    let mut entrypoint_file = File::create(path)
-                                        .expect(&*format!("unable to create file at {:?}", path));
-                                    std::io::copy(&mut entrypoint_binary, &mut entrypoint_file)
-                                        .expect("unable to copy entrypoint");
-                                    let mut perms = fs::metadata(&path).unwrap().permissions();
-                                    perms.set_mode(0o755);
-                                    fs::set_permissions(&path, perms)
-                                        .expect("could not set IOmod binary executable (octal 755) permissions");
-                                    while let Err(_) = process::Command::new(path).spawn() { continue }
+                                    {
+                                        let path_prefix = path.parent().unwrap();
+                                        fs::create_dir_all(path_prefix)
+                                            .expect(&*format!("unable to create directory {:?}", path_prefix));
+                                        let mut entrypoint_file = File::create(path)
+                                            .expect(&*format!("unable to create file at {:?}", path));
+                                        std::io::copy(&mut entrypoint_binary, &mut entrypoint_file)
+                                            .expect("unable to copy entrypoint");
+                                    }
+                                    process::Command::new(path).spawn().unwrap();
                                 }
                             }
                             _ => {}
