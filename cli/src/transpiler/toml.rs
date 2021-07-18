@@ -10,11 +10,18 @@ pub mod asml {
     pub struct Manifest {
         pub project: Project,
         pub services: Rc<StringMap<Rc<ServiceRef>>>, // map service_id -> service
+        pub terraform: Option<Terraform>,
     }
 
     #[derive(Deserialize)]
     pub struct Project {
         pub name: String,
+    }
+
+    #[derive(Deserialize)]
+    pub struct Terraform {
+        pub state_bucket_name: String,
+        pub lock_table_name: String,
     }
 
     /* Represents a reference by name to a service (toml::service::Manifest) */
