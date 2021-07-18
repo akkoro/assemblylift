@@ -6,6 +6,7 @@ use crate::projectfs::Project as ProjectFs;
 
 pub struct Context {
     pub project: Project,
+    pub terraform: Option<Terraform>,
     pub services: Vec<Service>,
     pub functions: Vec<Function>,
     pub authorizers: Vec<Authorizer>,
@@ -105,6 +106,13 @@ impl Context {
                 name: manifest.project.name.clone(),
                 path: (*project.dir()).into_os_string().into_string().unwrap(),
             },
+            terraform: match manifest.terraform {
+                Some(tf) => Some(Terraform { 
+                    state_bucket_name: tf.state_bucket_name,
+                    lock_table_name: tf.lock_table_name,
+                }),
+                None => None,
+            },
             services: ctx_services,
             functions: ctx_functions,
             authorizers: ctx_authorizers,
@@ -117,6 +125,11 @@ pub struct Project {
     pub name: String,
     pub path: String,
 //    pub version: String,
+}
+
+pub struct Terraform {
+    pub state_bucket_name: String,
+    pub lock_table_name: String,
 }
 
 pub struct Service {

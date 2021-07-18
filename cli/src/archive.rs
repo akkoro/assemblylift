@@ -114,9 +114,3 @@ pub fn unzip_terraform(bytes_in: Vec<u8>, out_dir: &str) -> Result<(), ArchiveEr
         Err(why) => Err(ArchiveError::new(why.to_string())),
     }
 }
-
-pub fn unzip_iomod(bytes: Vec<u8>, out_dir: &str) {
-    let reader = std::io::Cursor::new(bytes);
-    let mut archive = zip::ZipArchive::new(reader).unwrap();
-    archive.extract(out_dir).expect("could not extract IOmod package");
-}

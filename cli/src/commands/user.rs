@@ -12,5 +12,5 @@ pub fn command(matches: Option<&ArgMatches>) {
     }
 }
 
-fn command_login(matches: Option<&ArgMatches>) {
+fn command_login(_matches: Option<&ArgMatches>) {
 }
