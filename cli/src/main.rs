@@ -1,6 +1,8 @@
 extern crate serde_json;
 
-use clap::{crate_version, App, Arg};
+use std::collections::HashMap;
+
+use clap::{crate_version, App, AppSettings, Arg, ArgMatches};
 
 use crate::commands::{bind, burn, cast, init, make, pack, push, user};
 
@@ -101,7 +103,7 @@ fn main() {
                         .about("Login to the IOmod registry")
                 ),
         );
-    let matches = app.get_matches();
+    let matches = app.setting(AppSettings::ArgRequiredElseHelp).get_matches();
 
     match matches.subcommand() {
         ("init", matches) => init::command(matches),
