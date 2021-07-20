@@ -1,8 +1,6 @@
 extern crate serde_json;
 
-use std::collections::HashMap;
-
-use clap::{crate_version, App, AppSettings, Arg, ArgMatches};
+use clap::{crate_version, App, AppSettings, Arg};
 
 use crate::commands::{bind, burn, cast, init, make, pack, push, user};
 

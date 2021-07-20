@@ -12,7 +12,6 @@ static ASSEMBLYLIFT_TOML: &str = r#"# Generated with assemblylift-cli {{asml_ver
 
 [project]
 name = "{{project_name}}"
-version = "0.1.0"
 
 [services]
 default = { name = "{{default_service_name}}" }
@@ -36,7 +35,6 @@ name = "{{service_name}}"
 
 [api.functions.my-function]
 name = "my-function"
-handler_name = "handler"
 "#;
 
 pub static SERVICE_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
@@ -58,10 +56,11 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 direct-executor = "0.3.0"
-serde_json = "1.0.61"
-asml_core = { version = "0.2.0", package = "assemblylift-core-guest" }
-asml_core_io = { version = "0.2.1", package = "assemblylift-core-io-guest" }
-asml_awslambda = { version = "0.2.4", package = "assemblylift-awslambda-guest" }
+serde = "1"
+serde_json = "1"
+asml_core = { version = "0.2", package = "assemblylift-core-guest" }
+assemblylift_core_io_guest = { version = "0.3", package = "assemblylift-core-io-guest" }
+asml_awslambda = { version = "0.3", package = "assemblylift-awslambda-guest" }
 
 "#;
 
