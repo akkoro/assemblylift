@@ -27,7 +27,7 @@ macro_rules! iomod {
         stream.set_nodelay(true).unwrap();
 
         let (reader, writer) =
-            tokio_util::compat::Tokio02AsyncReadCompatExt::compat(stream).split();
+            tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
 
         let rpc_network = Box::new(twoparty::VatNetwork::new(
             reader,

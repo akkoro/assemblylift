@@ -1,16 +1,16 @@
+use std::{env, io};
 use std::cell::Cell;
 use std::error::Error;
 use std::io::ErrorKind;
-use std::sync::{Arc, Mutex};
-use std::{env, io};
 use std::mem::ManuallyDrop;
+use std::sync::{Arc, Mutex};
 
-use wasmer::{imports, Function, Instance, InstantiationError, MemoryView, Module, Store};
-use wasmer_engine_native::Native;
+use wasmer::{Function, imports, Instance, InstantiationError, MemoryView, Store};
+//use wasmer_engine_native::Native;
+use wasmer_engine_jit::JIT;
 
-use assemblylift_core::abi::{
-    asml_abi_io_len, asml_abi_io_ptr, asml_abi_invoke, asml_abi_poll, asml_abi_clock_time_get,
-};
+use assemblylift_core::abi::{asml_abi_clock_time_get, asml_abi_input_length_get, asml_abi_input_next, asml_abi_input_start, asml_abi_invoke, asml_abi_io_len, asml_abi_io_load, asml_abi_io_next, asml_abi_io_poll, asml_abi_z85_decode, asml_abi_z85_encode};
+use assemblylift_core::buffers::FunctionInputBuffer;
 use assemblylift_core::threader::{Threader, ThreaderEnv};
 use assemblylift_core_iomod::registry::RegistryTx;
 
@@ -23,13 +23,18 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
     let file_name = coords[0];
     let file_path = format!("{}/{}.wasm.bin", lambda_path, file_name);
-    
-    let store = Store::new(&Native::headless().engine());
-    let module = unsafe { Module::deserialize_from_file(&store, file_path) }.unwrap();
+
+    //    let store = Store::new(&Native::headless().engine());
+    let store = Store::new(&JIT::headless().engine());
+    let module = unsafe { wasmer::Module::deserialize_from_file(&store, file_path.clone()) }
+        .expect(&format!("could not load wasm from {}", file_path.clone()));
 
     let env = ThreaderEnv {
         threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx)))),
         memory: Default::default(),
+        get_function_input_buffer: Default::default(),
+        get_io_buffer: Default::default(),
+        host_input_buffer: Arc::new(Mutex::new(FunctionInputBuffer::new())),
     };
 
     let import_object = imports! {
@@ -37,10 +42,16 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
             "__asml_abi_console_log" => Function::new_native_with_env(&store, env.clone(), runtime_console_log),
             "__asml_abi_success" => Function::new_native_with_env(&store, env.clone(), runtime_success),
             "__asml_abi_invoke" => Function::new_native_with_env(&store, env.clone(), asml_abi_invoke),
-            "__asml_abi_poll" => Function::new_native_with_env(&store, env.clone(), asml_abi_poll),
-            "__asml_abi_io_ptr" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_ptr),
+            "__asml_abi_io_poll" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_poll),
             "__asml_abi_io_len" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_len),
+            "__asml_abi_io_load" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_load),
+            "__asml_abi_io_next" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_next),
             "__asml_abi_clock_time_get" => Function::new_native_with_env(&store, env.clone(), asml_abi_clock_time_get),
+            "__asml_abi_input_start" => Function::new_native_with_env(&store, env.clone(), asml_abi_input_start),
+            "__asml_abi_input_next" => Function::new_native_with_env(&store, env.clone(), asml_abi_input_next),
+            "__asml_abi_input_length_get" => Function::new_native_with_env(&store, env.clone(), asml_abi_input_length_get),
+            "__asml_expabi_z85_encode" => Function::new_native_with_env(&store, env.clone(), asml_abi_z85_encode),
+            "__asml_expabi_z85_decode" => Function::new_native_with_env(&store, env.clone(), asml_abi_z85_decode),
         },
     };
 

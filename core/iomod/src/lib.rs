@@ -12,6 +12,7 @@ use crate::iomod_capnp::{agent, iomod};
 
 pub mod iomod_capnp;
 pub mod macros;
+pub mod package;
 pub mod registry;
 
 pub struct CallRequest {
@@ -78,7 +79,7 @@ impl iomod::Server for Iomod {
         params: iomod::InvokeParams,
         mut results: iomod::InvokeResults,
     ) -> Promise<(), Error> {
-        let mut tx = self.tx.clone();
+        let tx = self.tx.clone();
 
         Promise::from_future(async move {
             let coords = params.get().unwrap().get_coordinates().unwrap().to_owned();

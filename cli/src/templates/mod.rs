@@ -1,34 +1,25 @@
+pub mod project;
+
 use std::io::Write;
 use std::path::PathBuf;
 use std::{fs, io, path};
 
 use handlebars::Handlebars;
-use serde::Deserialize;
-use serde_json::value::{Map, Value as Json};
-
-pub mod function;
-pub mod manifest;
-pub mod service;
+use serde_json::value::{Map as SerdeMap, Value as Json};
 
 pub struct Document {
     pub file_name: &'static str,
     pub document: String,
 }
 
-pub trait DocumentSet<'a, M: Deserialize<'a>> {
-    fn file_names() -> Vec<Document>;
-    fn read(path: &PathBuf) -> M;
-    fn write(path: &PathBuf, data: &mut Map<String, Json>);
-}
-
-pub(in crate::bom) fn write_documents(
+pub fn write_documents(
     path: &PathBuf,
-    docs: Vec<Document>,
-    data: &mut Map<String, Json>,
+    docs: &Vec<Document>,
+    data: &mut SerdeMap<String, Json>,
 ) {
     let mut reg = Handlebars::new();
     for doc in docs {
-        reg.register_template_string(doc.file_name, doc.document)
+        reg.register_template_string(doc.file_name, doc.document.clone())
             .unwrap();
 
         let render = reg.render(doc.file_name, &data).unwrap();

@@ -1,20 +1,20 @@
 use std::cell::RefCell;
 use std::env;
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::process;
 use std::sync::{Arc, Mutex};
-use std::str::FromStr;
 
 use clap::crate_version;
-use crossbeam_utils::atomic::AtomicCell;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
-use wasmer::Instance;
+use zip;
 
-use assemblylift_core::threader::Threader;
-use assemblylift_core::WasmBufferPtr;
-use assemblylift_core_iomod::registry;
+use assemblylift_core::buffers::LinearBuffer;
+use assemblylift_core_iomod::{package::IomodManifest, registry};
 use runtime::AwsLambdaRuntime;
+use std::io::{BufReader, Read};
+use std::fs::File;
 
 mod runtime;
 mod wasm;
@@ -22,33 +22,6 @@ mod wasm;
 pub static LAMBDA_RUNTIME: Lazy<AwsLambdaRuntime> = Lazy::new(|| AwsLambdaRuntime::new());
 pub static LAMBDA_REQUEST_ID: Lazy<Mutex<RefCell<String>>> =
     Lazy::new(|| Mutex::new(RefCell::new(String::new())));
-
-#[inline(always)]
-fn write_event_buffer(instance: &Instance, event: String) {
-    let wasm_instance_memory = instance.exports.get_memory("memory").unwrap();
-
-    let fn_name = "__asml_guest_get_aws_event_string_buffer_pointer";
-    let get_pointer = instance
-        .exports
-        .get_native_function::<(), WasmBufferPtr>(fn_name)
-        .expect(&*format!("could not find export in wasm named {}", fn_name));
-
-    let event_buffer = get_pointer.call().unwrap();
-    let memory_writer: &[AtomicCell<u8>] = event_buffer
-        .deref(wasm_instance_memory, 0, 8192u32)
-        .unwrap();
-
-    let bytes = event.bytes();
-    for (i, b) in bytes.clone().enumerate() {
-        memory_writer[i].store(b);
-    }
-    if 8192 > bytes.clone().len() {
-        // FIXME magic number -- equiv to AWS_EVENT_STRING_BUFFER_SIZE
-        for i in bytes.len()..8192 {
-            memory_writer[i].store('\0' as u8)
-        }
-    }
-}
 
 #[tokio::main]
 async fn main() {
@@ -67,7 +40,59 @@ async fn main() {
         for entry in rd {
             let entry = entry.unwrap();
             if entry.file_type().unwrap().is_file() {
-                process::Command::new(entry.path()).spawn().unwrap();
+                // this makes the assumption that the
+                // IOmod entrypoint is always an executable binary
+                match entry.path().extension() {
+                    Some(os_str) => {
+                        match os_str.to_str() {
+                            Some("iomod") => {
+                                let file = fs::File::open(&entry.path()).unwrap();
+                                let reader = BufReader::new(file);
+                                let archive = RefCell::new(zip::ZipArchive::new(reader).unwrap());
+                                let mut manifest_str: String = Default::default();
+                                {
+                                    let mut archive = archive.borrow_mut();
+                                    let mut manifest = archive.by_name("./iomod.toml")
+                                        .expect("could not find IOmod manifest");
+                                    manifest.read_to_string(&mut manifest_str)
+                                        .expect("could not read iomod.toml");
+                                }
+                                {
+                                    let mut archive = archive.borrow_mut();
+                                    let iomod_manifest = IomodManifest::from(manifest_str);
+                                    let entrypoint = format!("./{}", iomod_manifest.process.entrypoint);
+                                    let mut entrypoint_binary = archive.by_name(&*entrypoint)
+                                        .expect("could not find entrypoint in package");
+                                    let path = &*format!(
+                                        "/tmp/iomod/{}@{}/{}",
+                                        iomod_manifest.iomod.coordinates,
+                                        iomod_manifest.iomod.version,
+                                        entrypoint
+                                    );
+                                    let path = std::path::Path::new(path);
+                                    {
+                                        let path_prefix = path.parent().unwrap();
+                                        fs::create_dir_all(path_prefix)
+                                            .expect(&*format!("unable to create directory {:?}", path_prefix));
+                                        let mut entrypoint_file = File::create(path)
+                                            .expect(&*format!("unable to create file at {:?}", path));
+                                        std::io::copy(&mut entrypoint_binary, &mut entrypoint_file)
+                                            .expect("unable to copy entrypoint");
+                                        let mut perms: std::fs::Permissions = fs::metadata(&path).unwrap().permissions();
+                                        perms.set_mode(0o755);
+                                        entrypoint_file.set_permissions(perms)
+                                            .expect("could not set IOmod binary executable (octal 755) permissions");
+                                    }
+                                    process::Command::new(path).spawn().unwrap();
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    None => {
+                        process::Command::new(entry.path()).spawn().unwrap();
+                    }
+                }
             }
         }
     }
@@ -89,27 +114,29 @@ async fn main() {
                     ref_cell.replace(event.request_id.clone());
                 }
 
+                env.clone().host_input_buffer.clone().lock().unwrap().initialize(event.event_body.into_bytes());
+
+                let thread_env = env.clone();
                 let instance = instance.clone();
                 tokio::task::spawn_local(async move {
                     // handler coordinates are expected to be <file name>.<function name>
-                    let handler_coordinates = env::var("_HANDLER").unwrap();
+                    let handler_coordinates = std::env::var("_HANDLER").unwrap();
                     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
                     let handler_name = coords[1];
 
-                    write_event_buffer(&instance, event.event_body);
-                    Threader::__reset_memory();
+                    thread_env.threader.lock().unwrap().__reset_memory();
 
                     let handler_call = instance.exports.get_function(handler_name).unwrap();
                     match handler_call.call(&[]) {
-                        Ok(result) => println!("TRACE: handler returned {:?}", result),
+                        Ok(result) => println!("SUCCESS: handler returned {:?}", result),
                         Err(error) => println!("ERROR: {}", error.to_string()),
                     }
                 })
                 .await
                 .unwrap();
             }
-
-            std::mem::drop(env.threader);
+            
+            std::mem::drop(env.clone().threader);
         })
         .await;
 }

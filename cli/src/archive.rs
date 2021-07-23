@@ -2,26 +2,26 @@ use std::io::prelude::*;
 
 use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::fmt;
 
 use zip;
 use zip::write::FileOptions;
 
 #[derive(Debug)]
-pub struct ArtifactError {
+pub struct ArchiveError {
     why: String,
 }
 
-impl ArtifactError {
+impl ArchiveError {
     pub fn new(why: String) -> Self {
-        ArtifactError { why }
+        ArchiveError { why }
     }
 }
 
-impl std::error::Error for ArtifactError {}
+impl std::error::Error for ArchiveError {}
 
-impl fmt::Display for ArtifactError {
+impl fmt::Display for ArchiveError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.why)
     }
@@ -70,10 +70,40 @@ pub fn zip_files(
         }
     }
 
-    println!("🗜 > Wrote zip artifact {}", file_out.as_ref().display());
+    println!("🗜  > Wrote zip artifact {}", file_out.as_ref().display());
 }
 
-pub fn unzip_to(bytes_in: Vec<u8>, out_dir: &str) -> Result<(), ArtifactError> {
+pub fn zip_dir(dir_in: PathBuf, file_out: impl AsRef<Path>) -> Result<(), ()> {
+    use walkdir::WalkDir;
+
+    let file = match fs::File::create(&file_out) {
+        Ok(file) => file,
+        Err(why) => panic!("could not create zip archive: {}", why.to_string()),
+    };
+
+    let mut zip = zip::ZipWriter::new(file);
+    let options = FileOptions::default()
+        .compression_method(zip::CompressionMethod::Stored)
+        .unix_permissions(0o777); 
+    
+    for entry in WalkDir::new(dir_in.clone()).into_iter().filter_map(|e| e.ok()) {
+        let zip_path = entry.path().to_str().unwrap().replace(dir_in.to_str().unwrap(), "");
+
+        let mut file_bytes = match fs::read(&entry.path()) {
+            Ok(bytes) => bytes,
+            Err(_) => continue,
+        };
+
+        zip.start_file(&format!(".{}", zip_path), options).expect("could not create zip archive");
+        zip.write_all(file_bytes.as_mut_slice()).expect("could not create zip archive");
+    }
+
+    println!("🗜  > Wrote zip artifact {}", file_out.as_ref().display());
+    
+    Ok(())
+}
+
+pub fn unzip_terraform(bytes_in: Vec<u8>, out_dir: &str) -> Result<(), ArchiveError> {
     let reader = std::io::Cursor::new(bytes_in);
     let mut archive = zip::ZipArchive::new(reader).unwrap();
     let mut file_out = archive.by_name("terraform").unwrap();
@@ -81,6 +111,6 @@ pub fn unzip_to(bytes_in: Vec<u8>, out_dir: &str) -> Result<(), ArtifactError> {
     let mut outfile = fs::File::create(out_dir).unwrap();
     match io::copy(&mut file_out, &mut outfile) {
         Ok(_) => Ok(()),
-        Err(why) => Err(ArtifactError::new(why.to_string())),
+        Err(why) => Err(ArchiveError::new(why.to_string())),
     }
 }

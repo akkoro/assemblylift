@@ -1,17 +1,16 @@
 extern crate serde_json;
 
-use std::collections::HashMap;
+use clap::{crate_version, App, AppSettings, Arg};
 
-use clap::{crate_version, App, AppSettings, Arg, ArgMatches};
+use crate::commands::{bind, burn, cast, init, make, pack, push, user};
 
-use crate::commands::CommandFn;
-use crate::commands::{bind, burn, cast, init, make};
-
-mod artifact;
-mod bom;
+mod archive;
 mod commands;
 mod projectfs;
+mod providers;
+mod templates;
 mod terraform;
+mod transpiler;
 
 fn main() {
     let app = App::new("asml")
@@ -32,7 +31,7 @@ fn main() {
                         .long("name")
                         .required(true)
                         .takes_value(true),
-                ), // TODO this is going to need an argument to specify the backend (ie aws-lambda, azure, etc)
+                ),
         )
         .subcommand(App::new("make")
             .about("Make a new service or function")
@@ -53,17 +52,66 @@ fn main() {
             App::new("burn")
                 .about("Destroy all infrastructure created by 'bind'")
                 .after_help("Equivalent to 'terraform destroy'"),
+        )
+        .subcommand(
+            App::new("pack")
+                .about("Pack artifacts for publishing")
+                .subcommand(
+                    App::new("iomod")
+                        .about("Pack an IOmod for publishing")
+                        .arg(
+                            Arg::with_name("out")
+                                .short("o")
+                                .required(true)
+                                .takes_value(true)
+                        ),
+                ),
+        )
+        .subcommand(
+            App::new("push")
+                .about("Push artifacts to a registry")
+                .subcommand(
+                    App::new("iomod")
+                        .about("Publish an IOmod to the public registry")
+                        .arg(
+                            Arg::with_name("auth-header")
+                                .long("auth-header")
+                                .required(true) // temporarily true until user login is finished
+                                .takes_value(true)
+                        )
+                        .arg(
+                            Arg::with_name("package")
+                                .long("package")
+                                .required(true)
+                                .takes_value(true)
+                        )
+                        .arg(
+                            Arg::with_name("coords")
+                                .long("coords")
+                                .required(true)
+                                .takes_value(true)
+                        ),
+                ),
+        )
+        .subcommand(
+            App::new("user")
+                .about("User authentication & information")
+                .subcommand(
+                    App::new("login")
+                        .about("Login to the IOmod registry")
+                ),
         );
     let matches = app.setting(AppSettings::ArgRequiredElseHelp).get_matches();
 
-    let mut command_map = HashMap::<&str, CommandFn>::new();
-    command_map.insert("init", init::command);
-    command_map.insert("cast", cast::command);
-    command_map.insert("bind", bind::command);
-    command_map.insert("burn", burn::command);
-    command_map.insert("make", make::command);
-
     match matches.subcommand() {
-        (name, matches) => command_map[name](matches),
+        ("init", matches) => init::command(matches),
+        ("cast", matches) => cast::command(matches),
+        ("bind", matches) => bind::command(matches),
+        ("burn", matches) => burn::command(matches),
+        ("make", matches) => make::command(matches),
+        ("pack", matches) => pack::command(matches),
+        ("push", matches) => push::command(matches),
+        ("user", matches) => user::command(matches),
+        (cmd, _) => println!("Invalid subcommand `{}`. Try `asml help` for options.", cmd),
     }
 }

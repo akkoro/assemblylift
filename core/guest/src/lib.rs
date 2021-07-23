@@ -1,4 +1,4 @@
-pub struct Guest {}
+pub struct Guest;
 
 pub trait GuestCore {
     // static methods

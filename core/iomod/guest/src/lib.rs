@@ -10,7 +10,6 @@ pub mod macros {
 
             extern "C" {
                 fn __asml_abi_invoke(
-                    mem: *const u8,
                     name_ptr: *const u8,
                     name_len: usize,
                     input_ptr: *const u8,
@@ -34,7 +33,6 @@ pub mod macros {
                 unsafe {
                     let serialized: Box<Vec<u8>> = Box::from(serde_json::to_vec(&input).unwrap());
                     ioid = crate::__asml_abi_invoke(
-                        IO_BUFFER.as_ptr(),
                         method_path.as_ptr(),
                         method_path.len(),
                         serialized.as_ptr(),

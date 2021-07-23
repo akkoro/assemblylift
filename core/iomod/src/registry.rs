@@ -62,7 +62,7 @@ pub fn spawn_registry(mut rx: RegistryRx) -> Result<(), RegistryError> {
 
             let rpc_modules = modules.clone();
             let rpc_task = tokio::task::spawn_local(async move {
-                let mut listener = TcpListener::bind("127.0.0.1:13555").await.unwrap();
+                let listener = TcpListener::bind("127.0.0.1:13555").await.unwrap();
                 let registry_client: registry::Client =
                     capnp_rpc::new_client(Registry::new(rpc_modules));
 
@@ -70,7 +70,7 @@ pub fn spawn_registry(mut rx: RegistryRx) -> Result<(), RegistryError> {
                     stream.set_nodelay(true).unwrap();
 
                     let (reader, writer) =
-                        tokio_util::compat::Tokio02AsyncReadCompatExt::compat(stream).split();
+                        tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
 
                     let rpc_network = twoparty::VatNetwork::new(
                         reader,
@@ -93,7 +93,7 @@ pub fn spawn_registry(mut rx: RegistryRx) -> Result<(), RegistryError> {
             let rx_modules = modules.clone();
             let rx_task = tokio::task::spawn_local(async move {
                 while let Some(msg) = rx.recv().await {
-                    let mut responder = msg.responder.unwrap();
+                    let responder = msg.responder.unwrap();
                     let coords = msg.iomod_coords;
                     let method = msg.method_name;
                     let input = msg.payload.as_slice();
