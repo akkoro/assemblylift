@@ -45,7 +45,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-awslambda-guest"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "assemblylift-core-guest",
  "assemblylift-core-io-guest 0.3.1",

@@ -70,6 +70,7 @@ pub struct ApiGatewayError {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum ApiGatewayErrorCode {
+    NotFound = 404,
     FunctionError = 520,
 }
 
@@ -116,22 +117,29 @@ pub struct ApiGatewayRequestContextIdentity {
 impl fmt::Display for ApiGatewayErrorCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            ApiGatewayErrorCode::NotFound => write!(f, "Missing Resource"),
             ApiGatewayErrorCode::FunctionError => write!(f, "Function Error"),
         }
     }
 }
 
 impl ApiGatewayResponse {
-    pub fn ok(body: String, content_type: Option<String>) -> Self {
+    pub fn ok(body: String, content_type: Option<String>, is_base64_encoded: bool, gzip: bool) -> Self {
         let mut headers = HashMap::default();
         headers.insert(
             "content-type".to_string(),
             content_type.unwrap_or_else(|| String::from("application/json")),
         );
+        if gzip {
+            headers.insert(
+                "content-encoding".to_string(),
+                "gzip".to_string(),
+            );
+        }
 
         Self {
             status_code: 200,
-            is_base64_encoded: false,
+            is_base64_encoded,
             headers,
             body,
         }
@@ -203,6 +211,20 @@ macro_rules! http_ok {
             serde_json::to_string(&ApiGatewayResponse::ok(
                 serde_json::to_string(&$response).unwrap(),
                 None,
+                false,
+                false,
+            ))
+            .unwrap(),
+        );
+    };
+
+    ($response:expr, $type:expr, $isb64:expr, $isgzip:expr) => {
+        AwsLambdaClient::success(
+            serde_json::to_string(&ApiGatewayResponse::ok(
+                $response,
+                $type,
+                $isb64,
+                $isgzip,
             ))
             .unwrap(),
         );
@@ -216,6 +238,19 @@ macro_rules! http_error {
             serde_json::to_string(&ApiGatewayResponse::error(
                 $message,
                 ApiGatewayErrorCode::FunctionError,
+            ))
+            .unwrap(),
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! http_not_found {
+    ($resource_name:expr) => {
+        AwsLambdaClient::success(
+            serde_json::to_string(&ApiGatewayResponse::error(
+                format!("missing resource {:?}", $resource_name),
+                ApiGatewayErrorCode::NotFound,
             ))
             .unwrap(),
         );

@@ -47,6 +47,7 @@ impl Provider for ServiceProvider {
         ); 
 
         let use_apigw = ctx.functions.iter().find(|f| f.http.is_some()).is_some();
+        let has_service_layer = ctx.iomods.len() > 0;
 
         let authorizers: Vec<ServiceAuthData> = ctx.authorizers.iter()
             .filter(|a| a.r#type.to_lowercase() != "aws_iam")
@@ -75,6 +76,7 @@ impl Provider for ServiceProvider {
             hcl_provider: String::from("aws"),
             layer_name,
             use_apigw,
+            has_service_layer,
             authorizers,
         };
         let data = to_json(data);
@@ -190,6 +192,7 @@ pub struct ServiceData {
     pub aws_region: String,
     pub hcl_provider: String,
     pub layer_name: String,
+    pub has_service_layer: bool,
     pub use_apigw: bool,
     pub authorizers: Vec<ServiceAuthData>,
 }
@@ -248,7 +251,7 @@ resource "aws_lambda_layer_version" "asml_{{name}}_runtime" {
 
     source_code_hash = filebase64sha256("${local.project_path}/.asml/runtime/bootstrap.zip")
 }
-
+{{#if has_service_layer}}
 resource "aws_lambda_layer_version" "asml_{{name}}_service" {
     provider = aws.{{name}}
     
@@ -257,6 +260,7 @@ resource "aws_lambda_layer_version" "asml_{{name}}_service" {
 
     source_code_hash = filebase64sha256("${local.project_path}/.asml/runtime/{{name}}.zip")
 }
+{{/if}}
 {{#if use_apigw}}
 resource "aws_apigatewayv2_api" "{{name}}_http_api" {
     provider      = aws.{{name}}

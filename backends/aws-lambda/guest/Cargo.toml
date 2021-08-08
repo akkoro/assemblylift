@@ -1,6 +1,6 @@
 [package]
 name = "assemblylift-awslambda-guest"
-version = "0.3.0"
+version = "0.3.1"
 description = "AssemblyLift AWS Lambda WASM guest library"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
