@@ -4,7 +4,6 @@
 
 ![AssemblyLift CI](https://github.com/akkoro/assemblylift/workflows/AssemblyLift%20CI/badge.svg)
 ![Crates.io](https://img.shields.io/crates/v/assemblylift-cli)
-![Matrix](https://img.shields.io/matrix/assemblylift:matrix.org?style=plastic)
 
 AssemblyLift is a framework for building serverless applications powered by WebAssembly (WASM).
 
@@ -22,7 +21,7 @@ We're open to ideas and PRs! Please start a [discussion](https://github.com/akko
 
 # Contact & Social
 
-We're on [Matrix](https://matrix.org)! Try the [Element client](https://element.io/) and find us at `#assemblylift:matrix.org` :)
+We're on [Matrix](https://matrix.org)! Try the [Element client](https://element.io/) and find us at [`#assemblylift:matrix.org`](https://app.element.io/#/room/#assemblylift:matrix.org) :)
 
 # License
 
