@@ -4,6 +4,7 @@
 
 ![AssemblyLift CI](https://github.com/akkoro/assemblylift/workflows/AssemblyLift%20CI/badge.svg)
 ![Crates.io](https://img.shields.io/crates/v/assemblylift-cli)
+![Matrix](https://img.shields.io/matrix/assemblylift:matrix.org?style=plastic)
 
 AssemblyLift is a framework for building serverless applications powered by WebAssembly (WASM).
 
