@@ -8,6 +8,7 @@ use serde::{Deserialize, de::DeserializeOwned};
 
 use assemblylift_core_io_common::constants::{FUNCTION_INPUT_BUFFER_SIZE, IO_BUFFER_SIZE_BYTES};
 
+/// The ABI exported by the AssemblyLift runtime host
 extern "C" {
     // IO
     fn __asml_abi_io_poll(id: u32) -> i32;
@@ -31,7 +32,6 @@ extern "C" {
     fn __asml_expabi_z85_decode(ptr: *const u8, len: usize, out_ptr: *const u8) -> i32;
 }
 
-// Raw buffer holding serialized IO data
 #[doc(hidden)]
 pub static mut IO_BUFFER: [u8; IO_BUFFER_SIZE_BYTES] = [0; IO_BUFFER_SIZE_BYTES];
 
@@ -50,7 +50,11 @@ pub fn get_time() -> u64 {
     unsafe { __asml_abi_clock_time_get() }
 }
 
-/// A struct representing data returned by an IOmod call
+/// A struct representing data returned by an IOmod call.
+/// An IoDocument is initialized with the IOID of the call the document "belongs" to. On `new` the
+/// first page of data returned by the call is loaded into `IO_BUFFER`; `read()` is expected to be called
+/// immediately to continue paging data in. Initializing another document with `new` will cause the
+/// data of that call to overwrite the existing data in `IO_BUFFER`.
 pub struct IoDocument {
     bytes_read: usize,
     pages_read: usize,
