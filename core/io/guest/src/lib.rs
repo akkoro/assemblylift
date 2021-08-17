@@ -178,8 +178,6 @@ impl FunctionInputBuffer {
 }
 
 impl std::io::Read for FunctionInputBuffer {
-    // FIXME this whole thing is way more complicated than it needs to be
-    //       because I misunderstood the Read API -- Dan
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
         let mut bytes_read = 0usize;
         if self.bytes_read < self.length {
