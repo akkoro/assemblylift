@@ -5,18 +5,26 @@ use assemblylift_core_io_common::constants::{FUNCTION_INPUT_BUFFER_SIZE, IO_BUFF
 
 use crate::threader::ThreaderEnv;
 
+/// A trait representing a linear byte buffer, such as Vec<u8>
 pub trait LinearBuffer {
+    /// Initialize the buffer with the contents of `buffer`
     fn initialize(&mut self, buffer: Vec<u8>);
+    /// Write bytes to the buffer at an offset
     fn write(&mut self, bytes: &[u8], at_offset: usize) -> usize;
+    /// Erase `len` bytes starting from `offset`
     fn erase(&mut self, offset: usize, len: usize) -> usize;
+    /// The length of the buffer in bytes
     fn len(&self) -> usize;
+    /// The capacity of the buffer in bytes
     fn capacity(&self) -> usize;
 }
 
+/// A trait representing a buffer in WASM guest memory
 pub trait WasmBuffer {
     fn copy_to_wasm(&self, env: &ThreaderEnv, src: (usize, usize), dst: (usize, usize)) -> Result<(), ()>;
 }
 
+/// Implement paging data into a `WasmBuffer`
 pub trait PagedWasmBuffer: WasmBuffer {
     fn first(&mut self, env: &ThreaderEnv, offset: Option<usize>) -> i32;
     fn next(&mut self, env: &ThreaderEnv) -> i32;

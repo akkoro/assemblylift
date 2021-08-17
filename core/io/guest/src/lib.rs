@@ -21,7 +21,7 @@ extern "C" {
     // Console
     fn __asml_abi_console_log(ptr: *const u8, len: usize);
 
-    // Input
+    // Function Input
     fn __asml_abi_input_start() -> i32;
     fn __asml_abi_input_next() -> i32;
     fn __asml_abi_input_length_get() -> u64;
@@ -32,9 +32,11 @@ extern "C" {
 }
 
 // Raw buffer holding serialized IO data
+#[doc(hidden)]
 pub static mut IO_BUFFER: [u8; IO_BUFFER_SIZE_BYTES] = [0; IO_BUFFER_SIZE_BYTES];
 
 #[no_mangle]
+#[doc(hidden)]
 pub fn __asml_guest_get_io_buffer_pointer() -> *const u8 {
     unsafe { IO_BUFFER.as_ptr() }
 }
@@ -43,10 +45,12 @@ fn console_log(message: String) {
     unsafe { __asml_abi_console_log(message.as_ptr(), message.len()) }
 }
 
+/// Get the host clock time in seconds since UNIX epoch
 pub fn get_time() -> u64 {
     unsafe { __asml_abi_clock_time_get() }
 }
 
+/// A struct representing data returned by an IOmod call
 pub struct IoDocument {
     bytes_read: usize,
     pages_read: usize,
@@ -54,6 +58,7 @@ pub struct IoDocument {
 }
 
 impl IoDocument {
+    /// Create a new document for call ID `ioid`
     pub fn new(ioid: u32) -> Self {
         unsafe { __asml_abi_io_load(ioid) };
         Self {
@@ -63,6 +68,7 @@ impl IoDocument {
         }
     }
 
+    /// Get the length of the document
     pub fn len(&self) -> usize {
         self.length
     }
@@ -91,6 +97,7 @@ impl std::io::Read for IoDocument {
 }
 
 #[derive(Clone)]
+/// A handle implementing `std::future::Future` for an in-flight IOmod call
 pub struct Io<'a, R> {
     pub id: u32,
     waker: Box<Option<Waker>>,
@@ -141,6 +148,7 @@ where
 
 // Function Input Buffer
 
+#[doc(hidden)]
 pub static mut FUNCTION_INPUT_BUFFER: [u8; FUNCTION_INPUT_BUFFER_SIZE] =
     [0; FUNCTION_INPUT_BUFFER_SIZE];
 
@@ -150,6 +158,8 @@ pub fn __asml_guest_get_function_input_buffer_pointer() -> *const u8 {
     unsafe { FUNCTION_INPUT_BUFFER.as_ptr() }
 }
 
+/// A struct representing the Function Input Buffer (FIB).
+/// Reads from the host via the `input` ABI function group.
 pub struct FunctionInputBuffer {
     bytes_read: usize,
     pages_read: usize,
@@ -168,6 +178,8 @@ impl FunctionInputBuffer {
 }
 
 impl std::io::Read for FunctionInputBuffer {
+    // FIXME this whole thing is way more complicated than it needs to be
+    //       because I misunderstood the Read API -- Dan
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
         let mut bytes_read = 0usize;
         if self.bytes_read < self.length {
