@@ -1,3 +1,6 @@
+//! The Threader Runtime
+//! "Threader" is the interface between the Wasmer runtime and the IOmod RPC network.
+
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::{Arc, Mutex};
@@ -11,6 +14,7 @@ use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 use crate::buffers::{IoBuffer, PagedWasmBuffer};
 
 #[derive(WasmerEnv, Clone)]
+/// The `WasmerEnv` environment providing shared data between native WASM functions and the host
 pub struct ThreaderEnv {
     pub threader: ManuallyDrop<Arc<Mutex<Threader>>>,
     pub host_input_buffer: Arc<Mutex<crate::buffers::FunctionInputBuffer>>,
@@ -29,6 +33,7 @@ pub struct Threader {
 }
 
 impl Threader {
+    /// Create a new Threader instance with the provided sender `tx`
     pub fn new(tx: RegistryTx) -> Self {
         Threader {
             io_memory: Arc::new(Mutex::new(IoMemory::new())),
@@ -37,6 +42,7 @@ impl Threader {
         }
     }
 
+    /// Issue an unused IOID for a new IOmod call
     pub fn next_ioid(&mut self) -> Option<u32> {
         match self.io_memory.clone().lock() {
             Ok(mut memory) => memory.next_id(),
@@ -44,6 +50,7 @@ impl Threader {
         }
     }
 
+    /// Fetch the memory document associated with `ioid`
     pub fn get_io_memory_document(&mut self, ioid: u32) -> Option<IoMemoryDocument> {
         match self.io_memory.clone().lock() {
             Ok(memory) => match memory.document_map.get(&ioid) {
@@ -54,17 +61,20 @@ impl Threader {
         }
     }
 
+    /// Load the memory document associated with `ioid` into the guest IO memory
     pub fn document_load(&mut self, env: &ThreaderEnv, ioid: u32) -> Result<(), ()> {
         let doc = self.get_io_memory_document(ioid).unwrap();
         self.io_memory.lock().unwrap().buffer.first(env, Some(doc.start));
         Ok(())
     }
 
+    /// Advance the guest IO memory to the next page
     pub fn document_next(&mut self, env: &ThreaderEnv) -> Result<(), ()> {
         self.io_memory.lock().unwrap().buffer.next(env);
         Ok(())
     }
     
+    /// Poll the runtime for the completion status of call associated with `ioid`
     pub fn poll(&mut self, ioid: u32) -> bool {
         match self.io_memory.clone().lock() {
             Ok(memory) => {
@@ -83,6 +93,8 @@ impl Threader {
         }
     }
 
+    /// Invoke the IOmod call at `method_path` with `method_input`, and assign it id `ioid`.
+    /// A task is spawned on the Threader's tokio runtime which runs until the IOmod call responds.
     pub fn invoke(
         &mut self,
         method_path: &str,
@@ -128,11 +140,15 @@ impl Threader {
         });
     }
 
+    /// Spawn a Future on the Threader tokio runtime
     pub fn spawn(&self, future: impl Future<Output = Result<(), std::io::Error>> + Send + 'static) {
         let hnd = self.runtime.handle();
         hnd.spawn(future);
     }
 
+    /// Clear the IO memory.
+    /// This should NOT be called while any calls are still in-flight.
+    /// Intended for use preparing the environment for a subsequent handler execution.
     pub fn __reset_memory(&self) {
         if let Ok(mut memory) = self.io_memory.clone().lock() {
             memory.reset();
@@ -141,8 +157,11 @@ impl Threader {
 }
 
 #[derive(Clone)]
+/// IoMemoryDocument represents a segment of memory in an IO buffer, belonging to an IOmod call.
 pub struct IoMemoryDocument {
+    /// Starting byte offset into the buffer
     pub start: usize,
+    /// Length in bytes of the document
     pub length: usize,
 }
 
