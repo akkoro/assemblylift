@@ -14,7 +14,7 @@ use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 use crate::buffers::{IoBuffer, PagedWasmBuffer};
 
 #[derive(WasmerEnv, Clone)]
-/// The `WasmerEnv` environment providing shared data between native WASM functions
+/// The `WasmerEnv` environment providing shared data between native WASM functions and the host
 pub struct ThreaderEnv {
     pub threader: ManuallyDrop<Arc<Mutex<Threader>>>,
     pub host_input_buffer: Arc<Mutex<crate::buffers::FunctionInputBuffer>>,

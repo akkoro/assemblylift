@@ -3,7 +3,7 @@
 //!
 //! The call registry is maintained in-memory. A thread is spawned which handles 
 //! RPC connections from IOmods and handles IOmod registration. This thread also 
-//! services call invocations to registered from `Threader` via MPSC receiver. 
+//! services call invocations to registered IOmods via MPSC receiver (sent from `Threader`).
 
 use std::cell::RefCell;
 use std::collections::HashMap;
