@@ -11,6 +11,7 @@ pub mod buffers;
 pub mod threader;
 
 #[inline(always)]
+/// Invoke an IOmod call at coordinates `method_path` with input `method_input`
 pub fn invoke_io(
     env: &ThreaderEnv,
     method_path: &str,

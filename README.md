@@ -15,9 +15,8 @@ There is an **examples** repository [here](https://github.com/akkoro/assemblylif
 
 # Contributing
 
-We're open to ideas and PRs! Please start a [discussion](https://github.com/akkoro/assemblylift/discussions) if you have a proposal.
- * Please use [forking workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/forking-workflow) to open a new Pull Request
- * Remember to abide by the [Contributor Covenant](CODE_OF_CONDUCT.md)
+If you would like to contribute to the AssemblyLift project, please see [CONTRIBUTING.md for details](CONTRIBUTING.md) on how to get started!
+If you want to report a bug, please [open an issue](https://github.com/akkoro/assemblylift/issues/new?labels=bug).
 
 # Contact & Social
 
