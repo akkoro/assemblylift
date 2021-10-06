@@ -5,13 +5,17 @@
 ![AssemblyLift CI](https://github.com/akkoro/assemblylift/workflows/AssemblyLift%20CI/badge.svg)
 ![Crates.io](https://img.shields.io/crates/v/assemblylift-cli)
 
-AssemblyLift is a framework for building serverless applications powered by WebAssembly (WASM).
+AssemblyLift is an open platform for building serverless cloud applications, with an emphasis on ease-of-use and safety.  
+The platform currently consists of:
+* The AssemblyLift CLI
+* The AssemblyLift Runtime
+* The AssemblyLift IO Module Registry
+* The AssemblyLift Rust Language SDK
 
 # Getting Started
 
 Please see the [official documentation](https://docs.assemblylift.akkoro.io) for help with installing & learning to use AssemblyLift, and/or for more information about the project.
-
-There is an **examples** repository [here](https://github.com/akkoro/assemblylift-examples).
+You can also find more in-depth tutorials on the [Akkoro Dev blog](https://dev.to/akkoro).
 
 # Contributing
 
