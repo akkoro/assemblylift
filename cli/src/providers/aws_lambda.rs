@@ -135,7 +135,6 @@ impl Provider for FunctionProvider {
                                 _ => Some(format!("aws_apigatewayv2_authorizer.{}_{}.id", service.clone(), id)),
                             },
                             r#type: auth_type.clone(),
-                            // TODO scopes belong to JWT auth
                             scopes: match auth_type.to_lowercase().as_str() {
                                 "aws_iam" => None,
                                 _ => Some(render_string_list(authorizer.scopes.clone())),
