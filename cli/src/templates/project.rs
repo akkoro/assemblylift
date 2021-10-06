@@ -5,7 +5,9 @@ use once_cell::sync::Lazy;
 use crate::templates::Document;
 
 static ROOT_GITIGNORE: &str = r#".asml/
+.terraform/
 net/
+.DS_Store
 "#;
 
 static ASSEMBLYLIFT_TOML: &str = r#"# Generated with assemblylift-cli {{asml_version}}
@@ -75,9 +77,9 @@ static FUNCTION_LIB_RS: &str = r#"// Generated with assemblylift-cli {{asml_vers
 extern crate asml_awslambda;
 
 use asml_core::GuestCore;
-use asml_awslambda::{*, AwsLambdaClient, LambdaContext};
+use asml_awslambda::*;
 
-handler!(context: LambdaContext<()>, async {
+handler!(context: LambdaContext<ApiGatewayEvent>, async {
     let event = context.event;
     AwsLambdaClient::console_log(format!("Read event: {:?}", event));
 
