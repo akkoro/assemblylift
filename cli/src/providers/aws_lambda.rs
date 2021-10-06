@@ -128,15 +128,16 @@ impl Provider for FunctionProvider {
                             .filter(|a| a.service_name == service.clone())
                             .find(|a| a.id == id.clone())
                             .expect(&format!("could not find authorizer by id \"{}\" in context", id.clone()));
+                        let auth_type = authorizer.r#type.clone();
                         Some(FunctionAuthData {
-                            id: match authorizer.r#type.clone().to_lowercase().as_str() {
+                            id: match auth_type.to_lowercase().as_str() {
                                 "aws_iam" => None,
                                 _ => Some(format!("aws_apigatewayv2_authorizer.{}_{}.id", service.clone(), id)),
                             },
-                            r#type: authorizer.r#type.clone(),
-                            scopes: match authorizer.r#type.clone().to_lowercase().as_str() {
+                            r#type: auth_type.clone(),
+                            scopes: match auth_type.to_lowercase().as_str() {
                                 "aws_iam" => None,
-                                _ => Some(render_string_list(Rc::new(vec!["email".to_string(), "openid".to_string()]))),
+                                _ => Some(render_string_list(authorizer.scopes.clone())),
                             },
                         })
                     },
