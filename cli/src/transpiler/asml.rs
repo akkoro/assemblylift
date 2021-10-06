@@ -80,15 +80,20 @@ impl Context {
                     id: id.clone(),
                     service_name: service.name.clone(),
                     r#type: authorizer.auth_type.clone(),
+                    scopes: authorizer
+                        .scopes.clone()
+                        .as_ref().as_ref()
+                        .unwrap_or(&Rc::new(Vec::<String>::new()))
+                        .clone(),
                     jwt_config: match authorizer.auth_type.clone().to_lowercase().as_str() {
                         "jwt" => {
                             Some(AuthorizerJwt {
-                                audience: authorizer.clone()
+                                audience: authorizer
                                     .audience.clone()
                                     .as_ref().as_ref()
                                     .expect("JWT authorizer requires audience field")
                                     .clone(),
-                                issuer: authorizer.clone()
+                                issuer: authorizer
                                     .issuer.clone()
                                     .as_ref().as_ref()
                                     .expect("JWT authorizer requires issuer field")
@@ -165,6 +170,7 @@ pub struct Authorizer {
     pub id: String,
     pub service_name: String,
     pub r#type: String,
+    pub scopes: Rc<Vec<String>>,
     pub jwt_config: Option<AuthorizerJwt>,
 }
 

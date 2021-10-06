@@ -146,7 +146,8 @@ pub mod service {
     #[derive(Deserialize)]
     pub struct HttpAuth {
         pub auth_type: String,
-        pub audience: Rc<Option<Rc<Vec<String>>>>, 
+        pub audience: Rc<Option<Rc<Vec<String>>>>,
+        pub scopes: Rc<Option<Rc<Vec<String>>>>,
         pub issuer: Rc<Option<String>>,
     }
 
