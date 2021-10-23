@@ -56,7 +56,7 @@ jobs:
 
   build-asml-darwin:
     name: asml - Darwin
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     defaults:
       run:
         working-directory: ./cli
