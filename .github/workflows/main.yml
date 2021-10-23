@@ -65,6 +65,8 @@ jobs:
           toolchain: stable
           override: true
           target: x86_64-apple-darwin
+      - name: Install capnproto
+        run: sudo apt install capnproto
       - name: Run cargo build
         uses: actions-rs/cargo@v1
         with:
