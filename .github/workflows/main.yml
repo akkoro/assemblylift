@@ -1,10 +1,8 @@
-name: AssemblyLift CI
+name: Release Build
 
 on:
   push:
-    branches: [ mainline, v0.3 ]
-    #  pull_request:
-    #    branches: [ mainline, v0.3 ]
+    branches: [ mainline, v0.4 ]
 
 jobs:
 
@@ -55,3 +53,19 @@ jobs:
       run: docker save assemblylift/asml-lambda-alpine:latest > $HOME/aws-lambda-alpine.tar
     - name: 'Upload image to S3 @ akkoro-pubblic'
       run: aws s3 cp $HOME/aws-lambda-alpine.tar s3://public.assemblylift.akkoro.io/runtime/$ASML_VERSION/aws-lambda-alpine/image.tar --acl public-read
+
+  build-asml-darwin:
+    name: asml - Darwin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install latest stable - darwin
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          target: x86_64-apple-darwin
+      - name: Run cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
