@@ -70,4 +70,5 @@ jobs:
       - name: Run cargo build
         uses: actions-rs/cargo@v1
         with:
+          working-directory: ./cli
           command: build
