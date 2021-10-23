@@ -57,6 +57,9 @@ jobs:
   build-asml-darwin:
     name: asml - Darwin
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./cli
     steps:
       - uses: actions/checkout@v2
       - name: Install latest stable - darwin
@@ -65,10 +68,7 @@ jobs:
           toolchain: stable
           override: true
           target: x86_64-apple-darwin
-      - name: Install capnproto
-        run: sudo apt install capnproto
       - name: Run cargo build
         uses: actions-rs/cargo@v1
         with:
-          working-directory: ./cli
           command: build
