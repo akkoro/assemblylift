@@ -1,8 +1,8 @@
-name: AssemblyLift CI
+name: Verify Build
 
 on:
   pull_request:
-    branches: [ mainline, v0.3 ]
+    branches: [ mainline, v0.4 ]
 
 jobs:
 
