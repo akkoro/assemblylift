@@ -58,6 +58,12 @@ jobs:
     name: asml - Darwin
     runs-on: macos-11
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
       - uses: actions/checkout@v2
       - name: Install latest stable Rust
         uses: actions-rs/toolchain@v1
@@ -72,3 +78,7 @@ jobs:
           command: build
           use-cross: false
           args: --release
+      - name: 'Get Version'
+        run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
+      - name: 'Upload to S3 @ akkoro-public'
+        run: aws s3 cp ./target/release/asml s3://public.assemblylift.akkoro.io/cli/$ASML_VERSION/x86_64-apple-darwin/asml --acl public-read
