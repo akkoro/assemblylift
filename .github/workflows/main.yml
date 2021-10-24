@@ -72,3 +72,5 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
+          use-cross: true
+          args: --release --target x86_64-apple-darwin
