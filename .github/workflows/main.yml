@@ -46,12 +46,12 @@ jobs:
     - name: 'Add ECR Tag'
       run: docker tag assemblylift/asml-lambda-alpine public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-alpine:latest && docker tag public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-alpine:latest public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-alpine:$ASML_VERSION
     - name: 'ECR Login'
-      run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/b9k6v7n0
+      run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/akkoro
     - name: 'Push to ECR @ akkoro-public'
-      run: docker push --all-tags public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-alpine
+      run: docker push --all-tags public.ecr.aws/akkoro/assemblylift/asml-lambda-alpine
     - name: 'Export Image'
       run: docker save assemblylift/asml-lambda-alpine:latest > $HOME/aws-lambda-alpine.tar
-    - name: 'Upload image to S3 @ akkoro-pubblic'
+    - name: 'Upload image to S3 @ akkoro-public'
       run: aws s3 cp $HOME/aws-lambda-alpine.tar s3://public.assemblylift.akkoro.io/runtime/$ASML_VERSION/aws-lambda-alpine/image.tar --acl public-read
 
   build-asml-darwin:
@@ -59,6 +59,7 @@ jobs:
     runs-on: self-hosted
     env:
       CC: clang
+      CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER: /home/opc/cctools/bin/x86_64-apple-darwin11-ld
     steps:
       - uses: actions/checkout@v2
       - name: Install latest stable - darwin
