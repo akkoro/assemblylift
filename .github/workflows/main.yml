@@ -44,7 +44,7 @@ jobs:
     - name: 'Build Image'
       run: docker build -t assemblylift/asml-lambda-alpine . --file docker/asml-lambda-alpine
     - name: 'Add ECR Tag'
-      run: docker tag assemblylift/asml-lambda-alpine public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-alpine:latest && docker tag public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-alpine:latest public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-alpine:$ASML_VERSION
+      run: docker tag assemblylift/asml-lambda-alpine public.ecr.aws/akkoro/assemblylift/asml-lambda-alpine:latest && docker tag public.ecr.aws/akkoro/assemblylift/asml-lambda-alpine:latest public.ecr.aws/akkoro/assemblylift/asml-lambda-alpine:$ASML_VERSION
     - name: 'ECR Login'
       run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/akkoro
     - name: 'Push to ECR @ akkoro-public'
