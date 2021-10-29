@@ -15,7 +15,7 @@ tokio = "1.4"
 crossbeam-utils = "0.8"
 z85 = "3"
 
-wasmer = { package = "wasmer-asml-fork", version = "1.0" }
+wasmer = { package = "wasmer-asml-fork", version = "2.0" }
 
 assemblylift-core-io-common = { version = "0.3", path = "./io/common" }
 assemblylift-core-iomod = { version = "0.3", path = "./iomod" }
