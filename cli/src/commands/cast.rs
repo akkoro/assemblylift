@@ -10,7 +10,7 @@ use wasmer_compiler::{CpuFeature, Target, Triple};
 use wasmer_compiler_cranelift::Cranelift;
 //use wasmer_compiler_llvm::LLVM;
 //use wasmer_engine_native::Native;
-use wasmer_engine_jit::JIT;
+use wasmer_engine_universal::Universal;
 
 use clap::ArgMatches;
 use reqwest;
@@ -187,7 +187,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             let mut cpuid = CpuFeature::set();
             cpuid.insert(CpuFeature::from_str("sse2").unwrap());
             cpuid.insert(CpuFeature::from_str("avx2").unwrap());
-            let store = Store::new(&/*Native*/JIT::new(compiler)
+            let store = Store::new(&/*Native*/Universal::new(compiler)
                 .target(Target::new(triple, cpuid))
                 .engine()
             );

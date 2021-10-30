@@ -82,7 +82,7 @@ jobs:
         run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
       - name: 'Upload to S3 @ akkoro-public'
         run: aws s3 cp ./target/release/asml s3://public.assemblylift.akkoro.io/cli/$ASML_VERSION/x86_64-apple-darwin/asml --acl public-read
-        
+
   build-asml-linux-gnu:
     name: asml - Linux GNU
     runs-on: ubuntu-latest

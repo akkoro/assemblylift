@@ -1,6 +1,6 @@
 [package]
 name = "assemblylift-cli"
-version = "0.3.2"
+version = "0.3.3-beta"
 description = "AssemblyLift command line interface"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
@@ -8,8 +8,6 @@ license-file = "../LICENSE.md"
 repository = "https://github.com/akkoro/assemblylift"
 readme = "README.md"
 exclude = ["resources/**"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[bin]]
 name = "asml"
@@ -28,12 +26,12 @@ toml = "0.5"
 walkdir = "2.3"
 zip = "0.5"
 
-wasmer = { package = "wasmer-asml-fork", version = "1.0" }
-wasmer-compiler = "1.0"
-wasmer-compiler-cranelift = "1.0"
+wasmer = { package = "wasmer-asml-fork", version = "2.0" }
+wasmer-compiler = { version = "2.0" }
+wasmer-compiler-cranelift = {version = "2.0" }
 #wasmer-compiler-llvm = "1.0"
-wasmer-engine-native = "1.0"
-wasmer-engine-jit = "1.0"
+#wasmer-engine-native = "1.0"
+wasmer-engine-universal = { version = "2.0" }
 
 assemblylift_core_iomod = { version = "0.3", package = "assemblylift-core-iomod", path = "../core/iomod" }
 

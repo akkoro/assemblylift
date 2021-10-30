@@ -5,9 +5,9 @@ use std::io::ErrorKind;
 use std::mem::ManuallyDrop;
 use std::sync::{Arc, Mutex};
 
-use wasmer::{Function, imports, Instance, InstantiationError, MemoryView, Store};
+use wasmer::{Function, imports, Instance, InstantiationError, MemoryView, Store, Cranelift};
 //use wasmer_engine_native::Native;
-use wasmer_engine_jit::JIT;
+use wasmer_engine_universal::Universal;
 
 use assemblylift_core::abi::{asml_abi_clock_time_get, asml_abi_input_length_get, asml_abi_input_next, asml_abi_input_start, asml_abi_invoke, asml_abi_io_len, asml_abi_io_load, asml_abi_io_next, asml_abi_io_poll, asml_abi_z85_decode, asml_abi_z85_encode};
 use assemblylift_core::buffers::FunctionInputBuffer;
@@ -25,7 +25,8 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
     let file_path = format!("{}/{}.wasm.bin", lambda_path, file_name);
 
     //    let store = Store::new(&Native::headless().engine());
-    let store = Store::new(&JIT::headless().engine());
+    let compiler = Cranelift::default();
+    let store = Store::new(&Universal::new(compiler).engine());
     let module = unsafe { wasmer::Module::deserialize_from_file(&store, file_path.clone()) }
         .expect(&format!("could not load wasm from {}", file_path.clone()));
 
