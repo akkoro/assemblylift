@@ -171,8 +171,8 @@ pub fn command(matches: Option<&ArgMatches>) {
                         .into_os_string()
                         .into_string()
                         .unwrap(),
-                    mode,
                     target,
+                    mode,
                     function_name_snaked
                 ),
                 format!("{}/{}.wasm", function_artifact_path.clone(), &function_name),
