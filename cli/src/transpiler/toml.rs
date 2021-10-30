@@ -163,6 +163,8 @@ pub mod service {
         #[serde(default)]
         pub provider: Rc<Provider>,
         pub handler_name: Option<String>,
+        #[serde(default)]
+        pub enable_wasi: bool,
 
         pub http: Rc<Option<HttpFunction>>,
         pub authorizer_id: Option<String>,

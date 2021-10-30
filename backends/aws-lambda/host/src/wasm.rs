@@ -5,9 +5,10 @@ use std::io::ErrorKind;
 use std::mem::ManuallyDrop;
 use std::sync::{Arc, Mutex};
 
-use wasmer::{Function, imports, Instance, InstantiationError, MemoryView, Store, Cranelift};
+use wasmer::{Function, imports, Instance, InstantiationError, MemoryView, Store, Cranelift, ChainableNamedResolver};
 //use wasmer_engine_native::Native;
 use wasmer_engine_universal::Universal;
+use wasmer_wasi::WasiState;
 
 use assemblylift_core::abi::{asml_abi_clock_time_get, asml_abi_input_length_get, asml_abi_input_next, asml_abi_input_start, asml_abi_invoke, asml_abi_io_len, asml_abi_io_load, asml_abi_io_next, asml_abi_io_poll, asml_abi_z85_decode, asml_abi_z85_encode};
 use assemblylift_core::buffers::FunctionInputBuffer;
@@ -38,7 +39,13 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
         host_input_buffer: Arc::new(Mutex::new(FunctionInputBuffer::new())),
     };
 
-    let import_object = imports! {
+    let mut wasi_env = WasiState::new(coords[0])
+        .finalize()
+        .expect("could not init WASI env");
+    let wasi_imports = wasi_env.import_object(&module)
+        .expect("could not get WASI import object");
+
+    let asml_imports = imports! {
         "env" => {
             "__asml_abi_console_log" => Function::new_native_with_env(&store, env.clone(), runtime_console_log),
             "__asml_abi_success" => Function::new_native_with_env(&store, env.clone(), runtime_success),
@@ -55,6 +62,8 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
             "__asml_expabi_z85_decode" => Function::new_native_with_env(&store, env.clone(), asml_abi_z85_decode),
         },
     };
+
+    let import_object = asml_imports.chain_back(wasi_imports);
 
     match Instance::new(&module, &import_object) {
         Ok(instance) => Ok((instance, env)),

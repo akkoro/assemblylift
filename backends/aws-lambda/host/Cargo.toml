@@ -22,6 +22,7 @@ toml = "0.5"
 zip = "0.5"
 
 wasmer = { package = "wasmer-asml-fork", version = "2.0" }
+wasmer-wasi = { package = "wasmer-wasi-asml-fork", version = "2.0" }
 #wasmer-engine-native = "1.0"
 wasmer-engine-universal = { version = "2.0" }
 

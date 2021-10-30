@@ -137,7 +137,11 @@ pub fn command(matches: Option<&ArgMatches>) {
                     .unwrap()
             ));
 
-            let mode = "release"; // TODO should this really be the default?
+            let mode = "release";
+            let target = match function.enable_wasi {
+                true => "wasm32-wasi",
+                false => "wasm32-unknown-unknown",
+            };
 
             let mut cargo_build = process::Command::new("cargo")
                 .arg("build")
@@ -145,7 +149,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                 .arg("--manifest-path")
                 .arg(function_path)
                 .arg("--target")
-                .arg("wasm32-unknown-unknown")
+                .arg(target)
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
                 .spawn()
@@ -159,7 +163,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             let function_name_snaked = function_name.replace("-", "_");
             let copy_result = fs::copy(
                 format!(
-                    "{}/target/wasm32-unknown-unknown/{}/{}.wasm",
+                    "{}/target/{}/{}/{}.wasm",
                     project
                         .clone()
                         .service_dir(service_name.clone())
@@ -167,6 +171,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                         .into_os_string()
                         .into_string()
                         .unwrap(),
+                    target,
                     mode,
                     function_name_snaked
                 ),
