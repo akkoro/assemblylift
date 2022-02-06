@@ -47,7 +47,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-awslambda-guest"
-version = "0.3.1"
+version = "0.4.0-alpha.0"
 dependencies = [
  "assemblylift-core-guest",
  "assemblylift-core-io-guest 0.3.2",
@@ -58,7 +58,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-awslambda-host"
-version = "0.3.1"
+version = "0.4.0-alpha.0"
 dependencies = [
  "assemblylift-core",
  "assemblylift-core-io-common 0.3.0",
@@ -115,9 +115,21 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-guest"
-version = "0.2.0"
+version = "0.4.0-alpha.0"
 dependencies = [
+ "assemblylift-core-guest-macros",
  "paste 0.1.18",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "assemblylift-core-guest-macros"
+version = "0.0.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

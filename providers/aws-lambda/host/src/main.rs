@@ -119,14 +119,9 @@ async fn main() {
                 let thread_env = env.clone();
                 let instance = instance.clone();
                 tokio::task::spawn_local(async move {
-                    // handler coordinates are expected to be <file name>.<function name>
-                    let handler_coordinates = std::env::var("_HANDLER").unwrap();
-                    let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
-                    let handler_name = coords[1];
-
                     thread_env.threader.lock().unwrap().__reset_memory();
 
-                    let handler_call = instance.exports.get_function(handler_name).unwrap();
+                    let handler_call = instance.exports.get_function("_start").unwrap();
                     match handler_call.call(&[]) {
                         Ok(result) => println!("SUCCESS: handler returned {:?}", result),
                         Err(error) => println!("ERROR: {}", error.to_string()),
