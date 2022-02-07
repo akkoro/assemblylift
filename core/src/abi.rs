@@ -160,7 +160,7 @@ fn write_bytes_to_ptr(env: &ThreaderEnv, s: Vec<u8>, ptr: WasmPtr<u8, Array>) ->
         .deref(&mem, 0u32, s.len() as u32)
         .expect("could not deref wasm memory");
     for (i, b) in s.iter().enumerate() {
-        memory_writer[i].store(*b);
+        memory_writer[i].set(*b);
     }
     Ok(())
 }
