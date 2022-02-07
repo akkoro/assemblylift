@@ -21,10 +21,10 @@ reqwest = { version = "0.11", features = ["blocking"] }
 toml = "0.5"
 zip = "0.5"
 
-wasmer = { package = "wasmer-asml-fork", version = "2.0" }
-wasmer-wasi = { package = "wasmer-wasi-asml-fork", version = "2.0" }
+wasmer = "2.1.1"
+wasmer-wasi = "2.1.1"
 #wasmer-engine-native = "1.0"
-wasmer-engine-universal = { version = "2.0" }
+wasmer-engine-universal = "2.1.1"
 
 assemblylift_core = { version = "0.3", package = "assemblylift-core", path = "../../../core" }
 assemblylift_core_iomod = { version = "0.3", package = "assemblylift-core-iomod", path = "../../../core/iomod" }
