@@ -50,14 +50,18 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
             "__asml_abi_console_log" => Function::new_native_with_env(&store, env.clone(), runtime_console_log),
             "__asml_abi_success" => Function::new_native_with_env(&store, env.clone(), runtime_success),
             "__asml_abi_invoke" => Function::new_native_with_env(&store, env.clone(), asml_abi_invoke),
+
             "__asml_abi_io_poll" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_poll),
             "__asml_abi_io_len" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_len),
             "__asml_abi_io_load" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_load),
             "__asml_abi_io_next" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_next),
+
             "__asml_abi_clock_time_get" => Function::new_native_with_env(&store, env.clone(), asml_abi_clock_time_get),
+
             "__asml_abi_input_start" => Function::new_native_with_env(&store, env.clone(), asml_abi_input_start),
             "__asml_abi_input_next" => Function::new_native_with_env(&store, env.clone(), asml_abi_input_next),
             "__asml_abi_input_length_get" => Function::new_native_with_env(&store, env.clone(), asml_abi_input_length_get),
+
             "__asml_expabi_z85_encode" => Function::new_native_with_env(&store, env.clone(), asml_abi_z85_encode),
             "__asml_expabi_z85_decode" => Function::new_native_with_env(&store, env.clone(), asml_abi_z85_decode),
         },
@@ -83,7 +87,6 @@ fn runtime_console_log(env: &ThreaderEnv, ptr: u32, len: u32) {
 fn runtime_success(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<(), io::Error> {
     let lambda_runtime = &crate::LAMBDA_RUNTIME;
     let response = runtime_ptr_to_string(env, ptr, len).unwrap();
-
     let threader = env.threader.clone();
 
     let respond = lambda_runtime.respond(response.to_string());

@@ -1,6 +1,8 @@
 use std::cell::RefCell;
 use std::env;
 use std::fs;
+use std::fs::File;
+use std::io::{BufReader, Read};
 use std::os::unix::fs::PermissionsExt;
 use std::process;
 use std::sync::{Arc, Mutex};
@@ -13,8 +15,6 @@ use zip;
 use assemblylift_core::buffers::LinearBuffer;
 use assemblylift_core_iomod::{package::IomodManifest, registry};
 use runtime::AwsLambdaRuntime;
-use std::io::{BufReader, Read};
-use std::fs::File;
 
 mod runtime;
 mod wasm;
@@ -114,7 +114,8 @@ async fn main() {
                     ref_cell.replace(event.request_id.clone());
                 }
 
-                env.clone().host_input_buffer.clone().lock().unwrap().initialize(event.event_body.into_bytes());
+                env.clone().host_input_buffer.clone().lock().unwrap()
+                    .initialize(event.event_body.into_bytes());
 
                 let thread_env = env.clone();
                 let instance = instance.clone();

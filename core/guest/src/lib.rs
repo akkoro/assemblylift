@@ -12,18 +12,8 @@ extern "C" {
     fn __asml_abi_success(ptr: *const u8, len: usize);
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct FunctionInput {
-    pub path: String,
-    pub http_method: String,
-    pub headers: HashMap<String, String>,
-    pub query_string_parameters: Option<HashMap<String, String>>,
-    pub path_parameters: Option<HashMap<String, String>>,
-    pub body: Option<String>,
-}
-
 pub struct FunctionContext {
-    pub input: FunctionInput,
+    pub input: String,
 }
 
 impl FunctionContext {
