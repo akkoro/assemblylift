@@ -12,10 +12,9 @@ readme = "README.md"
 lazy_static = "1.4"
 once_cell = "1.4"
 tokio = "1.4"
-crossbeam-utils = "0.8"
 z85 = "3"
 
-wasmer = { package = "wasmer-asml-fork", version = "2.0" }
+wasmer = "2.1.1"
 
 assemblylift-core-io-common = { version = "0.3", path = "./io/common" }
 assemblylift-core-iomod = { version = "0.3", path = "./iomod" }

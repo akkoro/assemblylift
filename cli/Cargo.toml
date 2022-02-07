@@ -26,12 +26,12 @@ toml = "0.5"
 walkdir = "2.3"
 zip = "0.5"
 
-wasmer = { package = "wasmer-asml-fork", version = "2.0" }
-wasmer-compiler = { version = "2.0" }
-wasmer-compiler-cranelift = {version = "2.0" }
+wasmer = "2.1.1"
+wasmer-compiler = "2.1.1"
+wasmer-compiler-cranelift = "2.1.1"
 #wasmer-compiler-llvm = "1.0"
 #wasmer-engine-native = "1.0"
-wasmer-engine-universal = { version = "2.0" }
+wasmer-engine-universal = "2.1.1"
 
 assemblylift_core_iomod = { version = "0.3", package = "assemblylift-core-iomod", path = "../core/iomod" }
 
