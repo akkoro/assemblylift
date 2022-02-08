@@ -97,13 +97,17 @@ async fn main() {
         }
     }
 
+    let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
+    let handler_coordinates = env::var("_HANDLER").unwrap();
+    let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
+
     let task_set = tokio::task::LocalSet::new();
     task_set
         .run_until(async move {
-            let (instance, env) = match wasm::build_instance(tx) {
-                Ok(instance) => (Arc::new(instance.0), instance.1),
-                Err(why) => panic!("PANIC {}", why.to_string()),
-            };
+            // let (instance, env) = match wasm::build_instance(tx, &lambda_path, coords[0]) {
+            //     Ok(instance) => (Arc::new(instance.0), instance.1),
+            //     Err(why) => panic!("PANIC {}", why.to_string()),
+            // };
 
             while let Ok(event) = LAMBDA_RUNTIME.get_next_event().await {
                 {
@@ -114,13 +118,18 @@ async fn main() {
                     ref_cell.replace(event.request_id.clone());
                 }
 
+
+
+                // let thread_env = env.clone();
+                // let instance = instance.clone();
+                let (instance, env) = match wasm::build_instance(tx.clone(), &lambda_path, coords[0]) {
+                    Ok(instance) => (Arc::new(instance.0), instance.1),
+                    Err(why) => panic!("PANIC {}", why.to_string()),
+                };
                 env.clone().host_input_buffer.clone().lock().unwrap()
                     .initialize(event.event_body.into_bytes());
-
-                let thread_env = env.clone();
-                let instance = instance.clone();
                 tokio::task::spawn_local(async move {
-                    thread_env.threader.lock().unwrap().__reset_memory();
+                    // env.threader.lock().unwrap().__reset_memory();
 
                     let handler_call = instance.exports.get_function("_start").unwrap();
                     match handler_call.call(&[]) {
@@ -130,9 +139,10 @@ async fn main() {
                 })
                 .await
                 .unwrap();
+                std::mem::drop(env.clone().threader);
             }
             
-            std::mem::drop(env.clone().threader);
+            // std::mem::drop(env.clone().threader);
         })
         .await;
 }
