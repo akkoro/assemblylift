@@ -1,4 +1,4 @@
-use std::{env, io};
+use std::io;
 use std::cell::Cell;
 use std::error::Error;
 use std::io::ErrorKind;
@@ -10,20 +10,16 @@ use wasmer::{Function, imports, Instance, InstantiationError, MemoryView, Store,
 use wasmer_engine_universal::Universal;
 use wasmer_wasi::WasiState;
 
-use assemblylift_core::abi::{asml_abi_clock_time_get, asml_abi_input_length_get, asml_abi_input_next, asml_abi_input_start, asml_abi_invoke, asml_abi_io_len, asml_abi_io_load, asml_abi_io_next, asml_abi_io_poll, asml_abi_z85_decode, asml_abi_z85_encode};
+use assemblylift_core::abi::*;
 use assemblylift_core::buffers::FunctionInputBuffer;
 use assemblylift_core::threader::{Threader, ThreaderEnv};
 use assemblylift_core_iomod::registry::RegistryTx;
 
-pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), InstantiationError> {
-    // let panic if these aren't set
-    let handler_coordinates = env::var("_HANDLER").unwrap();
-    let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
-
-    // handler coordinates are expected to be <file name>.<function name>
-    let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
-    let file_name = coords[0];
-    let file_path = format!("{}/{}.wasm.bin", lambda_path, file_name);
+// TODO something like the former GuestCore trait obj passed thru here for runtime ABI
+pub fn build_instance(tx: RegistryTx, module_path: &str, module_name: &str)
+    -> Result<(Instance, ThreaderEnv), InstantiationError>
+{
+    let file_path = format!("{}/{}.wasm.bin", module_path, module_name);
 
     //    let store = Store::new(&Native::headless().engine());
     let compiler = Cranelift::default();
@@ -39,7 +35,7 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
         host_input_buffer: Arc::new(Mutex::new(FunctionInputBuffer::new())),
     };
 
-    let mut wasi_env = WasiState::new(coords[0])
+    let mut wasi_env = WasiState::new(module_name.clone())
         .finalize()
         .expect("could not init WASI env");
     let wasi_imports = wasi_env.import_object(&module)
@@ -49,8 +45,8 @@ pub fn build_instance(tx: RegistryTx) -> Result<(Instance, ThreaderEnv), Instant
         "env" => {
             "__asml_abi_console_log" => Function::new_native_with_env(&store, env.clone(), runtime_console_log),
             "__asml_abi_success" => Function::new_native_with_env(&store, env.clone(), runtime_success),
-            "__asml_abi_invoke" => Function::new_native_with_env(&store, env.clone(), asml_abi_invoke),
 
+            "__asml_abi_invoke" => Function::new_native_with_env(&store, env.clone(), asml_abi_invoke),
             "__asml_abi_io_poll" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_poll),
             "__asml_abi_io_len" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_len),
             "__asml_abi_io_load" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_load),

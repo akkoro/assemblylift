@@ -2,7 +2,7 @@ name: Verify Build
 
 on:
   pull_request:
-    branches: [ mainline, v0.4 ]
+    branches: [ mainline, v0.4.0 ]
 
 jobs:
 
