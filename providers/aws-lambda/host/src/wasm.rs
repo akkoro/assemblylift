@@ -5,7 +5,7 @@ use std::io::ErrorKind;
 use std::mem::ManuallyDrop;
 use std::sync::{Arc, Mutex};
 
-use wasmer::{Function, imports, Instance, InstantiationError, MemoryView, Store, Cranelift, ChainableNamedResolver};
+use wasmer::{Function, imports, Instance, InstantiationError, MemoryView, Store, Cranelift, ChainableNamedResolver, NamedResolverChain, ImportObject, Module};
 //use wasmer_engine_native::Native;
 use wasmer_engine_universal::Universal;
 use wasmer_wasi::WasiState;
@@ -16,8 +16,9 @@ use assemblylift_core::threader::{Threader, ThreaderEnv};
 use assemblylift_core_iomod::registry::RegistryTx;
 
 // TODO something like the former GuestCore trait obj passed thru here for runtime ABI
-pub fn build_instance(tx: RegistryTx, module_path: &str, module_name: &str)
-    -> Result<(Instance, ThreaderEnv), InstantiationError>
+pub fn build_module(tx: RegistryTx, module_path: &str, module_name: &str)
+                    // -> Result<(Instance, ThreaderEnv), InstantiationError>
+    -> Result<(wasmer::Module, NamedResolverChain<ImportObject, ImportObject>, ThreaderEnv), ()>
 {
     let file_path = format!("{}/{}.wasm.bin", module_path, module_name);
 
@@ -27,13 +28,7 @@ pub fn build_instance(tx: RegistryTx, module_path: &str, module_name: &str)
     let module = unsafe { wasmer::Module::deserialize_from_file(&store, file_path.clone()) }
         .expect(&format!("could not load wasm from {}", file_path.clone()));
 
-    let env = ThreaderEnv {
-        threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx)))),
-        memory: Default::default(),
-        get_function_input_buffer: Default::default(),
-        get_io_buffer: Default::default(),
-        host_input_buffer: Arc::new(Mutex::new(FunctionInputBuffer::new())),
-    };
+    let env = ThreaderEnv::new(tx);
 
     let mut wasi_env = WasiState::new(module_name.clone())
         .finalize()
@@ -65,10 +60,17 @@ pub fn build_instance(tx: RegistryTx, module_path: &str, module_name: &str)
 
     let import_object = asml_imports.chain_back(wasi_imports);
 
-    match Instance::new(&module, &import_object) {
-        Ok(instance) => Ok((instance, env)),
-        Err(err) => Err(err),
-    }
+    Ok((module, import_object, env))
+    // match Instance::new(&module, &import_object) {
+    //     Ok(instance) => Ok((instance, env)),
+    //     Err(err) => Err(err),
+    // }
+}
+
+pub fn new_instance(module: Arc<Module>, import_object: NamedResolverChain<ImportObject, ImportObject>)
+                    -> Result<Instance, InstantiationError>
+{
+    Instance::new(&module, &import_object)
 }
 
 fn to_io_error<E: Error>(err: E) -> io::Error {

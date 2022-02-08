@@ -104,10 +104,10 @@ async fn main() {
     let task_set = tokio::task::LocalSet::new();
     task_set
         .run_until(async move {
-            // let (instance, env) = match wasm::build_instance(tx, &lambda_path, coords[0]) {
-            //     Ok(instance) => (Arc::new(instance.0), instance.1),
-            //     Err(why) => panic!("PANIC {}", why.to_string()),
-            // };
+            let (module, import_object, env) = match wasm::build_module(tx, &lambda_path, coords[0]) {
+                Ok(module) => (Arc::new(module.0), module.1, module.2),
+                Err(_) => panic!("PANIC this shouldn't happen"),
+            };
 
             while let Ok(event) = LAMBDA_RUNTIME.get_next_event().await {
                 {
@@ -118,18 +118,16 @@ async fn main() {
                     ref_cell.replace(event.request_id.clone());
                 }
 
-
-
                 // let thread_env = env.clone();
                 // let instance = instance.clone();
-                let (instance, env) = match wasm::build_instance(tx.clone(), &lambda_path, coords[0]) {
-                    Ok(instance) => (Arc::new(instance.0), instance.1),
+                let instance = match wasm::new_instance(module.clone(), import_object.clone()) {
+                    Ok(instance) => Arc::new(instance),
                     Err(why) => panic!("PANIC {}", why.to_string()),
                 };
-                env.clone().host_input_buffer.clone().lock().unwrap()
+                env.host_input_buffer.clone().lock().unwrap()
                     .initialize(event.event_body.into_bytes());
                 tokio::task::spawn_local(async move {
-                    // env.threader.lock().unwrap().__reset_memory();
+                    // env.clone().threader.lock().unwrap().__reset_memory();
 
                     let handler_call = instance.exports.get_function("_start").unwrap();
                     match handler_call.call(&[]) {
