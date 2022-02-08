@@ -1,6 +1,6 @@
 [package]
 name = "assemblylift-cli"
-version = "0.3.3-beta"
+version = "0.4.0-alpha.0"
 description = "AssemblyLift command line interface"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
