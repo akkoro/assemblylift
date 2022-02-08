@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crossbeam_utils::atomic::AtomicCell;
+use wasmer::WasmCell;
 use assemblylift_core_io_common::constants::{FUNCTION_INPUT_BUFFER_SIZE, IO_BUFFER_SIZE_BYTES};
 
 use crate::threader::ThreaderEnv;
@@ -110,7 +110,7 @@ impl WasmBuffer for FunctionInputBuffer {
             .unwrap()
             .call()
             .unwrap();
-        let memory_writer: &[AtomicCell<u8>] = input_buffer
+        let memory_writer: Vec<WasmCell<u8>> = input_buffer
             .deref(
                 &wasm_memory,
                 dst.0 as u32,
@@ -120,7 +120,7 @@ impl WasmBuffer for FunctionInputBuffer {
 
         for (i, b) in self.buffer[src.0..src.1].iter().enumerate() {
             let idx = i + dst.0;
-            memory_writer[idx].store(*b);
+            memory_writer[idx].set(*b);
         }
 
         Ok(())
@@ -214,7 +214,7 @@ impl WasmBuffer for IoBuffer {
             .unwrap()
             .call()
             .unwrap();
-        let memory_writer: &[AtomicCell<u8>] = io_buffer
+        let memory_writer: Vec<WasmCell<u8>> = io_buffer
             .deref(
                 &wasm_memory,
                 dst.0 as u32,
@@ -224,7 +224,7 @@ impl WasmBuffer for IoBuffer {
 
         let buffer = self.buffers.get(&src.0).unwrap();
         for (i, b) in buffer[src.1..min(src.1 + IO_BUFFER_SIZE_BYTES, buffer.len())].iter().enumerate() {
-            memory_writer[i].store(*b);
+            memory_writer[i].set(*b);
         }
 
         Ok(())

@@ -1,10 +1,8 @@
-name: AssemblyLift CI
+name: Release Build
 
 on:
   push:
-    branches: [ mainline, v0.3 ]
-    #  pull_request:
-    #    branches: [ mainline, v0.3 ]
+    branches: [ mainline, v0.4 ]
 
 jobs:
 
@@ -46,12 +44,70 @@ jobs:
     - name: 'Build Image'
       run: docker build -t assemblylift/asml-lambda-alpine . --file docker/asml-lambda-alpine
     - name: 'Add ECR Tag'
-      run: docker tag assemblylift/asml-lambda-alpine public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-alpine:latest && docker tag public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-alpine:latest public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-alpine:$ASML_VERSION
+      run: docker tag assemblylift/asml-lambda-alpine public.ecr.aws/akkoro/assemblylift/asml-lambda-alpine:latest && docker tag public.ecr.aws/akkoro/assemblylift/asml-lambda-alpine:latest public.ecr.aws/akkoro/assemblylift/asml-lambda-alpine:$ASML_VERSION
     - name: 'ECR Login'
-      run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/b9k6v7n0
+      run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/akkoro
     - name: 'Push to ECR @ akkoro-public'
-      run: docker push --all-tags public.ecr.aws/b9k6v7n0/assemblylift/asml-lambda-alpine
+      run: docker push --all-tags public.ecr.aws/akkoro/assemblylift/asml-lambda-alpine
     - name: 'Export Image'
       run: docker save assemblylift/asml-lambda-alpine:latest > $HOME/aws-lambda-alpine.tar
-    - name: 'Upload image to S3 @ akkoro-pubblic'
+    - name: 'Upload image to S3 @ akkoro-public'
       run: aws s3 cp $HOME/aws-lambda-alpine.tar s3://public.assemblylift.akkoro.io/runtime/$ASML_VERSION/aws-lambda-alpine/image.tar --acl public-read
+
+  build-asml-darwin:
+    name: asml - Darwin
+    runs-on: macos-11
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - uses: actions/checkout@v2
+      - name: Install latest stable Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Build & install capnp
+        run: curl -O https://capnproto.org/capnproto-c++-0.8.0.tar.gz && tar zxf capnproto-c++-0.8.0.tar.gz && cd capnproto-c++-0.8.0 && ./configure && make -j6 check && make install
+      - name: Run cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          use-cross: false
+          args: --release
+      - name: 'Get Version'
+        run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
+      - name: 'Upload to S3 @ akkoro-public'
+        run: aws s3 cp ./target/release/asml s3://public.assemblylift.akkoro.io/cli/$ASML_VERSION/x86_64-apple-darwin/asml --acl public-read
+
+  build-asml-linux-gnu:
+    name: asml - Linux GNU
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - uses: actions/checkout@v2
+      - name: Install latest stable Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Build & install capnp
+        run: curl -O https://capnproto.org/capnproto-c++-0.8.0.tar.gz && tar zxf capnproto-c++-0.8.0.tar.gz && cd capnproto-c++-0.8.0 && ./configure && make -j6 check && sudo make install
+      - name: Run cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          use-cross: false
+          args: --release
+      - name: 'Get Version'
+        run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
+      - name: 'Upload to S3 @ akkoro-public'
+        run: aws s3 cp ./target/release/asml s3://public.assemblylift.akkoro.io/cli/$ASML_VERSION/x86_64-linux-gnu/asml --acl public-read

@@ -1,9 +1,10 @@
 [workspace]
 members = [
-    "backends/aws-lambda/host",
-    "backends/aws-lambda/guest",
+    "providers/aws-lambda/host",
+    "providers/aws-lambda/guest",
     "core",
     "core/guest",
+    "core/guest/macros",
     "core/iomod",
     "core/iomod/guest",
     "core/io",
