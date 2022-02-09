@@ -1,5 +1,3 @@
-extern crate lazy_static;
-
 use wasmer::{Array, WasmPtr};
 
 use crate::threader::ThreaderEnv;
@@ -18,7 +16,8 @@ pub fn invoke_io(
     method_path: &str,
     method_input: Vec<u8>,
 ) -> i32 {
-    let ioid = env.threader.clone().lock().unwrap().next_ioid().unwrap();
+    let ioid = env.threader.clone().lock().unwrap().next_ioid()
+        .expect("unable to get a new IO ID");
 
     env.threader
         .clone()
