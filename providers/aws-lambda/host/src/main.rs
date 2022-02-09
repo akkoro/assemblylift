@@ -106,7 +106,9 @@ async fn main() {
     let task_set = tokio::task::LocalSet::new();
     task_set
         .run_until(async move {
-            let (module, import_object, env) = match wasm::build_module::<LambdaAbi>(tx, &lambda_path, coords[0]) {
+            let (module, import_object, env)
+                = match wasm::build_module::<LambdaAbi>(tx, &lambda_path, coords[0])
+            {
                 Ok(module) => (Arc::new(module.0), module.1, module.2),
                 Err(_) => panic!("PANIC this shouldn't happen"),
             };
@@ -120,8 +122,7 @@ async fn main() {
                     ref_cell.replace(event.request_id.clone());
                 }
 
-                // let thread_env = env.clone();
-                // let instance = instance.clone();
+                // TODO we can save some cycles by creating Instances up-front in a pool & recycling them
                 let instance = match wasm::new_instance(module.clone(), import_object.clone()) {
                     Ok(instance) => Arc::new(instance),
                     Err(why) => panic!("PANIC {}", why.to_string()),
@@ -139,10 +140,8 @@ async fn main() {
                 })
                 .await
                 .unwrap();
-                std::mem::drop(env.clone().threader);
+                // std::mem::drop(env.clone().threader);
             }
-            
-            // std::mem::drop(env.clone().threader);
         })
         .await;
 }

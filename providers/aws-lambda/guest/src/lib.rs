@@ -2,12 +2,9 @@ extern crate assemblylift_core_guest;
 extern crate assemblylift_core_io_guest;
 
 use std::collections::HashMap;
-use std::fmt;
 use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
-
-use assemblylift_core_guest::*;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ApiGatewayEvent {

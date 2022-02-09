@@ -1,20 +1,17 @@
-use std::cell::Cell;
-use std::error::Error;
-use std::io;
-use std::io::ErrorKind;
-use std::mem::ManuallyDrop;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use assemblylift_core_iomod::registry::RegistryTx;
-use wasmer::{ChainableNamedResolver, Cranelift, Function, ImportObject, imports, Instance, InstantiationError, MemoryView, Module, NamedResolverChain, Store, Universal};
+use wasmer::{ChainableNamedResolver, Cranelift, Function, ImportObject, imports, Instance, InstantiationError, Module, NamedResolverChain, Store, Universal};
 use wasmer_wasi::WasiState;
 
+use assemblylift_core_iomod::registry::RegistryTx;
+
 use crate::abi::*;
-use crate::buffers::FunctionInputBuffer;
-use crate::threader::{Threader, ThreaderEnv};
+use crate::threader::ThreaderEnv;
+
+pub type Resolver = NamedResolverChain<ImportObject, ImportObject>;
 
 pub fn build_module<R>(tx: RegistryTx, module_path: &str, module_name: &str)
-    -> Result<(wasmer::Module, NamedResolverChain<ImportObject, ImportObject>, ThreaderEnv), ()>
+    -> Result<(wasmer::Module, Resolver, ThreaderEnv), ()>
 where
     R: RuntimeAbi + 'static
 {
@@ -57,17 +54,12 @@ where
         },
     };
 
-    let import_object = asml_imports.chain_back(wasi_imports);
+    let import_object: Resolver = asml_imports.chain_back(wasi_imports);
 
     Ok((module, import_object, env))
-    // match Instance::new(&module, &import_object) {
-    //     Ok(instance) => Ok((instance, env)),
-    //     Err(err) => Err(err),
-    // }
 }
 
-pub fn new_instance(module: Arc<Module>, import_object: NamedResolverChain<ImportObject, ImportObject>)
-                    -> Result<Instance, InstantiationError>
+pub fn new_instance(module: Arc<Module>, import_object: Resolver) -> Result<Instance, InstantiationError>
 {
     Instance::new(&module, &import_object)
 }
