@@ -15,6 +15,7 @@ tokio = "1.4"
 z85 = "3"
 
 wasmer = "2.1.1"
+wasmer-wasi = "2.1.1"
 
 assemblylift-core-io-common = { version = "0.3", path = "./io/common" }
 assemblylift-core-iomod = { version = "0.3", path = "./iomod" }

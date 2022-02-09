@@ -1,24 +1,22 @@
-use std::io;
 use std::cell::Cell;
 use std::error::Error;
+use std::io;
 use std::io::ErrorKind;
 use std::mem::ManuallyDrop;
 use std::sync::{Arc, Mutex};
 
-use wasmer::{Function, imports, Instance, InstantiationError, MemoryView, Store, Cranelift, ChainableNamedResolver, NamedResolverChain, ImportObject, Module};
-//use wasmer_engine_native::Native;
-use wasmer_engine_universal::Universal;
+use assemblylift_core_iomod::registry::RegistryTx;
+use wasmer::{ChainableNamedResolver, Cranelift, Function, ImportObject, imports, Instance, InstantiationError, MemoryView, Module, NamedResolverChain, Store, Universal};
 use wasmer_wasi::WasiState;
 
-use assemblylift_core::abi::*;
-use assemblylift_core::buffers::FunctionInputBuffer;
-use assemblylift_core::threader::{Threader, ThreaderEnv};
-use assemblylift_core_iomod::registry::RegistryTx;
+use crate::abi::*;
+use crate::buffers::FunctionInputBuffer;
+use crate::threader::{Threader, ThreaderEnv};
 
-// TODO something like the former GuestCore trait obj passed thru here for runtime ABI
-pub fn build_module(tx: RegistryTx, module_path: &str, module_name: &str)
-                    // -> Result<(Instance, ThreaderEnv), InstantiationError>
+pub fn build_module<R>(tx: RegistryTx, module_path: &str, module_name: &str)
     -> Result<(wasmer::Module, NamedResolverChain<ImportObject, ImportObject>, ThreaderEnv), ()>
+where
+    R: RuntimeAbi + 'static
 {
     let file_path = format!("{}/{}.wasm.bin", module_path, module_name);
 
@@ -38,10 +36,11 @@ pub fn build_module(tx: RegistryTx, module_path: &str, module_name: &str)
 
     let asml_imports = imports! {
         "env" => {
-            "__asml_abi_console_log" => Function::new_native_with_env(&store, env.clone(), runtime_console_log),
-            "__asml_abi_success" => Function::new_native_with_env(&store, env.clone(), runtime_success),
+            "__asml_abi_runtime_log" => Function::new_native_with_env(&store, env.clone(), R::log),
+            "__asml_abi_runtime_success" => Function::new_native_with_env(&store, env.clone(), R::success),
 
-            "__asml_abi_invoke" => Function::new_native_with_env(&store, env.clone(), asml_abi_invoke),
+            "__asml_abi_invoke" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_invoke), // TODO deprecated, IOmod guests need to update
+            "__asml_abi_io_invoke" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_invoke),
             "__asml_abi_io_poll" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_poll),
             "__asml_abi_io_len" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_len),
             "__asml_abi_io_load" => Function::new_native_with_env(&store, env.clone(), asml_abi_io_load),
@@ -71,40 +70,4 @@ pub fn new_instance(module: Arc<Module>, import_object: NamedResolverChain<Impor
                     -> Result<Instance, InstantiationError>
 {
     Instance::new(&module, &import_object)
-}
-
-fn to_io_error<E: Error>(err: E) -> io::Error {
-    io::Error::new(ErrorKind::Other, err.to_string())
-}
-
-fn runtime_console_log(env: &ThreaderEnv, ptr: u32, len: u32) {
-    let string = runtime_ptr_to_string(env, ptr, len).unwrap();
-    println!("LOG: {}", string);
-}
-
-fn runtime_success(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<(), io::Error> {
-    let lambda_runtime = &crate::LAMBDA_RUNTIME;
-    let response = runtime_ptr_to_string(env, ptr, len).unwrap();
-    let threader = env.threader.clone();
-
-    let respond = lambda_runtime.respond(response.to_string());
-    threader.lock().unwrap().spawn(respond);
-    Ok(())
-}
-
-fn runtime_ptr_to_string(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<String, io::Error> {
-    let memory = env.memory_ref().unwrap();
-    let view: MemoryView<u8> = memory.view();
-
-    let mut str_vec: Vec<u8> = Vec::new();
-    for byte in view[ptr as usize..(ptr + len) as usize]
-        .iter()
-        .map(Cell::get)
-    {
-        str_vec.push(byte);
-    }
-
-    std::str::from_utf8(str_vec.as_slice())
-        .map(String::from)
-        .map_err(to_io_error)
 }

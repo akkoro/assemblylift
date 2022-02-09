@@ -13,11 +13,13 @@ use tokio::sync::mpsc;
 use zip;
 
 use assemblylift_core::buffers::LinearBuffer;
+use assemblylift_core::wasm;
 use assemblylift_core_iomod::{package::IomodManifest, registry};
 use runtime::AwsLambdaRuntime;
+use crate::abi::LambdaAbi;
 
+mod abi;
 mod runtime;
-mod wasm;
 
 pub static LAMBDA_RUNTIME: Lazy<AwsLambdaRuntime> = Lazy::new(|| AwsLambdaRuntime::new());
 pub static LAMBDA_REQUEST_ID: Lazy<Mutex<RefCell<String>>> =
@@ -104,7 +106,7 @@ async fn main() {
     let task_set = tokio::task::LocalSet::new();
     task_set
         .run_until(async move {
-            let (module, import_object, env) = match wasm::build_module(tx, &lambda_path, coords[0]) {
+            let (module, import_object, env) = match wasm::build_module::<LambdaAbi>(tx, &lambda_path, coords[0]) {
                 Ok(module) => (Arc::new(module.0), module.1, module.2),
                 Err(_) => panic!("PANIC this shouldn't happen"),
             };

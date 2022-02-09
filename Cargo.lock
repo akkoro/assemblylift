@@ -80,8 +80,6 @@ dependencies = [
  "tokio",
  "toml",
  "wasmer",
- "wasmer-engine-universal",
- "wasmer-wasi",
  "zip",
 ]
 
@@ -119,6 +117,7 @@ dependencies = [
  "once_cell",
  "tokio",
  "wasmer",
+ "wasmer-wasi",
  "z85",
 ]
 
