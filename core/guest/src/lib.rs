@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 pub use assemblylift_core_guest_macros::handler;
 
 extern "C" {
-    fn __asml_abi_console_log(ptr: *const u8, len: usize);
-    fn __asml_abi_success(ptr: *const u8, len: usize);
+    fn __asml_abi_runtime_log(ptr: *const u8, len: usize);
+    fn __asml_abi_runtime_success(ptr: *const u8, len: usize);
 }
 
 pub struct FunctionContext {
@@ -18,11 +18,11 @@ pub struct FunctionContext {
 
 impl FunctionContext {
     pub fn log(message: String) {
-        unsafe { __asml_abi_console_log(message.as_ptr(), message.len()) }
+        unsafe { __asml_abi_runtime_log(message.as_ptr(), message.len()) }
     }
 
     pub fn success(response: String) {
-        unsafe { __asml_abi_success(response.as_ptr(), response.len()) }
+        unsafe { __asml_abi_runtime_success(response.as_ptr(), response.len()) }
     }
 }
 

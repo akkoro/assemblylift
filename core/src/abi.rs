@@ -12,11 +12,16 @@ use crate::threader::ThreaderEnv;
 
 pub type AsmlAbiFn = fn(&ThreaderEnv, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
 
+pub trait RuntimeAbi {
+    fn log(env: &ThreaderEnv, ptr: u32, len: u32);
+    fn success(env: &ThreaderEnv, ptr: u32, len: u32);
+}
+
 fn to_io_error<E: Error>(err: E) -> io::Error {
     io::Error::new(ErrorKind::Other, err.to_string())
 }
 
-pub fn asml_abi_invoke(
+pub fn asml_abi_io_invoke(
     env: &ThreaderEnv,
     name_ptr: u32,
     name_len: u32,

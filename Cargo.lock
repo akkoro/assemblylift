@@ -80,8 +80,6 @@ dependencies = [
  "tokio",
  "toml",
  "wasmer",
- "wasmer-engine-universal",
- "wasmer-wasi",
  "zip",
 ]
 
@@ -115,10 +113,10 @@ version = "0.3.0"
 dependencies = [
  "assemblylift-core-io-common 0.3.0",
  "assemblylift-core-iomod",
- "lazy_static",
  "once_cell",
  "tokio",
  "wasmer",
+ "wasmer-wasi",
  "z85",
 ]
 
