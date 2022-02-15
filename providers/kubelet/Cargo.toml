@@ -1,0 +1,27 @@
+[package]
+name = "assemblylift-kubelet"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1"
+futures = "0.3"
+
+krator = { version = "0.4", default-features = false }
+kube = { version = "0.58.1", default-features = false }
+kube-runtime = { version = "0.58.1", default-features = false }
+kubelet = { version = "1.0.0-alpha.1", default-features = false, features = ["derive"] }
+
+serde_json = "1"
+tempfile = "3.3"
+tokio = "1.16"
+tracing = "0.1"
+
+wasmer = "2.1.1"
+
+assemblylift_core = { version = "0.4.0-alpha.0", package = "assemblylift-core", path = "../../core" }
+
+[dev-dependencies]
+k8s-openapi = { version = "0.13", default-features = false, features = ["v1_22", "api"] }
+oci-distribution = "0.8"

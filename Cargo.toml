@@ -2,6 +2,7 @@
 members = [
     "providers/aws-lambda/host",
     "providers/aws-lambda/guest",
+    "providers/kubelet",
     "core",
     "core/guest",
     "core/guest/macros",
