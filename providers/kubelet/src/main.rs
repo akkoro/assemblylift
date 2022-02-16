@@ -19,10 +19,12 @@ use kubelet::store::Store;
 use kubelet::volume::VolumeRef;
 use tempfile::NamedTempFile;
 use tokio::sync::RwLock;
+use assemblylift_core_iomod::registry::RegistryTx;
 
 use crate::runtime::Runtime;
 use crate::states::pod::PodState;
 
+mod abi;
 mod runtime;
 mod states;
 
@@ -56,6 +58,7 @@ pub struct ProviderState {
     volume_path: PathBuf,
     plugin_registry: Arc<PluginRegistry>,
     device_plugin_manager: Arc<DeviceManager>,
+    pub(crate) registry_tx: RegistryTx,
 }
 
 #[async_trait]

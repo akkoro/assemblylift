@@ -10,6 +10,8 @@ use tokio::sync::mpsc::Sender;
 use assemblylift_core::threader::ThreaderEnv;
 use assemblylift_core::wasm;
 use assemblylift_core::wasm::Resolver;
+use assemblylift_core_iomod::registry::RegistryTx;
+use crate::abi::KubeletAbi;
 
 use crate::HandleFactory;
 
@@ -23,14 +25,14 @@ impl Runtime {
     pub async fn new<L: AsRef<Path> + Send + Sync + 'static>(
         name: String,
         module_data: Vec<u8>,
+        registry_tx: RegistryTx,
         env: HashMap<String, String>,
         args: Vec<String>,
         dirs: HashMap<PathBuf, Option<PathBuf>>,
         log_dir: L,
         status_sender: Sender<Status>,
     ) -> anyhow::Result<Self> {
-        // TODO `tx` comes from IOmod registry, where does that live?
-        match wasm::build_module_from_bytes(tx, &module_data, &name) {
+        match wasm::build_module_from_bytes::<KubeletAbi>(registry_tx, &module_data, &name) {
             Ok((module, resolver, threader_env)) => {
                 Ok(Runtime {
                     module: Arc::new(module),

@@ -240,6 +240,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "assemblylift-core",
+ "assemblylift-core-iomod",
  "async-trait",
  "futures",
  "k8s-openapi 0.13.1",

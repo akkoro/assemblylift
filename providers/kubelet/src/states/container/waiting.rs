@@ -136,10 +136,10 @@ impl State<ContainerState> for Waiting {
             container.name()
         );
 
-        // TODO: decide how/what it means to propagate annotations (from run_context) into WASM modules.
         let runtime = match Runtime::new(
             name,
             module_data,
+            shared.read().await.clone().registry_tx,
             env,
             args,
             container_volumes,
