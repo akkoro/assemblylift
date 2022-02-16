@@ -3,9 +3,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tempfile::NamedTempFile;
-use tokio::sync::RwLock;
-
 use kubelet::container::Container;
 use kubelet::container::state::prelude::SharedState;
 use kubelet::log::Sender;
@@ -20,9 +17,11 @@ use kubelet::state::common::registered::Registered;
 use kubelet::state::common::terminated::Terminated;
 use kubelet::store::Store;
 use kubelet::volume::VolumeRef;
-use states::pod::PodState;
+use tempfile::NamedTempFile;
+use tokio::sync::RwLock;
 
 use crate::runtime::Runtime;
+use crate::states::pod::PodState;
 
 mod runtime;
 mod states;
@@ -64,9 +63,11 @@ impl GenericProviderState for ProviderState {
     fn client(&self) -> kube::Client {
         self.client.clone()
     }
+
     fn store(&self) -> std::sync::Arc<(dyn Store + Send + Sync + 'static)> {
         self.store.clone()
     }
+
     async fn stop(&self, pod: &Pod) -> anyhow::Result<()> {
         let key = PodKey::from(pod);
         let mut handle_writer = self.handles.write().await;
@@ -171,4 +172,5 @@ impl GenericProvider for RuntimeProvider {
 
 fn main() {
     println!("Hello, world!");
+    // TODO bootstrap kubelet with RuntimeProvider
 }

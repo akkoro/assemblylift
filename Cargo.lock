@@ -117,6 +117,7 @@ dependencies = [
 name = "assemblylift-core"
 version = "0.4.0-alpha.0"
 dependencies = [
+ "anyhow",
  "assemblylift-core-io-common 0.3.0",
  "assemblylift-core-iomod",
  "once_cell",

@@ -10,8 +10,8 @@ use crate::threader::ThreaderEnv;
 
 pub type Resolver = NamedResolverChain<ImportObject, ImportObject>;
 
-pub fn build_module<R>(tx: RegistryTx, module_path: &str, module_name: &str)
-    -> Result<(wasmer::Module, Resolver, ThreaderEnv), ()>
+pub fn build_module_from_path<R>(tx: RegistryTx, module_path: &str, module_name: &str)
+    -> anyhow::Result<(wasmer::Module, Resolver, ThreaderEnv)>
 where
     R: RuntimeAbi + 'static
 {
@@ -23,6 +23,27 @@ where
     let module = unsafe { wasmer::Module::deserialize_from_file(&store, file_path.clone()) }
         .expect(&format!("could not load wasm from {}", file_path.clone()));
 
+    build::<R>(tx, module, module_name, store)
+}
+
+pub fn build_module_from_bytes<R>(tx: RegistryTx, module_bytes: &[u8], module_name: &str)
+    -> anyhow::Result<(wasmer::Module, Resolver, ThreaderEnv)>
+where
+    R: RuntimeAbi + 'static
+{
+    let compiler = Cranelift::default();
+    let store = Store::new(&Universal::new(compiler).engine());
+    let module = unsafe { wasmer::Module::deserialize(&store, module_bytes) }
+        .expect(&format!("could not load wasm from bytes"));
+
+    build::<R>(tx, module, module_name, store)
+}
+
+fn build<R>(tx: RegistryTx, module: Module, module_name: &str, store: Store)
+    -> anyhow::Result<(wasmer::Module, Resolver, ThreaderEnv)>
+where
+    R: RuntimeAbi + 'static
+{
     let env = ThreaderEnv::new(tx);
 
     let mut wasi_env = WasiState::new(module_name.clone())
@@ -59,7 +80,8 @@ where
     Ok((module, import_object, env))
 }
 
-pub fn new_instance(module: Arc<Module>, import_object: Resolver) -> Result<Instance, InstantiationError>
+pub fn new_instance(module: Arc<Module>, import_object: Resolver)
+    -> Result<Instance, InstantiationError>
 {
     Instance::new(&module, &import_object)
 }
