@@ -21,31 +21,19 @@ use tempfile::NamedTempFile;
 use tokio::sync::RwLock;
 use assemblylift_core_iomod::registry::RegistryTx;
 
-use crate::runtime::Runtime;
+use crate::runtime::{HandleFactory, Runtime, RuntimeHandle};
 use crate::states::pod::PodState;
 
 mod abi;
 mod runtime;
 mod states;
 
-pub(crate) type PodHandleMap = Arc<RwLock<HashMap<PodKey, Arc<Handle<Runtime, HandleFactory>>>>>;
+pub(crate) type PodHandleMap = Arc<RwLock<HashMap<PodKey, Arc<Handle<RuntimeHandle, HandleFactory>>>>>;
 
 pub(crate) struct ModuleRunContext {
     modules: HashMap<String, Vec<u8>>,
     volumes: HashMap<String, VolumeRef>,
     env_vars: HashMap<String, HashMap<String, String>>,
-}
-
-/// Holds our tempfile handle.
-pub struct HandleFactory {
-    temp: Arc<NamedTempFile>,
-}
-
-impl kubelet::log::HandleFactory<tokio::fs::File> for HandleFactory {
-    /// Creates `tokio::fs::File` on demand for log reading.
-    fn new_handle(&self) -> tokio::fs::File {
-        tokio::fs::File::from_std(self.temp.reopen().unwrap())
-    }
 }
 
 /// Provider-level state shared between all pods
@@ -58,7 +46,7 @@ pub struct ProviderState {
     volume_path: PathBuf,
     plugin_registry: Arc<PluginRegistry>,
     device_plugin_manager: Arc<DeviceManager>,
-    pub(crate) registry_tx: RegistryTx,
+    registry_tx: RegistryTx,
 }
 
 #[async_trait]

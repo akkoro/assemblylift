@@ -13,6 +13,8 @@ use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
 use crate::buffers::{FunctionInputBuffer, IoBuffer, PagedWasmBuffer};
 
+pub type IoId = u32;
+
 #[derive(WasmerEnv, Clone)]
 /// The `WasmerEnv` environment providing shared data between native WASM functions and the host
 pub struct ThreaderEnv {
@@ -55,7 +57,7 @@ impl Threader {
     }
 
     /// Issue an unused IOID for a new IOmod call
-    pub fn next_ioid(&mut self) -> Option<u32> {
+    pub fn next_ioid(&mut self) -> Option<IoId> {
         match self.io_memory.clone().lock() {
             Ok(mut memory) => memory.next_id(),
             Err(_) => None,
@@ -63,7 +65,7 @@ impl Threader {
     }
 
     /// Fetch the memory document associated with `ioid`
-    pub fn get_io_memory_document(&mut self, ioid: u32) -> Option<IoMemoryDocument> {
+    pub fn get_io_memory_document(&mut self, ioid: IoId) -> Option<IoMemoryDocument> {
         match self.io_memory.clone().lock() {
             Ok(memory) => match memory.document_map.get(&ioid) {
                 Some(doc) => Some(doc.clone()),
@@ -74,7 +76,7 @@ impl Threader {
     }
 
     /// Load the memory document associated with `ioid` into the guest IO memory
-    pub fn document_load(&mut self, env: &ThreaderEnv, ioid: u32) -> Result<(), ()> {
+    pub fn document_load(&mut self, env: &ThreaderEnv, ioid: IoId) -> Result<(), ()> {
         let doc = self.get_io_memory_document(ioid).unwrap();
         self.io_memory.lock().unwrap().buffer.first(env, Some(doc.start));
         Ok(())
@@ -87,7 +89,7 @@ impl Threader {
     }
     
     /// Poll the runtime for the completion status of call associated with `ioid`
-    pub fn poll(&mut self, ioid: u32) -> bool {
+    pub fn poll(&mut self, ioid: IoId) -> bool {
         match self.io_memory.clone().lock() {
             Ok(memory) => {
                 match memory.poll(ioid) {
@@ -111,7 +113,7 @@ impl Threader {
         &mut self,
         method_path: &str,
         method_input: Vec<u8>,
-        ioid: u32,
+        ioid: IoId,
     ) {
         let io_memory = self.io_memory.clone();
         
@@ -178,16 +180,16 @@ pub struct IoMemoryDocument {
 }
 
 struct IoMemory {
-    _next_id: u32,
+    next_id: IoId,
     buffer: IoBuffer,
-    document_map: HashMap<u32, IoMemoryDocument>,
-    io_status: HashMap<u32, bool>,
+    document_map: HashMap<IoId, IoMemoryDocument>,
+    io_status: HashMap<IoId, bool>,
 }
 
 impl IoMemory {
     fn new() -> Self {
         IoMemory {
-            _next_id: 1, // id 0 is reserved (null)
+            next_id: 1, // id 0 is reserved (null)
             buffer: IoBuffer::new(),
             document_map: Default::default(),
             io_status: Default::default(),
@@ -195,27 +197,27 @@ impl IoMemory {
     }
 
     fn reset(&mut self) {
-        self._next_id = 1;
+        self.next_id = 1;
         self.buffer = IoBuffer::new();
         self.document_map.clear();
         self.io_status.clear();
     }
 
-    fn next_id(&mut self) -> Option<u32> {
-        let next_id = self._next_id.clone();
-        self._next_id += 1;
+    fn next_id(&mut self) -> Option<IoId> {
+        let next_id = self.next_id.clone();
+        self.next_id += 1;
         self.io_status.insert(next_id, false);
         Some(next_id)
     }
 
-    fn poll(&self, ioid: u32) -> bool {
+    fn poll(&self, ioid: IoId) -> bool {
         match self.io_status.get(&ioid) {
             Some(status) => *status,
             None => false,
         }
     }
 
-    fn handle_response(&mut self, response: Vec<u8>, ioid: u32) {
+    fn handle_response(&mut self, response: Vec<u8>, ioid: IoId) {
         self.buffer.write(ioid as usize, response.as_slice());
         self.io_status.insert(ioid, true);
         self.document_map.insert(
