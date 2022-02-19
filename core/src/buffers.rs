@@ -20,14 +20,14 @@ pub trait LinearBuffer {
 }
 
 /// A trait representing a buffer in WASM guest memory
-pub trait WasmBuffer {
-    fn copy_to_wasm(&self, env: &ThreaderEnv, src: (usize, usize), dst: (usize, usize)) -> Result<(), ()>;
+pub trait WasmBuffer<S: Clone + Send + Sized + 'static> {
+    fn copy_to_wasm(&self, env: &ThreaderEnv<S>, src: (usize, usize), dst: (usize, usize)) -> Result<(), ()>;
 }
 
 /// Implement paging data into a `WasmBuffer`
-pub trait PagedWasmBuffer: WasmBuffer {
-    fn first(&mut self, env: &ThreaderEnv, offset: Option<usize>) -> i32;
-    fn next(&mut self, env: &ThreaderEnv) -> i32;
+pub trait PagedWasmBuffer<S: Clone + Send + Sized + 'static>: WasmBuffer<S> {
+    fn first(&mut self, env: &ThreaderEnv<S>, offset: Option<usize>) -> i32;
+    fn next(&mut self, env: &ThreaderEnv<S>) -> i32;
 }
 
 pub struct FunctionInputBuffer {
@@ -57,7 +57,7 @@ impl LinearBuffer for FunctionInputBuffer {
         }
         bytes_written
     }
-    
+
     fn erase(&mut self, offset: usize, len: usize) -> usize {
         let mut bytes_erased = 0usize;
         for idx in offset..len {
@@ -66,7 +66,7 @@ impl LinearBuffer for FunctionInputBuffer {
         }
         bytes_erased
     }
-    
+
     fn len(&self) -> usize {
         self.buffer.len()
     }
@@ -76,8 +76,11 @@ impl LinearBuffer for FunctionInputBuffer {
     }
 }
 
-impl PagedWasmBuffer for FunctionInputBuffer {
-    fn first(&mut self, env: &ThreaderEnv, _offset: Option<usize>) -> i32 {
+impl<S> PagedWasmBuffer<S> for FunctionInputBuffer
+where
+    S: Clone + Send + Sized + 'static,
+{
+    fn first(&mut self, env: &ThreaderEnv<S>, _offset: Option<usize>) -> i32 {
         let end: usize = match self.buffer.len() < FUNCTION_INPUT_BUFFER_SIZE {
             true => self.buffer.len(),
             false => FUNCTION_INPUT_BUFFER_SIZE,
@@ -87,13 +90,13 @@ impl PagedWasmBuffer for FunctionInputBuffer {
         0
     }
 
-    fn next(&mut self, env: &ThreaderEnv) -> i32 {
+    fn next(&mut self, env: &ThreaderEnv<S>) -> i32 {
         use std::cmp::min;
         if self.buffer.len() > FUNCTION_INPUT_BUFFER_SIZE {
             self.page_idx += 1;
             self.copy_to_wasm(
-                env, 
-                (FUNCTION_INPUT_BUFFER_SIZE * self.page_idx, min(FUNCTION_INPUT_BUFFER_SIZE * (self.page_idx + 1), self.buffer.len())), 
+                env,
+                (FUNCTION_INPUT_BUFFER_SIZE * self.page_idx, min(FUNCTION_INPUT_BUFFER_SIZE * (self.page_idx + 1), self.buffer.len())),
                 (0usize, FUNCTION_INPUT_BUFFER_SIZE)
             ).unwrap();
         }
@@ -101,8 +104,11 @@ impl PagedWasmBuffer for FunctionInputBuffer {
     }
 }
 
-impl WasmBuffer for FunctionInputBuffer {
-    fn copy_to_wasm(&self, env: &ThreaderEnv, src: (usize, usize), dst: (usize, usize)) -> Result<(), ()> {
+impl<S> WasmBuffer<S> for FunctionInputBuffer
+where
+    S: Clone + Send + Sized + 'static,
+{
+    fn copy_to_wasm(&self, env: &ThreaderEnv<S>, src: (usize, usize), dst: (usize, usize)) -> Result<(), ()> {
         let wasm_memory = env.memory_ref().unwrap();
         let input_buffer = env
             .get_function_input_buffer
@@ -145,7 +151,7 @@ impl IoBuffer {
     pub fn len(&self, ioid: usize) -> usize {
         self.buffers.get(&ioid).unwrap().len()
     }
-    
+
     pub fn with_capacity(num_buffers: usize, buffer_capacity: usize) -> Self {
         let mut buffers: HashMap<usize, Vec<u8>> = HashMap::new();
         let mut indices: HashMap<usize, usize> = HashMap::new();
@@ -178,25 +184,28 @@ impl IoBuffer {
     }
 }
 
-impl PagedWasmBuffer for IoBuffer {
-    fn first(&mut self, env: &ThreaderEnv, offset: Option<usize>) -> i32 {
+impl<S> PagedWasmBuffer<S> for IoBuffer
+where
+    S: Clone + Send + Sized + 'static,
+{
+    fn first(&mut self, env: &ThreaderEnv<S>, offset: Option<usize>) -> i32 {
         self.active_buffer = offset.unwrap_or(0);
         self.page_indices.insert(self.active_buffer, 0usize);
 
         self.copy_to_wasm(
-            env, 
-            (self.active_buffer, 0usize), 
+            env,
+            (self.active_buffer, 0usize),
             (0usize, IO_BUFFER_SIZE_BYTES),
         ).unwrap();
         0
     }
 
-    fn next(&mut self, env: &ThreaderEnv) -> i32 {
+    fn next(&mut self, env: &ThreaderEnv<S>) -> i32 {
         let page_idx = self.page_indices.get(&self.active_buffer).unwrap() + 1;
         let page_offset = page_idx * IO_BUFFER_SIZE_BYTES;
         self.copy_to_wasm(
-            env, 
-            (self.active_buffer, page_offset), 
+            env,
+            (self.active_buffer, page_offset),
             (0usize, IO_BUFFER_SIZE_BYTES),
         ).unwrap();
         *self.page_indices.get_mut(&self.active_buffer).unwrap() = page_idx;
@@ -204,8 +213,11 @@ impl PagedWasmBuffer for IoBuffer {
     }
 }
 
-impl WasmBuffer for IoBuffer {
-    fn copy_to_wasm(&self, env: &ThreaderEnv, src: (usize, usize), dst: (usize, usize)) -> Result<(), ()> {
+impl<S> WasmBuffer<S> for IoBuffer
+where
+    S: Clone + Send + Sized + 'static,
+{
+    fn copy_to_wasm(&self, env: &ThreaderEnv<S>, src: (usize, usize), dst: (usize, usize)) -> Result<(), ()> {
         use std::cmp::min;
         let wasm_memory = env.memory_ref().unwrap();
         let io_buffer = env

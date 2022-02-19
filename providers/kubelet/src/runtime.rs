@@ -32,15 +32,21 @@ pub struct RuntimeHandle {
     handle: JoinHandle<()>,
 }
 
-pub struct Runtime {
+pub struct Runtime<S>
+where
+    S: Clone + Send + Sized + 'static
+{
     module: Arc<wasmer::Module>,
     resolver: Resolver,
-    threader_env: ThreaderEnv,
+    threader_env: ThreaderEnv<S>,
     tokio: tokio::runtime::Runtime,
     output: Arc<NamedTempFile>,
 }
 
-impl Runtime {
+impl<S> Runtime<S>
+where
+    S: Clone + Send + Sized + 'static
+{
     pub async fn new<L: AsRef<Path> + Send + Sync + 'static>(
         name: String,
         module_data: Vec<u8>,
@@ -49,13 +55,13 @@ impl Runtime {
         args: Vec<String>,
         dirs: HashMap<PathBuf, Option<PathBuf>>,
         log_dir: L,
-        status_sender: Sender<Status>,
+        status_sender: Sender<S>,
     ) -> anyhow::Result<Self> {
         let temp_file = tokio::task::spawn_blocking(move || -> anyhow::Result<NamedTempFile> {
             Ok(NamedTempFile::new_in(log_dir)?)
         }).await??;
 
-        match wasm::build_module_from_bytes::<KubeletAbi>(registry_tx, &module_data, &name) {
+        match wasm::build_module_from_bytes::<KubeletAbi, S>(registry_tx, status_sender, &module_data, &name) {
             Ok((module, resolver, threader_env)) => {
                 Ok(Runtime {
                     module:  Arc::new(module),

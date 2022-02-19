@@ -9,12 +9,12 @@ use assemblylift_core::threader::ThreaderEnv;
 pub struct LambdaAbi;
 
 impl RuntimeAbi for LambdaAbi {
-    fn log(env: &ThreaderEnv, ptr: u32, len: u32) {
+    fn log(env: &ThreaderEnv<S>, ptr: u32, len: u32) {
         let string = runtime_ptr_to_string(env, ptr, len).unwrap();
         println!("LOG: {}", string);
     }
 
-    fn success(env: &ThreaderEnv, ptr: u32, len: u32) {
+    fn success(env: &ThreaderEnv<S>, ptr: u32, len: u32) {
         let lambda_runtime = &crate::LAMBDA_RUNTIME;
         let response = runtime_ptr_to_string(env, ptr, len).unwrap();
         let threader = env.threader.clone();
@@ -24,7 +24,7 @@ impl RuntimeAbi for LambdaAbi {
     }
 }
 
-fn runtime_ptr_to_string(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<String, io::Error> {
+fn runtime_ptr_to_string(env: &ThreaderEnv<S>, ptr: u32, len: u32) -> Result<String, io::Error> {
     let memory = env.memory_ref().unwrap();
     let view: MemoryView<u8> = memory.view();
 

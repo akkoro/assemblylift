@@ -17,8 +17,11 @@ pub type IoId = u32;
 
 #[derive(WasmerEnv, Clone)]
 /// The `WasmerEnv` environment providing shared data between native WASM functions and the host
-pub struct ThreaderEnv {
-    pub threader: ManuallyDrop<Arc<Mutex<Threader>>>,
+pub struct ThreaderEnv<S>
+where
+    S: Clone + Send + Sized + 'static
+{
+    pub threader: ManuallyDrop<Arc<Mutex<Threader<S>>>>,
     pub host_input_buffer: Arc<Mutex<FunctionInputBuffer>>,
     #[wasmer(export)]
     pub memory: LazyInit<Memory>,
@@ -28,10 +31,13 @@ pub struct ThreaderEnv {
     pub get_io_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
 }
 
-impl ThreaderEnv {
-    pub fn new(tx: RegistryTx) -> Self {
+impl<S> ThreaderEnv<S>
+where
+    S: Clone + Send + Sized + 'static,
+{
+    pub fn new(tx: RegistryTx, status_sender: mpsc::Sender<S>) -> Self {
         ThreaderEnv {
-            threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx)))),
+            threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx, status_sender)))),
             memory: Default::default(),
             get_function_input_buffer: Default::default(),
             get_io_buffer: Default::default(),
@@ -40,18 +46,23 @@ impl ThreaderEnv {
     }
 }
 
-pub struct Threader {
+pub struct Threader<S> {
     io_memory: Arc<Mutex<IoMemory>>,
     registry_tx: RegistryTx,
+    pub status_sender: Option<mpsc::Sender<S>>,
     runtime: tokio::runtime::Runtime,
 }
 
-impl Threader {
+impl<S> Threader<S>
+where
+    S: Clone + Send + Sized + 'static,
+{
     /// Create a new Threader instance with the provided sender `tx`
-    pub fn new(tx: RegistryTx) -> Self {
+    pub fn new(tx: RegistryTx, status_sender: mpsc::Sender<S>) -> Self {
         Threader {
             io_memory: Arc::new(Mutex::new(IoMemory::new())),
             registry_tx: tx,
+            status_sender: Some(status_sender),
             runtime: tokio::runtime::Runtime::new().unwrap(),
         }
     }
@@ -76,14 +87,14 @@ impl Threader {
     }
 
     /// Load the memory document associated with `ioid` into the guest IO memory
-    pub fn document_load(&mut self, env: &ThreaderEnv, ioid: IoId) -> Result<(), ()> {
+    pub fn document_load(&mut self, env: &ThreaderEnv<S>, ioid: IoId) -> Result<(), ()> {
         let doc = self.get_io_memory_document(ioid).unwrap();
         self.io_memory.lock().unwrap().buffer.first(env, Some(doc.start));
         Ok(())
     }
 
     /// Advance the guest IO memory to the next page
-    pub fn document_next(&mut self, env: &ThreaderEnv) -> Result<(), ()> {
+    pub fn document_next(&mut self, env: &ThreaderEnv<S>) -> Result<(), ()> {
         self.io_memory.lock().unwrap().buffer.next(env);
         Ok(())
     }

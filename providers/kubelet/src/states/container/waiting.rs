@@ -136,7 +136,7 @@ impl State<ContainerState> for Waiting {
             container.name()
         );
 
-        let runtime = match Runtime::new(
+        let runtime = match Runtime::<Status>::new(
             name,
             module_data,
             shared.read().await.clone().registry_tx,
