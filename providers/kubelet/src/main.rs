@@ -212,8 +212,6 @@ async fn main() -> anyhow::Result<()> {
     let rx = registry_channel.1;
     registry::spawn_registry(rx).unwrap();
 
-    // The provider is responsible for all the "back end" logic. If you are creating
-    // a new Kubelet, all you need to implement is a provider.
     let config = Config::new_from_file_and_flags(version, None);
 
     // Initialize the logger
@@ -222,26 +220,26 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
-    let kubeconfig = kubelet::bootstrap(&config, &config.bootstrap_file, notify_bootstrap).await?;
+    let kube_config = kubelet::bootstrap(&config, &config.bootstrap_file, notify_bootstrap).await?;
 
     let store = make_store(&config);
     let plugin_registry = Arc::new(PluginRegistry::new(&config.plugins_dir));
     let device_plugin_manager = Arc::new(DeviceManager::new(
         &config.device_plugins_dir,
-        kube::Client::try_from(kubeconfig.clone())?,
+        kube::Client::try_from(kube_config.clone())?,
         &config.node_name,
     ));
 
     let provider = RuntimeProvider::new(
         store,
         &config,
-        kubeconfig.clone(),
+        kube_config.clone(),
         plugin_registry,
         device_plugin_manager,
         tx,
     )
         .await?;
-    let kubelet = Kubelet::new(provider, kubeconfig, config).await?;
+    let kubelet = Kubelet::new(provider, kube_config, config).await?;
     kubelet.start().await
 }
 

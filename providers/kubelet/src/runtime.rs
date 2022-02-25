@@ -37,7 +37,6 @@ pub struct Runtime {
     module: Arc<wasmer::Module>,
     resolver: Resolver,
     threader_env: ThreaderEnv<Status>,
-    tokio: tokio::runtime::Runtime,
     output: Arc<NamedTempFile>,
 }
 
@@ -61,7 +60,6 @@ impl Runtime {
                     module:  Arc::new(module),
                     resolver: resolver.clone(),
                     threader_env,
-                    tokio: tokio::runtime::Runtime::new().expect("TODO handle this panic"),
                     output: Arc::new(temp_file),
                 })
             }
@@ -70,11 +68,10 @@ impl Runtime {
     }
 
     pub async fn start(&self) -> anyhow::Result<ContainerHandle<RuntimeHandle, HandleFactory>> {
-        let hnd = self.tokio.handle().clone();
         let instance = wasm::new_instance(self.module.clone(), self.resolver.clone())
             .expect("TODO handle this panic");
         let threader = self.threader_env.threader.clone();
-        let handle: JoinHandle<Result<(), SendError<Status>>> = hnd.spawn_blocking(move || -> Result<(), SendError<Status>> {
+        let handle: JoinHandle<Result<(), SendError<Status>>> = tokio::task::spawn_blocking(move || -> Result<(), SendError<Status>> {
             let start = instance.exports.get_function("_start").unwrap();
 
             let threader = threader.lock().unwrap();

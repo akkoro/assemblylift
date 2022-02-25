@@ -1,4 +1,5 @@
 use std::fs;
+use std::fs::copy;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process;
@@ -161,25 +162,25 @@ pub fn command(matches: Option<&ArgMatches>) {
             }
 
             let function_name_snaked = function_name.replace("-", "_");
-            let copy_result = fs::copy(
-                format!(
-                    "{}/target/{}/{}/{}.wasm",
-                    project
-                        .clone()
-                        .service_dir(service_name.clone())
-                        .function_dir(function_name.clone())
-                        .into_os_string()
-                        .into_string()
-                        .unwrap(),
-                    target,
-                    mode,
-                    function_name_snaked
-                ),
-                format!("{}/{}.wasm", function_artifact_path.clone(), &function_name),
-            );
 
+            let copy_from = format!(
+                "{}/target/{}/{}/{}.wasm",
+                project
+                    .clone()
+                    .service_dir(service_name.clone())
+                    .function_dir(function_name.clone())
+                    .into_os_string()
+                    .into_string()
+                    .unwrap(),
+                target,
+                mode,
+                function_name,
+            );
+            let copy_to = format!("{}/{}.wasm", function_artifact_path.clone(), &function_name);
+            let copy_result = fs::copy(copy_from.clone(), copy_to.clone());
             if copy_result.is_err() {
-                println!("ERROR: {:?}", copy_result.err());
+                println!("ERROR COPY from={} to={}", copy_from.clone(), copy_to.clone());
+                panic!("{:?}", copy_result.err());
             }
 
             let wasm_path = format!("{}/{}.wasm", function_artifact_path.clone(), &function_name);

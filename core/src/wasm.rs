@@ -1,6 +1,6 @@
 use std::sync::Arc;
-use tokio::sync::mpsc;
 
+use tokio::sync::mpsc;
 use wasmer::{ChainableNamedResolver, Cranelift, Function, ImportObject, imports, Instance, InstantiationError, Module, NamedResolverChain, Store, Universal};
 use wasmer_wasi::WasiState;
 
@@ -9,17 +9,21 @@ use assemblylift_core_iomod::registry::RegistryTx;
 use crate::abi::*;
 use crate::threader::ThreaderEnv;
 
+pub type ModuleTreble<S> = (wasmer::Module, Resolver, ThreaderEnv<S>);
 pub type Resolver = NamedResolverChain<ImportObject, ImportObject>;
 
-pub fn build_module_from_path<R, S>(tx: RegistryTx, status_sender: mpsc::Sender<S>, module_path: &str, module_name: &str)
-    -> anyhow::Result<(wasmer::Module, Resolver, ThreaderEnv<S>)>
+pub fn build_module_from_path<R, S>(
+    tx: RegistryTx,
+    status_sender: mpsc::Sender<S>,
+    module_path: &str,
+    module_name: &str
+) -> anyhow::Result<ModuleTreble<S>>
 where
     R: RuntimeAbi<S> + 'static,
     S: Clone + Send + Sized + 'static,
 {
     let file_path = format!("{}/{}.wasm.bin", module_path, module_name);
 
-    //    let store = Store::new(&Native::headless().engine());
     let compiler = Cranelift::default();
     let store = Store::new(&Universal::new(compiler).engine());
     let module = unsafe { wasmer::Module::deserialize_from_file(&store, file_path.clone()) }
@@ -28,8 +32,12 @@ where
     build::<R, S>(tx, status_sender, module, module_name, store)
 }
 
-pub fn build_module_from_bytes<R, S>(tx: RegistryTx, status_sender: mpsc::Sender<S>, module_bytes: &[u8], module_name: &str)
-    -> anyhow::Result<(wasmer::Module, Resolver, ThreaderEnv<S>)>
+pub fn build_module_from_bytes<R, S>(
+    tx: RegistryTx,
+    status_sender: mpsc::Sender<S>,
+    module_bytes: &[u8],
+    module_name: &str
+) -> anyhow::Result<ModuleTreble<S>>
 where
     R: RuntimeAbi<S> + 'static,
     S: Clone + Send + Sized + 'static,
@@ -42,8 +50,13 @@ where
     build::<R, S>(tx, status_sender, module, module_name, store)
 }
 
-fn build<R, S>(tx: RegistryTx, status_sender: mpsc::Sender<S>, module: Module, module_name: &str, store: Store)
-    -> anyhow::Result<(wasmer::Module, Resolver, ThreaderEnv<S>)>
+fn build<R, S>(
+    tx: RegistryTx,
+    status_sender: mpsc::Sender<S>,
+    module: Module,
+    module_name: &str,
+    store: Store
+) -> anyhow::Result<ModuleTreble<S>>
 where
     R: RuntimeAbi<S> + 'static,
     S: Clone + Send + Sized + 'static,
