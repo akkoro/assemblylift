@@ -3,10 +3,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use clap::crate_version;
+use kubelet::{Kubelet, node};
+use kubelet::config::Config;
 use kubelet::container::Container;
 use kubelet::container::state::prelude::SharedState;
 use kubelet::log::Sender;
-use kubelet::node;
 use kubelet::node::Builder;
 use kubelet::plugin_watcher::PluginRegistry;
 use kubelet::pod::{Handle, Pod, PodKey};
@@ -15,10 +17,14 @@ use kubelet::resources::DeviceManager;
 use kubelet::state::common::{GenericProvider, GenericProviderState};
 use kubelet::state::common::registered::Registered;
 use kubelet::state::common::terminated::Terminated;
+use kubelet::store::composite::ComposableStore;
+use kubelet::store::oci::FileStore;
 use kubelet::store::Store;
 use kubelet::volume::VolumeRef;
 use tempfile::NamedTempFile;
-use tokio::sync::RwLock;
+use tokio::sync::{mpsc, RwLock};
+
+use assemblylift_core_iomod::registry;
 use assemblylift_core_iomod::registry::RegistryTx;
 
 use crate::runtime::{HandleFactory, Runtime, RuntimeHandle};
@@ -27,6 +33,9 @@ use crate::states::pod::PodState;
 mod abi;
 mod runtime;
 mod states;
+
+const LOG_DIR_NAME: &str = "wasi-logs";
+const VOLUME_DIR: &str = "volumes";
 
 pub(crate) type PodHandleMap = Arc<RwLock<HashMap<PodKey, Arc<Handle<RuntimeHandle, HandleFactory>>>>>;
 
@@ -89,8 +98,37 @@ impl DevicePluginSupport for ProviderState {
 }
 
 #[derive(Clone)]
-pub(crate) struct RuntimeProvider {
+pub struct RuntimeProvider {
     shared: ProviderState,
+}
+
+impl RuntimeProvider {
+    pub async fn new(
+        store: Arc<dyn Store + Sync + Send>,
+        config: &kubelet::config::Config,
+        kubeconfig: kube::Config,
+        plugin_registry: Arc<PluginRegistry>,
+        device_plugin_manager: Arc<DeviceManager>,
+        registry_tx: RegistryTx,
+    ) -> anyhow::Result<Self> {
+        let log_path = config.data_dir.join(LOG_DIR_NAME);
+        let volume_path = config.data_dir.join(VOLUME_DIR);
+        tokio::fs::create_dir_all(&log_path).await?;
+        tokio::fs::create_dir_all(&volume_path).await?;
+        let client = kube::Client::try_from(kubeconfig)?;
+        Ok(Self {
+            shared: ProviderState {
+                handles: Default::default(),
+                store,
+                log_path,
+                volume_path,
+                client,
+                plugin_registry,
+                device_plugin_manager,
+                registry_tx,
+            },
+        })
+    }
 }
 
 #[async_trait]
@@ -161,7 +199,65 @@ impl GenericProvider for RuntimeProvider {
     }
 }
 
-fn main() {
-    println!("Hello, world!");
-    // TODO bootstrap kubelet with RuntimeProvider
+#[tokio::main(flavor = "multi_thread")]
+async fn main() -> anyhow::Result<()> {
+    let version = crate_version!();
+    println!(
+        "Starting AssemblyLift Kubelet runtime {}",
+        version,
+    );
+
+    let registry_channel = mpsc::channel(32);
+    let tx = registry_channel.0.clone();
+    let rx = registry_channel.1;
+    registry::spawn_registry(rx).unwrap();
+
+    // The provider is responsible for all the "back end" logic. If you are creating
+    // a new Kubelet, all you need to implement is a provider.
+    let config = Config::new_from_file_and_flags(version, None);
+
+    // Initialize the logger
+    tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+
+    let kubeconfig = kubelet::bootstrap(&config, &config.bootstrap_file, notify_bootstrap).await?;
+
+    let store = make_store(&config);
+    let plugin_registry = Arc::new(PluginRegistry::new(&config.plugins_dir));
+    let device_plugin_manager = Arc::new(DeviceManager::new(
+        &config.device_plugins_dir,
+        kube::Client::try_from(kubeconfig.clone())?,
+        &config.node_name,
+    ));
+
+    let provider = RuntimeProvider::new(
+        store,
+        &config,
+        kubeconfig.clone(),
+        plugin_registry,
+        device_plugin_manager,
+        tx,
+    )
+        .await?;
+    let kubelet = Kubelet::new(provider, kubeconfig, config).await?;
+    kubelet.start().await
+}
+
+fn make_store(config: &Config) -> Arc<dyn kubelet::store::Store + Send + Sync> {
+    let client = oci_distribution::Client::from_source(config);
+    let mut store_path = config.data_dir.join(".oci");
+    store_path.push("modules");
+    let file_store = Arc::new(FileStore::new(client, &store_path));
+
+    if config.allow_local_modules {
+        file_store.with_override(Arc::new(kubelet::store::fs::FileSystemStore {}))
+    } else {
+        file_store
+    }
+}
+
+fn notify_bootstrap(message: String) {
+    println!("BOOTSTRAP: {}", message);
 }

@@ -6,6 +6,7 @@ use kubelet::container::Handle as ContainerHandle;
 use kubelet::container::Status;
 use kubelet::handle::StopHandler;
 use tempfile::NamedTempFile;
+use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
 
@@ -29,24 +30,18 @@ impl kubelet::log::HandleFactory<tokio::fs::File> for HandleFactory {
 }
 
 pub struct RuntimeHandle {
-    handle: JoinHandle<()>,
+    handle: JoinHandle<Result<(), SendError<Status>>>,
 }
 
-pub struct Runtime<S>
-where
-    S: Clone + Send + Sized + 'static
-{
+pub struct Runtime {
     module: Arc<wasmer::Module>,
     resolver: Resolver,
-    threader_env: ThreaderEnv<S>,
+    threader_env: ThreaderEnv<Status>,
     tokio: tokio::runtime::Runtime,
     output: Arc<NamedTempFile>,
 }
 
-impl<S> Runtime<S>
-where
-    S: Clone + Send + Sized + 'static
-{
+impl Runtime {
     pub async fn new<L: AsRef<Path> + Send + Sync + 'static>(
         name: String,
         module_data: Vec<u8>,
@@ -55,13 +50,12 @@ where
         args: Vec<String>,
         dirs: HashMap<PathBuf, Option<PathBuf>>,
         log_dir: L,
-        status_sender: Sender<S>,
+        status_sender: Sender<Status>,
     ) -> anyhow::Result<Self> {
         let temp_file = tokio::task::spawn_blocking(move || -> anyhow::Result<NamedTempFile> {
             Ok(NamedTempFile::new_in(log_dir)?)
         }).await??;
-
-        match wasm::build_module_from_bytes::<KubeletAbi, S>(registry_tx, status_sender, &module_data, &name) {
+        match wasm::build_module_from_bytes::<KubeletAbi, Status>(registry_tx, status_sender, &module_data, &name) {
             Ok((module, resolver, threader_env)) => {
                 Ok(Runtime {
                     module:  Arc::new(module),
@@ -79,12 +73,28 @@ where
         let hnd = self.tokio.handle().clone();
         let instance = wasm::new_instance(self.module.clone(), self.resolver.clone())
             .expect("TODO handle this panic");
-
-        let handle = hnd.spawn(async move {
+        let threader = self.threader_env.threader.clone();
+        let handle: JoinHandle<Result<(), SendError<Status>>> = hnd.spawn_blocking(move || -> Result<(), SendError<Status>> {
             let start = instance.exports.get_function("_start").unwrap();
+
+            let threader = threader.lock().unwrap();
+            let status_sender = threader.status_sender.as_ref().unwrap();
+
+            status_sender.blocking_send(Status::Running {
+                timestamp: chrono::Utc::now(),
+            });
+
             match start.call(&[]) {
-                Ok(result) => println!("SUCCESS: handler returned {:?}", result),
-                Err(error) => println!("ERROR: {}", error.to_string()),
+                Ok(result) => status_sender.blocking_send(Status::Terminated {
+                    timestamp: chrono::Utc::now(),
+                    message: "WASM exited successfully".to_string(),
+                    failed: false
+                }),
+                Err(error) => status_sender.blocking_send(Status::Terminated {
+                    timestamp: chrono::Utc::now(),
+                    message: error.message(),
+                    failed: true
+                }),
             }
         });
 
@@ -102,10 +112,11 @@ where
 #[async_trait::async_trait]
 impl StopHandler for RuntimeHandle {
     async fn stop(&mut self) -> anyhow::Result<()> {
-        todo!()
+        Ok(self.handle.abort())
     }
 
     async fn wait(&mut self) -> anyhow::Result<()> {
-        todo!()
+        (&mut self.handle).await?;
+        Ok(())
     }
 }
