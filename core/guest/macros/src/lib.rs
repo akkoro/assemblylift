@@ -1,4 +1,4 @@
-use quote::quote;
+use quote::{quote, quote_spanned};
 use syn::{ItemFn, parse2};
 
 #[proc_macro_attribute]
@@ -7,12 +7,20 @@ pub fn handler(_args: proc_macro::TokenStream, stream: proc_macro::TokenStream) 
         .expect("could not parse token stream");
     let ItemFn { attrs, vis, sig, block } = input;
     let block_statements = &block.stmts;
+    let name = &sig.ident;
+    let ret = &sig.output;
+
+    if name != "main" {
+        return proc_macro::TokenStream::from(quote_spanned! { name.span() =>
+            compile_error!("only the main function can be tagged with #[handler]"),
+        });
+    }
 
     proc_macro::TokenStream::from(quote! {
         use assemblylift_core_io_guest;
         use direct_executor;
         use serde_json;
-        #(#attrs)* #vis #sig {
+        pub fn main() #ret {
             use std::io::Read;
             let mut fib = std::io::BufReader::new(assemblylift_core_io_guest::FunctionInputBuffer::new());
             let mut input = String::new();

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use tokio::sync::mpsc;
 use wasmer::{ChainableNamedResolver, Cranelift, Function, ImportObject, imports, Instance, InstantiationError, Module, NamedResolverChain, Store, Universal};
 use wasmer_wasi::WasiState;
 
@@ -8,22 +9,59 @@ use assemblylift_core_iomod::registry::RegistryTx;
 use crate::abi::*;
 use crate::threader::ThreaderEnv;
 
+pub type ModuleTreble<S> = (wasmer::Module, Resolver, ThreaderEnv<S>);
 pub type Resolver = NamedResolverChain<ImportObject, ImportObject>;
 
-pub fn build_module<R>(tx: RegistryTx, module_path: &str, module_name: &str)
-    -> Result<(wasmer::Module, Resolver, ThreaderEnv), ()>
+pub fn build_module_from_path<R, S>(
+    tx: RegistryTx,
+    status_sender: mpsc::Sender<S>,
+    module_path: &str,
+    module_name: &str
+) -> anyhow::Result<ModuleTreble<S>>
 where
-    R: RuntimeAbi + 'static
+    R: RuntimeAbi<S> + 'static,
+    S: Clone + Send + Sized + 'static,
 {
     let file_path = format!("{}/{}.wasm.bin", module_path, module_name);
 
-    //    let store = Store::new(&Native::headless().engine());
     let compiler = Cranelift::default();
     let store = Store::new(&Universal::new(compiler).engine());
     let module = unsafe { wasmer::Module::deserialize_from_file(&store, file_path.clone()) }
         .expect(&format!("could not load wasm from {}", file_path.clone()));
 
-    let env = ThreaderEnv::new(tx);
+    build::<R, S>(tx, status_sender, module, module_name, store)
+}
+
+pub fn build_module_from_bytes<R, S>(
+    tx: RegistryTx,
+    status_sender: mpsc::Sender<S>,
+    module_bytes: &[u8],
+    module_name: &str
+) -> anyhow::Result<ModuleTreble<S>>
+where
+    R: RuntimeAbi<S> + 'static,
+    S: Clone + Send + Sized + 'static,
+{
+    let compiler = Cranelift::default();
+    let store = Store::new(&Universal::new(compiler).engine());
+    let module = unsafe { wasmer::Module::deserialize(&store, module_bytes) }
+        .expect(&format!("could not load wasm from bytes"));
+
+    build::<R, S>(tx, status_sender, module, module_name, store)
+}
+
+fn build<R, S>(
+    tx: RegistryTx,
+    status_sender: mpsc::Sender<S>,
+    module: Module,
+    module_name: &str,
+    store: Store
+) -> anyhow::Result<ModuleTreble<S>>
+where
+    R: RuntimeAbi<S> + 'static,
+    S: Clone + Send + Sized + 'static,
+{
+    let env = ThreaderEnv::new(tx, status_sender);
 
     let mut wasi_env = WasiState::new(module_name.clone())
         .finalize()
@@ -59,7 +97,8 @@ where
     Ok((module, import_object, env))
 }
 
-pub fn new_instance(module: Arc<Module>, import_object: Resolver) -> Result<Instance, InstantiationError>
+pub fn new_instance(module: Arc<Module>, import_object: Resolver)
+    -> Result<Instance, InstantiationError>
 {
     Instance::new(&module, &import_object)
 }

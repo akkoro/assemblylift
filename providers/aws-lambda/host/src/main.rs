@@ -16,6 +16,7 @@ use assemblylift_core::buffers::LinearBuffer;
 use assemblylift_core::wasm;
 use assemblylift_core_iomod::{package::IomodManifest, registry};
 use runtime::AwsLambdaRuntime;
+
 use crate::abi::LambdaAbi;
 
 mod abi;
@@ -103,11 +104,13 @@ async fn main() {
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
 
+    let (status_sender, _status_receiver) = mpsc::channel::<()>(1);
+
     let task_set = tokio::task::LocalSet::new();
     task_set
         .run_until(async move {
             let (module, import_object, env)
-                = match wasm::build_module::<LambdaAbi>(tx, &lambda_path, coords[0])
+                = match wasm::build_module_from_path::<LambdaAbi, ()>(tx, status_sender, &lambda_path, coords[0])
             {
                 Ok(module) => (Arc::new(module.0), module.1, module.2),
                 Err(_) => panic!("PANIC this shouldn't happen"),

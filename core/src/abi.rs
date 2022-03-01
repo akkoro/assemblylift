@@ -10,24 +10,27 @@ use crate::{invoke_io, WasmBufferPtr};
 use crate::buffers::{LinearBuffer, PagedWasmBuffer};
 use crate::threader::ThreaderEnv;
 
-pub type AsmlAbiFn = fn(&ThreaderEnv, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
+pub type AsmlAbiFn<S> = fn(&ThreaderEnv<S>, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
 
-pub trait RuntimeAbi {
-    fn log(env: &ThreaderEnv, ptr: u32, len: u32);
-    fn success(env: &ThreaderEnv, ptr: u32, len: u32);
+pub trait RuntimeAbi<S: Clone + Send + Sized + 'static,> {
+    fn log(env: &ThreaderEnv<S>, ptr: u32, len: u32);
+    fn success(env: &ThreaderEnv<S>, ptr: u32, len: u32);
 }
 
 fn to_io_error<E: Error>(err: E) -> io::Error {
     io::Error::new(ErrorKind::Other, err.to_string())
 }
 
-pub fn asml_abi_io_invoke(
-    env: &ThreaderEnv,
+pub fn asml_abi_io_invoke<S>(
+    env: &ThreaderEnv<S>,
     name_ptr: u32,
     name_len: u32,
     input: u32,
     input_len: u32,
-) -> i32 {
+) -> i32
+where
+    S: Clone + Send + Sized + 'static,
+{
     if let Ok(method_path) = env_ptr_to_string(env, name_ptr, name_len) {
         if let Ok(input) = env_ptr_to_bytes(env, input, input_len) {
             return invoke_io(env, &*method_path, input);
@@ -37,7 +40,10 @@ pub fn asml_abi_io_invoke(
     -1i32 // error
 }
 
-pub fn asml_abi_io_poll(env: &ThreaderEnv, id: u32) -> i32 {
+pub fn asml_abi_io_poll<S>(env: &ThreaderEnv<S>, id: u32) -> i32
+where
+    S: Clone + Send + Sized + 'static,
+{
     env.threader
         .clone()
         .lock()
@@ -45,17 +51,10 @@ pub fn asml_abi_io_poll(env: &ThreaderEnv, id: u32) -> i32 {
         .poll(id) as i32
 }
 
-//pub fn asml_abi_io_ptr(env: &ThreaderEnv, id: u32) -> u32 {
-//    env.threader
-//        .clone()
-//        .lock()
-//        .unwrap()
-//        .get_io_memory_document(id)
-//        .unwrap()
-//        .start as u32
-//}
-
-pub fn asml_abi_io_len(env: &ThreaderEnv, id: u32) -> u32 {
+pub fn asml_abi_io_len<S>(env: &ThreaderEnv<S>, id: u32) -> u32
+where
+    S: Clone + Send + Sized + 'static,
+{
     env.threader
         .clone()
         .lock()
@@ -65,7 +64,10 @@ pub fn asml_abi_io_len(env: &ThreaderEnv, id: u32) -> u32 {
         .length as u32
 }
 
-pub fn asml_abi_io_load(env: &ThreaderEnv, id: u32) -> i32 {
+pub fn asml_abi_io_load<S>(env: &ThreaderEnv<S>, id: u32) -> i32
+where
+    S: Clone + Send + Sized + 'static,
+{
     match env.threader
         .lock()
         .unwrap()
@@ -76,7 +78,10 @@ pub fn asml_abi_io_load(env: &ThreaderEnv, id: u32) -> i32 {
     }
 }
 
-pub fn asml_abi_io_next(env: &ThreaderEnv) -> i32 {
+pub fn asml_abi_io_next<S>(env: &ThreaderEnv<S>) -> i32
+where
+    S: Clone + Send + Sized + 'static,
+{
     match env.threader
         .lock()
         .unwrap()
@@ -87,7 +92,10 @@ pub fn asml_abi_io_next(env: &ThreaderEnv) -> i32 {
     }
 }
 
-pub fn asml_abi_clock_time_get(_env: &ThreaderEnv) -> u64 {
+pub fn asml_abi_clock_time_get<S>(_env: &ThreaderEnv<S>) -> u64
+where
+    S: Clone + Send + Sized + 'static,
+{
     let start = SystemTime::now();
     let unix_time = start
         .duration_since(UNIX_EPOCH)
@@ -95,7 +103,10 @@ pub fn asml_abi_clock_time_get(_env: &ThreaderEnv) -> u64 {
     unix_time.as_secs() * 1000u64
 }
 
-pub fn asml_abi_input_start(env: &ThreaderEnv) -> i32 {
+pub fn asml_abi_input_start<S>(env: &ThreaderEnv<S>) -> i32
+where
+    S: Clone + Send + Sized + 'static,
+{
     env.host_input_buffer
         .clone()
         .lock()
@@ -103,7 +114,10 @@ pub fn asml_abi_input_start(env: &ThreaderEnv) -> i32 {
         .first(env, None)
 }
 
-pub fn asml_abi_input_next(env: &ThreaderEnv) -> i32 {
+pub fn asml_abi_input_next<S>(env: &ThreaderEnv<S>) -> i32
+where
+    S: Clone + Send + Sized + 'static,
+{
     env.host_input_buffer
         .clone()
         .lock()
@@ -111,7 +125,10 @@ pub fn asml_abi_input_next(env: &ThreaderEnv) -> i32 {
         .next(env)
 }
 
-pub fn asml_abi_input_length_get(env: &ThreaderEnv) -> u64 {
+pub fn asml_abi_input_length_get<S>(env: &ThreaderEnv<S>) -> u64
+where
+    S: Clone + Send + Sized + 'static,
+{
     env.host_input_buffer
         .clone()
         .lock()
@@ -119,7 +136,10 @@ pub fn asml_abi_input_length_get(env: &ThreaderEnv) -> u64 {
         .len() as u64
 }
 
-pub fn asml_abi_z85_encode(env: &ThreaderEnv, ptr: u32, len: u32, out_ptr: WasmPtr<u8, Array>) -> i32 {
+pub fn asml_abi_z85_encode<S>(env: &ThreaderEnv<S>, ptr: u32, len: u32, out_ptr: WasmPtr<u8, Array>) -> i32
+where
+    S: Clone + Send + Sized + 'static,
+{
     if let Ok(input) = env_ptr_to_bytes(env, ptr, len) {
         let output = z85::encode(input);
         return match write_bytes_to_ptr(env, output.into_bytes(), out_ptr) {
@@ -130,7 +150,10 @@ pub fn asml_abi_z85_encode(env: &ThreaderEnv, ptr: u32, len: u32, out_ptr: WasmP
     -1i32
 }
 
-pub fn asml_abi_z85_decode(env: &ThreaderEnv, ptr: u32, len: u32, out_ptr: WasmPtr<u8, Array>) -> i32 {
+pub fn asml_abi_z85_decode<S>(env: &ThreaderEnv<S>, ptr: u32, len: u32, out_ptr: WasmPtr<u8, Array>) -> i32
+where
+    S: Clone + Send + Sized + 'static,
+{
     if let Ok(input) = env_ptr_to_bytes(env, ptr, len) {
         if let Ok(output) = z85::decode(input) {
             return match write_bytes_to_ptr(env, output, out_ptr) {
@@ -142,7 +165,10 @@ pub fn asml_abi_z85_decode(env: &ThreaderEnv, ptr: u32, len: u32, out_ptr: WasmP
     -1i32
 }
 
-fn env_ptr_to_string(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<String, io::Error> {
+fn env_ptr_to_string<S>(env: &ThreaderEnv<S>, ptr: u32, len: u32) -> Result<String, io::Error>
+where
+    S: Clone + Send + Sized + 'static,
+{
     let mem = env.memory_ref().unwrap();
     let view: MemoryView<u8> = mem.view();
 
@@ -159,7 +185,10 @@ fn env_ptr_to_string(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<String, io
         .map_err(to_io_error)
 }
 
-fn write_bytes_to_ptr(env: &ThreaderEnv, s: Vec<u8>, ptr: WasmPtr<u8, Array>) -> Result<(), io::Error> {
+fn write_bytes_to_ptr<S>(env: &ThreaderEnv<S>, s: Vec<u8>, ptr: WasmPtr<u8, Array>) -> Result<(), io::Error>
+where
+    S: Clone + Send + Sized + 'static,
+{
     let mem = env.memory_ref().unwrap();
     let memory_writer = ptr
         .deref(&mem, 0u32, s.len() as u32)
@@ -170,7 +199,10 @@ fn write_bytes_to_ptr(env: &ThreaderEnv, s: Vec<u8>, ptr: WasmPtr<u8, Array>) ->
     Ok(())
 }
 
-fn env_ptr_to_bytes(env: &ThreaderEnv, ptr: u32, len: u32) -> Result<Vec<u8>, io::Error> {
+fn env_ptr_to_bytes<S>(env: &ThreaderEnv<S>, ptr: u32, len: u32) -> Result<Vec<u8>, io::Error>
+where
+    S: Clone + Send + Sized + 'static,
+{
     let mem = env.memory_ref().unwrap();
     let view: MemoryView<u8> = mem.view();
 
