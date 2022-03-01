@@ -1728,6 +1728,7 @@ dependencies = [
 [[package]]
 name = "kubelet"
 version = "1.0.0-alpha.1"
+source = "git+https://github.com/krustlet/krustlet?rev=63cca61#63cca6161ece24aca6a5d0c2a349d4bce7d5241a"
 dependencies = [
  "anyhow",
  "async-recursion",
