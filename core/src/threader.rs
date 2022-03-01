@@ -29,6 +29,7 @@ where
     pub get_function_input_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
     #[wasmer(export(name = "__asml_guest_get_io_buffer_pointer"))]
     pub get_io_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
+    pub status_sender: mpsc::Sender<S>,
 }
 
 impl<S> ThreaderEnv<S>
@@ -37,11 +38,12 @@ where
 {
     pub fn new(tx: RegistryTx, status_sender: mpsc::Sender<S>) -> Self {
         ThreaderEnv {
-            threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx, status_sender)))),
+            threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx)))),
             memory: Default::default(),
             get_function_input_buffer: Default::default(),
             get_io_buffer: Default::default(),
             host_input_buffer: Arc::new(Mutex::new(FunctionInputBuffer::new())),
+            status_sender,
         }
     }
 }
@@ -49,8 +51,8 @@ where
 pub struct Threader<S> {
     io_memory: Arc<Mutex<IoMemory>>,
     registry_tx: RegistryTx,
-    pub status_sender: Option<mpsc::Sender<S>>,
     runtime: tokio::runtime::Runtime,
+    _phantom: std::marker::PhantomData<S>,
 }
 
 impl<S> Threader<S>
@@ -58,12 +60,12 @@ where
     S: Clone + Send + Sized + 'static,
 {
     /// Create a new Threader instance with the provided sender `tx`
-    pub fn new(tx: RegistryTx, status_sender: mpsc::Sender<S>) -> Self {
+    pub fn new(tx: RegistryTx) -> Self {
         Threader {
             io_memory: Arc::new(Mutex::new(IoMemory::new())),
             registry_tx: tx,
-            status_sender: Some(status_sender),
             runtime: tokio::runtime::Runtime::new().unwrap(),
+            _phantom: std::marker::PhantomData::default(),
         }
     }
 

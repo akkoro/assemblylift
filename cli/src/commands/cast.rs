@@ -161,8 +161,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                 Err(_) => {}
             }
 
-            let function_name_snaked = function_name.replace("-", "_");
-
+            // FIXME this should use the binary name in Cargo.toml if present
             let copy_from = format!(
                 "{}/target/{}/{}/{}.wasm",
                 project
