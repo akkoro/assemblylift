@@ -3,12 +3,11 @@ use syn::{ItemFn, parse2};
 
 #[proc_macro_attribute]
 pub fn handler(_args: proc_macro::TokenStream, stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = parse2(stream.into())
+    let input: ItemFn = parse2(stream.into())
         .expect("could not parse token stream");
-    let ItemFn { attrs, vis, sig, block } = input;
-    let block_statements = &block.stmts;
-    let name = &sig.ident;
-    let ret = &sig.output;
+    let block_statements = &input.block.stmts;
+    let name = &input.sig.ident;
+    let ret = &input.sig.output;
 
     if name != "main" {
         return proc_macro::TokenStream::from(quote_spanned! { name.span() =>
