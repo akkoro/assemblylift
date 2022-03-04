@@ -30,7 +30,10 @@ async fn launcher(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     // threader_env.host_input_buffer.clone().lock().unwrap()
     //     .initialize(event.event_body.into_bytes());
 
-    Ok(Response::new(Body::from(req.into_body())))
+    let bytes = hyper::body::to_bytes(req.into_body()).await.unwrap();
+    let s = String::from_utf8(bytes.to_vec()).unwrap();
+    println!("body={}", s.clone());
+    Ok(Response::new(Body::from(s)))
 }
 
 #[tokio::main]
