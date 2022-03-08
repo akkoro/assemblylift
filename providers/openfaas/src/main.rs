@@ -3,37 +3,60 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use clap::crate_version;
-use hyper::{Body, Request, Response, Server};
 use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Request, Response, Server};
+use tokio::sync::mpsc;
 
-use assemblylift_core::buffers::LinearBuffer;
 use assemblylift_core::wasm;
+use assemblylift_core_iomod::registry;
 
 use crate::abi::OpenFaasAbi;
+use crate::runner::{spawn_runner, RunnerMessage, RunnerTx};
+use crate::Status::{Failure, Success};
 
 mod abi;
+mod runner;
 
-async fn launcher(req: Request<Body>) -> Result<Response<Body>, Infallible> {
-    // todo!("deserialize body");
-    //
-    // let (module, resolver, threader_env)
-    //     = match wasm::build_module_from_path::<OpenFaasAbi, ()>()
-    // {
-    //     Ok(module) => (Arc::new(module.0), module.1, module.2),
-    //     Err(_) => {}
-    // };
-    //
-    // let instance = match wasm::new_instance(module.clone(), resolver.clone()) {
-    //     Ok(instance) => Arc::new(instance),
-    //     Err(why) => panic!("PANIC {}", why.to_string()),
-    // };
-    // threader_env.host_input_buffer.clone().lock().unwrap()
-    //     .initialize(event.event_body.into_bytes());
+pub type StatusTx = mpsc::Sender<Status>;
+pub type StatusRx = mpsc::Receiver<Status>;
 
-    let bytes = hyper::body::to_bytes(req.into_body()).await.unwrap();
-    let s = String::from_utf8(bytes.to_vec()).unwrap();
-    println!("body={}", s.clone());
-    Ok(Response::new(Body::from(s)))
+#[derive(Clone)]
+pub enum Status {
+    Success(String),
+    Failure(String),
+}
+
+async fn launcher(
+    req: Request<Body>,
+    runner_tx: RunnerTx,
+    mut status_rx: StatusRx,
+) -> Result<Response<Body>, Infallible> {
+    let input_bytes = hyper::body::to_bytes(req.into_body()).await.unwrap();
+
+    let msg = RunnerMessage {
+        input: input_bytes.to_vec(),
+    };
+    tokio::spawn(async move {
+        runner_tx.send(msg).await.expect_err("could not send request to runner");
+    });
+
+    if let Some(result) = status_rx.recv().await {
+        return Ok(match result {
+            Success(_) => Response::builder()
+                .status(200)
+                .body(Body::default())
+                .unwrap(),
+            Failure(_) => Response::builder()
+                .status(500)
+                .body(Body::default())
+                .unwrap(),
+        });
+    }
+
+    Ok(Response::builder()
+        .status(500)
+        .body(Body::default())
+        .unwrap())
 }
 
 #[tokio::main]
@@ -46,13 +69,34 @@ async fn main() {
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
 
     let make_svc = make_service_fn(|_conn| async {
-        // service_fn converts our function into a `Service`
-        Ok::<_, Infallible>(service_fn(launcher))
+        let (runner_tx, runner_rx) = mpsc::channel(32);
+        let (status_tx, status_rx) = mpsc::channel::<Status>(32);
+        let (registry_tx, registry_rx) = mpsc::channel(100);
+        registry::spawn_registry(registry_rx).unwrap();
+
+        let (module, resolver, threader_env) =
+            match wasm::build_module_from_path::<OpenFaasAbi, Status>(
+                registry_tx,
+                status_tx,
+                "/opt/assemblylift/handler.wasm.bin", // TODO get from env
+                "handler",                           // TODO get from env
+            ) {
+                Ok(module) => (Arc::new(module.0), module.1, module.2),
+                Err(_) => panic!("Unable to build WASM module"),
+            };
+
+        spawn_runner(
+            runner_rx,
+            module.clone(),
+            resolver.clone(),
+            threader_env.clone(),
+        );
+
+        let mut rx = Some(status_rx);
+        Ok::<_, Infallible>(service_fn(move |req| launcher(req, runner_tx.clone(), rx.take().unwrap())))
     });
 
-    let server = Server::bind(&addr).serve(make_svc);
-
-    if let Err(e) = server.await {
+    if let Err(e) = Server::bind(&addr).serve(make_svc).await {
         eprintln!("server error: {}", e);
     }
 }
