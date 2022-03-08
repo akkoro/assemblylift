@@ -6,7 +6,7 @@ use assemblylift_core::buffers::LinearBuffer;
 use assemblylift_core::threader::ThreaderEnv;
 
 use assemblylift_core::wasm;
-use assemblylift_core::wasm::{ModuleTreble, Resolver};
+use assemblylift_core::wasm::Resolver;
 
 use crate::Status;
 

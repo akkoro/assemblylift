@@ -6,43 +6,55 @@ use clap::crate_version;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 use tokio::sync::mpsc;
-use wasmer::Instance;
 
-use assemblylift_core::buffers::LinearBuffer;
-use assemblylift_core::threader::ThreaderEnv;
 use assemblylift_core::wasm;
 use assemblylift_core_iomod::registry;
-use assemblylift_core_iomod::registry::RegistryTx;
 
 use crate::abi::OpenFaasAbi;
 use crate::runner::{RunnerMessage, RunnerTx, spawn_runner};
+use crate::Status::{Failure, Success};
 
 mod abi;
 mod runner;
 
-pub type Status = ();
 pub type StatusTx = mpsc::Sender<Status>;
+pub type StatusRx = mpsc::Receiver<Status>;
+
+#[derive(Clone)]
+pub enum Status {
+    Success(String),
+    Failure(String),
+}
 
 async fn launcher(
     req: Request<Body>,
     runner_tx: RunnerTx,
+    mut status_rx: StatusRx,
 ) -> Result<Response<Body>, Infallible> {
     let input_bytes = hyper::body::to_bytes(req.into_body()).await.unwrap();
 
     let msg = RunnerMessage { input: input_bytes.to_vec() };
-    let result = runner_tx.send(msg).await;
+    tokio::spawn(async move {
+        runner_tx.send(msg).await;
+    });
 
-    // TODO this should wait for a response from the runner before replying!
-    Ok(match result {
-        Ok(_) => Response::builder()
-            .status(200)
-            .body(Body::default())
-            .unwrap(),
-        Err(e) => Response::builder()
-            .status(500)
-            .body(Body::from(e.to_string()))
-            .unwrap(),
-    })
+    if let Some(result) = status_rx.recv().await {
+        Ok(match result {
+            Success(_) => Response::builder()
+                .status(200)
+                .body(Body::default())
+                .unwrap(),
+            Failure(_) => Response::builder()
+                .status(500)
+                .body(Body::default())
+                .unwrap(),
+        })
+    }
+
+    Ok(Response::builder()
+        .status(500)
+        .body(Body::default())
+        .unwrap())
 }
 
 #[tokio::main]
@@ -60,7 +72,7 @@ async fn main() {
         let (registry_tx, registry_rx) = mpsc::channel(100);
         registry::spawn_registry(registry_rx).unwrap();
 
-        let (module, resolver, threader_env) = match wasm::build_module_from_path::<OpenFaasAbi, ()>(
+        let (module, resolver, threader_env) = match wasm::build_module_from_path::<OpenFaasAbi, Status>(
             registry_tx,
             status_tx,
             "/opt/assemblylift/handler.wasm.bin", // TODO get from env
