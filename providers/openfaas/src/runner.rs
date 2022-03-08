@@ -8,7 +8,7 @@ use assemblylift_core::threader::ThreaderEnv;
 use assemblylift_core::wasm;
 use assemblylift_core::wasm::Resolver;
 
-use crate::Status;
+use crate::{Status, StatusTx};
 
 pub type RunnerTx = mpsc::Sender<RunnerMessage>;
 pub type RunnerRx = mpsc::Receiver<RunnerMessage>;
@@ -18,7 +18,7 @@ pub struct RunnerMessage {
     pub input: Vec<u8>,
 }
 
-pub fn spawn_runner(mut rx: RunnerRx, module: Arc<Module>, resolver: Resolver, env: ThreaderEnv<Status>) {
+pub fn spawn_runner(tx: StatusTx, mut rx: RunnerRx, module: Arc<Module>, resolver: Resolver, env: ThreaderEnv<Status>) {
     std::thread::spawn(move || {
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         tokio::task::LocalSet::new().block_on(&mut rt, async {
@@ -33,9 +33,13 @@ pub fn spawn_runner(mut rx: RunnerRx, module: Arc<Module>, resolver: Resolver, e
                     Ok(instance) => Arc::new(instance),
                     Err(why) => panic!("Unable to spin new WASM instance {}", why.to_string()),
                 };
+                let tx = tx.clone();
                 tokio::task::spawn_local(async move {
                     let start = instance.exports.get_function("_start").unwrap();
-                    start.call(&[]).expect("WASM handler exited with error");
+                    match start.call(&[]) {
+                        Ok(_) => tx.send(Status::Success("".to_string())).await,
+                        Err(_) => tx.send(Status::Failure("WASM module exited in error".to_string())).await,
+                    }
                 });
             }
         });

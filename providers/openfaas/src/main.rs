@@ -37,7 +37,9 @@ async fn launcher(
         input: input_bytes.to_vec(),
     };
     tokio::spawn(async move {
-        runner_tx.send(msg).await.expect_err("could not send request to runner");
+        if let Err(e) = runner_tx.send(msg).await {
+            println!("could not send to runner: {}", e.to_string())
+        }
     });
 
     if let Some(result) = status_rx.recv().await {
@@ -71,13 +73,13 @@ async fn main() {
     let make_svc = make_service_fn(|_conn| async {
         let (runner_tx, runner_rx) = mpsc::channel(32);
         let (status_tx, status_rx) = mpsc::channel::<Status>(32);
-        let (registry_tx, registry_rx) = mpsc::channel(100);
+        let (registry_tx, registry_rx) = mpsc::channel(32);
         registry::spawn_registry(registry_rx).unwrap();
 
         let (module, resolver, threader_env) =
             match wasm::build_module_from_path::<OpenFaasAbi, Status>(
                 registry_tx,
-                status_tx,
+                status_tx.clone(),
                 "/opt/assemblylift", // TODO get from env
                 "handler",          // TODO get from env
             ) {
@@ -86,6 +88,7 @@ async fn main() {
             };
 
         spawn_runner(
+            status_tx.clone(),
             runner_rx,
             module.clone(),
             resolver.clone(),
