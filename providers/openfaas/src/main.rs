@@ -78,8 +78,8 @@ async fn main() {
             match wasm::build_module_from_path::<OpenFaasAbi, Status>(
                 registry_tx,
                 status_tx,
-                "/opt/assemblylift/handler.wasm.bin", // TODO get from env
-                "handler",                           // TODO get from env
+                "/opt/assemblylift", // TODO get from env
+                "handler",          // TODO get from env
             ) {
                 Ok(module) => (Arc::new(module.0), module.1, module.2),
                 Err(_) => panic!("Unable to build WASM module"),
