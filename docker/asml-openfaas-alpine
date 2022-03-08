@@ -27,5 +27,6 @@ ENV mode="http"
 ENV upstream_url="http://127.0.0.1:3000"
 
 HEALTHCHECK --interval=3s CMD [ -e /tmp/.lock ] || exit 1
-EXPOSE 8080
+EXPOSE 8080  # HTTP
+EXPOSE 13555 # RPC
 CMD ["fwatchdog"]
