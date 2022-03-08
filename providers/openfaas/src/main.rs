@@ -11,7 +11,7 @@ use assemblylift_core::wasm;
 use assemblylift_core_iomod::registry;
 
 use crate::abi::OpenFaasAbi;
-use crate::runner::{RunnerMessage, RunnerTx, spawn_runner};
+use crate::runner::{spawn_runner, RunnerMessage, RunnerTx};
 use crate::Status::{Failure, Success};
 
 mod abi;
@@ -33,13 +33,15 @@ async fn launcher(
 ) -> Result<Response<Body>, Infallible> {
     let input_bytes = hyper::body::to_bytes(req.into_body()).await.unwrap();
 
-    let msg = RunnerMessage { input: input_bytes.to_vec() };
+    let msg = RunnerMessage {
+        input: input_bytes.to_vec(),
+    };
     tokio::spawn(async move {
-        runner_tx.send(msg).await;
+        runner_tx.send(msg).await.expect_err("could not send request to runner");
     });
 
     if let Some(result) = status_rx.recv().await {
-        Ok(match result {
+        return Ok(match result {
             Success(_) => Response::builder()
                 .status(200)
                 .body(Body::default())
@@ -48,7 +50,7 @@ async fn launcher(
                 .status(500)
                 .body(Body::default())
                 .unwrap(),
-        })
+        });
     }
 
     Ok(Response::builder()
@@ -68,23 +70,30 @@ async fn main() {
 
     let make_svc = make_service_fn(|_conn| async {
         let (runner_tx, runner_rx) = mpsc::channel(32);
-        let (status_tx, _status_receiver) = mpsc::channel::<Status>(32);
+        let (status_tx, status_rx) = mpsc::channel::<Status>(32);
         let (registry_tx, registry_rx) = mpsc::channel(100);
         registry::spawn_registry(registry_rx).unwrap();
 
-        let (module, resolver, threader_env) = match wasm::build_module_from_path::<OpenFaasAbi, Status>(
-            registry_tx,
-            status_tx,
-            "/opt/assemblylift/handler.wasm.bin", // TODO get from env
-            "handler", // TODO get from env
-        ) {
-            Ok(module) => (Arc::new(module.0), module.1, module.2),
-            Err(_) => panic!("Unable to build WASM module"),
-        };
+        let (module, resolver, threader_env) =
+            match wasm::build_module_from_path::<OpenFaasAbi, Status>(
+                registry_tx,
+                status_tx,
+                "/opt/assemblylift/handler.wasm.bin", // TODO get from env
+                "handler",                           // TODO get from env
+            ) {
+                Ok(module) => (Arc::new(module.0), module.1, module.2),
+                Err(_) => panic!("Unable to build WASM module"),
+            };
 
-        spawn_runner(runner_rx, module.clone(), resolver.clone(), threader_env.clone());
+        spawn_runner(
+            runner_rx,
+            module.clone(),
+            resolver.clone(),
+            threader_env.clone(),
+        );
 
-        Ok::<_, Infallible>(service_fn(move |req| launcher(req, runner_tx.clone())))
+        let mut rx = Some(status_rx);
+        Ok::<_, Infallible>(service_fn(move |req| launcher(req, runner_tx.clone(), rx.take().unwrap())))
     });
 
     if let Err(e) = Server::bind(&addr).serve(make_svc).await {
