@@ -1,7 +1,7 @@
 pub mod macros {
     #[macro_export]
-    macro_rules! export_iomod_guest {
-        ($org:ident, $namespace:ident, $name: ident) => {
+    macro_rules! iomod {
+        ($org:ident.$namespace:ident.$name:ident) => {
             use assemblylift_core_io_guest::{Io, IO_BUFFER};
 
             static IOMOD_ORG: &'static str = std::stringify!($org);
