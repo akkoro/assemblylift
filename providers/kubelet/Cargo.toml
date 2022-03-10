@@ -27,7 +27,7 @@ tracing-subscriber = "0.2"
 wasmer = "2.1.1"
 
 assemblylift-core = { version = "0.4.0-alpha.0", path = "../../core" }
-assemblylift-core-iomod = { version = "0.3.1", path = "../../core/iomod" }
+assemblylift-core-iomod = { version = "0.4.0-alpha.0", path = "../../core/iomod" }
 
 [dev-dependencies]
 k8s-openapi = { version = "0.13", default-features = false, features = ["v1_22"] }

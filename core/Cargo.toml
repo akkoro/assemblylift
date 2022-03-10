@@ -18,4 +18,4 @@ wasmer = "2.1.1"
 wasmer-wasi = "2.1.1"
 
 assemblylift-core-io-common = { version = "0.3", path = "./io/common" }
-assemblylift-core-iomod = { version = "0.3", path = "./iomod" }
+assemblylift-core-iomod = { version = "0.4.0-alpha.0", path = "./iomod" }

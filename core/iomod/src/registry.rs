@@ -69,7 +69,7 @@ pub fn spawn_registry(mut rx: RegistryRx) -> Result<(), RegistryError> {
 
             let rpc_modules = modules.clone();
             let rpc_task = tokio::task::spawn_local(async move {
-                let listener = TcpListener::bind("127.0.0.1:13555").await.unwrap();
+                let listener = TcpListener::bind("0.0.0.0:13555").await.unwrap();
                 let registry_client: registry::Client =
                     capnp_rpc::new_client(Registry::new(rpc_modules));
 
