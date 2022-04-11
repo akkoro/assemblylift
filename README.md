@@ -12,6 +12,8 @@ The platform currently consists of:
 * The AssemblyLift IO Module Registry
 * The AssemblyLift Rust Language SDK
 
+Most work is happening on the [v0.4 branch](https://github.com/akkoro/assemblylift/tree/v0.4.0)
+
 # Getting Started
 
 Please see the [official documentation](https://docs.assemblylift.akkoro.io) for help with installing & learning to use AssemblyLift, and/or for more information about the project.
