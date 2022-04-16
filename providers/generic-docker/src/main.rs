@@ -88,7 +88,7 @@ pub async fn main() {
         .expect("setting default subscriber failed");
 
 
-    if let Ok(rd) = fs::read_dir("/opt/iomod") {
+    if let Ok(rd) = fs::read_dir("/opt/assemblylift/iomod") {
         for entry in rd {
             let entry = entry.unwrap();
             if entry.file_type().unwrap().is_file() {

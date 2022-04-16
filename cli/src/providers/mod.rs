@@ -1,33 +1,57 @@
-pub mod aws_lambda;
-pub mod aws_lambda_alpine;
-
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use handlebars::{to_json, Handlebars};
+use handlebars::{Handlebars, to_json};
 use once_cell::sync::Lazy;
 use serde::Serialize;
 
+use crate::transpiler::{Artifact, ArtifactError, ContentType, StringMap};
 use crate::transpiler::asml;
-use crate::transpiler::{StringMap, Artifact, ArtifactError, ContentType};
+
+pub mod aws_lambda;
+pub mod aws_lambda_alpine;
+pub mod k8s_generic_alpine;
 
 pub type ProviderMap = StringMap<Mutex<Box<dyn Provider + Send + Sync>>>;
 
 pub static SERVICE_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     let mut map = ProviderMap::new();
-    map.insert(String::from("aws-lambda"), Mutex::new(Box::new(aws_lambda::ServiceProvider)));
-    map.insert(String::from("aws-lambda-alpine"), Mutex::new(Box::new(aws_lambda_alpine::ServiceProvider::new())));
+    map.insert(
+        String::from("aws-lambda"),
+        Mutex::new(Box::new(aws_lambda::ServiceProvider)),
+    );
+    map.insert(
+        String::from("aws-lambda-alpine"),
+        Mutex::new(Box::new(aws_lambda_alpine::ServiceProvider::new())),
+    );
+    map.insert(
+        String::from("k8s-generic-alpine"),
+        Mutex::new(Box::new(k8s_generic_alpine::ServiceProvider::new())),
+    );
     map
 });
 pub static FUNCTION_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     let mut map = ProviderMap::new();
-    map.insert(String::from("aws-lambda"), Mutex::new(Box::new(aws_lambda::FunctionProvider)));
-    map.insert(String::from("aws-lambda-alpine"), Mutex::new(Box::new(aws_lambda_alpine::FunctionProvider::new())));
+    map.insert(
+        String::from("aws-lambda"),
+        Mutex::new(Box::new(aws_lambda::FunctionProvider)),
+    );
+    map.insert(
+        String::from("aws-lambda-alpine"),
+        Mutex::new(Box::new(aws_lambda_alpine::FunctionProvider::new())),
+    );
+    map.insert(
+        String::from("k8s-generic-alpine"),
+        Mutex::new(Box::new(k8s_generic_alpine::FunctionProvider::new())),
+    );
     map
 });
 pub static ROOT_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     let mut map = ProviderMap::new();
-    map.insert(String::from("root"), Mutex::new(Box::new(RootProvider::new())));
+    map.insert(
+        String::from("root"),
+        Mutex::new(Box::new(RootProvider::new())),
+    );
     map
 });
 
@@ -37,7 +61,11 @@ pub trait Provider {
     fn name(&self) -> String;
 
     fn init(&self, ctx: Rc<asml::Context>, name: String) -> Result<(), ProviderError>;
-    fn transform(&self, ctx: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError>;
+    fn transform(
+        &self,
+        ctx: Rc<asml::Context>,
+        name: String,
+    ) -> Result<Box<dyn Artifact>, ProviderError>; // TODO providers should be able to generate multiple artifacts
 
     fn options(&self) -> Arc<Options>;
     fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError>;
@@ -66,7 +94,9 @@ pub struct ProviderArtifact {
 
 impl ProviderArtifact {
     pub fn new(content: String) -> Self {
-        ProviderArtifact { content: Rc::new(Some(content)) }
+        ProviderArtifact {
+            content: Rc::new(Some(content)),
+        }
     }
 }
 
@@ -74,7 +104,7 @@ impl Artifact for ProviderArtifact {
     fn content_type(&self) -> ContentType {
         ContentType::HCL("HCL")
     }
-    
+
     fn content(&self) -> Rc<Option<String>> {
         self.content.clone()
     }
@@ -116,24 +146,32 @@ impl<'a> Provider for RootProvider<'a> {
         Ok(())
     }
 
-    fn transform(&self, ctx: Rc<asml::Context>, _name: String) -> Result<Box<dyn Artifact>, ProviderError> {
-        use std::path::PathBuf;
+    fn transform(
+        &self,
+        ctx: Rc<asml::Context>,
+        _name: String,
+    ) -> Result<Box<dyn Artifact>, ProviderError> {
         use std::fs;
+        use std::path::PathBuf;
 
         let mut usermod_path = PathBuf::from(
-            crate::projectfs::locate_asml_manifest().expect("could not locate assemblylift.toml").1
+            crate::projectfs::locate_asml_manifest()
+                .expect("could not locate assemblylift.toml")
+                .1,
         );
         usermod_path.pop();
         usermod_path.push("user_tf/");
         let user_inject: bool = fs::metadata(usermod_path.clone()).is_ok();
-//        let state_bucket_name = ctx.terraform.state_bucket_name;
-//        let lock_table_name = ctx.terraform.lock_table_name;
         let (remote_state, state_bucket_name, lock_table_name) = match &ctx.terraform {
-            Some(tf) => (true, Some(tf.state_bucket_name.clone()), Some(tf.lock_table_name.clone())),
+            Some(tf) => (
+                true,
+                Some(tf.state_bucket_name.clone()),
+                Some(tf.lock_table_name.clone()),
+            ),
             None => (false, None, None),
         };
-        
-        let data = RootData { 
+
+        let data = RootData {
             project_name: ctx.project.name.clone(),
             project_path: ctx.project.path.clone(),
             user_inject,
@@ -142,15 +180,15 @@ impl<'a> Provider for RootProvider<'a> {
             lock_table_name,
         };
         let data = to_json(data);
-        
-        let mut reg = Box::new(Handlebars::new()); 
+
+        let mut reg = Box::new(Handlebars::new());
         reg.register_template_string("template", ROOT_TEMPLATE)
             .unwrap();
         let rendered = reg.render("template", &data).unwrap();
 
         Ok(Box::new(ProviderArtifact::new(rendered)))
     }
-    
+
     fn options(&self) -> Arc<Options> {
         Arc::new(Options::new())
     }
@@ -160,12 +198,15 @@ impl<'a> Provider for RootProvider<'a> {
     }
 }
 
-static ROOT_TEMPLATE: &str = 
-r#"terraform {
+static ROOT_TEMPLATE: &str = r#"terraform {
     required_providers {
         docker = {
             source  = "kreuzwerker/docker"
             version = "2.11.0"
+        }
+        kubernetes = {
+          source  = "hashicorp/kubernetes"
+          version = ">= 2.0.0"
         }
     }
 }
