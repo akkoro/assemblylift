@@ -1,0 +1,24 @@
+# Builder
+FROM rust:1.59-alpine as builder
+RUN rustup target add x86_64-unknown-linux-musl
+RUN apk --no-cache add capnproto-dev musl-dev
+ENV USER=root
+
+WORKDIR /usr/src/assemblylift
+COPY . .
+
+RUN cd ./providers/generic-docker && cargo install --target x86_64-unknown-linux-musl --path .
+
+# Runner Image
+FROM alpine:3.15 as runner
+RUN apk --no-cache add curl ca-certificates \
+    && addgroup -S app && adduser -S -g app app
+ENV USER=app
+
+COPY --from=builder /usr/local/cargo/bin/assemblylift-generic-docker /usr/bin/assemblylift-generic-docker
+RUN chmod +x /usr/bin/assemblylift-generic-docker
+
+# HTTP
+EXPOSE 5543
+
+CMD ["assemblylift-generic-docker"]

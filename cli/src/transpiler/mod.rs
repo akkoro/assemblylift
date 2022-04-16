@@ -7,6 +7,7 @@ pub type StringMap<V> = Map<String, V>;
 
 pub enum ContentType {
     HCL(&'static str),
+    DOCKERFILE(&'static str),
 }
 
 pub trait Artifact {
