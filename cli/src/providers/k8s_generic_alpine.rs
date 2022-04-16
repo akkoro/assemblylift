@@ -82,16 +82,21 @@ impl Provider for FunctionProvider {
         reg.register_template_string("function", FUNCTION_TEMPLATE)
             .unwrap();
 
+        let docker_registry = self.options.get("registry")
+            .expect("provider option `registry` must be set");
+
         match ctx.functions.iter().find(|&f| *f.name == name.clone()) {
             Some(function) => {
                 let service = function.service_name.clone();
 
                 let data = FunctionData {
-                    base_image_version: "0.4.0-alpha0".to_string(), // TODO crate_version!()
+                    base_image_version: "0.4.0-alpha.0".to_string(), // TODO crate_version!()
                     function_name: function.name.clone(),
                     handler_name: function.handler_name.clone(),
                     service_name: service.clone(),
                     project_name: ctx.project.name.clone(),
+                    has_iomods: ctx.iomods.iter().filter(|i| i.service_name == service.clone()).count() > 0,
+                    docker_data: DockerData { registry: docker_registry.clone() },
                 };
                 let data = to_json(data);
 
@@ -132,28 +137,34 @@ pub struct FunctionData {
     pub service_name: String,
     pub function_name: String,
     pub handler_name: String,
+    pub has_iomods: bool,
+    pub docker_data: DockerData,
+}
+
+#[derive(Serialize)]
+pub struct DockerData {
+    pub registry: String,
 }
 
 static DOCKERFILE_TEMPLATE: &str =
-r#"FROM public.ecr.aws/akkoro/assemblylift/asml-generic-alpine:{{base_image_version}}
-ADD ./iomods/{{service_name}} /opt/assemblylift/iomod/
-ADD ./{{function_name}}/handler.wasm.bin /opt/assemblylift/handler.wasm.bin
+r#"FROM public.ecr.aws/akkoro/assemblylift/generic-alpine:{{base_image_version}}
+{{#if has_iomods}}ADD ./iomods/{{service_name}} /opt/assemblylift/iomod/{{/if}}
+ADD ./{{function_name}}/{{function_name}}.wasm.bin /opt/assemblylift/handler.wasm.bin
 "#;
 
 static SERVICE_TEMPLATE: &str =
 r#"locals {
-    // ecr = "{{aws_account_id}}.dkr.ecr.{{aws_region}}.amazonaws.com"
-    image_name = "asml-{{project_name}}-{{service_name}}-{{function_name}}"
+    // ecr_address = "{{aws_account_id}}.dkr.ecr.{{aws_region}}.amazonaws.com"
 }
 
 provider kubernetes {
-    config_path = "~/.kube/config"
+    config_path = pathexpand("~/.kube/config")
 }
 
 provider docker {
     alias   = "{{service_name}}"
     registry_auth {
-        address  = "docker.io"
+        address     = "registry-1.docker.io"
         config_file = pathexpand("~/.docker/config.json")
     }
 }
@@ -167,7 +178,10 @@ resource kubernetes_namespace {{service_name}} {
 "#;
 
 static FUNCTION_TEMPLATE: &str =
-r#"data "archive_file" "{{service_name}}_{{function_name}}_iomods" {
+r#"locals {
+    {{service_name}}_{{function_name}}_image_name = "asml-{{project_name}}-{{service_name}}-{{function_name}}"
+}
+data "archive_file" "{{service_name}}_{{function_name}}_iomods" {
     type        = "zip"
     source_dir  = "${path.module}/services/{{service_name}}/iomods"
     output_path = "${path.module}/services/{{service_name}}/iomods.zip"
@@ -182,9 +196,9 @@ resource "random_id" "{{service_name}}_{{function_name}}_image" {
     }
 }
 
-resource "docker_registry_image" "{{service_name}}_{{function_name}}" {
+resource docker_registry_image {{service_name}}_{{function_name}} {
     provider = docker.{{service_name}}
-    name = "${local.image_name}:${random_id.{{service_name}}_{{function_name}}_image.hex}"
+    name = "{{docker_data.registry}}/${local.{{service_name}}_{{function_name}}_image_name}:${random_id.{{service_name}}_{{function_name}}_image.hex}"
 
     build {
         context      = "${path.module}/services/{{service_name}}"
@@ -195,6 +209,7 @@ resource "docker_registry_image" "{{service_name}}_{{function_name}}" {
 }
 
 resource kubernetes_deployment {{function_name}} {
+    depends_on = [docker_registry_image.{{service_name}}_{{function_name}}]
     metadata {
         name = "{{function_name}}"
         labels = {
@@ -223,7 +238,7 @@ resource kubernetes_deployment {{function_name}} {
 
             spec {
                 container {
-                    image = "${local.image_name}:${random_id.{{service_name}}_{{function_name}}_image.hex}"
+                    image = docker_registry_image.{{service_name}}_{{function_name}}.name
                     name  = "asml-{{service_name}}-{{function_name}}"
                     port {
                         container_port = 5543

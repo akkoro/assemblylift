@@ -202,7 +202,7 @@ static ROOT_TEMPLATE: &str = r#"terraform {
     required_providers {
         docker = {
             source  = "kreuzwerker/docker"
-            version = "2.11.0"
+            version = ">= 2.16.0"
         }
         kubernetes = {
           source  = "hashicorp/kubernetes"
