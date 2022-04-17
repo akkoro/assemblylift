@@ -179,13 +179,13 @@ static FUNCTION_TEMPLATE: &str =
 r#"locals {
     {{service_name}}_{{function_name}}_image_name = "asml-${local.project_name}-{{service_name}}-{{function_name}}"
 }
-data "archive_file" "{{service_name}}_{{function_name}}_iomods" {
+data archive_file {{service_name}}_{{function_name}}_iomods {
     type        = "zip"
     source_dir  = "${path.module}/services/{{service_name}}/iomods"
     output_path = "${path.module}/services/{{service_name}}/iomods.zip"
 }
 
-resource "random_id" "{{service_name}}_{{function_name}}_image" {
+resource random_id {{service_name}}_{{function_name}}_image {
     byte_length = 8
     keepers = {
         dockerfile_hash = filebase64sha256("${path.module}/services/{{service_name}}/{{function_name}}/Dockerfile")
@@ -214,7 +214,7 @@ resource kubernetes_deployment {{function_name}} {
         namespace = "asml-${local.project_name}-{{service_name}}"
         labels = {
             asml_function = "{{function_name}}"
-            asml_service = "{{service_name}}"
+            asml_service  = "{{service_name}}"
         }
     }
 
@@ -224,7 +224,7 @@ resource kubernetes_deployment {{function_name}} {
         selector {
             match_labels = {
                 asml_function = "{{function_name}}"
-                asml_service = "{{service_name}}"
+                asml_service  = "{{service_name}}"
             }
         }
 
@@ -232,7 +232,7 @@ resource kubernetes_deployment {{function_name}} {
             metadata {
                 labels = {
                     asml_function = "{{function_name}}"
-                    asml_service = "{{service_name}}"
+                    asml_service  = "{{service_name}}"
                 }
             }
 
@@ -260,7 +260,7 @@ resource kubernetes_service {{service_name}}_{{function_name}} {
     spec {
         selector = {
             asml_function = "{{function_name}}"
-            asml_service = "{{service_name}}"
+            asml_service  = "{{service_name}}"
         }
         type = "NodePort"
         port {
