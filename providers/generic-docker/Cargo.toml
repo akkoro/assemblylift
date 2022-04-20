@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 clap = { version = "3.1", features = ["cargo"] }
-crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
 hyper = { version = "0.14", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
