@@ -19,7 +19,7 @@ use assemblylift_core_iomod::package::IomodManifest;
 use assemblylift_core_iomod::registry;
 
 use crate::abi::GenericDockerAbi;
-use crate::runner::{RunnerMessage, RunnerTx, spawn_runner};
+use crate::runner::{Runner, RunnerMessage, RunnerTx};
 use crate::Status::{Failure, Success};
 
 mod abi;
@@ -27,6 +27,7 @@ mod runner;
 
 pub type StatusTx = mpsc::Sender<Status>;
 pub type StatusRx = mpsc::Receiver<Status>;
+pub type StatusChannel = (StatusTx, StatusRx);
 
 #[derive(Clone)]
 pub enum Status {
@@ -34,9 +35,47 @@ pub enum Status {
     Failure(String),
 }
 
-async fn launcher(
+pub struct Launcher {
+    runtime: tokio::runtime::Runtime,
+}
+
+impl Launcher {
+    pub fn new() -> Self {
+        Self {
+            runtime: tokio::runtime::Runtime::new().unwrap(),
+        }
+    }
+
+    pub fn spawn(&mut self, runner_tx: RunnerTx) {
+        crossbeam_utils::thread::scope(|s| {
+            s.spawn(move |_| {
+                tokio::task::LocalSet::new().block_on(&self.runtime, async {
+                    let make_svc = make_service_fn(|_conn| {
+                        let channel = mpsc::channel(32);
+                        let runner_tx = runner_tx.clone();
+                        let tx = channel.0.clone();
+                        let mut rx = Some(channel.1);
+                        async {
+                            Ok::<_, Infallible>(service_fn(move |req| {
+                                launch(req, runner_tx.clone(), tx.clone(), rx.take().unwrap())
+                            }))
+                        }
+                    });
+
+                    let addr = SocketAddr::from(([0, 0, 0, 0], 5543));
+                    if let Err(e) = Server::bind(&addr).serve(make_svc).await {
+                        eprintln!("server error: {}", e);
+                    }
+                });
+            });
+        }).unwrap();
+    }
+}
+
+async fn launch(
     req: Request<Body>,
     runner_tx: RunnerTx,
+    status_tx: StatusTx,
     mut status_rx: StatusRx,
 ) -> Result<Response<Body>, Infallible> {
     if req.method() != Method::POST {
@@ -50,6 +89,7 @@ async fn launcher(
 
     let msg = RunnerMessage {
         input: input_bytes.to_vec(),
+        status_sender: status_tx.clone(),
     };
     tokio::spawn(async move {
         if let Err(e) = runner_tx.send(msg).await {
@@ -76,8 +116,7 @@ async fn launcher(
         .unwrap())
 }
 
-#[tokio::main]
-pub async fn main() {
+fn main() {
     println!("Starting AssemblyLift generic runtime {}", crate_version!());
 
     let subscriber = FmtSubscriber::builder()
@@ -149,41 +188,17 @@ pub async fn main() {
         }
     }
 
+    let (registry_tx, registry_rx) = mpsc::channel(32);
+    registry::spawn_registry(registry_rx).unwrap();
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 5543));
+    let (module, store) = wasm::deserialize_module_from_path::<GenericDockerAbi, Status>(
+        "/opt/assemblylift", // TODO get from env
+        "handler",           // TODO get from env
+    ).expect("could not deserialize WASM module");
 
-    let make_svc = make_service_fn(|_conn| async {
-        let (runner_tx, runner_rx) = mpsc::channel(32);
-        let (status_tx, status_rx) = mpsc::channel::<Status>(32);
-        let (registry_tx, registry_rx) = mpsc::channel(32);
-        registry::spawn_registry(registry_rx).unwrap();
+    let mut runner = Runner::new(registry_tx);
+    runner.spawn(Arc::new(module), Arc::new(store));
 
-        let (module, resolver, threader_env) =
-            match wasm::build_module_from_path::<GenericDockerAbi, Status>(
-                registry_tx,
-                status_tx.clone(),
-                "/opt/assemblylift", // TODO get from env
-                "handler",           // TODO get from env
-            ) {
-                Ok(module) => (Arc::new(module.0), module.1, module.2),
-                Err(_) => panic!("Unable to build WASM module"),
-            };
-
-        spawn_runner(
-            status_tx.clone(),
-            runner_rx,
-            module.clone(),
-            resolver.clone(),
-            threader_env.clone(),
-        );
-
-        let mut rx = Some(status_rx);
-        Ok::<_, Infallible>(service_fn(move |req| {
-            launcher(req, runner_tx.clone(), rx.take().unwrap())
-        }))
-    });
-
-    if let Err(e) = Server::bind(&addr).serve(make_svc).await {
-        eprintln!("server error: {}", e);
-    }
+    let mut launcher = Launcher::new();
+    launcher.spawn(runner.sender());
 }

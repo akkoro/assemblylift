@@ -240,6 +240,7 @@ dependencies = [
  "assemblylift-core",
  "assemblylift-core-iomod",
  "clap 3.1.8",
+ "crossbeam-utils",
  "hyper",
  "tokio 1.17.0",
  "tracing",
