@@ -46,52 +46,56 @@ async fn main() {
                 // this makes the assumption that the
                 // IOmod entrypoint is always an executable binary
                 match entry.path().extension() {
-                    Some(os_str) => {
-                        match os_str.to_str() {
-                            Some("iomod") => {
-                                let file = fs::File::open(&entry.path()).unwrap();
-                                let reader = BufReader::new(file);
-                                let archive = RefCell::new(zip::ZipArchive::new(reader).unwrap());
-                                let mut manifest_str: String = Default::default();
-                                {
-                                    let mut archive = archive.borrow_mut();
-                                    let mut manifest = archive.by_name("./iomod.toml")
-                                        .expect("could not find IOmod manifest");
-                                    manifest.read_to_string(&mut manifest_str)
-                                        .expect("could not read iomod.toml");
-                                }
-                                {
-                                    let mut archive = archive.borrow_mut();
-                                    let iomod_manifest = IomodManifest::from(manifest_str);
-                                    let entrypoint = format!("./{}", iomod_manifest.process.entrypoint);
-                                    let mut entrypoint_binary = archive.by_name(&*entrypoint)
-                                        .expect("could not find entrypoint in package");
-                                    let path = &*format!(
-                                        "/tmp/iomod/{}@{}/{}",
-                                        iomod_manifest.iomod.coordinates,
-                                        iomod_manifest.iomod.version,
-                                        entrypoint
-                                    );
-                                    let path = std::path::Path::new(path);
-                                    {
-                                        let path_prefix = path.parent().unwrap();
-                                        fs::create_dir_all(path_prefix)
-                                            .expect(&*format!("unable to create directory {:?}", path_prefix));
-                                        let mut entrypoint_file = File::create(path)
-                                            .expect(&*format!("unable to create file at {:?}", path));
-                                        std::io::copy(&mut entrypoint_binary, &mut entrypoint_file)
-                                            .expect("unable to copy entrypoint");
-                                        let mut perms: std::fs::Permissions = fs::metadata(&path).unwrap().permissions();
-                                        perms.set_mode(0o755);
-                                        entrypoint_file.set_permissions(perms)
-                                            .expect("could not set IOmod binary executable (octal 755) permissions");
-                                    }
-                                    process::Command::new(path).spawn().unwrap();
-                                }
+                    Some(os_str) => match os_str.to_str() {
+                        Some("iomod") => {
+                            let file = fs::File::open(&entry.path()).unwrap();
+                            let reader = BufReader::new(file);
+                            let archive = RefCell::new(zip::ZipArchive::new(reader).unwrap());
+                            let mut manifest_str: String = Default::default();
+                            {
+                                let mut archive = archive.borrow_mut();
+                                let mut manifest = archive
+                                    .by_name("./iomod.toml")
+                                    .expect("could not find IOmod manifest");
+                                manifest
+                                    .read_to_string(&mut manifest_str)
+                                    .expect("could not read iomod.toml");
                             }
-                            _ => {}
+                            {
+                                let mut archive = archive.borrow_mut();
+                                let iomod_manifest = IomodManifest::from(manifest_str);
+                                let entrypoint = format!("./{}", iomod_manifest.process.entrypoint);
+                                let mut entrypoint_binary = archive
+                                    .by_name(&*entrypoint)
+                                    .expect("could not find entrypoint in package");
+                                let path = &*format!(
+                                    "/tmp/iomod/{}@{}/{}",
+                                    iomod_manifest.iomod.coordinates,
+                                    iomod_manifest.iomod.version,
+                                    entrypoint
+                                );
+                                let path = std::path::Path::new(path);
+                                {
+                                    let path_prefix = path.parent().unwrap();
+                                    fs::create_dir_all(path_prefix).expect(&*format!(
+                                        "unable to create directory {:?}",
+                                        path_prefix
+                                    ));
+                                    let mut entrypoint_file = File::create(path)
+                                        .expect(&*format!("unable to create file at {:?}", path));
+                                    std::io::copy(&mut entrypoint_binary, &mut entrypoint_file)
+                                        .expect("unable to copy entrypoint");
+                                    let mut perms: std::fs::Permissions =
+                                        fs::metadata(&path).unwrap().permissions();
+                                    perms.set_mode(0o755);
+                                    entrypoint_file.set_permissions(perms)
+                                            .expect("could not set IOmod binary executable (octal 755) permissions");
+                                }
+                                process::Command::new(path).spawn().unwrap();
+                            }
                         }
-                    }
+                        _ => {}
+                    },
                     None => {
                         process::Command::new(entry.path()).spawn().unwrap();
                     }
@@ -109,10 +113,11 @@ async fn main() {
     let task_set = tokio::task::LocalSet::new();
     task_set
         .run_until(async move {
-            let (module, import_object, env)
-                = match wasm::deserialize_module_from_path::<LambdaAbi, ()>(tx, status_sender, &lambda_path, coords[0])
-            {
-                Ok(module) => (Arc::new(module.0), module.1, module.2),
+            let (module, store) = match wasm::deserialize_module_from_path::<LambdaAbi, ()>(
+                &lambda_path,
+                coords[0],
+            ) {
+                Ok(module) => (Arc::new(module.0), Arc::new(module.1)),
                 Err(_) => panic!("PANIC this shouldn't happen"),
             };
 
@@ -125,12 +130,22 @@ async fn main() {
                     ref_cell.replace(event.request_id.clone());
                 }
 
+                let (import_object, env) = wasm::build_module::<LambdaAbi, ()>(
+                    tx.clone(),
+                    status_sender.clone(),
+                    module.clone(),
+                    coords[0],
+                    store.clone(),
+                ).expect("could not build WASM module");
                 // TODO we can save some cycles by creating Instances up-front in a pool & recycling them
                 let instance = match wasm::new_instance(module.clone(), import_object.clone()) {
                     Ok(instance) => Arc::new(instance),
                     Err(why) => panic!("PANIC {}", why.to_string()),
                 };
-                env.host_input_buffer.clone().lock().unwrap()
+                env.host_input_buffer
+                    .clone()
+                    .lock()
+                    .unwrap()
                     .initialize(event.event_body.into_bytes());
                 tokio::task::spawn_local(async move {
                     // env.clone().threader.lock().unwrap().__reset_memory();
