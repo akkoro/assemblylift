@@ -66,17 +66,23 @@ impl Runtime {
         let temp_file = tokio::task::spawn_blocking(move || -> anyhow::Result<NamedTempFile> {
             Ok(NamedTempFile::new_in(log_dir)?)
         }).await??;
-        match wasm::deserialize_module_from_bytes::<KubeletAbi, Status>(registry_tx, status_sender, &module_data, &name) {
-            Ok((module, resolver, threader_env)) => {
-                Ok(Runtime {
-                    module:  Arc::new(module),
-                    resolver: resolver.clone(),
-                    threader_env,
-                    output: Arc::new(temp_file),
-                })
-            }
-            Err(e) => Err(e),
-        }
+        let (module, store) = wasm::deserialize_module_from_bytes::<KubeletAbi, Status>(&module_data)?;
+        let module = Arc::new(module);
+        let store = Arc::new(store);
+        let (resolver, threader_env) = wasm::build_module::<KubeletAbi, Status>(
+            registry_tx.clone(),
+            status_sender.clone(),
+            module.clone(),
+            &name,
+            store,
+        )?;
+
+        Ok(Runtime {
+            module,
+            resolver: resolver.clone(),
+            threader_env,
+            output: Arc::new(temp_file),
+        })
     }
 
     pub async fn start(&self) -> anyhow::Result<ContainerHandle<RuntimeHandle, HandleFactory>> {
