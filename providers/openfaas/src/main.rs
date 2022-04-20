@@ -77,7 +77,7 @@ async fn main() {
         registry::spawn_registry(registry_rx).unwrap();
 
         let (module, resolver, threader_env) =
-            match wasm::build_module_from_path::<OpenFaasAbi, Status>(
+            match wasm::deserialize_module_from_path::<OpenFaasAbi, Status>(
                 registry_tx,
                 status_tx.clone(),
                 "/opt/assemblylift", // TODO get from env

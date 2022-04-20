@@ -243,7 +243,6 @@ dependencies = [
  "crossbeam-channel",
  "crossbeam-utils",
  "hyper",
- "once_cell",
  "tokio 1.17.0",
  "tracing",
  "tracing-subscriber",

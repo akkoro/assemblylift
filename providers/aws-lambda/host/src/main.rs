@@ -110,7 +110,7 @@ async fn main() {
     task_set
         .run_until(async move {
             let (module, import_object, env)
-                = match wasm::build_module_from_path::<LambdaAbi, ()>(tx, status_sender, &lambda_path, coords[0])
+                = match wasm::deserialize_module_from_path::<LambdaAbi, ()>(tx, status_sender, &lambda_path, coords[0])
             {
                 Ok(module) => (Arc::new(module.0), module.1, module.2),
                 Err(_) => panic!("PANIC this shouldn't happen"),

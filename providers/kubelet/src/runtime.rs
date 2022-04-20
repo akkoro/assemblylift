@@ -66,7 +66,7 @@ impl Runtime {
         let temp_file = tokio::task::spawn_blocking(move || -> anyhow::Result<NamedTempFile> {
             Ok(NamedTempFile::new_in(log_dir)?)
         }).await??;
-        match wasm::build_module_from_bytes::<KubeletAbi, Status>(registry_tx, status_sender, &module_data, &name) {
+        match wasm::deserialize_module_from_bytes::<KubeletAbi, Status>(registry_tx, status_sender, &module_data, &name) {
             Ok((module, resolver, threader_env)) => {
                 Ok(Runtime {
                     module:  Arc::new(module),
