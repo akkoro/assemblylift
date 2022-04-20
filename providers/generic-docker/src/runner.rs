@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use tokio::sync::mpsc;
+use tracing::{debug, info};
 use wasmer::{Module, Store};
 
 use assemblylift_core::buffers::LinearBuffer;
@@ -35,10 +36,12 @@ impl Runner {
     }
 
     pub fn spawn(&mut self, module: Arc<Module>, store: Arc<Store>) {
+        info!("Spawning runner");
         crossbeam_utils::thread::scope(|s| {
             s.spawn(move |_| {
                 tokio::task::LocalSet::new().block_on(&self.runtime, async {
                     while let Some(msg) = self.channel.1.recv().await {
+                        debug!("Received runner message");
                         let mt = wasm::build_module::<GenericDockerAbi, Status>(
                             self.registry_tx.clone(),
                             msg.status_sender.clone(),
