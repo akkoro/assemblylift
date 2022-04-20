@@ -11,7 +11,7 @@ use clap::crate_version;
 use hyper::{Body, Method, Request, Response, Server};
 use hyper::service::{make_service_fn, service_fn};
 use tokio::sync::mpsc;
-use tracing::Level;
+use tracing::{debug, info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use assemblylift_core::wasm;
@@ -47,10 +47,12 @@ impl Launcher {
     }
 
     pub fn spawn(&mut self, runner_tx: RunnerTx) {
+        info!("Spawning launcher");
         crossbeam_utils::thread::scope(|s| {
             s.spawn(move |_| {
                 tokio::task::LocalSet::new().block_on(&self.runtime, async {
-                    let make_svc = make_service_fn(|_conn| {
+                    let make_svc = make_service_fn(|_| {
+                        debug!("called make_service_fn");
                         let channel = mpsc::channel(32);
                         let runner_tx = runner_tx.clone();
                         let tx = channel.0.clone();
@@ -63,6 +65,7 @@ impl Launcher {
                     });
 
                     let addr = SocketAddr::from(([0, 0, 0, 0], 5543));
+                    info!("Serving from {}", addr.to_string());
                     if let Err(e) = Server::bind(&addr).serve(make_svc).await {
                         eprintln!("server error: {}", e);
                     }
@@ -120,7 +123,7 @@ fn main() {
     println!("Starting AssemblyLift generic runtime {}", crate_version!());
 
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::TRACE)
+        .with_max_level(Level::DEBUG)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber)
