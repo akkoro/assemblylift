@@ -10,7 +10,7 @@ use crate::transpiler::asml;
 
 pub mod aws_lambda;
 pub mod aws_lambda_alpine;
-pub mod k8s_generic_alpine;
+pub mod k8s_hyper_alpine;
 
 pub type ProviderMap = StringMap<Mutex<Box<dyn Provider + Send + Sync>>>;
 
@@ -25,8 +25,8 @@ pub static SERVICE_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
         Mutex::new(Box::new(aws_lambda_alpine::ServiceProvider::new())),
     );
     map.insert(
-        String::from("k8s-generic-alpine"),
-        Mutex::new(Box::new(k8s_generic_alpine::ServiceProvider::new())),
+        String::from("k8s-hyper-alpine"),
+        Mutex::new(Box::new(k8s_hyper_alpine::ServiceProvider::new())),
     );
     map
 });
@@ -41,8 +41,8 @@ pub static FUNCTION_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
         Mutex::new(Box::new(aws_lambda_alpine::FunctionProvider::new())),
     );
     map.insert(
-        String::from("k8s-generic-alpine"),
-        Mutex::new(Box::new(k8s_generic_alpine::FunctionProvider::new())),
+        String::from("k8s-hyper-alpine"),
+        Mutex::new(Box::new(k8s_hyper_alpine::FunctionProvider::new())),
     );
     map
 });

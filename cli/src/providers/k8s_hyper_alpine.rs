@@ -143,7 +143,7 @@ pub struct DockerData {
 }
 
 static DOCKERFILE_TEMPLATE: &str =
-r#"FROM public.ecr.aws/akkoro/assemblylift/generic-alpine:{{base_image_version}}
+r#"FROM public.ecr.aws/akkoro/assemblylift/hyper-alpine:{{base_image_version}}
 {{#if has_iomods}}ADD ./iomods/{{service_name}} /opt/assemblylift/iomod/{{/if}}
 ADD ./{{function_name}}/{{function_name}}.wasm.bin /opt/assemblylift/handler.wasm.bin
 "#;

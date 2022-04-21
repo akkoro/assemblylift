@@ -43,6 +43,9 @@ fn main() {
 
     info!("Starting AssemblyLift hyper runtime v{}", crate_version!());
 
+    let (registry_tx, registry_rx) = mpsc::channel(32);
+    registry::spawn_registry(registry_rx).unwrap();
+
     if let Ok(rd) = fs::read_dir("/opt/assemblylift/iomod") {
         for entry in rd {
             let entry = entry.unwrap();
@@ -103,9 +106,6 @@ fn main() {
             }
         }
     }
-
-    let (registry_tx, registry_rx) = mpsc::channel(32);
-    registry::spawn_registry(registry_rx).unwrap();
 
     let (module, store) = wasm::deserialize_module_from_path::<GenericDockerAbi, Status>(
         "/opt/assemblylift", // TODO get from env
