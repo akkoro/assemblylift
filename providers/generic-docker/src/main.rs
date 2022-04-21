@@ -1,11 +1,11 @@
+use std::{fs, process};
 use std::cell::RefCell;
 use std::convert::Infallible;
-use std::{fs, process};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::net::SocketAddr;
 use std::os::unix::fs::PermissionsExt;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use clap::crate_version;
 use hyper::{Body, Method, Request, Response, Server};
@@ -48,30 +48,26 @@ impl Launcher {
 
     pub fn spawn(&mut self, runner_tx: RunnerTx) {
         info!("Spawning launcher");
-        crossbeam_utils::thread::scope(|s| {
-            s.spawn(move |_| {
-                tokio::task::LocalSet::new().block_on(&self.runtime, async {
-                    let make_svc = make_service_fn(|_| {
-                        debug!("called make_service_fn");
-                        let channel = mpsc::channel(32);
-                        let runner_tx = runner_tx.clone();
-                        let tx = channel.0.clone();
-                        let mut rx = Some(channel.1);
-                        async {
-                            Ok::<_, Infallible>(service_fn(move |req| {
-                                launch(req, runner_tx.clone(), tx.clone(), rx.take().unwrap())
-                            }))
-                        }
-                    });
-
-                    let addr = SocketAddr::from(([0, 0, 0, 0], 5543));
-                    info!("Serving from {}", addr.to_string());
-                    if let Err(e) = Server::bind(&addr).serve(make_svc).await {
-                        eprintln!("server error: {}", e);
-                    }
-                });
+        tokio::task::LocalSet::new().block_on(&self.runtime, async {
+            let make_svc = make_service_fn(|_| {
+                debug!("called make_service_fn");
+                let channel = mpsc::channel(32);
+                let runner_tx = runner_tx.clone();
+                let tx = channel.0.clone();
+                let mut rx = Some(channel.1);
+                async {
+                    Ok::<_, Infallible>(service_fn(move |req| {
+                        launch(req, runner_tx.clone(), tx.clone(), rx.take().unwrap())
+                    }))
+                }
             });
-        }).unwrap();
+
+            let addr = SocketAddr::from(([0, 0, 0, 0], 5543));
+            info!("Serving from {}", addr.to_string());
+            if let Err(e) = Server::bind(&addr).serve(make_svc).await {
+                eprintln!("server error: {}", e);
+            }
+        });
     }
 }
 
@@ -199,9 +195,19 @@ fn main() {
         "handler",           // TODO get from env
     ).expect("could not deserialize WASM module");
 
-    let mut runner = Runner::new(registry_tx);
-    runner.spawn(Arc::new(module), Arc::new(store));
+    crossbeam_utils::thread::scope(|s| {
+        let runner = Arc::new(Mutex::new(Runner::new(registry_tx)));
 
-    let mut launcher = Launcher::new();
-    launcher.spawn(runner.sender());
+        let r = runner.clone();
+        s.spawn(move |_| {
+            r.lock().unwrap().spawn(Arc::new(module), Arc::new(store));
+        });
+
+        let r = runner.clone();
+        s.spawn(move |_| {
+            let mut launcher = Launcher::new();
+            launcher.spawn(r.lock().unwrap().sender());
+        });
+
+    }).unwrap();
 }
