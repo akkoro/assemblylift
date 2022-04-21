@@ -1,17 +1,13 @@
 use std::{fs, process};
 use std::cell::RefCell;
-use std::convert::Infallible;
 use std::fs::File;
 use std::io::{BufReader, Read};
-use std::net::SocketAddr;
 use std::os::unix::fs::PermissionsExt;
 use std::sync::{Arc, Mutex};
 
 use clap::crate_version;
-use hyper::{Body, Method, Request, Response, Server};
-use hyper::service::{make_service_fn, service_fn};
 use tokio::sync::mpsc;
-use tracing::{debug, info, Level};
+use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use assemblylift_core::wasm;
@@ -19,11 +15,13 @@ use assemblylift_core_iomod::package::IomodManifest;
 use assemblylift_core_iomod::registry;
 
 use crate::abi::GenericDockerAbi;
+use crate::launcher::Launcher;
 use crate::runner::{Runner, RunnerMessage, RunnerTx};
 use crate::Status::{Failure, Success};
 
 mod abi;
 mod runner;
+mod launcher;
 
 pub type StatusTx = mpsc::Sender<Status>;
 pub type StatusRx = mpsc::Receiver<Status>;
@@ -35,89 +33,7 @@ pub enum Status {
     Failure(String),
 }
 
-pub struct Launcher {
-    runtime: tokio::runtime::Runtime,
-}
-
-impl Launcher {
-    pub fn new() -> Self {
-        Self {
-            runtime: tokio::runtime::Runtime::new().unwrap(),
-        }
-    }
-
-    pub fn spawn(&mut self, runner_tx: RunnerTx) {
-        info!("Spawning launcher");
-        tokio::task::LocalSet::new().block_on(&self.runtime, async {
-            let make_svc = make_service_fn(|_| {
-                debug!("called make_service_fn");
-                let channel = mpsc::channel(32);
-                let runner_tx = runner_tx.clone();
-                let tx = channel.0.clone();
-                let mut rx = Some(channel.1);
-                async {
-                    Ok::<_, Infallible>(service_fn(move |req| {
-                        launch(req, runner_tx.clone(), tx.clone(), rx.take().unwrap())
-                    }))
-                }
-            });
-
-            let addr = SocketAddr::from(([0, 0, 0, 0], 5543));
-            info!("Serving from {}", addr.to_string());
-            if let Err(e) = Server::bind(&addr).serve(make_svc).await {
-                eprintln!("server error: {}", e);
-            }
-        });
-    }
-}
-
-async fn launch(
-    req: Request<Body>,
-    runner_tx: RunnerTx,
-    status_tx: StatusTx,
-    mut status_rx: StatusRx,
-) -> Result<Response<Body>, Infallible> {
-    if req.method() != Method::POST {
-        return Ok(Response::builder()
-            .status(500)
-            .body(Body::default())
-            .unwrap());
-    }
-
-    let input_bytes = hyper::body::to_bytes(req.into_body()).await.unwrap();
-
-    let msg = RunnerMessage {
-        input: input_bytes.to_vec(),
-        status_sender: status_tx.clone(),
-    };
-    tokio::spawn(async move {
-        if let Err(e) = runner_tx.send(msg).await {
-            println!("could not send to runner: {}", e.to_string())
-        }
-    });
-
-    if let Some(result) = status_rx.recv().await {
-        return Ok(match result {
-            Success(_) => Response::builder()
-                .status(200)
-                .body(Body::default())
-                .unwrap(),
-            Failure(_) => Response::builder()
-                .status(500)
-                .body(Body::default())
-                .unwrap(),
-        });
-    }
-
-    Ok(Response::builder()
-        .status(500)
-        .body(Body::default())
-        .unwrap())
-}
-
 fn main() {
-    println!("Starting AssemblyLift generic runtime {}", crate_version!());
-
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::DEBUG)
         .finish();
@@ -125,6 +41,7 @@ fn main() {
     tracing::subscriber::set_global_default(subscriber)
         .expect("setting default subscriber failed");
 
+    info!("Starting AssemblyLift hyper runtime v{}", crate_version!());
 
     if let Ok(rd) = fs::read_dir("/opt/assemblylift/iomod") {
         for entry in rd {

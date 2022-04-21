@@ -65,7 +65,7 @@ pub trait Provider {
         &self,
         ctx: Rc<asml::Context>,
         name: String,
-    ) -> Result<Box<dyn Artifact>, ProviderError>; // TODO providers should be able to generate multiple artifacts
+    ) -> Result<Box<dyn Artifact>, ProviderError>; // TODO runtimes should be able to generate multiple artifacts
 
     fn options(&self) -> Arc<Options>;
     fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError>;

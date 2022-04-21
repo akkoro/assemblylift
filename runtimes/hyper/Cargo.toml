@@ -1,5 +1,5 @@
 [package]
-name = "assemblylift-generic-docker"
+name = "assemblylift-hyper-runtime"
 version = "0.0.0"
 edition = "2021"
 

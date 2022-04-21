@@ -7,7 +7,7 @@ ENV USER=root
 WORKDIR /usr/src/assemblylift
 COPY . .
 
-RUN cd ./providers/generic-docker && cargo install --target x86_64-unknown-linux-musl --path .
+RUN cd ./runtimes/hyper && cargo install --target x86_64-unknown-linux-musl --path .
 
 # Runner Image
 FROM alpine:3.15 as runner
@@ -15,10 +15,10 @@ RUN apk --no-cache add curl ca-certificates \
     && addgroup -S app && adduser -S -g app app
 ENV USER=app
 
-COPY --from=builder /usr/local/cargo/bin/assemblylift-generic-docker /usr/bin/assemblylift-generic-docker
-RUN chmod +x /usr/bin/assemblylift-generic-docker
+COPY --from=builder /usr/local/cargo/bin/assemblylift-hyper-runtime /usr/bin/assemblylift-hyper-runtime
+RUN chmod +x /usr/bin/assemblylift-hyper-runtime
 
 # HTTP
 EXPOSE 5543
 
-CMD ["assemblylift-generic-docker"]
+CMD ["assemblylift-hyper-runtime"]
