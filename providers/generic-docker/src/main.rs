@@ -197,16 +197,18 @@ fn main() {
 
     crossbeam_utils::thread::scope(|s| {
         let runner = Arc::new(Mutex::new(Runner::new(registry_tx)));
+        let tx = {
+            runner.clone().lock().unwrap().sender()
+        };
 
         let r = runner.clone();
         s.spawn(move |_| {
             r.lock().unwrap().spawn(Arc::new(module), Arc::new(store));
         });
 
-        let r = runner.clone();
         s.spawn(move |_| {
             let mut launcher = Launcher::new();
-            launcher.spawn(r.lock().unwrap().sender());
+            launcher.spawn(tx);
         });
 
     }).unwrap();
