@@ -81,8 +81,8 @@ jobs:
 #      - name: 'Upload image to S3 @ akkoro-public'
 #        run: aws s3 cp $HOME/aws-openfaas-alpine.tar s3://public.assemblylift.akkoro.io/runtime/$ASML_VERSION/aws-openfaas-alpine/image.tar --acl public-read
 
-  build-generic-alpine:
-    name: 'Generic Alpine Image'
+  build-hyper-alpine:
+    name: 'Hyper Alpine Image'
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials
@@ -96,13 +96,13 @@ jobs:
       - name: 'Get Version'
         run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
       - name: 'Build Image'
-        run: docker build -t assemblylift/generic-alpine . --file docker/asml-generic-alpine
+        run: docker build -t assemblylift/hyper-alpine . --file docker/asml-hyper-alpine
       - name: 'Add ECR Tag'
-        run: docker tag assemblylift/generic-alpine public.ecr.aws/akkoro/assemblylift/generic-alpine:latest && docker tag public.ecr.aws/akkoro/assemblylift/generic-alpine:latest public.ecr.aws/akkoro/assemblylift/generic-alpine:$ASML_VERSION
+        run: docker tag assemblylift/hyper-alpine public.ecr.aws/akkoro/assemblylift/hyper-alpine:latest && docker tag public.ecr.aws/akkoro/assemblylift/hyper-alpine:latest public.ecr.aws/akkoro/assemblylift/hyper-alpine:$ASML_VERSION
       - name: 'ECR Login'
         run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/akkoro
       - name: 'Push to ECR @ akkoro-public'
-        run: docker push --all-tags public.ecr.aws/akkoro/assemblylift/generic-alpine
+        run: docker push --all-tags public.ecr.aws/akkoro/assemblylift/hyper-alpine
 
   build-asml-darwin:
     name: asml - Darwin
