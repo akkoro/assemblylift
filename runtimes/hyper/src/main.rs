@@ -27,8 +27,9 @@ pub type StatusTx = mpsc::Sender<Status>;
 pub type StatusRx = mpsc::Receiver<Status>;
 pub type StatusChannel = (StatusTx, StatusRx);
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Status {
+    Exited(i32),
     Success(String),
     Failure(String),
 }

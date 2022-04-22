@@ -3,7 +3,7 @@ use std::error::Error;
 use std::io;
 use std::io::ErrorKind;
 
-use tracing::info;
+use tracing::{debug, error, info};
 use wasmer::MemoryView;
 
 use assemblylift_core::abi::RuntimeAbi;
@@ -20,9 +20,14 @@ impl RuntimeAbi<Status> for GenericDockerAbi {
     }
 
     fn success(env: &ThreaderEnv<Status>, ptr: u32, len: u32) {
+        debug!("called success");
         let s = ptr_to_string(env, ptr, len).unwrap();
-        env.status_sender.blocking_send(Status::Success(s))
-            .expect_err("Could not send function status");
+        let tx = env.status_sender.clone();
+        std::thread::spawn(move || {
+            if let Err(e) = tx.blocking_send(Status::Success(s)) {
+                error!("could not send status: {:?}", e.to_string())
+            }
+        });
     }
 }
 
