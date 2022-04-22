@@ -1,12 +1,15 @@
+use std::collections::BTreeMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
 
-use hyper::{Body, Method, Request, Response, Server};
+use hyper::{Body, Request, Response, Server};
 use hyper::service::{make_service_fn, service_fn};
+use serde::{Serialize, Deserialize};
 use tokio::sync::mpsc;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 use crate::{Failure, RunnerMessage, RunnerTx, StatusRx, StatusTx, Success};
+use crate::Status::Exited;
 
 pub struct Launcher {
     runtime: tokio::runtime::Runtime,
@@ -50,27 +53,32 @@ async fn launch(
     status_tx: StatusTx,
     mut status_rx: StatusRx,
 ) -> Result<Response<Body>, Infallible> {
-    if req.method() != Method::POST {
-        return Ok(Response::builder()
-            .status(500)
-            .body(Body::default())
-            .unwrap());
+    let method = req.method().to_string();
+    let mut headers = BTreeMap::new();
+    for h in req.headers().iter() {
+        headers.insert(h.0.as_str().to_string(), h.1.to_str().unwrap().to_string());
     }
-
     let input_bytes = hyper::body::to_bytes(req.into_body()).await.unwrap();
+    let launcher_req = LauncherRequest {
+        method,
+        headers,
+        body: Some(z85::encode(input_bytes.as_ref())),
+    };
 
     let msg = RunnerMessage {
-        input: input_bytes.to_vec(),
+        input: serde_json::to_vec(&launcher_req).unwrap(),
         status_sender: status_tx.clone(),
     };
     tokio::spawn(async move {
         if let Err(e) = runner_tx.send(msg).await {
-            println!("could not send to runner: {}", e.to_string())
+            error!("could not send to runner: {}", e.to_string())
         }
     });
 
-    if let Some(result) = status_rx.recv().await {
+    while let Some(result) = status_rx.recv().await {
+        debug!("launcher received status response from runner: {:?}", result);
         return Ok(match result {
+            Exited(_status) => continue, // TODO start timeout to default response
             Success(response) => Response::builder()
                 .status(200)
                 .body(Body::from(response))
@@ -86,4 +94,11 @@ async fn launch(
         .status(500)
         .body(Body::default())
         .unwrap())
+}
+
+#[derive(Serialize, Deserialize)]
+struct LauncherRequest {
+    method: String,
+    headers: BTreeMap<String, String>,
+    body: Option<String>,
 }

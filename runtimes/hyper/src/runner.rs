@@ -39,7 +39,7 @@ impl Runner {
         info!("Spawning runner");
         tokio::task::LocalSet::new().block_on(&self.runtime, async {
             while let Some(msg) = self.channel.1.recv().await {
-                debug!("Received runner message");
+                debug!("received runner message");
                 let mt = wasm::build_module::<GenericDockerAbi, Status>(
                     self.registry_tx.clone(),
                     msg.status_sender.clone(),
@@ -55,7 +55,6 @@ impl Runner {
                     .unwrap()
                     .initialize(msg.input);
 
-                // TODO instance pooling
                 let instance = match wasm::new_instance(module.clone(), mt.0.clone()) {
                     Ok(instance) => Arc::new(instance),
                     Err(why) => {
@@ -67,7 +66,7 @@ impl Runner {
                     match start.call(&[]) {
                         Ok(_) => {
                             msg.status_sender
-                                .send(Status::Success("".to_string()))
+                                .send(Status::Exited(0))
                                 .await
                         }
                         Err(_) => {
