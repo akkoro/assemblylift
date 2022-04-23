@@ -125,6 +125,13 @@ impl Context {
             iomods: ctx_iomods,
         })
     }
+
+    pub fn service(&self, name: String) -> Option<&Service> {
+        match self.services.binary_search_by(|s| s.name.cmp(&name)) {
+            Ok(idx) => Some(self.services.get(idx).unwrap()),
+            Err(_) => None,
+        }
+    }
 }
 
 pub struct Project {
@@ -142,6 +149,12 @@ pub struct Service {
     pub name: String,
     pub provider: Rc<Provider>,
     pub project_name: String,
+}
+
+impl Service {
+    pub fn option(&self, name: &str) -> Option<&String> {
+        self.provider.options.get(name)
+    }
 }
 
 pub struct Provider {
