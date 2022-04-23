@@ -22,7 +22,7 @@ impl ServiceProvider {
 
 impl Provider for ServiceProvider {
     fn name(&self) -> String {
-        String::from("k8s-generic-alpine")
+        String::from("k8s-hyper-alpine")
     }
 
     fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
@@ -114,7 +114,7 @@ impl FunctionProvider {
 
 impl Provider for FunctionProvider {
     fn name(&self) -> String {
-        String::from("aws-lambda")
+        String::from("k8s-hyper-alpine")
     }
 
     fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
