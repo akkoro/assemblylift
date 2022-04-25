@@ -22,6 +22,7 @@ paste = "1"
 toml = "0.5"
 capnp = "0.14"
 capnp-rpc = "0.14"
+tracing = "0.1"
 
 assemblylift_core_io_common = { version = "0.3", package = "assemblylift-core-io-common", path = "../io/common" }
 

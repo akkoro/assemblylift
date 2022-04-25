@@ -16,6 +16,7 @@ use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::{AsyncReadExt, FutureExt, TryFutureExt};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
+use tracing::{error, info};
 
 use crate::iomod_capnp::{agent, iomod, registry};
 use crate::Agent;
@@ -108,6 +109,7 @@ pub fn spawn_registry(mut rx: RegistryRx) -> Result<(), RegistryError> {
                     let modules = RefCell::borrow(&rx_modules);
                     match modules.get(&coords) {
                         Some(agent) => {
+                            info!("invoking call @ {}.{}", coords.clone(), method.clone());
                             let mut invoke = agent.invoke_request();
                             invoke.get().set_coordinates(&method);
                             invoke.get().set_input(input);
@@ -134,15 +136,15 @@ pub fn spawn_registry(mut rx: RegistryRx) -> Result<(), RegistryError> {
             let (rpc_result, rx_result) = tokio::join!(rpc_task, rx_task);
 
             if rpc_result.is_err() {
-                println!(
-                    "ERROR: registry RPC task exited with error {:?}",
+                error!(
+                    "registry RPC task exited with error {:?}",
                     Some(rpc_result.err())
                 );
             }
 
             if rx_result.is_err() {
-                println!(
-                    "ERROR: registry rx task exited with error {:?}",
+                error!(
+                    "registry rx task exited with error {:?}",
                     Some(rx_result.err())
                 );
             }
@@ -172,7 +174,8 @@ impl registry::Server for Registry {
 
         let modules = self.modules.clone();
         let mut modules_ref = RefCell::borrow_mut(&modules);
-        modules_ref.entry(coordinates).or_insert(agent);
+        modules_ref.entry(coordinates.clone()).or_insert(agent);
+        info!("registered IOmod at coordinates {}", coordinates.clone());
 
         Promise::ok(())
     }
