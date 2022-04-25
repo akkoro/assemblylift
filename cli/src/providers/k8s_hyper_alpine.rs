@@ -366,6 +366,13 @@ resource kubernetes_deployment {{function_name}} {
                     port {
                         container_port = 5543
                     }
+                    port {
+                        container_port = 13555
+                    }
+                }
+                container {
+                    image = "xlem/assemblylift-iomod-std-http:latest"
+                    name  = "assemblylift-iomod-std-http"
                 }
             }
         }

@@ -20,7 +20,7 @@ extern "C" {
     fn __asml_abi_clock_time_get() -> u64;
 
     // Console
-    fn __asml_abi_console_log(ptr: *const u8, len: usize);
+    fn __asml_abi_runtime_log(ptr: *const u8, len: usize);
 
     // Function Input
     fn __asml_abi_input_start() -> i32;
@@ -42,7 +42,7 @@ pub fn __asml_guest_get_io_buffer_pointer() -> *const u8 {
 }
 
 fn console_log(message: String) {
-    unsafe { __asml_abi_console_log(message.as_ptr(), message.len()) }
+    unsafe { __asml_abi_runtime_log(message.as_ptr(), message.len()) }
 }
 
 /// Get the host clock time in seconds since UNIX epoch

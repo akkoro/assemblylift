@@ -20,5 +20,7 @@ RUN chmod +x /usr/bin/assemblylift-hyper-runtime
 
 # HTTP
 EXPOSE 5543
+# CAPNP
+EXPOSE 13555
 
 CMD ["assemblylift-hyper-runtime"]
