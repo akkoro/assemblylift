@@ -5,8 +5,8 @@ use clap::crate_version;
 use handlebars::{to_json, Handlebars};
 use serde::Serialize;
 
-use crate::providers::{render_string_list, Options, Provider, ProviderArtifact, ProviderError};
-use crate::transpiler::{asml, Artifact, Map};
+use crate::providers::{Options, Provider, ProviderArtifact, ProviderError};
+use crate::transpiler::{asml, Artifact};
 
 pub struct ServiceProvider {
     options: Arc<Options>,
@@ -31,7 +31,7 @@ impl Provider for ServiceProvider {
 
     fn transform(
         &self,
-        ctx: Rc<asml::Context>,
+        _ctx: Rc<asml::Context>,
         name: String,
     ) -> Result<Box<dyn Artifact>, ProviderError> {
         let mut reg = Box::new(Handlebars::new());
@@ -148,17 +148,25 @@ impl Provider for FunctionProvider {
                     )
                     .clone();
 
+                let iomods: Vec<IomodContainer> = ctx.iomods.iter()
+                    .filter(|i| i.service_name == service.clone())
+                    .map(|i| {
+                        let coords: Vec<&str> = i.coordinates.split(".").collect();
+                        IomodContainer {
+                            // TODO eventually we'll allow overriding which service/mirror the IOmods come from
+                            image: format!("public.ecr.aws/{}/iomod/{}/{}:{}", coords[0], coords[1], coords[2], i.version),
+                            name: i.coordinates.clone().replacen('.', "-", 2),
+                        }
+                    })
+                    .collect();
+
                 let data = FunctionData {
-                    base_image_version: "0.4.0-alpha.0".to_string(), // TODO crate_version!()
+                    base_image_version: crate_version!().to_string(),
                     function_name: function.name.clone(),
                     handler_name: function.handler_name.clone(),
                     service_name: service.clone(),
-                    has_iomods: ctx
-                        .iomods
-                        .iter()
-                        .filter(|i| i.service_name == service.clone())
-                        .count()
-                        > 0,
+                    iomods: iomods.clone(),
+                    has_iomods: iomods.len() > 0,
                     container_registry: ContainerRegistryData {
                         is_dockerhub: registry_type == "dockerhub",
                         is_ecr: registry_type == "ecr",
@@ -236,6 +244,7 @@ pub struct FunctionData {
     pub handler_name: String,
     pub has_iomods: bool,
     pub container_registry: ContainerRegistryData,
+    pub iomods: Vec<IomodContainer>,
 }
 
 #[derive(Serialize)]
@@ -247,8 +256,13 @@ pub struct ContainerRegistryData {
     pub aws_region: String,
 }
 
+#[derive(Serialize, Clone, Debug)]
+pub struct IomodContainer {
+    pub image: String,
+    pub name: String,
+}
+
 static DOCKERFILE_TEMPLATE: &str = r#"FROM public.ecr.aws/akkoro/assemblylift/hyper-alpine:{{base_image_version}}
-{{#if has_iomods}}ADD ./iomods/{{service_name}} /opt/assemblylift/iomod/{{/if}}
 ADD ./{{function_name}}/{{function_name}}.wasm.bin /opt/assemblylift/handler.wasm.bin
 "#;
 
@@ -370,10 +384,12 @@ resource kubernetes_deployment {{function_name}} {
                         container_port = 13555
                     }
                 }
+                {{#each iomods}}
                 container {
-                    image = "xlem/assemblylift-iomod-std-http:latest"
-                    name  = "assemblylift-iomod-std-http"
+                    image = "{{this.image}}"
+                    name  = "{{this.name}}"
                 }
+                {{/each}}
             }
         }
     }

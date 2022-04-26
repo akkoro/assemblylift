@@ -69,10 +69,12 @@ impl Context {
                 });
             }
 
-            for (id, _iomod) in iomods.as_ref() {
+            for (id, iomod) in iomods.as_ref() {
                 ctx_iomods.push(Iomod {
                     name: id.clone(),
                     service_name: service.name.clone(),
+                    coordinates: iomod.coordinates.clone(),
+                    version: iomod.version.clone(),
                 });
             }
 
@@ -196,4 +198,6 @@ pub struct AuthorizerJwt {
 pub struct Iomod {
     pub name: String,
     pub service_name: String,
+    pub coordinates: String,
+    pub version: String,
 }

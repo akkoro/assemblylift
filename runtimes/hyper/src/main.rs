@@ -1,8 +1,3 @@
-use std::{fs, process};
-use std::cell::RefCell;
-use std::fs::File;
-use std::io::{BufReader, Read};
-use std::os::unix::fs::PermissionsExt;
 use std::sync::{Arc, Mutex};
 
 use clap::crate_version;
@@ -11,7 +6,6 @@ use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use assemblylift_core::wasm;
-use assemblylift_core_iomod::package::IomodManifest;
 use assemblylift_core_iomod::registry;
 
 use crate::abi::GenericDockerAbi;
@@ -46,67 +40,6 @@ fn main() {
 
     let (registry_tx, registry_rx) = mpsc::channel(32);
     registry::spawn_registry(registry_rx).unwrap();
-
-    if let Ok(rd) = fs::read_dir("/opt/assemblylift/iomod") {
-        for entry in rd {
-            let entry = entry.unwrap();
-            if entry.file_type().unwrap().is_file() {
-                // this makes the assumption that the
-                // IOmod entrypoint is always an executable binary
-                match entry.path().extension() {
-                    Some(os_str) => {
-                        match os_str.to_str() {
-                            Some("iomod") => {
-                                let file = fs::File::open(&entry.path()).unwrap();
-                                let reader = BufReader::new(file);
-                                let archive = RefCell::new(zip::ZipArchive::new(reader).unwrap());
-                                let mut manifest_str: String = Default::default();
-                                {
-                                    let mut archive = archive.borrow_mut();
-                                    let mut manifest = archive.by_name("./iomod.toml")
-                                        .expect("could not find IOmod manifest");
-                                    manifest.read_to_string(&mut manifest_str)
-                                        .expect("could not read iomod.toml");
-                                }
-                                {
-                                    let mut archive = archive.borrow_mut();
-                                    let iomod_manifest = IomodManifest::from(manifest_str);
-                                    let entrypoint = format!("./{}", iomod_manifest.process.entrypoint);
-                                    let mut entrypoint_binary = archive.by_name(&*entrypoint)
-                                        .expect("could not find entrypoint in package");
-                                    let path = &*format!(
-                                        "/tmp/iomod/{}@{}/{}",
-                                        iomod_manifest.iomod.coordinates,
-                                        iomod_manifest.iomod.version,
-                                        entrypoint
-                                    );
-                                    let path = std::path::Path::new(path);
-                                    {
-                                        let path_prefix = path.parent().unwrap();
-                                        fs::create_dir_all(path_prefix)
-                                            .expect(&*format!("unable to create directory {:?}", path_prefix));
-                                        let mut entrypoint_file = File::create(path)
-                                            .expect(&*format!("unable to create file at {:?}", path));
-                                        std::io::copy(&mut entrypoint_binary, &mut entrypoint_file)
-                                            .expect("unable to copy entrypoint");
-                                        let mut perms: std::fs::Permissions = fs::metadata(&path).unwrap().permissions();
-                                        perms.set_mode(0o755);
-                                        entrypoint_file.set_permissions(perms)
-                                            .expect("could not set IOmod binary executable (octal 755) permissions");
-                                    }
-                                    process::Command::new(path).spawn().unwrap();
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    None => {
-                        process::Command::new(entry.path()).spawn().unwrap();
-                    }
-                }
-            }
-        }
-    }
 
     let (module, store) = wasm::deserialize_module_from_path::<GenericDockerAbi, Status>(
         "/opt/assemblylift", // TODO get from env

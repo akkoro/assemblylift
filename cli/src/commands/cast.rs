@@ -1,5 +1,4 @@
 use std::fs;
-use std::fs::copy;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process;
@@ -103,7 +102,8 @@ pub fn command(matches: Option<&ArgMatches>) {
                     fs::write(&dependency_path, &*bytes).expect("could not write iomod package");
                     dependencies.push(dependency_path);
                 }
-                _ => unimplemented!("invalid dependency type (supported: [file, registry])"),
+                Some("container") => {},
+                _ => unimplemented!("invalid dependency type (supported: [container, file, registry])"),
             }
         }
 
