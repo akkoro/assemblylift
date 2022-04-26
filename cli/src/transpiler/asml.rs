@@ -69,10 +69,12 @@ impl Context {
                 });
             }
 
-            for (id, _iomod) in iomods.as_ref() {
+            for (id, iomod) in iomods.as_ref() {
                 ctx_iomods.push(Iomod {
                     name: id.clone(),
                     service_name: service.name.clone(),
+                    coordinates: iomod.coordinates.clone(),
+                    version: iomod.version.clone(),
                 });
             }
 
@@ -125,6 +127,13 @@ impl Context {
             iomods: ctx_iomods,
         })
     }
+
+    pub fn service(&self, name: String) -> Option<&Service> {
+        match self.services.binary_search_by(|s| s.name.cmp(&name)) {
+            Ok(idx) => Some(self.services.get(idx).unwrap()),
+            Err(_) => None,
+        }
+    }
 }
 
 pub struct Project {
@@ -142,6 +151,12 @@ pub struct Service {
     pub name: String,
     pub provider: Rc<Provider>,
     pub project_name: String,
+}
+
+impl Service {
+    pub fn option(&self, name: &str) -> Option<&String> {
+        self.provider.options.get(name)
+    }
 }
 
 pub struct Provider {
@@ -183,4 +198,6 @@ pub struct AuthorizerJwt {
 pub struct Iomod {
     pub name: String,
     pub service_name: String,
+    pub coordinates: String,
+    pub version: String,
 }
