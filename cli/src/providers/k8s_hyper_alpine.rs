@@ -82,6 +82,16 @@ impl Provider for ServiceProvider {
                     .unwrap_or(&"us-east-1".to_string())
                     .clone(),
             },
+            kube_config_path: self
+                .options
+                .get("kube_config_path")
+                .unwrap_or(&"~/.kube/config".to_string())
+                .clone(),
+            docker_config_path: self
+                .options
+                .get("docker_config_path")
+                .unwrap_or(&"~/.docker/config.json".to_string())
+                .clone(),
         };
         let data = to_json(data);
 
@@ -234,6 +244,8 @@ impl Provider for FunctionProvider {
 pub struct ServiceData {
     pub service_name: String,
     pub container_registry: ContainerRegistryData,
+    pub kube_config_path: String,
+    pub docker_config_path: String,
 }
 
 #[derive(Serialize)]
@@ -281,14 +293,14 @@ static SERVICE_TEMPLATE: &str = r#"locals {
 
 provider kubernetes {
     alias       = "{{service_name}}"
-    config_path = pathexpand("~/.kube/config")
+    config_path = pathexpand("{{kube_config_path}}")
 }
 
 provider docker {
     alias = "{{service_name}}"
     registry_auth {
         address     = "registry-1.docker.io"
-        config_file = pathexpand("~/.docker/config.json")
+        config_file = pathexpand("{{docker_config_path}}")
     }
     registry_auth {
         address  = local.ecr_address

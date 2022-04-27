@@ -20,10 +20,10 @@ pub static SERVICE_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
         String::from("aws-lambda"),
         Mutex::new(Box::new(aws_lambda::ServiceProvider)),
     );
-    map.insert(
-        String::from("aws-lambda-alpine"),
-        Mutex::new(Box::new(aws_lambda_alpine::ServiceProvider::new())),
-    );
+    // map.insert(
+    //     String::from("aws-lambda-alpine"),
+    //     Mutex::new(Box::new(aws_lambda_alpine::ServiceProvider::new())),
+    // );
     map.insert(
         String::from("k8s-hyper-alpine"),
         Mutex::new(Box::new(k8s_hyper_alpine::ServiceProvider::new())),
@@ -36,10 +36,10 @@ pub static FUNCTION_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
         String::from("aws-lambda"),
         Mutex::new(Box::new(aws_lambda::FunctionProvider)),
     );
-    map.insert(
-        String::from("aws-lambda-alpine"),
-        Mutex::new(Box::new(aws_lambda_alpine::FunctionProvider::new())),
-    );
+    // map.insert(
+    //     String::from("aws-lambda-alpine"),
+    //     Mutex::new(Box::new(aws_lambda_alpine::FunctionProvider::new())),
+    // );
     map.insert(
         String::from("k8s-hyper-alpine"),
         Mutex::new(Box::new(k8s_hyper_alpine::FunctionProvider::new())),

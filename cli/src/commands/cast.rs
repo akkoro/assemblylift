@@ -139,26 +139,23 @@ pub fn command(matches: Option<&ArgMatches>) {
             ));
 
             let mode = "release";
-            let target = match function.enable_wasi {
-                true => "wasm32-wasi",
-                false => "wasm32-unknown-unknown",
-            };
+            let target = "wasm32-wasi";
 
-            let mut cargo_build = process::Command::new("cargo")
+            println!("Compiling function {}...", function_name.clone());
+            let cargo_build = process::Command::new("cargo")
                 .arg("build")
                 .arg(format!("--{}", mode))
                 .arg("--manifest-path")
                 .arg(function_path)
                 .arg("--target")
                 .arg(target)
-                .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit())
-                .spawn()
+                .output()
                 .unwrap();
 
-            match cargo_build.wait() {
-                Ok(_) => {}
-                Err(_) => {}
+            let build_log = std::str::from_utf8(&cargo_build.stderr).unwrap();
+            std::io::stderr().write_all(&cargo_build.stderr).unwrap();
+            if build_log.contains("error") {
+                std::process::exit(-1);
             }
 
             // FIXME this should use the binary name in Cargo.toml if present
