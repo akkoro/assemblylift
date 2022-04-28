@@ -53,6 +53,7 @@ async fn launch(
     status_tx: StatusTx,
     status_rx: StatusRx,
 ) -> Result<Response<Body>, Infallible> {
+    debug!("launching function...");
     let method = req.method().to_string();
     let mut headers = BTreeMap::new();
     for h in req.headers().iter() {
@@ -69,12 +70,13 @@ async fn launch(
         input: serde_json::to_vec(&launcher_req).unwrap(),
         status_sender: status_tx.clone(),
     };
-    tokio::spawn(async move {
-        if let Err(e) = runner_tx.send(msg).await {
-            error!("could not send to runner: {}", e.to_string())
-        }
-    });
 
+    debug!("sending runner request...");
+    if let Err(e) = runner_tx.send(msg).await {
+        error!("could not send to runner: {}", e.to_string())
+    }
+
+    debug!("waiting for runner response...");
     while let Ok(result) = status_rx.recv() {
         debug!("launcher received status response from runner: {:?}", result);
         return Ok(match result {

@@ -46,8 +46,7 @@ impl Runner {
                     module.clone(),
                     module.name().unwrap_or("handler"),
                     store.clone(),
-                )
-                    .expect("could not assemble module environment");
+                ).expect("could not assemble module environment");
 
                 mt.1.host_input_buffer
                     .clone()
