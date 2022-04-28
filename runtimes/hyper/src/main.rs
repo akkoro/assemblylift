@@ -17,8 +17,10 @@ mod abi;
 mod runner;
 mod launcher;
 
-pub type StatusTx = mpsc::Sender<Status>;
-pub type StatusRx = mpsc::Receiver<Status>;
+// pub type StatusTx = mpsc::Sender<Status>;
+// pub type StatusRx = mpsc::Receiver<Status>;
+pub type StatusTx = crossbeam_channel::Sender<Status>;
+pub type StatusRx = crossbeam_channel::Receiver<Status>;
 pub type StatusChannel = (StatusTx, StatusRx);
 
 #[derive(Debug, Clone)]

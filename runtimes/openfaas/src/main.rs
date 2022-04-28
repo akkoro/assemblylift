@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use clap::crate_version;
+use crossbeam_channel::bounded;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 use tokio::sync::mpsc;
@@ -17,8 +18,8 @@ use crate::Status::{Failure, Success};
 mod abi;
 mod runner;
 
-pub type StatusTx = mpsc::Sender<Status>;
-pub type StatusRx = mpsc::Receiver<Status>;
+pub type StatusTx = crossbeam_channel::Sender<Status>;
+pub type StatusRx = crossbeam_channel::Receiver<Status>;
 
 #[derive(Clone)]
 pub enum Status {
@@ -29,7 +30,7 @@ pub enum Status {
 async fn launcher(
     req: Request<Body>,
     runner_tx: RunnerTx,
-    mut status_rx: StatusRx,
+    status_rx: StatusRx,
 ) -> Result<Response<Body>, Infallible> {
     let input_bytes = hyper::body::to_bytes(req.into_body()).await.unwrap();
 
@@ -42,7 +43,7 @@ async fn launcher(
         }
     });
 
-    if let Some(result) = status_rx.recv().await {
+    if let Ok(result) = status_rx.recv() {
         return Ok(match result {
             Success(_) => Response::builder()
                 .status(200)
@@ -72,7 +73,7 @@ async fn main() {
 
     let make_svc = make_service_fn(|_conn| async {
         let (runner_tx, runner_rx) = mpsc::channel(32);
-        let (status_tx, status_rx) = mpsc::channel::<Status>(32);
+        let (status_tx, status_rx) = bounded::<Status>(32);
         let (registry_tx, registry_rx) = mpsc::channel(32);
         registry::spawn_registry(registry_rx).unwrap();
 

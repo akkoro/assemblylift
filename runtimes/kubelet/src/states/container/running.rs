@@ -1,9 +1,11 @@
-use super::terminated::Terminated;
-use super::ContainerState;
-use crate::ProviderState;
+use crossbeam_channel::Receiver;
 use kubelet::container::state::prelude::*;
-use tokio::sync::mpsc::Receiver;
 use tracing::{debug, instrument, warn};
+
+use crate::ProviderState;
+
+use super::ContainerState;
+use super::terminated::Terminated;
 
 /// The container is starting.
 #[derive(Debug, TransitionTo)]
@@ -28,7 +30,7 @@ impl State<ContainerState> for Running {
         _container: Manifest<Container>,
     ) -> Transition<ContainerState> {
         debug!("Awaiting container status updates");
-        while let Some(status) = self.rx.recv().await {
+        while let Ok(status) = self.rx.recv() {
             debug!(?status, "Got status update from WASI Runtime");
             if let Status::Terminated {
                 failed, message, ..

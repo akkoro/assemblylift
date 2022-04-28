@@ -8,6 +8,7 @@ use std::process;
 use std::sync::{Arc, Mutex};
 
 use clap::crate_version;
+use crossbeam_channel::bounded;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
 use zip;
@@ -108,7 +109,7 @@ async fn main() {
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
 
-    let (status_sender, _status_receiver) = mpsc::channel::<()>(1);
+    let (status_sender, _status_receiver) = bounded::<()>(1);
 
     let task_set = tokio::task::LocalSet::new();
     task_set

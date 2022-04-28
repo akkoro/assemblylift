@@ -13,9 +13,6 @@ use kubelet::container::Handle as ContainerHandle;
 use kubelet::container::Status;
 use kubelet::handle::StopHandler;
 use tempfile::NamedTempFile;
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::error::SendError;
-use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
@@ -27,7 +24,7 @@ use assemblylift_core_iomod::registry::RegistryTx;
 
 use crate::abi::KubeletAbi;
 
-pub type HandleResult = Result<(), SendError<Status>>;
+pub type HandleResult = Result<(), crossbeam_channel::SendError<Status>>;
 
 /// Holds our tempfile handle.
 pub struct HandleFactory {
@@ -61,7 +58,7 @@ impl Runtime {
         args: Vec<String>,
         dirs: HashMap<PathBuf, Option<PathBuf>>,
         log_dir: L,
-        status_sender: Sender<Status>,
+        status_sender: crossbeam_channel::Sender<Status>,
     ) -> anyhow::Result<Self> {
         let temp_file = tokio::task::spawn_blocking(move || -> anyhow::Result<NamedTempFile> {
             Ok(NamedTempFile::new_in(log_dir)?)
@@ -94,20 +91,20 @@ impl Runtime {
             let start = instance.exports.get_function("_start").unwrap();
 
             let status_sender = env.status_sender;
-            status_sender.blocking_send(Status::Running {
+            status_sender.send(Status::Running {
                 timestamp: chrono::Utc::now(),
             });
 
             match start.call(&[]) {
                 Ok(_) => {
-                    status_sender.blocking_send(Status::Terminated {
+                    status_sender.send(Status::Terminated {
                         timestamp: chrono::Utc::now(),
                         message: "WASM exited successfully".to_string(),
                         failed: false,
                     })
                 }
                 Err(error) => {
-                    status_sender.blocking_send(Status::Terminated {
+                    status_sender.send(Status::Terminated {
                         timestamp: chrono::Utc::now(),
                         message: error.message(),
                         failed: true,

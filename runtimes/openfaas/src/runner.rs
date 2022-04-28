@@ -37,8 +37,8 @@ pub fn spawn_runner(tx: StatusTx, mut rx: RunnerRx, module: Arc<Module>, resolve
                 tokio::task::spawn_local(async move {
                     let start = instance.exports.get_function("_start").unwrap();
                     match start.call(&[]) {
-                        Ok(_) => tx.send(Status::Success("".to_string())).await,
-                        Err(_) => tx.send(Status::Failure("WASM module exited in error".to_string())).await,
+                        Ok(_) => tx.send(Status::Success("".to_string())),
+                        Err(_) => tx.send(Status::Failure("WASM module exited in error".to_string())),
                     }
                 });
             }

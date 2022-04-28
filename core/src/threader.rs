@@ -29,14 +29,14 @@ where
     pub get_function_input_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
     #[wasmer(export(name = "__asml_guest_get_io_buffer_pointer"))]
     pub get_io_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
-    pub status_sender: mpsc::Sender<S>,
+    pub status_sender: crossbeam_channel::Sender<S>,
 }
 
 impl<S> ThreaderEnv<S>
 where
     S: Clone + Send + Sized + 'static,
 {
-    pub fn new(tx: RegistryTx, status_sender: mpsc::Sender<S>) -> Self {
+    pub fn new(tx: RegistryTx, status_sender: crossbeam_channel::Sender<S>) -> Self {
         ThreaderEnv {
             threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx)))),
             memory: Default::default(),

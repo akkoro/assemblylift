@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use tokio::sync::mpsc;
 use wasmer::{
     imports, ChainableNamedResolver, Cranelift, Function, ImportObject, Instance,
     InstantiationError, Module, NamedResolverChain, Store, Universal,
@@ -52,7 +51,7 @@ where
 
 pub fn build_module<R, S>(
     registry_tx: RegistryTx,
-    status_sender: mpsc::Sender<S>,
+    status_sender: crossbeam_channel::Sender<S>,
     module: Arc<Module>,
     module_name: &str,
     store: Arc<Store>,

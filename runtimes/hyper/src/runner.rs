@@ -67,14 +67,12 @@ impl Runner {
                         Ok(_) => {
                             msg.status_sender
                                 .send(Status::Exited(0))
-                                .await
                         }
                         Err(_) => {
                             msg.status_sender
                                 .send(Status::Failure(
                                     "WASM module exited in error".to_string(),
                                 ))
-                                .await
                         }
                     }
                 });

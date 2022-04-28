@@ -24,7 +24,7 @@ impl RuntimeAbi<Status> for GenericDockerAbi {
         let s = ptr_to_string(env, ptr, len).unwrap();
         let tx = env.status_sender.clone();
         std::thread::spawn(move || {
-            if let Err(e) = tx.blocking_send(Status::Success(s)) {
+            if let Err(e) = tx.send(Status::Success(s)) {
                 error!("could not send status: {:?}", e.to_string())
             }
         });
