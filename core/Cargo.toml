@@ -1,6 +1,6 @@
 [package]
 name = "assemblylift-core"
-version = "0.4.0-alpha.0"
+version = "0.4.0-alpha.1"
 description = "AssemblyLift core library"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
@@ -10,6 +10,7 @@ readme = "README.md"
 
 [dependencies]
 anyhow = "1.0"
+crossbeam-channel = "0.5"
 once_cell = "1.4"
 tokio = "1.4"
 z85 = "3"

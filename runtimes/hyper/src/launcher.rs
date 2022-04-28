@@ -2,10 +2,10 @@ use std::collections::BTreeMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
 
+use crossbeam_channel::bounded;
 use hyper::{Body, Request, Response, Server};
 use hyper::service::{make_service_fn, service_fn};
-use serde::{Serialize, Deserialize};
-use tokio::sync::mpsc;
+use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
 
 use crate::{Failure, RunnerMessage, RunnerTx, StatusRx, StatusTx, Success};
@@ -27,13 +27,13 @@ impl Launcher {
         tokio::task::LocalSet::new().block_on(&self.runtime, async {
             let make_svc = make_service_fn(|_| {
                 debug!("called make_service_fn");
-                let channel = mpsc::channel(32);
+                let channel = bounded(32);
                 let runner_tx = runner_tx.clone();
                 let tx = channel.0.clone();
-                let mut rx = Some(channel.1);
+                let rx = channel.1.clone();
                 async {
                     Ok::<_, Infallible>(service_fn(move |req| {
-                        launch(req, runner_tx.clone(), tx.clone(), rx.take().unwrap())
+                        launch(req, runner_tx.clone(), tx.clone(), rx.clone())
                     }))
                 }
             });
@@ -41,7 +41,7 @@ impl Launcher {
             let addr = SocketAddr::from(([0, 0, 0, 0], 5543));
             info!("Serving from {}", addr.to_string());
             if let Err(e) = Server::bind(&addr).serve(make_svc).await {
-                eprintln!("server error: {}", e);
+                error!("server error: {}", e);
             }
         });
     }
@@ -51,7 +51,7 @@ async fn launch(
     req: Request<Body>,
     runner_tx: RunnerTx,
     status_tx: StatusTx,
-    mut status_rx: StatusRx,
+    status_rx: StatusRx,
 ) -> Result<Response<Body>, Infallible> {
     let method = req.method().to_string();
     let mut headers = BTreeMap::new();
@@ -75,7 +75,7 @@ async fn launch(
         }
     });
 
-    while let Some(result) = status_rx.recv().await {
+    while let Ok(result) = status_rx.recv() {
         debug!("launcher received status response from runner: {:?}", result);
         return Ok(match result {
             Exited(_status) => continue, // TODO start timeout to default response
