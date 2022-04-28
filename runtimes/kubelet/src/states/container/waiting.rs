@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use crossbeam_channel::bounded;
 
 use tokio::sync::mpsc;
 use tracing::{debug, info, instrument};
@@ -157,7 +158,7 @@ impl State<ContainerState> for Waiting {
         let args: Vec<String> = container.args().map(|t| t.to_owned()).unwrap_or_default();
 
         // TODO: ~magic~ number
-        let (tx, rx) = mpsc::channel(8);
+        let (tx, rx) = bounded(8);
 
         let name = format!(
             "{}:{}:{}",

@@ -87,12 +87,13 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-awslambda-host"
-version = "0.4.0-alpha.0"
+version = "0.4.0-alpha.1"
 dependencies = [
  "assemblylift-core",
  "assemblylift-core-io-common 0.3.0",
  "assemblylift-core-iomod",
  "clap 3.1.12",
+ "crossbeam-channel",
  "once_cell",
  "reqwest",
  "tokio 1.17.0",
@@ -279,6 +280,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "clap 3.1.12",
+ "crossbeam-channel",
  "futures",
  "k8s-openapi",
  "krator",
@@ -302,6 +304,7 @@ dependencies = [
  "assemblylift-core",
  "assemblylift-core-iomod",
  "clap 3.1.12",
+ "crossbeam-channel",
  "hyper",
  "tokio 1.17.0",
  "wasmer",
