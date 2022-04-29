@@ -1,12 +1,15 @@
+use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use clap::crate_version;
-use handlebars::{to_json, Handlebars};
+use handlebars::{Handlebars, to_json};
 use serde::Serialize;
 
+use crate::glooctl::GlooCtl;
 use crate::providers::{Options, Provider, ProviderArtifact, ProviderError};
-use crate::transpiler::{asml, Artifact};
+use crate::transpiler::{Artifact, asml};
 
 pub struct ServiceProvider {
     options: Arc<Options>,
@@ -26,6 +29,16 @@ impl Provider for ServiceProvider {
     }
 
     fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
+        println!("DEBUG calling init on k8s runtime provider");
+
+        let gloo = GlooCtl::default();
+        for us in gloo.get_upstreams().as_array().unwrap().iter() {
+            let metadata = us.get("metadata").unwrap();
+            println!("Name = {}", metadata.get("name").unwrap());
+        }
+
+        println!("{:?}", gloo.add_route("/hello", "asml-k8s-test-my-service-asml-my-service-my-function-5543").unwrap());
+
         Ok(())
     }
 

@@ -1,11 +1,12 @@
 extern crate serde_json;
 
-use clap::{crate_version, App, AppSettings, Arg};
+use clap::{App, AppSettings, Arg, crate_version};
 
 use crate::commands::{bind, burn, cast, init, make, pack, push, user};
 
 mod archive;
 mod commands;
+mod glooctl;
 mod projectfs;
 mod providers;
 mod templates;
