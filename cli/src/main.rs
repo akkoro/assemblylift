@@ -6,11 +6,11 @@ use crate::commands::{bind, burn, cast, init, make, pack, push, user};
 
 mod archive;
 mod commands;
-mod glooctl;
 mod projectfs;
 mod providers;
 mod templates;
 mod terraform;
+mod tools;
 mod transpiler;
 
 fn main() {

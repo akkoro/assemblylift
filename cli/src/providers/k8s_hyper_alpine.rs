@@ -7,8 +7,9 @@ use clap::crate_version;
 use handlebars::{Handlebars, to_json};
 use serde::Serialize;
 
-use crate::glooctl::GlooCtl;
 use crate::providers::{Options, Provider, ProviderArtifact, ProviderError};
+use crate::tools::glooctl::GlooCtl;
+use crate::tools::kubectl::KubeCtl;
 use crate::transpiler::{Artifact, asml};
 
 pub struct ServiceProvider {
@@ -31,13 +32,12 @@ impl Provider for ServiceProvider {
     fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
         println!("DEBUG calling init on k8s runtime provider");
 
-        let gloo = GlooCtl::default();
-        for us in gloo.get_upstreams().as_array().unwrap().iter() {
-            let metadata = us.get("metadata").unwrap();
-            println!("Name = {}", metadata.get("name").unwrap());
-        }
-
-        println!("{:?}", gloo.add_route("/hello", "asml-k8s-test-my-service-asml-my-service-my-function-5543").unwrap());
+        // let kube = KubeCtl::default();
+        // kube.apply(r#"
+        // "#).unwrap();
+        GlooCtl::default()
+            .remove_route("/my-service/my-function", vec!["k8s-test", "my-service", "my-function"])
+            .unwrap();
 
         Ok(())
     }
