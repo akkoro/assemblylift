@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use wasmer::{
-    imports, ChainableNamedResolver, Cranelift, Function, ImportObject, Instance,
+    ChainableNamedResolver, Cranelift, Function, ImportObject, imports, Instance,
     InstantiationError, Module, NamedResolverChain, Store, Universal,
 };
 use wasmer_wasi::WasiState;
@@ -63,6 +63,13 @@ where
     let env = ThreaderEnv::new(registry_tx, status_sender);
 
     let mut wasi_env = WasiState::new(module_name.clone())
+        .arg("/src/handler.rb")
+        .env("RUBY_PLATFORM", "wasm32-wasi")
+        // .preopen_dir("/src")
+        .map_dir("/src", "./ruby-wasm32-wasi/src")
+        .expect("could not preopen `src` directory")
+        .map_dir("/usr", "./ruby-wasm32-wasi/usr")
+        .expect("could not map ruby fs")
         .finalize()
         .expect("could not init WASI env");
     let wasi_imports = wasi_env
