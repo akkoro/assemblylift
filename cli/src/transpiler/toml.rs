@@ -4,6 +4,7 @@ pub mod asml {
     use std::rc::Rc;
 
     use serde::Deserialize;
+
     use crate::transpiler::StringMap;
 
     #[derive(Deserialize)]
@@ -54,9 +55,11 @@ pub mod service {
     use std::path::PathBuf;
     use std::rc::Rc;
     use std::sync::Arc;
+
     use serde::Deserialize;
+
     use crate::transpiler::StringMap;
-    
+
     #[derive(Deserialize)]
     pub struct Manifest {
         service: Rc<Service>,
@@ -162,7 +165,7 @@ pub mod service {
         pub name: String,
         #[serde(default)]
         pub provider: Rc<Provider>,
-        pub handler_name: Option<String>,
+        pub language: Option<String>,
 
         pub http: Rc<Option<HttpFunction>>,
         pub authorizer_id: Option<String>,
