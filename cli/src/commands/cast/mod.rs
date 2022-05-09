@@ -78,6 +78,8 @@ pub fn command(matches: Option<&ArgMatches>) {
         let service_name = service_manifest.service().name.clone();
 
         {
+            // TODO copy ruby env if language==ruby for any function
+
             let iomod_path = format!("{}/net/services/{}/iomods", project_path, service_name);
             let _ = fs::remove_dir_all(iomod_path.clone()); // we don't care about this result
             fs::create_dir_all(iomod_path.clone()).expect("could not create iomod directory");
@@ -179,13 +181,10 @@ pub fn command(matches: Option<&ArgMatches>) {
                     file_path
                 }
 
-                true => {
-                    wasm_path.to_str().unwrap().to_string()
-                }
+                true => wasm_path.to_str().unwrap().to_string()
             };
 
             // TODO not needed w/ container functions
-            // TODO copy ruby env if language==ruby
             archive::zip_files(
                 vec![module_file_path],
                 format!("{}/{}.zip", function_artifact_path.clone(), &function_name),

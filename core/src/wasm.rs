@@ -22,7 +22,7 @@ where
     R: RuntimeAbi<S> + 'static,
     S: Clone + Send + Sized + 'static,
 {
-    let file_path = format!("{}/{}.wasm.bin", module_path, module_name);
+    let file_path = format!("{}/{}", module_path, module_name);
 
     let compiler = Cranelift::default();
     let store = Store::new(&Universal::new(compiler).engine());
