@@ -1,9 +1,8 @@
-use std::io::prelude::*;
-
+use std::fmt;
 use std::fs;
 use std::io;
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
-use std::fmt;
 
 use zip;
 use zip::write::FileOptions;
@@ -113,4 +112,13 @@ pub fn unzip_terraform(bytes_in: Vec<u8>, out_dir: &str) -> Result<(), ArchiveEr
         Ok(_) => Ok(()),
         Err(why) => Err(ArchiveError::new(why.to_string())),
     }
+}
+
+pub fn unzip(bytes_in: &[u8], out_dir: &str) -> Result<(), ArchiveError> {
+    println!("Unzipping archive in {}...", out_dir);
+    let reader = std::io::Cursor::new(bytes_in);
+    let mut archive = zip::ZipArchive::new(reader).unwrap();
+    archive.extract(out_dir).unwrap();
+    println!("...done!");
+    Ok(())
 }

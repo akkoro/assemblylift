@@ -44,8 +44,8 @@ fn main() {
     registry::spawn_registry(registry_rx).unwrap();
 
     let (module, store) = wasm::deserialize_module_from_path::<GenericDockerAbi, Status>(
-        "/opt/assemblylift", // TODO get from env
-        "handler",           // TODO get from env
+        "/opt/assemblylift",
+        &std::env::var("ASML_WASM_MODULE_NAME").unwrap_or("handler.wasm.bin".into()),
     ).expect("could not deserialize WASM module");
 
     crossbeam_utils::thread::scope(|s| {

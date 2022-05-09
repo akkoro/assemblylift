@@ -1,11 +1,11 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
-use handlebars::{to_json, Handlebars};
+use handlebars::{Handlebars, to_json};
 use serde::Serialize;
 
-use crate::transpiler::{asml, Artifact};
-use crate::providers::{render_string_list, Options, Provider, ProviderArtifact, ProviderError};
+use crate::providers::{Options, Provider, ProviderArtifact, ProviderError, render_string_list};
+use crate::transpiler::{Artifact, asml};
 
 pub struct ServiceProvider;
 
@@ -146,7 +146,6 @@ impl Provider for FunctionProvider {
 
                 let data = FunctionData {
                     name: function.name.clone(),
-                    handler_name: function.handler_name.clone(),
                     service: service.clone(),
                     runtime_layer: format!("aws_lambda_layer_version.asml_{}_runtime.arn", service.clone()),
                     service_layer: match iomod_names.len() {
@@ -201,7 +200,6 @@ pub struct ServiceData {
 #[derive(Serialize)]
 pub struct FunctionData {
     pub name: String,
-    pub handler_name: String,
     pub service: String,
     pub runtime_layer: String,
     pub service_layer: Option<String>,
@@ -300,7 +298,7 @@ r#"resource "aws_lambda_function" "asml_{{service}}_{{name}}" {
     function_name = "asml-{{project_name}}-{{service}}-{{name}}"
     role          = aws_iam_role.{{service}}_{{name}}_lambda_iam_role.arn
     runtime       = "provided"
-    handler       = "{{name}}.{{handler_name}}"
+    handler       = "{{name}}.wasi._start"
     filename      = "${local.project_path}/net/services/{{service}}/{{name}}/{{name}}.zip"
     timeout       = {{timeout}}
     memory_size   = {{size}}
