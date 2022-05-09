@@ -66,9 +66,9 @@ where
         "ruby" => WasiState::new(module_name.clone())
             .arg("/src/handler.rb")
             .env("RUBY_PLATFORM", "wasm32-wasi")
-            .map_dir("/src", "./ruby-wasm32-wasi/src")
+            .map_dir("/src", "/usr/bin/ruby-wasm32-wasi/src")
             .expect("could not preopen `src` directory")
-            .map_dir("/usr", "./ruby-wasm32-wasi/usr")
+            .map_dir("/usr", "/usr/bin/ruby-wasm32-wasi/usr")
             .expect("could not map ruby fs")
             .finalize()
             .expect("could not init WASI env"),
