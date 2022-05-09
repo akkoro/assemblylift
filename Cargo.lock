@@ -104,7 +104,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-cli"
-version = "0.4.0-alpha.1"
+version = "0.4.0-alpha.2"
 dependencies = [
  "asml-iomod-registry-common",
  "assemblylift-core-iomod",
@@ -123,12 +123,12 @@ dependencies = [
  "wasmer-compiler-cranelift",
  "wasmer-engine-universal",
  "z85",
- "zip 0.5.13",
+ "zip 0.6.2",
 ]
 
 [[package]]
 name = "assemblylift-core"
-version = "0.4.0-alpha.1"
+version = "0.4.0-alpha.2"
 dependencies = [
  "anyhow",
  "assemblylift-core-io-common 0.3.0",
@@ -237,7 +237,7 @@ version = "0.4.0-alpha.0"
 
 [[package]]
 name = "assemblylift-hyper-runtime"
-version = "0.4.0-alpha.1"
+version = "0.4.0-alpha.2"
 dependencies = [
  "anyhow",
  "assemblylift-core",

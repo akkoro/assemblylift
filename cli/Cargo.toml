@@ -1,6 +1,6 @@
 [package]
 name = "assemblylift-cli"
-version = "0.4.0-alpha.1"
+version = "0.4.0-alpha.2"
 description = "AssemblyLift command line interface"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
@@ -24,7 +24,7 @@ serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 toml = "0.5"
 walkdir = "2.3"
-zip = "0.5"
+zip = "0.6"
 
 wasmer = "2.1.1"
 wasmer-compiler = "2.1.1"
