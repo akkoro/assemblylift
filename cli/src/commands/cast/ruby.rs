@@ -21,13 +21,26 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
     let function_dir = project
         .service_dir(service_name.into())
         .function_dir(function_name);
-    // TODO recursively copy .rb files
-    for entry in std::fs::read_dir(function_dir.clone()).unwrap() {
-        let entry = entry.unwrap();
-        if entry.path() != function_dir.clone() {
-            std::fs::copy(entry.path(), format!("{}/{}", rubysrc_path.clone(), entry.file_name().to_str().unwrap())).unwrap();
+
+    fn copy_entries(dir: &PathBuf, to: &PathBuf) {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let entry = entry.unwrap();
+            if entry.file_type().unwrap().is_file() {
+                let copy_to = format!(
+                    "{}/{}",
+                    to.to_str().unwrap(),
+                    entry.file_name().to_str().unwrap()
+                );
+                std::fs::copy(entry.path(), copy_to).unwrap();
+            } else if entry.file_type().unwrap().is_dir() {
+                let mut copy_to = PathBuf::from(to);
+                copy_to.push(entry.path().iter().last().unwrap());
+                std::fs::create_dir(&copy_to).unwrap();
+                copy_entries(&entry.path(), &copy_to);
+            }
         }
     }
+    copy_entries(&function_dir, &PathBuf::from(rubysrc_path));
 
     if !Path::new(&format!("{}/ruby-wasm32-wasi", function_artifact_path)).exists() {
         let mut zip = Vec::new();

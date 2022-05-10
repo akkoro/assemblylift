@@ -163,8 +163,10 @@ pub fn command(matches: Option<&ArgMatches>) {
                     println!("Precompiling WASM to {}...", file_path.clone());
                     let compiler = Cranelift::default();
                     let triple = Triple::from_str("x86_64-unknown-unknown").unwrap();
+                    let mut cpuid = CpuFeature::set();
+                    cpuid.insert(CpuFeature::SSE2); // required for x86
                     let store = Store::new(&/*Native*/Universal::new(compiler)
-                        .target(Target::new(triple, CpuFeature::set()))
+                        .target(Target::new(triple, cpuid))
                         .engine()
                     );
 
