@@ -6,9 +6,10 @@ use crate::templates::Document;
 
 static ROOT_GITIGNORE: &str = r#".asml/
 .terraform/
+.DS_Store
 net/
 **/target/
-.DS_Store
+**/build/
 "#;
 
 static ASSEMBLYLIFT_TOML: &str = r#"[project]
@@ -34,7 +35,6 @@ name = "{{service_name}}"
 
 [api.functions.my-function]
 name = "my-function"
-enable_wasi = true
 "#;
 
 pub static SERVICE_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
@@ -53,8 +53,8 @@ edition = "2021"
 direct-executor = "0.3.0"
 serde = "1"
 serde_json = "1"
-asml_core = { version = "0.4.0-alpha.0", package = "assemblylift-core-guest" }
-assemblylift_core_io_guest = { version = "0.4.0-alpha.0", package = "assemblylift-core-io-guest" }
+asml_core = { version = "0.4.0-alpha", package = "assemblylift-core-guest" }
+assemblylift_core_io_guest = { version = "0.4.0-alpha", package = "assemblylift-core-io-guest" }
 z85 = "3"
 "#;
 
@@ -85,8 +85,8 @@ pub static RUST_FUNCTION_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc:
         file_name: "src/main.rs",
         document: String::from(FUNCTION_MAIN_RS),
     },
-    Document {
-        file_name: ".gitignore",
-        document: String::from(FUNCTION_GITIGNORE),
-    },
+    // Document {
+    //     file_name: ".gitignore",
+    //     document: String::from(FUNCTION_GITIGNORE),
+    // },
 ])));

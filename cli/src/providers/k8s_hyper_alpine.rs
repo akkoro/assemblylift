@@ -147,7 +147,6 @@ impl Provider for FunctionProvider {
         match ctx.functions.iter().find(|&f| *f.name == name.clone()) {
             Some(function) => {
                 let service = function.service_name.clone();
-                let language = function.language.clone();
                 let registry_type = self
                     .options
                     .get("registry_type")

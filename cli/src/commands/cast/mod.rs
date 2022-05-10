@@ -86,6 +86,7 @@ pub fn command(matches: Option<&ArgMatches>) {
 
             // FIXME some dependency types are not supported by some providers
             // TODO maybe dependency types should be transparent? and orchestrated at the provider level instead of here
+            // TODO   |-> terraform can zip directories
             let iomods = service_manifest.iomods().clone();
             let mut dependencies: Vec<String> = Vec::new();
             for (id, dependency) in iomods.as_ref() {
@@ -161,7 +162,9 @@ pub fn command(matches: Option<&ArgMatches>) {
                     let file_path = format!("{}.bin", wasm_path.to_str().unwrap());
                     println!("Precompiling WASM to {}...", file_path.clone());
                     let compiler = Cranelift::default();
+                    let triple = Triple::from_str("x86_64-unknown-unknown").unwrap();
                     let store = Store::new(&/*Native*/Universal::new(compiler)
+                        .target(Target::new(triple, CpuFeature::set()))
                         .engine()
                     );
 

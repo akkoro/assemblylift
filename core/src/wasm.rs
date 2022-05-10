@@ -63,6 +63,7 @@ where
     let threader_env = ThreaderEnv::new(registry_tx, status_sender);
     let function_env = std::env::var("ASML_FUNCTION_ENV").unwrap_or("default".into());
     let mut wasi_env = match function_env.as_str() {
+        // TODO ruby-docker ruby-lambda
         "ruby" => WasiState::new(module_name.clone())
             .arg("/src/handler.rb")
             .env("RUBY_PLATFORM", "wasm32-wasi")
