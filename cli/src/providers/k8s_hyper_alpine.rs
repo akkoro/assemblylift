@@ -345,12 +345,19 @@ data archive_file {{service_name}}_{{function_name}}_iomods {
     output_path = "${path.module}/services/{{service_name}}/iomods.zip"
 }
 
+{{#if is_ruby}}data archive_file {{service_name}}_{{function_name}}_rubysrc {
+    type        = "zip"
+    source_dir  = "${path.module}/services/{{service_name}}/{{function_name}}/rubysrc"
+    output_path = "${path.module}/services/{{service_name}}/{{function_name}}/rubysrc.zip"
+}{{/if}}
+
 resource random_id {{service_name}}_{{function_name}}_image {
     byte_length = 8
     keepers = {
         dockerfile_hash = filebase64sha256("${path.module}/services/{{service_name}}/{{function_name}}/Dockerfile")
         wasm_hash       = filebase64sha256("${path.module}/services/{{service_name}}/{{function_name}}/{{handler_name}}")
         iomods_hash     = data.archive_file.{{service_name}}_{{function_name}}_iomods.output_sha
+        {{#if is_ruby}}rubysrc_hash    = data.archive_file.{{service_name}}_{{function_name}}_rubysrc.output_sha{{/if}}
     }
 }
 

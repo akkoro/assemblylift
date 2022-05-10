@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
+base64 = "0.13"
 clap = { version = "3.1", features = ["cargo"] }
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"

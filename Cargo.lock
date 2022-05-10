@@ -242,6 +242,7 @@ dependencies = [
  "anyhow",
  "assemblylift-core",
  "assemblylift-core-iomod",
+ "base64 0.13.0",
  "clap 3.1.15",
  "crossbeam-channel",
  "crossbeam-utils",
