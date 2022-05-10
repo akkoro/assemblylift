@@ -76,6 +76,18 @@ target/
 build/
 "#;
 
+static FUNCTION_HANDLER_RB: &str = r#"require 'asml'
+require 'base64'
+require 'json'
+
+def main(input)
+    # TODO implement your function code here!
+    Asml.success(input.to_s)
+end
+
+main(JSON.parse(Asml.get_function_input()))
+"#;
+
 pub static RUST_FUNCTION_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
     Document {
         file_name: "Cargo.toml",
@@ -89,4 +101,11 @@ pub static RUST_FUNCTION_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc:
     //     file_name: ".gitignore",
     //     document: String::from(FUNCTION_GITIGNORE),
     // },
+])));
+
+pub static RUBY_FUNCTION_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
+    Document {
+        file_name: "handler.rb",
+        document: String::from(FUNCTION_HANDLER_RB),
+    },
 ])));
