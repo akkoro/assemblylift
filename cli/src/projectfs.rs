@@ -94,36 +94,6 @@ impl Project {
         }
     }
 
-    pub fn init(
-        &self,
-        default_service_name: &str,
-        default_function_name: &str,
-    ) -> Result<(), io::Error> {
-        // FIXME this is specific to Rust
-        fs::create_dir_all(format!(
-            "{}/{}/{}/src",
-            self.service_path
-                .clone()
-                .into_os_string()
-                .into_string()
-                .unwrap(),
-            default_service_name,
-            default_function_name
-        ))?;
-        fs::create_dir_all(format!(
-            "{}/{}/{}/.cargo",
-            self.service_path
-                .clone()
-                .into_os_string()
-                .into_string()
-                .unwrap(),
-            default_service_name,
-            default_function_name
-        ))?;
-
-        Ok(())
-    }
-
     pub fn service_dir(&self, name: String) -> ServiceDir {
         let path = PathBuf::from(&*format!(
             "{}/{}",

@@ -4,9 +4,11 @@ use clap::ArgMatches;
 use handlebars::to_json;
 use serde_json::value::{Map, Value as Json};
 
-use crate::templates::write_documents;
-use crate::templates::project::{ROOT_DOCUMENTS, RUST_FUNCTION_DOCUMENTS, SERVICE_DOCUMENTS};
 use crate::projectfs::Project;
+use crate::templates::project::{
+    ROOT_DOCUMENTS, RUBY_FUNCTION_DOCUMENTS, RUST_FUNCTION_DOCUMENTS, SERVICE_DOCUMENTS,
+};
+use crate::templates::write_documents;
 use crate::terraform;
 
 pub fn command(matches: Option<&ArgMatches>) {
@@ -18,11 +20,9 @@ pub fn command(matches: Option<&ArgMatches>) {
     let default_service_name = "my-service";
     let default_function_name = "my-function";
     let project_name = matches.value_of("project_name").unwrap();
+    let function_language = matches.value_of("language").unwrap();
 
     let project = Project::new(project_name.parse().unwrap(), None);
-    project
-        .init(default_service_name, default_function_name)
-        .unwrap();
 
     terraform::fetch(&*project.dir());
 
@@ -45,6 +45,10 @@ pub fn command(matches: Option<&ArgMatches>) {
             "service_name".to_string(),
             to_json(default_service_name.to_string()),
         );
+        data.insert(
+            "function_language".to_string(),
+            to_json(function_language.to_string()),
+        );
         write_documents(
             &project
                 .service_dir(String::from(default_service_name))
@@ -54,9 +58,19 @@ pub fn command(matches: Option<&ArgMatches>) {
         );
     }
 
-    match matches.value_of("language") {
-        Some("rust") => {
+    match function_language {
+        "rust" => {
             assert_prereqs();
+
+            std::fs::create_dir_all(format!(
+                "{}/src",
+                project
+                    .service_dir(String::from(default_service_name))
+                    .function_dir(String::from(default_function_name))
+                    .to_str()
+                    .unwrap()
+            ))
+            .unwrap();
 
             let data = &mut Map::<String, Json>::new();
             data.insert(
@@ -71,8 +85,16 @@ pub fn command(matches: Option<&ArgMatches>) {
                 data,
             );
         }
-        Some(unknown) => panic!("unsupported language: {}", unknown),
-        _ => {}
+        "ruby" => {
+            write_documents(
+                &project
+                    .service_dir(String::from(default_service_name))
+                    .function_dir(String::from(default_function_name)),
+                (*RUBY_FUNCTION_DOCUMENTS).clone().as_ref(),
+                &mut Map::<String, Json>::new(),
+            );
+        }
+        unknown => panic!("unsupported language: {}", unknown),
     }
 
     println!("\r\n✅  Done! Your project root is: {:?}", project.dir())

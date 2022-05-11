@@ -35,6 +35,7 @@ name = "{{service_name}}"
 
 [api.functions.my-function]
 name = "my-function"
+language = {{function_language}}"
 "#;
 
 pub static SERVICE_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
