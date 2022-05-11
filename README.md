@@ -5,7 +5,7 @@
 ![AssemblyLift CI](https://github.com/akkoro/assemblylift/workflows/AssemblyLift%20CI/badge.svg)
 ![Crates.io](https://img.shields.io/crates/v/assemblylift-cli)
 
-AssemblyLift is an open platform for building serverless cloud applications, with an emphasis on ease-of-use and safety.  
+AssemblyLift is an open platform for , with an emphasis on ease-of-use and safety.  
 The platform currently consists of:
 * The AssemblyLift CLI
 * The AssemblyLift Runtime

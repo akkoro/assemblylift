@@ -35,7 +35,7 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
             } else if entry.file_type().unwrap().is_dir() {
                 let mut copy_to = PathBuf::from(to);
                 copy_to.push(entry.path().iter().last().unwrap());
-                std::fs::create_dir(&copy_to).unwrap();
+                std::fs::create_dir_all(&copy_to).unwrap();
                 copy_entries(&entry.path(), &copy_to);
             }
         }
