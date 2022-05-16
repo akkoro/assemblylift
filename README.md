@@ -18,12 +18,10 @@ secure, and portable runtime -- from the edge to the cloud -- powered by WebAsse
 
 **AssemblyLift wants to take the complexity out of building cloud-native applications.**  
 
-Microservice architecture & containers bring a 
-number of benefits including greater scalability, high fault-tolerance, and faster deployment. 'Serverless' microservices 
-and functions offer scale-to-zero and per-millisecond billing, with implied economic benefits, without having to manage 
-any kind of server. [An explosion of managed cloud services & APIs](https://landscape.cncf.io/) give developers more options 
-than ever to offload infrastructure to a third party.
-
+Microservice architecture & containers bring a number of benefits including greater scalability, high fault-tolerance, 
+and faster deployment. 'Serverless' microservices and functions offer scale-to-zero and per-millisecond billing, with 
+implied economic benefits, without having to manage any kind of server. [An explosion of managed cloud services & APIs](https://landscape.cncf.io/) 
+give developers more options than ever to delegate to a third party.
 
 The problem with all of this is that there is now a large number of _things_ -- microservices, functions, data services & APIs, etc. 
 -- which all need to communicate and move data across all kinds of boundaries. The high surface area this creates becomes 
@@ -68,3 +66,7 @@ Join us on [Discord](https://discord.gg/pVSCqYgra3)
 
 The AssemblyLift source code is licensed under [Hippocratic License 2.1](/LICENSE.md).  
 The AssemblyLift CLI delegates some tasks to [HashiCorp Terraform](https://terraform.io), which is licensed under [Mozilla Public License 2.0](https://www.mozilla.org/en-US/MPL/2.0/).
+
+-----
+
+AssemblyLift is made with love (and ice, probably) in [Canada's far north-east](https://en.wikipedia.org/wiki/Newfoundland_and_Labrador). 🇨🇦❤️❄️
