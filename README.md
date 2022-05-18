@@ -35,7 +35,7 @@ An AssemblyLift project is composed of _services_, which are in turn composed of
 some event, like an HTTP request. AssemblyLift functions are compiled [WebAssembly](https://webassembly.org/) modules, which
 right now (as of v0.4) can be written in either the [Rust](https://rust-lang.org) or [Ruby](https://ruby-lang.org) programming 
 languages. Services are declared in simple [TOML](https://toml.io) documents called _manifests_. The AssemblyLift CLI `asml` 
-automates the process of compiling and/or packaging functions, generating Terraform HCL and/or Kubernetes YAML derived from, 
+automates the process of compiling and/or packaging functions, generating Terraform HCL and/or Kubernetes YAML derived from 
 your manifests, and deploying images and code to the selected provider(s).
 
 AssemblyLift leverages Wasm's deny-by-default, sandboxed environment to provide capability-based access to external services.
