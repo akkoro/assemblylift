@@ -1,0 +1,23 @@
+[package]
+name = "assemblylift-hyper-runtime"
+version = "0.4.0-alpha.2"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+base64 = "0.13"
+clap = { version = "3.1", features = ["cargo"] }
+crossbeam-channel = "0.5"
+crossbeam-utils = "0.8"
+hyper = { version = "0.14", features = ["full"] }
+serde = "1"
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = "0.2.0"
+wasmer = "2.1.1"
+zip = "0.6"
+z85 = "3.0"
+
+assemblylift-core = { version = "0.4.0-alpha.2", path = "../../core" }
+assemblylift-core-iomod = { version = "0.4.0-alpha.0", path = "../../core/iomod" }

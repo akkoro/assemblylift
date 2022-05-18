@@ -6,13 +6,13 @@ use crate::templates::Document;
 
 static ROOT_GITIGNORE: &str = r#".asml/
 .terraform/
-net/
 .DS_Store
+net/
+**/target/
+**/build/
 "#;
 
-static ASSEMBLYLIFT_TOML: &str = r#"# Generated with assemblylift-cli {{asml_version}}
-
-[project]
+static ASSEMBLYLIFT_TOML: &str = r#"[project]
 name = "{{project_name}}"
 
 [services]
@@ -30,13 +30,12 @@ pub static ROOT_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec:
     },
 ])));
 
-static SERVICE_TOML: &str = r#"# Generated with assemblylift-cli {{asml_version}}
-
-[service]
+static SERVICE_TOML: &str = r#"[service]
 name = "{{service_name}}"
 
 [api.functions.my-function]
 name = "my-function"
+language = {{function_language}}"
 "#;
 
 pub static SERVICE_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
@@ -46,52 +45,48 @@ pub static SERVICE_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(V
     },
 ])));
 
-static FUNCTION_CARGO_TOML: &str = r#"# Generated with assemblylift-cli {{asml_version}}
-
-[package]
+static FUNCTION_CARGO_TOML: &str = r#"[package]
 name = "{{function_name}}"
-version = "0.1.0"
-edition = "2018"
-
-[lib]
-crate-type = ["cdylib", "rlib"]
+version = "0.0.0"
+edition = "2021"
 
 [dependencies]
 direct-executor = "0.3.0"
 serde = "1"
 serde_json = "1"
-asml_core = { version = "0.2", package = "assemblylift-core-guest" }
-assemblylift_core_io_guest = { version = "0.3", package = "assemblylift-core-io-guest" }
-asml_awslambda = { version = "0.3", package = "assemblylift-awslambda-guest" }
-
+asml_core = { version = "0.4.0-alpha", package = "assemblylift-core-guest" }
+assemblylift_core_io_guest = { version = "0.4.0-alpha", package = "assemblylift-core-io-guest" }
+z85 = "3"
 "#;
 
-static FUNCTION_CARGO_CONFIG: &str = r#"# Generated with assemblylift-cli {{asml_version}}
+static FUNCTION_MAIN_RS: &str = r#"use asml_core::*;
 
-[build]
-target = "wasm32-unknown-unknown"
+#[handler]
+async fn main() {
+    // `ctx` is a value injected by the `handler` attribute macro
+    let event: serde_json::Value = serde_json::from_str(&ctx.input)
+        .expect("could not parse function input as JSON");
+
+    FunctionContext::success("Function returned OK!".to_string());
+}
 "#;
 
-static FUNCTION_LIB_RS: &str = r#"// Generated with assemblylift-cli {{asml_version}}
-
-extern crate asml_awslambda;
-
-use asml_core::GuestCore;
-use asml_awslambda::*;
-
-handler!(context: LambdaContext<ApiGatewayEvent>, async {
-    let event = context.event;
-    AwsLambdaClient::console_log(format!("Read event: {:?}", event));
-
-    AwsLambdaClient::success("OK".to_string());
-});
-"#;
-
-static FUNCTION_GITIGNORE: &str = r#"// Generated with assemblylift-cli {{asml_version}}
-.DS_Store
+static FUNCTION_GITIGNORE: &str = r#".DS_Store
 *.wasm
 target/
 build/
+"#;
+
+static FUNCTION_HANDLER_RB: &str = r#"require 'asml'
+require 'base64'
+require 'json'
+
+def main(input)
+    # TODO implement your function code here!
+    Asml.success(input.to_s)
+end
+
+main(JSON.parse(Asml.get_function_input()))
 "#;
 
 pub static RUST_FUNCTION_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
@@ -100,15 +95,18 @@ pub static RUST_FUNCTION_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc:
         document: String::from(FUNCTION_CARGO_TOML),
     },
     Document {
-        file_name: ".cargo/config",
-        document: String::from(FUNCTION_CARGO_CONFIG),
+        file_name: "src/main.rs",
+        document: String::from(FUNCTION_MAIN_RS),
     },
+    // Document {
+    //     file_name: ".gitignore",
+    //     document: String::from(FUNCTION_GITIGNORE),
+    // },
+])));
+
+pub static RUBY_FUNCTION_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
     Document {
-        file_name: "src/lib.rs",
-        document: String::from(FUNCTION_LIB_RS),
-    },
-    Document {
-        file_name: ".gitignore",
-        document: String::from(FUNCTION_GITIGNORE),
+        file_name: "handler.rb",
+        document: String::from(FUNCTION_HANDLER_RB),
     },
 ])));

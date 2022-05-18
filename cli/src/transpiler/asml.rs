@@ -1,8 +1,9 @@
+// TODO probably better to rename this module as `context`
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::transpiler::{toml, StringMap};
 use crate::projectfs::Project as ProjectFs;
+use crate::transpiler::{StringMap, toml};
 
 pub struct Context {
     pub project: Project,
@@ -49,10 +50,7 @@ impl Context {
                         options: function.provider.options.clone(),
                     }),
                     service_name: service.name.clone(),
-                    handler_name: match &function.clone().handler_name {
-                        Some(name) => name.clone(),
-                        None => String::from("handler"),
-                    },
+                    language: function.language.clone().unwrap_or("rust".to_string()),
                     size: function.size_mb.unwrap_or(1024u16),
                     timeout: function.timeout_seconds.unwrap_or(5u16),
                     http: match &function.clone().http.as_ref() {
@@ -68,10 +66,12 @@ impl Context {
                 });
             }
 
-            for (id, _iomod) in iomods.as_ref() {
+            for (id, iomod) in iomods.as_ref() {
                 ctx_iomods.push(Iomod {
                     name: id.clone(),
                     service_name: service.name.clone(),
+                    coordinates: iomod.coordinates.clone(),
+                    version: iomod.version.clone(),
                 });
             }
 
@@ -124,6 +124,13 @@ impl Context {
             iomods: ctx_iomods,
         })
     }
+
+    pub fn service(&self, name: String) -> Option<&Service> {
+        match self.services.binary_search_by(|s| s.name.cmp(&name)) {
+            Ok(idx) => Some(self.services.get(idx).unwrap()),
+            Err(_) => None,
+        }
+    }
 }
 
 pub struct Project {
@@ -143,6 +150,12 @@ pub struct Service {
     pub project_name: String,
 }
 
+impl Service {
+    pub fn option(&self, name: &str) -> Option<&String> {
+        self.provider.options.get(name)
+    }
+}
+
 pub struct Provider {
     pub name: String,
     pub options: Arc<StringMap<String>>,
@@ -151,12 +164,12 @@ pub struct Provider {
 pub struct Function {
     pub name: String,
     pub provider: Rc<Provider>,
+    pub language: String,
     pub service_name: String,
 
     pub http: Option<Http>,
     pub authorizer_id: Option<String>,
 
-    pub handler_name: String,
     pub size: u16,
     pub timeout: u16,
 }
@@ -182,4 +195,6 @@ pub struct AuthorizerJwt {
 pub struct Iomod {
     pub name: String,
     pub service_name: String,
+    pub coordinates: String,
+    pub version: String,
 }

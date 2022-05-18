@@ -3,7 +3,7 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 #[macro_export]
 macro_rules! iomod {
-    ($org:ident.$ns:ident.$name:ident => $calls:tt) => {
+    ($ip:expr, $org:ident.$ns:ident.$name:ident => $calls:tt) => {
         use assemblylift_core_iomod::iomod_capnp::*;
         use assemblylift_core_iomod::{
             Call, CallChannel, CallMap, CallPtr, CallRequest, CallResponse, Iomod,
@@ -23,7 +23,7 @@ macro_rules! iomod {
         let mut call_map: CallMap = $crate::__calls!($calls);
         let mut call_channel: CallChannel = mpsc::channel(100);
 
-        let stream = TcpStream::connect("127.0.0.1:13555").await.unwrap();
+        let stream = TcpStream::connect(format!("{}:13555", $ip)).await.unwrap();
         stream.set_nodelay(true).unwrap();
 
         let (reader, writer) =

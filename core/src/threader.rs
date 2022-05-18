@@ -11,39 +11,66 @@ use wasmer::{Array, LazyInit, Memory, NativeFunc, WasmerEnv, WasmPtr};
 
 use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
-use crate::buffers::{IoBuffer, PagedWasmBuffer};
+use crate::buffers::{FunctionInputBuffer, IoBuffer, PagedWasmBuffer};
+
+pub type IoId = u32;
 
 #[derive(WasmerEnv, Clone)]
 /// The `WasmerEnv` environment providing shared data between native WASM functions and the host
-pub struct ThreaderEnv {
-    pub threader: ManuallyDrop<Arc<Mutex<Threader>>>,
-    pub host_input_buffer: Arc<Mutex<crate::buffers::FunctionInputBuffer>>,
+pub struct ThreaderEnv<S>
+where
+    S: Clone + Send + Sized + 'static
+{
+    pub threader: ManuallyDrop<Arc<Mutex<Threader<S>>>>,
+    pub host_input_buffer: Arc<Mutex<FunctionInputBuffer>>,
     #[wasmer(export)]
     pub memory: LazyInit<Memory>,
     #[wasmer(export(name = "__asml_guest_get_function_input_buffer_pointer"))]
     pub get_function_input_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
     #[wasmer(export(name = "__asml_guest_get_io_buffer_pointer"))]
     pub get_io_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
+    pub status_sender: crossbeam_channel::Sender<S>,
 }
 
-pub struct Threader {
+impl<S> ThreaderEnv<S>
+where
+    S: Clone + Send + Sized + 'static,
+{
+    pub fn new(tx: RegistryTx, status_sender: crossbeam_channel::Sender<S>) -> Self {
+        ThreaderEnv {
+            threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx)))),
+            memory: Default::default(),
+            get_function_input_buffer: Default::default(),
+            get_io_buffer: Default::default(),
+            host_input_buffer: Arc::new(Mutex::new(FunctionInputBuffer::new())),
+            status_sender,
+        }
+    }
+}
+
+pub struct Threader<S> {
     io_memory: Arc<Mutex<IoMemory>>,
     registry_tx: RegistryTx,
     runtime: tokio::runtime::Runtime,
+    _phantom: std::marker::PhantomData<S>,
 }
 
-impl Threader {
+impl<S> Threader<S>
+where
+    S: Clone + Send + Sized + 'static,
+{
     /// Create a new Threader instance with the provided sender `tx`
     pub fn new(tx: RegistryTx) -> Self {
         Threader {
             io_memory: Arc::new(Mutex::new(IoMemory::new())),
             registry_tx: tx,
             runtime: tokio::runtime::Runtime::new().unwrap(),
+            _phantom: std::marker::PhantomData::default(),
         }
     }
 
     /// Issue an unused IOID for a new IOmod call
-    pub fn next_ioid(&mut self) -> Option<u32> {
+    pub fn next_ioid(&mut self) -> Option<IoId> {
         match self.io_memory.clone().lock() {
             Ok(mut memory) => memory.next_id(),
             Err(_) => None,
@@ -51,7 +78,7 @@ impl Threader {
     }
 
     /// Fetch the memory document associated with `ioid`
-    pub fn get_io_memory_document(&mut self, ioid: u32) -> Option<IoMemoryDocument> {
+    pub fn get_io_memory_document(&mut self, ioid: IoId) -> Option<IoMemoryDocument> {
         match self.io_memory.clone().lock() {
             Ok(memory) => match memory.document_map.get(&ioid) {
                 Some(doc) => Some(doc.clone()),
@@ -62,20 +89,20 @@ impl Threader {
     }
 
     /// Load the memory document associated with `ioid` into the guest IO memory
-    pub fn document_load(&mut self, env: &ThreaderEnv, ioid: u32) -> Result<(), ()> {
+    pub fn document_load(&mut self, env: &ThreaderEnv<S>, ioid: IoId) -> Result<(), ()> {
         let doc = self.get_io_memory_document(ioid).unwrap();
         self.io_memory.lock().unwrap().buffer.first(env, Some(doc.start));
         Ok(())
     }
 
     /// Advance the guest IO memory to the next page
-    pub fn document_next(&mut self, env: &ThreaderEnv) -> Result<(), ()> {
+    pub fn document_next(&mut self, env: &ThreaderEnv<S>) -> Result<(), ()> {
         self.io_memory.lock().unwrap().buffer.next(env);
         Ok(())
     }
     
     /// Poll the runtime for the completion status of call associated with `ioid`
-    pub fn poll(&mut self, ioid: u32) -> bool {
+    pub fn poll(&mut self, ioid: IoId) -> bool {
         match self.io_memory.clone().lock() {
             Ok(memory) => {
                 match memory.poll(ioid) {
@@ -99,7 +126,7 @@ impl Threader {
         &mut self,
         method_path: &str,
         method_input: Vec<u8>,
-        ioid: u32,
+        ioid: IoId,
     ) {
         let io_memory = self.io_memory.clone();
         
@@ -166,16 +193,16 @@ pub struct IoMemoryDocument {
 }
 
 struct IoMemory {
-    _next_id: u32,
+    next_id: IoId,
     buffer: IoBuffer,
-    document_map: HashMap<u32, IoMemoryDocument>,
-    io_status: HashMap<u32, bool>,
+    document_map: HashMap<IoId, IoMemoryDocument>,
+    io_status: HashMap<IoId, bool>,
 }
 
 impl IoMemory {
     fn new() -> Self {
         IoMemory {
-            _next_id: 1, // id 0 is reserved (null)
+            next_id: 1, // id 0 is reserved (null)
             buffer: IoBuffer::new(),
             document_map: Default::default(),
             io_status: Default::default(),
@@ -183,27 +210,27 @@ impl IoMemory {
     }
 
     fn reset(&mut self) {
-        self._next_id = 1;
+        self.next_id = 1;
         self.buffer = IoBuffer::new();
         self.document_map.clear();
         self.io_status.clear();
     }
 
-    fn next_id(&mut self) -> Option<u32> {
-        let next_id = self._next_id.clone();
-        self._next_id += 1;
+    fn next_id(&mut self) -> Option<IoId> {
+        let next_id = self.next_id.clone();
+        self.next_id += 1;
         self.io_status.insert(next_id, false);
         Some(next_id)
     }
 
-    fn poll(&self, ioid: u32) -> bool {
+    fn poll(&self, ioid: IoId) -> bool {
         match self.io_status.get(&ioid) {
             Some(status) => *status,
             None => false,
         }
     }
 
-    fn handle_response(&mut self, response: Vec<u8>, ioid: u32) {
+    fn handle_response(&mut self, response: Vec<u8>, ioid: IoId) {
         self.buffer.write(ioid as usize, response.as_slice());
         self.io_status.insert(ioid, true);
         self.document_map.insert(

@@ -1,0 +1,36 @@
+# Builder
+FROM openfaas/of-watchdog:0.8.2 as watchdog
+FROM rust:1.59-alpine as builder
+RUN rustup target add x86_64-unknown-linux-musl
+RUN apk --no-cache add capnproto-dev musl-dev
+ENV USER=root
+
+WORKDIR /usr/src/assemblylift
+COPY . .
+
+RUN cd ./runtimes/openfaas && cargo install --target x86_64-unknown-linux-musl --path .
+
+# Runner Image
+FROM alpine:3.15 as runner
+RUN apk --no-cache add curl ca-certificates \
+    && addgroup -S app && adduser -S -g app app
+ENV USER=app
+
+COPY --from=builder /usr/local/cargo/bin/assemblylift-openfaas /usr/bin/assemblylift-openfaas
+RUN chmod +x /usr/bin/assemblylift-openfaas
+
+COPY --from=watchdog /fwatchdog /usr/bin/fwatchdog
+RUN chmod +x /usr/bin/fwatchdog
+
+ENV fprocess="assemblylift-openfaas"
+ENV mode="http"
+ENV upstream_url="http://127.0.0.1:3000"
+
+HEALTHCHECK --interval=3s CMD [ -e /tmp/.lock ] || exit 1
+
+# HTTP
+EXPOSE 8080
+# RPC
+EXPOSE 13555
+
+CMD ["fwatchdog"]

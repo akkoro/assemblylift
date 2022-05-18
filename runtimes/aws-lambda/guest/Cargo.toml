@@ -1,6 +1,6 @@
 [package]
 name = "assemblylift-awslambda-guest"
-version = "0.3.1"
+version = "0.4.0-alpha.0"
 description = "AssemblyLift AWS Lambda WASM guest library"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
@@ -12,5 +12,5 @@ readme = "README.md"
 serde = "1"
 serde_json = "1"
 direct-executor = "0.3.0"
-assemblylift_core_guest = { version = "0.2", package = "assemblylift-core-guest", path = "../../../core/guest" }
-assemblylift_core_io_guest = { version = "0.3", package = "assemblylift-core-io-guest", path = "../../../core/io/guest" }
+assemblylift_core_guest = { version = "0.4.0-alpha.0", package = "assemblylift-core-guest", path = "../../../core/guest" }
+assemblylift_core_io_guest = { version = "0.4.0-alpha.0", package = "assemblylift-core-io-guest", path = "../../../core/io/guest" }

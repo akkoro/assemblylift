@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
 use std::{fs, io};
+use std::path::{Path, PathBuf};
 
 use path_abs::{PathAbs, PathDir};
 
@@ -30,6 +30,18 @@ impl ServiceDir {
             self.dir.clone().into_os_string().into_string().unwrap(),
             name
         ))
+    }
+}
+
+pub struct NetDir {
+    dir: Box<PathBuf>,
+}
+
+impl NetDir {
+    pub fn new() -> Self {
+        Self {
+            dir: Box::new(PathBuf::from("net/"))
+        }
     }
 }
 
@@ -82,35 +94,6 @@ impl Project {
         }
     }
 
-    pub fn init(
-        &self,
-        default_service_name: &str,
-        default_function_name: &str,
-    ) -> Result<(), io::Error> {
-        fs::create_dir_all(format!(
-            "{}/{}/{}/src",
-            self.service_path
-                .clone()
-                .into_os_string()
-                .into_string()
-                .unwrap(),
-            default_service_name,
-            default_function_name
-        ))?;
-        fs::create_dir_all(format!(
-            "{}/{}/{}/.cargo",
-            self.service_path
-                .clone()
-                .into_os_string()
-                .into_string()
-                .unwrap(),
-            default_service_name,
-            default_function_name
-        ))?;
-
-        Ok(())
-    }
-
     pub fn service_dir(&self, name: String) -> ServiceDir {
         let path = PathBuf::from(&*format!(
             "{}/{}",
@@ -122,6 +105,10 @@ impl Project {
             name
         ));
         ServiceDir::new(Box::new(path))
+    }
+
+    pub fn net_dir(&self) -> PathBuf {
+        PathBuf::from("net/")
     }
 
     pub fn dir(&self) -> Box<PathBuf> {

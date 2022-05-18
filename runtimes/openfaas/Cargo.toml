@@ -1,0 +1,15 @@
+[package]
+name = "assemblylift-openfaas"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "3.1", features = ["cargo"] }
+crossbeam-channel = "0.5"
+hyper = { version = "0.14", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
+wasmer = "2.1.1"
+
+assemblylift-core = { version = "0.4.0-alpha.1", path = "../../core" }
+assemblylift-core-iomod = { version = "0.4.0-alpha.0", path = "../../core/iomod" }

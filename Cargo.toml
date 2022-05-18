@@ -1,9 +1,13 @@
 [workspace]
 members = [
-    "backends/aws-lambda/host",
-    "backends/aws-lambda/guest",
+    "runtimes/aws-lambda/host",
+    "runtimes/aws-lambda/guest",
+    "runtimes/hyper",
+    "runtimes/kubelet",
+    "runtimes/openfaas",
     "core",
     "core/guest",
+    "core/guest/macros",
     "core/iomod",
     "core/iomod/guest",
     "core/io",
