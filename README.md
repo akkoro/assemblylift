@@ -44,7 +44,8 @@ The AssemblyLift runtime augments the [Wasmer](https://wasmer.io) runtime used i
 
 # Quick Start
 
-See [Releases](https://github.com/akkoro/assemblylift/releases) to find the latest version & release details.
+AssemblyLift is evolving quickly! See [Releases](https://github.com/akkoro/assemblylift/releases) to find the latest 
+version & release details.
 
 Download the latest `asml` CLI for your system.
 ```bash
