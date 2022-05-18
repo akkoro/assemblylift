@@ -38,6 +38,10 @@ languages. Services are declared in simple [TOML](https://toml.io) documents cal
 automates the process of compiling and/or packaging functions, generating Terraform HCL and/or Kubernetes YAML derived from, 
 your manifests, and deploying images and code to the selected provider(s).
 
+AssemblyLift leverages Wasm's deny-by-default, sandboxed environment to provide capability-based access to external services.
+The AssemblyLift runtime augments the [Wasmer](https://wasmer.io) runtime used internally with an ABI controlling access to 
+[IO Modules](https://docs.assemblylift.akkoro.io/learn-assemblylift/io-modules), which are accessed using an RPC protocol.
+
 # Quick Start
 
 See [Releases](https://github.com/akkoro/assemblylift/releases) to find the latest version & release details.
