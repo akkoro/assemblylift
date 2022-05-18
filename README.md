@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/discord/901946190667595786"/>
   <br/>
   AssemblyLift is an open source platform that gives you a fast & ergonomic way to build cloud-native services on a predictable, 
-secure, and portable runtime -- from the edge to the cloud -- powered by WebAssembly.
+secure, and portable runtime &mdash; from the edge to the cloud &mdash; powered by WebAssembly.
   <br/>
   <br/>
 </p>
@@ -16,51 +16,70 @@ secure, and portable runtime -- from the edge to the cloud -- powered by WebAsse
 
 # The What and Why of AssemblyLift
 
-**AssemblyLift wants to take the complexity out of building cloud-native applications.**  
-
 Microservice architecture & containers bring a number of benefits including greater scalability, high fault-tolerance, 
 and faster deployment. 'Serverless' microservices and functions offer scale-to-zero and per-millisecond billing, with 
 implied economic benefits, without having to manage any kind of server. [An explosion of managed cloud services & APIs](https://landscape.cncf.io/) 
 give developers more options than ever to delegate to a third party.
 
-The problem with all of this is that there is now a large number of _things_ -- microservices, functions, data services & APIs, etc. 
--- which all need to communicate and move data across all kinds of boundaries. The high surface area this creates becomes 
+The problem with all of this is that there is now a large number of _things_ &mdash; microservices, functions, data services & APIs, etc. 
+&mdash; which all need to communicate and move data across all kinds of boundaries. The high surface area this creates becomes 
 visible when you use infrastructure-as-code; it can take a large number of virtual cloud resources just to deploy a "simple"
 microservice or FaaS function in a typical production environment.
 
-AssemblyLift provides an opinionated platform for building function-oriented microservices. Cloud-native architecture is occasionally [1,2]
-referred to as "Lego brick" or "building block" architecture, due to the way nearly any subset of services can fit together to create 
-a stack suitable for your application.
+>**AssemblyLift wants to take the complexity out of building cloud-native applications.**
 
-[1] [Cloud-native architecture: The era of large-scale IT building blocks](https://www.redhat.com/architect/cloud-native-building-blocks)  
-[2] [Cloud Native: The Lego® Bricks to Your Business](https://www.linkedin.com/pulse/cloud-native-lego-your-business-maged-wassim/)
+AssemblyLift provides a batteries-included framework for building function-oriented microservices, portable across vendors 
+and services like AWS and Kubernetes.
 
-## What's This WebAssembly Thing?
-TODO
-
-## When Would I Use AssemblyLift?
-
-## When Would I _Not_ Use AssemblyLift?
+An AssemblyLift project is composed of _services_, which are in turn composed of _functions_. A function is code invoked by 
+some event, like an HTTP request. AssemblyLift functions are compiled [WebAssembly](https://webassembly.org/) modules, which
+right now (as of v0.4) can be written in either the [Rust](https://rust-lang.org) or [Ruby](https://ruby-lang.org) programming 
+languages. Services are declared in simple [TOML](https://toml.io) documents called _manifests_. The AssemblyLift CLI `asml` 
+automates the process of compiling and/or packaging functions, generating Terraform HCL and/or Kubernetes YAML derived from, 
+your manifests, and deploying images and code to the selected provider(s).
 
 # Quick Start
 
-TODO
+See [Releases](https://github.com/akkoro/assemblylift/releases) to find the latest version & release details.
+
+Download the latest `asml` CLI for your system.
+```bash
+curl -O public.assemblylift.akkoro.io/cli/<version>/<triple>/asml
+chmod +x asml
+```
+Where `<version>` is the latest version (e.g. `0.4.0-alpha.2`) and <triple> is one of:
+ - `x86_64-linux-gnu`
+ - `x86_64-apple-darwin`
+
+Alternatively you can install with Cargo using `cargo install assemblylift-cli`.
+
+Create a new project with `asml init -n my-project -l <lang>` where `<lang>` is one of `rust` or `ruby`; this is the language 
+of the default function that is generated for you in the default service `my-service`. 
+
+You can add a new function to any service with `asml make function <service-name>.<function-name> -l <lang>`. 
+Add a new service with `asml make service <service-name>`.
+
+The process for generating an AssemblyLift deployment is called _casting_, and is invoked by running `asml cast` in the 
+project root directory. All deployment artifacts & plans are serialized to the `net` directory. To deploy your project, 
+run `asml bind`.
 
 # Learn More
 
-Please see the [official documentation](https://docs.assemblylift.akkoro.io) for help with installing & learning to use AssemblyLift, and/or for more information about the project.
+Please see the [official documentation](https://docs.assemblylift.akkoro.io) for help with installing & learning to use 
+AssemblyLift, and/or for more information about the project.
 You can also find more in-depth tutorials on the [Akkoro Dev blog](https://dev.to/akkoro).
 
 # Contributing
 
-If you would like to contribute to the AssemblyLift project, please see [CONTRIBUTING.md for details](CONTRIBUTING.md) on how to get started!
-If you want to report a bug, please [open an issue](https://github.com/akkoro/assemblylift/issues/new?labels=bug).
+If you would like to contribute to the AssemblyLift project, please see [CONTRIBUTING.md for details](CONTRIBUTING.md) 
+on how to get started! If you want to report a bug, please [open an issue](https://github.com/akkoro/assemblylift/issues/new?labels=bug).
 
 # Contact & Social
 
-We're on [Matrix](https://matrix.org)! Try the [Element client](https://element.io/) and find us at [`#assemblylift:matrix.org`](https://app.element.io/#/room/#assemblylift:matrix.org) :)
+For help with using AssemblyLift or to keep up with announcements, join us on [Discord](https://discord.gg/pVSCqYgra3)!
+If you prefer we're also on [Matrix](https://matrix.org). Try the [Element client](https://element.io/) and find us at [`#assemblylift:matrix.org`](https://app.element.io/#/room/#assemblylift:matrix.org).
 
-Join us on [Discord](https://discord.gg/pVSCqYgra3)
+You can follow [@akkorocorp](https://twitter.com/akkorocorp/) on Twitter.
 
 # License
 
@@ -69,4 +88,5 @@ The AssemblyLift CLI delegates some tasks to [HashiCorp Terraform](https://terra
 
 -----
 
-AssemblyLift is made with love (and ice, probably) in [Canada's far north-east](https://en.wikipedia.org/wiki/Newfoundland_and_Labrador). 🇨🇦❤️❄️
+AssemblyLift is made in [Canada's far north-east](https://en.wikipedia.org/wiki/Newfoundland_and_Labrador) 🇨🇦 and is made possible by 
+our contributors and supporters around the world 🌐
