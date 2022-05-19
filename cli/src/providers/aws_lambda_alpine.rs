@@ -2,11 +2,11 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use clap::crate_version;
-use handlebars::{to_json, Handlebars};
+use handlebars::{Handlebars, to_json};
 use serde::Serialize;
 
-use crate::transpiler::{asml, Artifact};
-use crate::providers::{render_string_list, Options, Provider, ProviderArtifact, ProviderError};
+use crate::providers::{Options, Provider, ProviderArtifact, ProviderError, render_string_list};
+use crate::transpiler::{Artifact, asml};
 
 pub struct ServiceProvider {
     options: Arc<Options>,
@@ -163,7 +163,6 @@ impl Provider for FunctionProvider {
         
                 let data = FunctionData {
                     name: function.name.clone(),
-                    handler_name: function.handler_name.clone(),
                     service: service.clone(),
                     project_name: ctx.project.name.clone(),
                     size: function.size,
@@ -214,7 +213,6 @@ pub struct ServiceData {
 #[derive(Serialize)]
 pub struct FunctionData {
     pub name: String,
-    pub handler_name: String,
     pub service: String,
     pub http: Option<HttpData>,
     pub auth: Option<FunctionAuthData>,

@@ -2,8 +2,8 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::transpiler::{toml, StringMap};
 use crate::projectfs::Project as ProjectFs;
+use crate::transpiler::{StringMap, toml};
 
 pub struct Context {
     pub project: Project,
@@ -50,10 +50,7 @@ impl Context {
                         options: function.provider.options.clone(),
                     }),
                     service_name: service.name.clone(),
-                    handler_name: match &function.clone().handler_name {
-                        Some(name) => name.clone(),
-                        None => String::from("handler"),
-                    },
+                    language: function.language.clone().unwrap_or("rust".to_string()),
                     size: function.size_mb.unwrap_or(1024u16),
                     timeout: function.timeout_seconds.unwrap_or(5u16),
                     http: match &function.clone().http.as_ref() {
@@ -167,12 +164,12 @@ pub struct Provider {
 pub struct Function {
     pub name: String,
     pub provider: Rc<Provider>,
+    pub language: String,
     pub service_name: String,
 
     pub http: Option<Http>,
     pub authorizer_id: Option<String>,
 
-    pub handler_name: String,
     pub size: u16,
     pub timeout: u16,
 }

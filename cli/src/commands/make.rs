@@ -2,9 +2,9 @@ use clap::ArgMatches;
 use handlebars::to_json;
 use serde_json::value::{Map, Value as Json};
 
-use crate::templates::write_documents;
-use crate::templates::project::{RUST_FUNCTION_DOCUMENTS, SERVICE_DOCUMENTS};
 use crate::projectfs::{locate_asml_manifest, Project};
+use crate::templates::project::{RUBY_FUNCTION_DOCUMENTS, RUST_FUNCTION_DOCUMENTS, SERVICE_DOCUMENTS};
+use crate::templates::write_documents;
 
 pub fn command(matches: Option<&ArgMatches>) {
     let matches = match matches {
@@ -48,19 +48,30 @@ pub fn command(matches: Option<&ArgMatches>) {
         }
 
         Some("function") => {
-            // TODO if language==rust
+            let language = matches.value_of("language").unwrap_or("rust");
             let resource_name = resource_name.unwrap().to_string();
             let function_name: Vec<&str> = resource_name.split(".").collect();
             if function_name.len() != 2 {
                 panic!("syntax is `make function <service>.<function>`")
             }
 
-            let data = &mut Map::<String, Json>::new();
-            data.insert("function_name".to_string(), to_json(function_name[1]));
-            let path = project
-                .service_dir(String::from(function_name[0]))
-                .function_dir(String::from(function_name[1]));
-            write_documents(&path, (*RUST_FUNCTION_DOCUMENTS).clone().as_ref(), data);
+            match language {
+                "rust" => {
+                    let data = &mut Map::<String, Json>::new();
+                    data.insert("function_name".to_string(), to_json(function_name[1]));
+                    let path = project
+                        .service_dir(String::from(function_name[0]))
+                        .function_dir(String::from(function_name[1]));
+                    write_documents(&path, (*RUST_FUNCTION_DOCUMENTS).clone().as_ref(), data);
+                }
+                "ruby" => {
+                    let path = project
+                        .service_dir(String::from(function_name[0]))
+                        .function_dir(String::from(function_name[1]));
+                    write_documents(&path, (*RUBY_FUNCTION_DOCUMENTS).clone().as_ref(), &mut Map::<String, Json>::new());
+                }
+                lang => panic!("function language `{}` is not supported", lang),
+            }
         }
 
         Some(_) => panic!("must specify either 'service' or 'function' as an argument to make"),

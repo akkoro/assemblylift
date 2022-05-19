@@ -127,7 +127,7 @@ jobs:
         with:
           command: build
           use-cross: false
-          args: --release
+          args: --release --manifest-path ./cli/Cargo.toml
       - name: 'Get Version'
         run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
       - name: 'Upload to S3 @ akkoro-public'
@@ -156,7 +156,7 @@ jobs:
         with:
           command: build
           use-cross: false
-          args: --release
+          args: --release --manifest-path ./cli/Cargo.toml
       - name: 'Get Version'
         run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
       - name: 'Upload to S3 @ akkoro-public'

@@ -186,8 +186,12 @@ impl Provider for FunctionProvider {
                 let data = FunctionData {
                     base_image_version: crate_version!().to_string(),
                     function_name: function.name.clone(),
-                    handler_name: function.handler_name.clone(),
                     service_name: service.clone(),
+                    handler_name: match function.language.as_str() {
+                        "rust" => format!("{}.wasm.bin", function.name.clone()),
+                        "ruby" => "ruby.wasmu".into(),
+                        _ => "handler".into(),
+                    },
                     iomods: iomods.clone(),
                     has_iomods: iomods.len() > 0,
                     container_registry: ContainerRegistryData {
@@ -219,6 +223,7 @@ impl Provider for FunctionProvider {
                             .unwrap_or(&"us-east-1".to_string())
                             .clone(),
                     },
+                    is_ruby: function.language == "ruby".to_string(),
                 };
                 let data = to_json(data);
 
@@ -270,6 +275,8 @@ pub struct FunctionData {
     pub has_iomods: bool,
     pub container_registry: ContainerRegistryData,
     pub iomods: Vec<IomodContainer>,
+
+    pub is_ruby: bool,
 }
 
 #[derive(Serialize)]
@@ -288,7 +295,11 @@ pub struct IomodContainer {
 }
 
 static DOCKERFILE_TEMPLATE: &str = r#"FROM public.ecr.aws/akkoro/assemblylift/hyper-alpine:{{base_image_version}}
-ADD ./{{function_name}}/{{function_name}}.wasm.bin /opt/assemblylift/handler.wasm.bin
+ENV ASML_WASM_MODULE_NAME {{handler_name}}
+ADD ./{{function_name}}/{{handler_name}} /opt/assemblylift/{{handler_name}}
+{{#if is_ruby}}COPY ./{{function_name}}/ruby-wasm32-wasi /usr/bin/ruby-wasm32-wasi
+COPY ./{{function_name}}/rubysrc/* /usr/bin/ruby-wasm32-wasi/src/
+ENV ASML_FUNCTION_ENV ruby{{/if}}
 "#;
 
 static SERVICE_TEMPLATE: &str = r#"locals {
@@ -346,12 +357,19 @@ data archive_file {{service_name}}_{{function_name}}_iomods {
     output_path = "${path.module}/services/{{service_name}}/iomods.zip"
 }
 
+{{#if is_ruby}}data archive_file {{service_name}}_{{function_name}}_rubysrc {
+    type        = "zip"
+    source_dir  = "${path.module}/services/{{service_name}}/{{function_name}}/rubysrc"
+    output_path = "${path.module}/services/{{service_name}}/{{function_name}}/rubysrc.zip"
+}{{/if}}
+
 resource random_id {{service_name}}_{{function_name}}_image {
     byte_length = 8
     keepers = {
         dockerfile_hash = filebase64sha256("${path.module}/services/{{service_name}}/{{function_name}}/Dockerfile")
-        wasm_hash       = filebase64sha256("${path.module}/services/{{service_name}}/{{function_name}}/{{function_name}}.wasm.bin")
+        wasm_hash       = filebase64sha256("${path.module}/services/{{service_name}}/{{function_name}}/{{handler_name}}")
         iomods_hash     = data.archive_file.{{service_name}}_{{function_name}}_iomods.output_sha
+        {{#if is_ruby}}rubysrc_hash    = data.archive_file.{{service_name}}_{{function_name}}_rubysrc.output_sha{{/if}}
     }
 }
 

@@ -42,6 +42,11 @@ fn main() {
                     .multiple(true)
                     .required(true)
             )
+            .arg(
+                Arg::with_name("language")
+                    .short("l")
+                    .takes_value(true)
+            )
         )
         .subcommand(App::new("cast").about("Build the AssemblyLift application"))
         .subcommand(

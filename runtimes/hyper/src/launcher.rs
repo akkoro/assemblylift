@@ -63,7 +63,8 @@ async fn launch(
     let launcher_req = LauncherRequest {
         method,
         headers,
-        body: Some(z85::encode(input_bytes.as_ref())),
+        body_encoding: "base64".into(),
+        body: Some(base64::encode(input_bytes.as_ref())),
     };
 
     let msg = RunnerMessage {
@@ -102,5 +103,6 @@ async fn launch(
 struct LauncherRequest {
     method: String,
     headers: BTreeMap<String, String>,
+    body_encoding: String,
     body: Option<String>,
 }
