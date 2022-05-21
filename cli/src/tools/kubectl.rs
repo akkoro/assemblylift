@@ -60,7 +60,7 @@ impl Tool for KubeCtl {
     }
 
     fn command(&self) -> Command {
-        process::Command::new(self.command_path())
+        Command::new(self.command_path())
     }
 
     fn path(&self) -> &str {

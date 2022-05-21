@@ -19,7 +19,7 @@ use wasmer_engine_universal::Universal;
 use crate::archive;
 use crate::projectfs::Project;
 use crate::terraform;
-use crate::transpiler::{Artifact, asml, hcl, toml};
+use crate::transpiler::{asml, Castable, hcl, toml};
 
 mod ruby;
 mod rust;
@@ -202,8 +202,8 @@ pub fn command(matches: Option<&ArgMatches>) {
     {
         let ctx = asml::Context::from_project(project.clone(), asml_manifest)
             .expect("could not make context from manifest");
-        let mut module = hcl::root::Module::new(Rc::new(ctx));
-        let hcl_content = module.cast().expect("could not cast HCL modules");
+        let mut module = hcl::root::Module::new();
+        let hcl_content = module.cast(Rc::new(ctx), &*project.name.clone()).expect("could not cast HCL modules")[0].clone();
 
         let path = String::from("./net/plan.tf");
         let mut file = match fs::File::create(path.clone()) {

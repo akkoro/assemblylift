@@ -7,10 +7,11 @@ use clap::crate_version;
 use handlebars::{Handlebars, to_json};
 use serde::Serialize;
 
-use crate::providers::{Options, Provider, ProviderArtifact, ProviderError};
+use crate::providers::{BoxedCastable, Options, Provider, ProviderError};
 use crate::tools::glooctl::GlooCtl;
 use crate::tools::kubectl::KubeCtl;
-use crate::transpiler::{Artifact, asml};
+use crate::transpiler::{asml, Castable, CastError, ContentType};
+use crate::transpiler::asml::Context;
 
 pub struct ServiceProvider {
     options: Arc<Options>,
@@ -24,29 +25,8 @@ impl ServiceProvider {
     }
 }
 
-impl Provider for ServiceProvider {
-    fn name(&self) -> String {
-        String::from("k8s-hyper-alpine")
-    }
-
-    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
-        println!("DEBUG calling init on k8s runtime provider");
-
-        // let kube = KubeCtl::default();
-        // kube.apply(r#"
-        // "#).unwrap();
-        GlooCtl::default()
-            .remove_route("/my-service/my-function", vec!["k8s-test", "my-service", "my-function"])
-            .unwrap();
-
-        Ok(())
-    }
-
-    fn transform(
-        &self,
-        _ctx: Rc<asml::Context>,
-        name: String,
-    ) -> Result<Box<dyn Artifact>, ProviderError> {
+impl Castable for ServiceProvider {
+    fn cast(&mut self, ctx: Rc<Context>, name: &str) -> Result<Vec<String>, CastError> {
         let mut reg = Box::new(Handlebars::new());
         reg.register_template_string("service", SERVICE_TEMPLATE)
             .unwrap();
@@ -60,7 +40,7 @@ impl Provider for ServiceProvider {
         // TODO this should happen in a validate() step
         if registry_type == "ecr" {
             if self.options.get("aws_account_id").is_none() {
-                return Err(ProviderError::TransformationError(format!(
+                return Err(CastError(format!(
                     "ecr registry type requires aws_account_id"
                 )));
             }
@@ -68,14 +48,14 @@ impl Provider for ServiceProvider {
         }
         if registry_type == "dockerhub" {
             if self.options.get("registry_name").is_none() {
-                return Err(ProviderError::TransformationError(format!(
+                return Err(CastError(format!(
                     "dockerhub registry type requires registry_name"
                 )));
             }
         }
 
         let data = ServiceData {
-            service_name: name.clone(),
+            service_name: name.to_string(),
             container_registry: ContainerRegistryData {
                 is_dockerhub: registry_type == "dockerhub",
                 is_ecr: registry_type == "ecr",
@@ -109,8 +89,27 @@ impl Provider for ServiceProvider {
         let data = to_json(data);
 
         let rendered = reg.render("service", &data).unwrap();
+        Ok(vec![rendered])
+    }
 
-        Ok(Box::new(ProviderArtifact::new(rendered)))
+    fn content_type(&self) -> Vec<ContentType> {
+        todo!()
+    }
+}
+
+impl Provider for ServiceProvider {
+    fn name(&self) -> String {
+        String::from("k8s-hyper-alpine")
+    }
+
+    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
+        println!("DEBUG calling init on k8s runtime provider");
+
+        // let kube = KubeCtl::default();
+        // kube.apply(r#"
+        // "#).unwrap();
+
+        Ok(())
     }
 
     fn options(&self) -> Arc<Options> {
@@ -135,20 +134,8 @@ impl FunctionProvider {
     }
 }
 
-impl Provider for FunctionProvider {
-    fn name(&self) -> String {
-        String::from("k8s-hyper-alpine")
-    }
-
-    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
-        Ok(())
-    }
-
-    fn transform(
-        &self,
-        ctx: Rc<asml::Context>,
-        name: String,
-    ) -> Result<Box<dyn Artifact>, ProviderError> {
+impl Castable for FunctionProvider {
+    fn cast(&mut self, ctx: Rc<Context>, name: &str) -> Result<Vec<String>, CastError> {
         use std::io::Write;
 
         let mut reg = Box::new(Handlebars::new());
@@ -157,7 +144,7 @@ impl Provider for FunctionProvider {
         reg.register_template_string("function", FUNCTION_TEMPLATE)
             .unwrap();
 
-        match ctx.functions.iter().find(|&f| *f.name == name.clone()) {
+        match ctx.functions.iter().find(|&f| f.name == name) {
             Some(function) => {
                 let service = function.service_name.clone();
                 let registry_type = self
@@ -235,17 +222,31 @@ impl Provider for FunctionProvider {
                     service.clone(),
                     function.name.clone()
                 ))
-                .expect("could not create runtime Dockerfile");
+                    .expect("could not create runtime Dockerfile");
                 file.write_all(rendered_dockerfile.as_bytes())
                     .expect("could not write runtime Dockerfile");
 
-                Ok(Box::new(ProviderArtifact::new(rendered_hcl)))
+                Ok(vec![rendered_hcl])
             }
-            None => Err(ProviderError::TransformationError(format!(
+            None => Err(CastError(format!(
                 "unable to find function {} in context",
                 name.clone()
             ))),
         }
+    }
+
+    fn content_type(&self) -> Vec<ContentType> {
+        todo!()
+    }
+}
+
+impl Provider for FunctionProvider {
+    fn name(&self) -> String {
+        String::from("k8s-hyper-alpine")
+    }
+
+    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
+        Ok(())
     }
 
     fn options(&self) -> Arc<Options> {

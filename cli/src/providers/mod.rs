@@ -5,11 +5,13 @@ use handlebars::{Handlebars, to_json};
 use once_cell::sync::Lazy;
 use serde::Serialize;
 
-use crate::transpiler::{Artifact, ArtifactError, ContentType, StringMap};
+use crate::transpiler::{Castable, CastError, ContentType, StringMap};
 use crate::transpiler::asml;
+use crate::transpiler::asml::Context;
 
 pub mod aws_lambda;
 pub mod aws_lambda_alpine;
+pub mod gloo;
 pub mod k8s_hyper_alpine;
 
 pub type ProviderMap = StringMap<Mutex<Box<dyn Provider + Send + Sync>>>;
@@ -55,18 +57,12 @@ pub static ROOT_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     map
 });
 
+pub type BoxedCastable = Box<dyn Castable>;
 pub type Options = StringMap<String>;
 
-pub trait Provider {
+pub trait Provider: Castable {
     fn name(&self) -> String;
-
     fn init(&self, ctx: Rc<asml::Context>, name: String) -> Result<(), ProviderError>;
-    fn transform(
-        &self,
-        ctx: Rc<asml::Context>,
-        name: String,
-    ) -> Result<Box<dyn Artifact>, ProviderError>; // TODO runtimes should be able to generate multiple artifacts
-
     fn options(&self) -> Arc<Options>;
     fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError>;
 }
@@ -86,33 +82,6 @@ pub fn render_string_list(list: Rc<Vec<String>>) -> String {
     }
     out.push_str("]");
     out
-}
-
-pub struct ProviderArtifact {
-    content: Rc<Option<String>>,
-}
-
-impl ProviderArtifact {
-    pub fn new(content: String) -> Self {
-        ProviderArtifact {
-            content: Rc::new(Some(content)),
-        }
-    }
-}
-
-impl Artifact for ProviderArtifact {
-    fn content_type(&self) -> ContentType {
-        ContentType::HCL("HCL")
-    }
-
-    fn content(&self) -> Rc<Option<String>> {
-        self.content.clone()
-    }
-
-    fn cast(&mut self) -> Result<String, ArtifactError> {
-        let content = self.content().as_ref().as_ref().unwrap().clone();
-        Ok(content)
-    }
 }
 
 #[derive(Serialize)]
@@ -137,20 +106,8 @@ impl RootProvider<'_> {
     }
 }
 
-impl<'a> Provider for RootProvider<'a> {
-    fn name(&self) -> String {
-        String::from("root")
-    }
-
-    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
-        Ok(())
-    }
-
-    fn transform(
-        &self,
-        ctx: Rc<asml::Context>,
-        _name: String,
-    ) -> Result<Box<dyn Artifact>, ProviderError> {
+impl<'a> Castable for RootProvider<'a> {
+    fn cast(&mut self, ctx: Rc<Context>, name: &str) -> Result<Vec<String>, CastError> {
         use std::fs;
         use std::path::PathBuf;
 
@@ -182,11 +139,25 @@ impl<'a> Provider for RootProvider<'a> {
         let data = to_json(data);
 
         let mut reg = Box::new(Handlebars::new());
-        reg.register_template_string("template", ROOT_TEMPLATE)
+        reg.register_template_string("hcl_template", ROOT_HCL_TEMPLATE)
             .unwrap();
-        let rendered = reg.render("template", &data).unwrap();
+        let rendered_hcl = reg.render("hcl_template", &data).unwrap();
 
-        Ok(Box::new(ProviderArtifact::new(rendered)))
+        Ok(vec![rendered_hcl])
+    }
+
+    fn content_type(&self) -> Vec<ContentType> {
+        vec![ContentType::HCL("HCL")]
+    }
+}
+
+impl<'a> Provider for RootProvider<'a> {
+    fn name(&self) -> String {
+        String::from("root")
+    }
+
+    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
+        Ok(())
     }
 
     fn options(&self) -> Arc<Options> {
@@ -198,7 +169,7 @@ impl<'a> Provider for RootProvider<'a> {
     }
 }
 
-static ROOT_TEMPLATE: &str = r#"terraform {
+static ROOT_HCL_TEMPLATE: &str = r#"terraform {
     required_providers {
         docker = {
             source  = "kreuzwerker/docker"

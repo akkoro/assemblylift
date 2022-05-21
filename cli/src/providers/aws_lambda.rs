@@ -4,10 +4,68 @@ use std::sync::Arc;
 use handlebars::{Handlebars, to_json};
 use serde::Serialize;
 
-use crate::providers::{Options, Provider, ProviderArtifact, ProviderError, render_string_list};
-use crate::transpiler::{Artifact, asml};
+use crate::providers::{BoxedCastable, Options, Provider, ProviderError, render_string_list};
+use crate::transpiler::{asml, Castable, CastError, ContentType};
+use crate::transpiler::asml::Context;
 
 pub struct ServiceProvider;
+
+impl Castable for ServiceProvider {
+    fn cast(&mut self, ctx: Rc<Context>, name: &str) -> Result<Vec<String>, CastError> {
+        let mut reg = Box::new(Handlebars::new());
+        reg.register_template_string("service", SERVICE_TEMPLATE)
+            .unwrap();
+
+        let layer_name = format!("asml-{}-{}-{}-runtime",
+                                 ctx.project.name.clone(),
+                                 name.clone(),
+                                 self.name().clone(),
+        );
+
+        let use_apigw = ctx.functions.iter().find(|f| f.http.is_some()).is_some();
+        let has_service_layer = ctx.iomods.len() > 0;
+
+        let authorizers: Vec<ServiceAuthData> = ctx.authorizers.iter()
+            .filter(|a| a.r#type.to_lowercase() != "aws_iam")
+            .map(|a| {
+                ServiceAuthData {
+                    id: a.id.clone(),
+                    r#type: a.r#type.clone(),
+                    jwt_config: match &a.jwt_config {
+                        Some(jwt) => {
+                            let audience = render_string_list(jwt.audience.clone());
+
+                            Some(ServiceAuthDataJwtConfig {
+                                audience,
+                                issuer: jwt.issuer.clone(),
+                            })
+                        }
+                        None => None,
+                    },
+                }
+            })
+            .collect();
+
+        let data = ServiceData {
+            name: name.to_string(),
+            aws_region: String::from("us-east-1"),
+            hcl_provider: String::from("aws"),
+            layer_name,
+            use_apigw,
+            has_service_layer,
+            authorizers,
+        };
+        let data = to_json(data);
+
+        let rendered = reg.render("service", &data).unwrap();
+
+        Ok(vec![rendered])
+    }
+
+    fn content_type(&self) -> Vec<ContentType> {
+        vec![ContentType::HCL("HCL")]
+    }
+}
 
 impl Provider for ServiceProvider {
     fn name(&self) -> String {
@@ -34,57 +92,6 @@ impl Provider for ServiceProvider {
 
         Ok(())
     }
-    
-    fn transform(&self, ctx: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError> {
-        let mut reg = Box::new(Handlebars::new()); 
-        reg.register_template_string("service", SERVICE_TEMPLATE)
-            .unwrap();
-
-        let layer_name = format!("asml-{}-{}-{}-runtime", 
-            ctx.project.name.clone(), 
-            name.clone(), 
-            self.name().clone(),
-        ); 
-
-        let use_apigw = ctx.functions.iter().find(|f| f.http.is_some()).is_some();
-        let has_service_layer = ctx.iomods.len() > 0;
-
-        let authorizers: Vec<ServiceAuthData> = ctx.authorizers.iter()
-            .filter(|a| a.r#type.to_lowercase() != "aws_iam")
-            .map(|a| {
-                ServiceAuthData {
-                    id: a.id.clone(),
-                    r#type: a.r#type.clone(),
-                    jwt_config: match &a.jwt_config {
-                        Some(jwt) => {
-                            let audience = render_string_list(jwt.audience.clone());
-
-                            Some(ServiceAuthDataJwtConfig {
-                                audience,
-                                issuer: jwt.issuer.clone(),
-                            })
-                        }
-                        None => None,
-                    },
-                }
-            })
-            .collect();
-
-        let data = ServiceData { 
-            name: name.clone(),
-            aws_region: String::from("us-east-1"),
-            hcl_provider: String::from("aws"),
-            layer_name,
-            use_apigw,
-            has_service_layer,
-            authorizers,
-        };
-        let data = to_json(data);
-        
-        let rendered = reg.render("service", &data).unwrap();
-
-        Ok(Box::new(ProviderArtifact::new(rendered)))
-    }
 
     fn options(&self) -> Arc<Options> {
         Arc::new(Options::new())
@@ -97,21 +104,13 @@ impl Provider for ServiceProvider {
 
 pub struct FunctionProvider;
 
-impl Provider for FunctionProvider {
-    fn name(&self) -> String {
-        String::from("aws-lambda")
-    }
-    
-    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
-        Ok(())
-    }
-
-    fn transform(&self, ctx: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError> {
-        let mut reg = Box::new(Handlebars::new()); 
+impl Castable for FunctionProvider {
+    fn cast(&mut self, ctx: Rc<Context>, name: &str) -> Result<Vec<String>, CastError> {
+        let mut reg = Box::new(Handlebars::new());
         reg.register_template_string("function", FUNCTION_TEMPLATE)
             .unwrap();
 
-        match ctx.functions.iter().find(|&f| *f.name == name.clone()) {
+        match ctx.functions.iter().find(|&f| f.name == name) {
             Some(function) => {
                 let service = function.service_name.clone();
 
@@ -167,14 +166,27 @@ impl Provider for FunctionProvider {
                     auth,
                 };
                 let data = to_json(data);
-                
+
                 let rendered = reg.render("function", &data).unwrap();
 
-                Ok(Box::new(ProviderArtifact::new(rendered)))
+                Ok(vec![rendered])
             }
-            None => Err(ProviderError::TransformationError(format!("unable to find function {} in context", name.clone()))),
+            None => Err(CastError(format!("unable to find function {} in context", name.clone()))),
         }
+    }
 
+    fn content_type(&self) -> Vec<ContentType> {
+        todo!()
+    }
+}
+
+impl Provider for FunctionProvider {
+    fn name(&self) -> String {
+        String::from("aws-lambda")
+    }
+    
+    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
+        Ok(())
     }
     
     fn options(&self) -> Arc<Options> {
