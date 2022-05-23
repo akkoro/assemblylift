@@ -1,4 +1,3 @@
-// TODO probably better to rename this module as `context`
 use std::rc::Rc;
 use std::sync::Arc;
 

@@ -206,7 +206,7 @@ pub fn command(matches: Option<&ArgMatches>) {
 
         let mut net = NetRoot;
         let artifacts = net.cast(ctx.clone(), &ctx.project.name).expect("could not cast net");
-
+        // TODO Castable's should impl write(ctx, project) ?
         let path = String::from("./net/plan.tf");
         let mut file = match fs::File::create(path.clone()) {
             Err(why) => panic!(
