@@ -32,6 +32,8 @@ impl GlooCtl {
         s
     }
 
+    // TODO install_gateway
+
     pub fn get_upstreams(&self) -> Value {
         let out = self
             .command()

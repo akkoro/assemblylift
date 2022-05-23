@@ -6,8 +6,8 @@ use once_cell::sync::Lazy;
 use serde::Serialize;
 
 use crate::transpiler::{Castable, CastError, ContentType, StringMap};
-use crate::transpiler::asml;
-use crate::transpiler::asml::Context;
+use crate::transpiler::context;
+use crate::transpiler::context::Context;
 
 pub mod aws_lambda;
 pub mod aws_lambda_alpine;
@@ -62,7 +62,7 @@ pub type Options = StringMap<String>;
 
 pub trait Provider: Castable {
     fn name(&self) -> String;
-    fn init(&self, ctx: Rc<asml::Context>, name: String) -> Result<(), ProviderError>;
+    fn init(&self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError>;
     fn options(&self) -> Arc<Options>;
     fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError>;
 }
@@ -156,7 +156,7 @@ impl<'a> Provider for RootProvider<'a> {
         String::from("root")
     }
 
-    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
+    fn init(&self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
         Ok(())
     }
 

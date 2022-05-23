@@ -19,7 +19,8 @@ use wasmer_engine_universal::Universal;
 use crate::archive;
 use crate::projectfs::Project;
 use crate::terraform;
-use crate::transpiler::{asml, Castable, hcl, toml};
+use crate::transpiler::{Castable, context, toml};
+use crate::transpiler::net::NetRoot;
 
 mod ruby;
 mod rust;
@@ -200,10 +201,11 @@ pub fn command(matches: Option<&ArgMatches>) {
     }
 
     {
-        let ctx = asml::Context::from_project(project.clone(), asml_manifest)
-            .expect("could not make context from manifest");
-        let mut module = hcl::root::Module::new();
-        let hcl_content = module.cast(Rc::new(ctx), &*project.name.clone()).expect("could not cast HCL modules")[0].clone();
+        let ctx = Rc::new(context::Context::from_project(project.clone(), asml_manifest)
+            .expect("could not make context from manifest"));
+
+        let mut net = NetRoot;
+        let artifacts = net.cast(ctx.clone(), &ctx.project.name).expect("could not cast net");
 
         let path = String::from("./net/plan.tf");
         let mut file = match fs::File::create(path.clone()) {
@@ -216,7 +218,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         };
 
         println!("📄 > Wrote {}", path.clone());
-        file.write_all(hcl_content.as_bytes()).expect("could not write plan.tf");
+        file.write_all(artifacts[0].as_bytes()).expect("could not write plan.tf");
     }
 
     terraform::commands::init();

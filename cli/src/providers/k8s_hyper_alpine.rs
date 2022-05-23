@@ -10,8 +10,8 @@ use serde::Serialize;
 use crate::providers::{BoxedCastable, Options, Provider, ProviderError};
 use crate::tools::glooctl::GlooCtl;
 use crate::tools::kubectl::KubeCtl;
-use crate::transpiler::{asml, Castable, CastError, ContentType};
-use crate::transpiler::asml::Context;
+use crate::transpiler::{Castable, CastError, ContentType, context};
+use crate::transpiler::context::Context;
 
 pub struct ServiceProvider {
     options: Arc<Options>,
@@ -102,7 +102,7 @@ impl Provider for ServiceProvider {
         String::from("k8s-hyper-alpine")
     }
 
-    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
+    fn init(&self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
         println!("DEBUG calling init on k8s runtime provider");
 
         // let kube = KubeCtl::default();
@@ -245,7 +245,7 @@ impl Provider for FunctionProvider {
         String::from("k8s-hyper-alpine")
     }
 
-    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
+    fn init(&self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
         Ok(())
     }
 

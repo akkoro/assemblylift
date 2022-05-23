@@ -6,8 +6,8 @@ use handlebars::{Handlebars, to_json};
 use serde::Serialize;
 
 use crate::providers::{BoxedCastable, Options, Provider, ProviderError, render_string_list};
-use crate::transpiler::{asml, Castable, CastError, ContentType};
-use crate::transpiler::asml::Context;
+use crate::transpiler::{Castable, CastError, ContentType, context};
+use crate::transpiler::context::Context;
 
 pub struct ServiceProvider {
     options: Arc<Options>,
@@ -81,7 +81,7 @@ impl Provider for ServiceProvider {
         String::from("aws-lambda-alpine")
     }
 
-    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
+    fn init(&self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
         Ok(())
     }
 
@@ -196,7 +196,7 @@ impl Provider for FunctionProvider {
         String::from("aws-lambda")
     }
     
-    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
+    fn init(&self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
         Ok(())
     }
 
