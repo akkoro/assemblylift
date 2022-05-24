@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process;
-use std::process::{Command, Stdio};
+use std::process::{Command, ExitStatus, Stdio};
 
 use serde_json::Value;
 
@@ -29,21 +29,36 @@ impl KubeCtl {
         s
     }
 
-    pub fn apply(&self, config: &str) -> Result<Value, String> {
-        println!("DEBUG applying config {:?}", config);
+    pub fn apply(&self) -> Result<(), String> {
         let mut child = self
             .command()
             .arg("apply")
             .arg("-f")
-            .arg("-")
+            .arg("./net/kube.yaml")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+
+        let status = child.wait().unwrap();
+        if status.code().unwrap() != 0i32 {
+            return Err(format!("kubectl apply exited with error code {:?}", status))
+        }
+
+        println!("✅ kubectl apply OK");
+        Ok(())
+    }
+
+    pub fn get_namespaces(&self) -> Result<Value, String> {
+        let mut child = self
+            .command()
+            .args(vec!["get", "namespaces"])
             .arg("-o")
             .arg("json")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()
             .unwrap();
-        let mut stdin = child.stdin.take().expect("Failed to open stdin");
-        stdin.write_all(config.as_bytes()).expect("Failed to write to stdin");
         let output = child.wait_with_output().unwrap();
         let json = std::str::from_utf8(&*output.stdout).unwrap();
         Ok(serde_json::from_str(json).unwrap())

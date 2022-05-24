@@ -81,7 +81,7 @@ impl Provider for ServiceProvider {
         String::from("aws-lambda-alpine")
     }
 
-    fn init(&self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
+    fn init(&mut self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
         Ok(())
     }
 
@@ -196,7 +196,7 @@ impl Provider for FunctionProvider {
         String::from("aws-lambda")
     }
     
-    fn init(&self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
+    fn init(&mut self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
         Ok(())
     }
 

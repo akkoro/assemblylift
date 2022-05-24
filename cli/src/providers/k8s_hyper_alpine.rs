@@ -102,7 +102,7 @@ impl Provider for ServiceProvider {
         String::from("k8s-hyper-alpine")
     }
 
-    fn init(&self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
+    fn init(&mut self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
         println!("DEBUG calling init on k8s runtime provider");
 
         // let kube = KubeCtl::default();
@@ -245,7 +245,7 @@ impl Provider for FunctionProvider {
         String::from("k8s-hyper-alpine")
     }
 
-    fn init(&self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
+    fn init(&mut self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
         Ok(())
     }
 

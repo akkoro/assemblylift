@@ -32,7 +32,16 @@ impl GlooCtl {
         s
     }
 
-    // TODO install_gateway
+    pub fn install_gateway(&self, project_name: &str) {
+        println!("Installing Gloo API Gateway");
+        self.
+            command()
+            .args(vec!["install", "gateway"])
+            .arg("-n")
+            .arg(format!("asml-gloo-{}", project_name))
+            .output()
+            .expect("glooctl could not install gloo gateway");
+    }
 
     pub fn get_upstreams(&self) -> Value {
         let out = self

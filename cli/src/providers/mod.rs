@@ -62,7 +62,7 @@ pub type Options = StringMap<String>;
 
 pub trait Provider: Castable {
     fn name(&self) -> String;
-    fn init(&self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError>;
+    fn init(&mut self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError>;
     fn options(&self) -> Arc<Options>;
     fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError>;
 }
@@ -156,7 +156,7 @@ impl<'a> Provider for RootProvider<'a> {
         String::from("root")
     }
 
-    fn init(&self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
+    fn init(&mut self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
         Ok(())
     }
 

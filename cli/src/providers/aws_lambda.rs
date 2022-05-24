@@ -72,7 +72,7 @@ impl Provider for ServiceProvider {
         String::from("aws-lambda")
     }
 
-    fn init(&self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
+    fn init(&mut self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
         use std::io::Read;
 
         let runtime_url = &*format!(
@@ -185,7 +185,7 @@ impl Provider for FunctionProvider {
         String::from("aws-lambda")
     }
     
-    fn init(&self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
+    fn init(&mut self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
         Ok(())
     }
     
