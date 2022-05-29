@@ -1,21 +1,44 @@
+use std::io::Read;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use handlebars::{Handlebars, to_json};
 use serde::Serialize;
 
-use crate::providers::{BoxedCastable, Options, Provider, ProviderError, render_string_list};
-use crate::transpiler::{Castable, CastError, ContentType, context};
+use crate::providers::{Options, Provider, ProviderError, render_string_list};
+use crate::transpiler::{BoxedCastable, Castable, CastError, ContentType, context};
 use crate::transpiler::context::Context;
 
 pub struct ServiceProvider;
 
+impl ServiceProvider {
+    pub fn new() -> Self {
+        let runtime_url = &*format!(
+            "http://public.assemblylift.akkoro.io/runtime/{}/aws-lambda/bootstrap.zip",
+            clap::crate_version!(),
+        );
+        let mut response = reqwest::blocking::get(runtime_url)
+            .expect("could not download bootstrap.zip");
+        if !response.status().is_success() {
+            panic!("unable to fetch asml runtime from {}", runtime_url);
+        }
+        let mut response_buffer = Vec::new();
+        response.read_to_end(&mut response_buffer).unwrap();
+
+        std::fs::create_dir_all("./.asml/runtime").unwrap();
+        std::fs::write("./.asml/runtime/bootstrap.zip", response_buffer).unwrap();
+
+        Self
+    }
+}
+
 impl Castable for ServiceProvider {
-    fn cast(&mut self, ctx: Rc<Context>, name: &str) -> Result<Vec<String>, CastError> {
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<String>, CastError> {
         let mut reg = Box::new(Handlebars::new());
         reg.register_template_string("service", SERVICE_TEMPLATE)
             .unwrap();
 
+        let name = selector.expect("selector must be a service name").to_string();
         let layer_name = format!("asml-{}-{}-{}-runtime",
                                  ctx.project.name.clone(),
                                  name.clone(),
@@ -47,7 +70,7 @@ impl Castable for ServiceProvider {
             .collect();
 
         let data = ServiceData {
-            name: name.to_string(),
+            name: name.clone(),
             aws_region: String::from("us-east-1"),
             hcl_provider: String::from("aws"),
             layer_name,
@@ -72,27 +95,6 @@ impl Provider for ServiceProvider {
         String::from("aws-lambda")
     }
 
-    fn init(&mut self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
-        use std::io::Read;
-
-        let runtime_url = &*format!(
-            "http://public.assemblylift.akkoro.io/runtime/{}/aws-lambda/bootstrap.zip",
-            clap::crate_version!(),
-        );
-        let mut response = reqwest::blocking::get(runtime_url)
-            .expect("could not download bootstrap.zip");
-        if !response.status().is_success() {
-            panic!("unable to fetch asml runtime from {}", runtime_url);
-        }
-        let mut response_buffer = Vec::new();
-        response.read_to_end(&mut response_buffer).unwrap();
-
-        std::fs::create_dir_all("./.asml/runtime").unwrap();
-        std::fs::write("./.asml/runtime/bootstrap.zip", response_buffer).unwrap();
-
-        Ok(())
-    }
-
     fn options(&self) -> Arc<Options> {
         Arc::new(Options::new())
     }
@@ -105,11 +107,12 @@ impl Provider for ServiceProvider {
 pub struct FunctionProvider;
 
 impl Castable for FunctionProvider {
-    fn cast(&mut self, ctx: Rc<Context>, name: &str) -> Result<Vec<String>, CastError> {
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<String>, CastError> {
         let mut reg = Box::new(Handlebars::new());
         reg.register_template_string("function", FUNCTION_TEMPLATE)
             .unwrap();
 
+        let name = selector.expect("selector must be a function name").to_string();
         match ctx.functions.iter().find(|&f| f.name == name) {
             Some(function) => {
                 let service = function.service_name.clone();
@@ -177,24 +180,6 @@ impl Castable for FunctionProvider {
 
     fn content_type(&self) -> Vec<ContentType> {
         todo!()
-    }
-}
-
-impl Provider for FunctionProvider {
-    fn name(&self) -> String {
-        String::from("aws-lambda")
-    }
-    
-    fn init(&mut self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
-        Ok(())
-    }
-    
-    fn options(&self) -> Arc<Options> {
-        Arc::new(Options::new())
-    }
-
-    fn set_options(&mut self, _opts: Arc<Options>) -> Result<(), ProviderError> {
-        Ok(())
     }
 }
 

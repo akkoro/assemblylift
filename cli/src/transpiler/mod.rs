@@ -1,9 +1,11 @@
 use std::rc::Rc;
 
+use crate::transpiler::context::Context;
+
 pub mod context;
-pub mod net;
 pub mod toml;
 
+pub type BoxedCastable = Box<dyn Castable>;
 pub type Map<K, V> = std::collections::HashMap<K, V>;
 pub type StringMap<V> = Map<String, V>;
 
@@ -16,9 +18,14 @@ pub enum ContentType {
 /// A net-castable artifact
 pub trait Castable {
     /// Cast the implementor into Strings; binary artifacts must be encoded with e.g. base64
-    fn cast(&mut self, ctx: Rc<context::Context>, name: &str) -> Result<Vec<String>, CastError>; // FIXME `name` should be optional
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<String>, CastError>;
     /// The types of document this Castable will `cast` to
     fn content_type(&self) -> Vec<ContentType>;
+}
+
+pub trait Template {
+    fn render(&self) -> String;
+    fn tmpl() -> &'static str;
 }
 
 #[derive(Debug)]

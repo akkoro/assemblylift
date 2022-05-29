@@ -5,8 +5,8 @@ use clap::crate_version;
 use handlebars::{Handlebars, to_json};
 use serde::Serialize;
 
-use crate::providers::{BoxedCastable, Options, Provider, ProviderError, render_string_list};
-use crate::transpiler::{Castable, CastError, ContentType, context};
+use crate::providers::{Options, Provider, ProviderError, render_string_list};
+use crate::transpiler::{BoxedCastable, Castable, CastError, ContentType, context};
 use crate::transpiler::context::Context;
 
 pub struct ServiceProvider {
@@ -20,14 +20,14 @@ impl ServiceProvider {
 }
 
 impl Castable for ServiceProvider {
-    fn cast(&mut self, ctx: Rc<Context>, name: &str) -> Result<Vec<String>, CastError> {
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<String>, CastError> {
         let mut reg = Box::new(Handlebars::new());
         reg.register_template_string("service", SERVICE_TEMPLATE)
             .unwrap();
 
         let layer_name = format!("asml-{}-{}-{}-runtime",
                                  ctx.project.name.clone(),
-                                 name.clone(),
+                                 selector.expect("selector must be a service name").to_string(),
                                  self.name().clone(),
         );
 
@@ -57,7 +57,7 @@ impl Castable for ServiceProvider {
         let aws_account_id = self.options.get("aws_account_id")
             .expect("service provider requires `aws_account_id` option");
         let data = ServiceData {
-            name: name.to_string(),
+            name: selector.expect("selector must be a service name").to_string(),
             aws_account_id: aws_account_id.clone(),
             aws_region: String::from("us-east-1"),
             hcl_provider: String::from("aws"),
@@ -81,10 +81,6 @@ impl Provider for ServiceProvider {
         String::from("aws-lambda-alpine")
     }
 
-    fn init(&mut self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
-        Ok(())
-    }
-
     fn options(&self) -> Arc<Options> {
         self.options.clone()
     }
@@ -106,13 +102,14 @@ impl FunctionProvider {
 }
 
 impl Castable for FunctionProvider {
-    fn cast(&mut self, ctx: Rc<Context>, name: &str) -> Result<Vec<String>, CastError> {
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<String>, CastError> {
         use std::io::Write;
 
         let mut reg = Box::new(Handlebars::new());
         reg.register_template_string("function", FUNCTION_TEMPLATE)
             .unwrap();
 
+        let name = selector.expect("selector must be a function name").to_string();
         match ctx.functions.iter().find(|&f| f.name == name) {
             Some(function) => {
                 let service = function.service_name.clone();
@@ -194,10 +191,6 @@ impl Castable for FunctionProvider {
 impl Provider for FunctionProvider {
     fn name(&self) -> String {
         String::from("aws-lambda")
-    }
-    
-    fn init(&mut self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
-        Ok(())
     }
 
     fn options(&self) -> Arc<Options> {

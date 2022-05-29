@@ -30,6 +30,7 @@ impl KubeCtl {
     }
 
     pub fn apply(&self) -> Result<(), String> {
+        println!("Applying kubernetes configuration...");
         let mut child = self
             .command()
             .arg("apply")
@@ -40,11 +41,13 @@ impl KubeCtl {
             .spawn()
             .unwrap();
 
-        let status = child.wait().unwrap();
-        if status.code().unwrap() != 0i32 {
-            return Err(format!("kubectl apply exited with error code {:?}", status))
+        let output = child.wait_with_output().unwrap();
+        if output.status.code().unwrap() != 0i32 {
+            return Err(format!("kubectl apply exited with error code {:?}", output.status))
         }
 
+        let out = std::str::from_utf8(&*output.stdout).unwrap();
+        println!("{}", out);
         println!("✅ kubectl apply OK");
         Ok(())
     }

@@ -21,7 +21,6 @@ use crate::projectfs::Project;
 use crate::terraform;
 use crate::transpiler::{Castable, context, toml};
 use crate::transpiler::context::Context;
-use crate::transpiler::net::NetRoot;
 
 mod ruby;
 mod rust;
@@ -205,9 +204,10 @@ pub fn command(matches: Option<&ArgMatches>) {
         let ctx = Rc::new(Context::from_project(project.clone(), asml_manifest)
             .expect("could not make context from manifest"));
 
-        let mut net = NetRoot;
-        let artifacts = net.cast(ctx.clone(), &ctx.project.name).expect("could not cast net");
-        // TODO Castable's should impl write(ctx, project) ?
+        // let mut net = NetRoot;
+        // let artifacts = net.cast(ctx.clone(), &ctx.project.name).expect("could not cast net");
+        let artifacts = ctx.cast(ctx.clone(), None).expect("could not cast assemblylift context");
+
         let hcl_path = String::from("./net/plan.tf");
         let mut file = match fs::File::create(hcl_path.clone()) {
             Err(why) => panic!(
@@ -221,18 +221,18 @@ pub fn command(matches: Option<&ArgMatches>) {
         file.write_all(artifacts[0].as_bytes()).expect("could not write plan.tf");
         println!("📄 > Wrote {}", hcl_path.clone());
 
-        let kube_path = String::from("./net/kube.yaml");
-        let mut file = match fs::File::create(kube_path.clone()) {
-            Err(why) => panic!(
-                "couldn't create file {}: {}",
-                kube_path.clone(),
-                why.to_string()
-            ),
-            Ok(file) => file,
-        };
-
-        file.write_all(artifacts[1].as_bytes()).expect("could not write kube.yaml");
-        println!("📄 > Wrote {}", kube_path.clone());
+        // let kube_path = String::from("./net/kube.yaml");
+        // let mut file = match fs::File::create(kube_path.clone()) {
+        //     Err(why) => panic!(
+        //         "couldn't create file {}: {}",
+        //         kube_path.clone(),
+        //         why.to_string()
+        //     ),
+        //     Ok(file) => file,
+        // };
+        //
+        // file.write_all(artifacts[1].as_bytes()).expect("could not write kube.yaml");
+        // println!("📄 > Wrote {}", kube_path.clone());
     }
 
     terraform::commands::init();

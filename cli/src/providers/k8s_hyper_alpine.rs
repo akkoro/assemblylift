@@ -7,17 +7,17 @@ use clap::crate_version;
 use handlebars::{Handlebars, to_json};
 use serde::Serialize;
 
-use crate::providers::{BoxedCastable, Options, Provider, ProviderError};
+use crate::providers::{Options, Provider, ProviderError};
 use crate::tools::glooctl::GlooCtl;
 use crate::tools::kubectl::KubeCtl;
-use crate::transpiler::{Castable, CastError, ContentType, context};
+use crate::transpiler::{BoxedCastable, Castable, CastError, ContentType, context, Template};
 use crate::transpiler::context::Context;
 
-pub struct ServiceProvider {
+pub struct KubernetesProvider {
     options: Arc<Options>,
 }
 
-impl ServiceProvider {
+impl KubernetesProvider {
     pub fn new() -> Self {
         Self {
             options: Arc::new(Options::new()),
@@ -25,8 +25,8 @@ impl ServiceProvider {
     }
 }
 
-impl Castable for ServiceProvider {
-    fn cast(&mut self, ctx: Rc<Context>, name: &str) -> Result<Vec<String>, CastError> {
+impl Castable for KubernetesProvider {
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<String>, CastError> {
         let mut reg = Box::new(Handlebars::new());
         reg.register_template_string("service", SERVICE_TEMPLATE)
             .unwrap();
@@ -54,8 +54,8 @@ impl Castable for ServiceProvider {
             }
         }
 
-        let data = ServiceData {
-            service_name: name.to_string(),
+        let data = ServiceTemplate {
+            service_name: selector.expect("selector must be a service name").to_string(),
             container_registry: ContainerRegistryData {
                 is_dockerhub: registry_type == "dockerhub",
                 is_ecr: registry_type == "ecr",
@@ -89,6 +89,9 @@ impl Castable for ServiceProvider {
         let data = to_json(data);
 
         let rendered = reg.render("service", &data).unwrap();
+
+        // TODO render functions from template
+
         Ok(vec![rendered])
     }
 
@@ -97,19 +100,9 @@ impl Castable for ServiceProvider {
     }
 }
 
-impl Provider for ServiceProvider {
+impl Provider for KubernetesProvider {
     fn name(&self) -> String {
         String::from("k8s-hyper-alpine")
-    }
-
-    fn init(&mut self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
-        println!("DEBUG calling init on k8s runtime provider");
-
-        // let kube = KubeCtl::default();
-        // kube.apply(r#"
-        // "#).unwrap();
-
-        Ok(())
     }
 
     fn options(&self) -> Arc<Options> {
@@ -122,11 +115,11 @@ impl Provider for ServiceProvider {
     }
 }
 
-pub struct FunctionProvider {
+struct KubernetesFunction {
     options: Arc<Options>,
 }
 
-impl FunctionProvider {
+impl KubernetesFunction {
     pub fn new() -> Self {
         Self {
             options: Arc::new(Options::new()),
@@ -134,8 +127,8 @@ impl FunctionProvider {
     }
 }
 
-impl Castable for FunctionProvider {
-    fn cast(&mut self, ctx: Rc<Context>, name: &str) -> Result<Vec<String>, CastError> {
+impl Castable for KubernetesFunction {
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<String>, CastError> {
         use std::io::Write;
 
         let mut reg = Box::new(Handlebars::new());
@@ -144,6 +137,7 @@ impl Castable for FunctionProvider {
         reg.register_template_string("function", FUNCTION_TEMPLATE)
             .unwrap();
 
+        let name = selector.expect("selector must be a function name").to_string();
         match ctx.functions.iter().find(|&f| f.name == name) {
             Some(function) => {
                 let service = function.service_name.clone();
@@ -240,31 +234,22 @@ impl Castable for FunctionProvider {
     }
 }
 
-impl Provider for FunctionProvider {
-    fn name(&self) -> String {
-        String::from("k8s-hyper-alpine")
-    }
-
-    fn init(&mut self, ctx: Rc<Context>, name: &str) -> Result<(), ProviderError> {
-        Ok(())
-    }
-
-    fn options(&self) -> Arc<Options> {
-        self.options.clone()
-    }
-
-    fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError> {
-        self.options = opts;
-        Ok(())
-    }
-}
-
 #[derive(Serialize)]
-pub struct ServiceData {
+pub struct ServiceTemplate {
     pub service_name: String,
     pub container_registry: ContainerRegistryData,
     pub kube_config_path: String,
     pub docker_config_path: String,
+}
+
+impl Template for ServiceTemplate {
+    fn render(&self) -> String {
+        todo!()
+    }
+
+    fn tmpl() -> &'static str {
+        todo!()
+    }
 }
 
 #[derive(Serialize)]
