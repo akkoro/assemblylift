@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::rc::Rc;
@@ -27,9 +28,9 @@ impl KubernetesProvider {
 
 impl Castable for KubernetesProvider {
     fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<String>, CastError> {
-        let mut reg = Box::new(Handlebars::new());
-        reg.register_template_string("service", SERVICE_TEMPLATE)
-            .unwrap();
+        let name = selector
+            .expect("selector must be a service name")
+            .to_string();
 
         let registry_type = self
             .options
@@ -54,10 +55,8 @@ impl Castable for KubernetesProvider {
             }
         }
 
-        let data = ServiceTemplate {
-            service_name: selector
-                .expect("selector must be a service name")
-                .to_string(),
+        let mut hcl_content = ServiceTemplate {
+            service_name: name.clone(),
             container_registry: ContainerRegistryData {
                 is_dockerhub: registry_type == "dockerhub",
                 is_ecr: registry_type == "ecr",
@@ -87,14 +86,24 @@ impl Castable for KubernetesProvider {
                 .get("docker_config_path")
                 .unwrap_or(&"~/.docker/config.json".to_string())
                 .clone(),
+        }
+        .render();
+
+        let functions_subprovider = KubernetesFunction {
+            options: self.options.clone(),
         };
-        let data = to_json(data);
+        ctx.functions
+            .iter()
+            .filter(|f| f.service_name == name)
+            .map(|f| {
+                hcl_content.push_str(
+                    &*functions_subprovider
+                        .cast(ctx.clone(), Some(&f.name))
+                        .unwrap()[0],
+                )
+            });
 
-        let rendered = reg.render("service", &data).unwrap();
-
-        // TODO render functions from template
-
-        Ok(vec![rendered])
+        Ok(vec![hcl_content])
     }
 
     fn content_type(&self) -> Vec<ContentType> {
@@ -131,14 +140,6 @@ impl KubernetesFunction {
 
 impl Castable for KubernetesFunction {
     fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<String>, CastError> {
-        use std::io::Write;
-
-        let mut reg = Box::new(Handlebars::new());
-        reg.register_template_string("dockerfile", DOCKERFILE_TEMPLATE)
-            .unwrap();
-        reg.register_template_string("function", FUNCTION_TEMPLATE)
-            .unwrap();
-
         let name = selector
             .expect("selector must be a function name")
             .to_string();
@@ -173,7 +174,7 @@ impl Castable for KubernetesFunction {
                     })
                     .collect();
 
-                let data = FunctionData {
+                let hcl_tmpl = FunctionTemplate {
                     base_image_version: crate_version!().to_string(),
                     function_name: function.name.clone(),
                     service_name: service.clone(),
@@ -215,10 +216,16 @@ impl Castable for KubernetesFunction {
                     },
                     is_ruby: function.language == "ruby".to_string(),
                 };
-                let data = to_json(data);
+                let hcl_content = hcl_tmpl.render();
 
-                let rendered_hcl = reg.render("function", &data).unwrap();
-                let rendered_dockerfile = reg.render("dockerfile", &data).unwrap();
+                let dockerfile_content = DockerfileTemplate {
+                    base_image_version: hcl_tmpl.base_image_version,
+                    service_name: hcl_tmpl.service_name,
+                    function_name: hcl_tmpl.function_name,
+                    handler_name: hcl_tmpl.handler_name,
+                    is_ruby: hcl_tmpl.is_ruby,
+                }
+                .render();
 
                 let mut file = std::fs::File::create(format!(
                     "./net/services/{}/{}/Dockerfile",
@@ -226,10 +233,10 @@ impl Castable for KubernetesFunction {
                     function.name.clone()
                 ))
                 .expect("could not create runtime Dockerfile");
-                file.write_all(rendered_dockerfile.as_bytes())
+                file.write_all(dockerfile_content.as_bytes())
                     .expect("could not write runtime Dockerfile");
 
-                Ok(vec![rendered_hcl])
+                Ok(vec![hcl_content, dockerfile_content])
             }
             None => Err(CastError(format!(
                 "unable to find function {} in context",
@@ -253,51 +260,14 @@ pub struct ServiceTemplate {
 
 impl Template for ServiceTemplate {
     fn render(&self) -> String {
-        todo!()
+        let mut reg = Box::new(Handlebars::new());
+        reg.register_template_string("hcl_template", Self::tmpl())
+            .unwrap();
+        reg.render("hcl_template", &self).unwrap()
     }
 
     fn tmpl() -> &'static str {
-        todo!()
-    }
-}
-
-#[derive(Serialize)]
-pub struct FunctionData {
-    pub base_image_version: String,
-    pub service_name: String,
-    pub function_name: String,
-    pub handler_name: String,
-    pub has_iomods: bool,
-    pub container_registry: ContainerRegistryData,
-    pub iomods: Vec<IomodContainer>,
-
-    pub is_ruby: bool,
-}
-
-#[derive(Serialize)]
-pub struct ContainerRegistryData {
-    pub is_dockerhub: bool,
-    pub is_ecr: bool,
-    pub registry_name: String,
-    pub aws_account_id: String,
-    pub aws_region: String,
-}
-
-#[derive(Serialize, Clone, Debug)]
-pub struct IomodContainer {
-    pub image: String,
-    pub name: String,
-}
-
-static DOCKERFILE_TEMPLATE: &str = r#"FROM public.ecr.aws/akkoro/assemblylift/hyper-alpine:{{base_image_version}}
-ENV ASML_WASM_MODULE_NAME {{handler_name}}
-ADD ./{{function_name}}/{{handler_name}} /opt/assemblylift/{{handler_name}}
-{{#if is_ruby}}COPY ./{{function_name}}/ruby-wasm32-wasi /usr/bin/ruby-wasm32-wasi
-COPY ./{{function_name}}/rubysrc/* /usr/bin/ruby-wasm32-wasi/src/
-ENV ASML_FUNCTION_ENV ruby{{/if}}
-"#;
-
-static SERVICE_TEMPLATE: &str = r#"locals {
+        r#"locals {
     {{#if container_registry.is_ecr}}ecr_address = "{{container_registry.aws_account_id}}.dkr.ecr.{{container_registry.aws_region}}.amazonaws.com"{{/if}}
 }
 
@@ -334,10 +304,36 @@ resource kubernetes_namespace {{service_name}} {
         name = "asml-${local.project_name}-{{service_name}}"
     }
 }
+"#
+    }
+}
 
-"#;
+#[derive(Serialize)]
+pub struct FunctionTemplate {
+    pub base_image_version: String,
+    pub service_name: String,
+    pub function_name: String,
+    pub handler_name: String,
+    pub has_iomods: bool,
+    pub container_registry: ContainerRegistryData,
+    pub iomods: Vec<IomodContainer>,
 
-static FUNCTION_TEMPLATE: &str = r#"locals {
+    pub is_ruby: bool,
+}
+
+impl Template for FunctionTemplate {
+    fn render(&self) -> String {
+        let mut reg = Box::new(Handlebars::new());
+        reg.register_template_string("hcl_template", Self::tmpl())
+            .unwrap();
+        reg.render("hcl_template", &self).unwrap()
+    }
+
+    fn tmpl() -> &'static str {
+        r#"
+# Begin function `{{function_name}}` (in `{{service_name}}`)
+
+locals {
     {{service_name}}_{{function_name}}_image_name = "asml-${local.project_name}-{{service_name}}-{{function_name}}"
 }
 
@@ -453,4 +449,49 @@ resource kubernetes_service {{service_name}}_{{function_name}} {
         }
     }
 }
-"#;
+"#
+    }
+}
+
+#[derive(Serialize)]
+pub struct DockerfileTemplate {
+    pub base_image_version: String,
+    pub service_name: String,
+    pub function_name: String,
+    pub handler_name: String,
+    pub is_ruby: bool,
+}
+
+impl Template for DockerfileTemplate {
+    fn render(&self) -> String {
+        let mut reg = Box::new(Handlebars::new());
+        reg.register_template_string("dockerfile_template", Self::tmpl())
+            .unwrap();
+        reg.render("dockerfile_template", &self).unwrap()
+    }
+
+    fn tmpl() -> &'static str {
+        r#"FROM public.ecr.aws/akkoro/assemblylift/hyper-alpine:{{base_image_version}}
+ENV ASML_WASM_MODULE_NAME {{handler_name}}
+ADD ./{{function_name}}/{{handler_name}} /opt/assemblylift/{{handler_name}}
+{{#if is_ruby}}COPY ./{{function_name}}/ruby-wasm32-wasi /usr/bin/ruby-wasm32-wasi
+COPY ./{{function_name}}/rubysrc/* /usr/bin/ruby-wasm32-wasi/src/
+ENV ASML_FUNCTION_ENV ruby{{/if}}
+"#
+    }
+}
+
+#[derive(Serialize)]
+pub struct ContainerRegistryData {
+    pub is_dockerhub: bool,
+    pub is_ecr: bool,
+    pub registry_name: String,
+    pub aws_account_id: String,
+    pub aws_region: String,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct IomodContainer {
+    pub image: String,
+    pub name: String,
+}

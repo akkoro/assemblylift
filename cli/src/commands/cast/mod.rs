@@ -203,10 +203,10 @@ pub fn command(matches: Option<&ArgMatches>) {
     {
         let ctx = Rc::new(Context::from_project(project.clone(), asml_manifest)
             .expect("could not make context from manifest"));
-
-        // let mut net = NetRoot;
-        // let artifacts = net.cast(ctx.clone(), &ctx.project.name).expect("could not cast net");
-        let artifacts = ctx.cast(ctx.clone(), None).expect("could not cast assemblylift context");
+        let artifacts = ctx.cast(ctx.clone(), None)
+            .expect("could not cast assemblylift context");
+        // TODO return File's or something including file path to write for each artifact
+        //      instead of only a vec of strings
 
         let hcl_path = String::from("./net/plan.tf");
         let mut file = match fs::File::create(hcl_path.clone()) {
