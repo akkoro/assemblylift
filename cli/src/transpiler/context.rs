@@ -21,7 +21,10 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn from_project(project: Rc<ProjectFs>, manifest: toml::asml::Manifest) -> Result<Self, String> {
+    pub fn from_project(
+        project: Rc<ProjectFs>,
+        manifest: toml::asml::Manifest,
+    ) -> Result<Self, String> {
         let mut ctx_services: Vec<Service> = Vec::new();
         let mut ctx_functions: Vec<Function> = Vec::new();
         let mut ctx_authorizers: Vec<Authorizer> = Vec::new();
@@ -60,12 +63,10 @@ impl Context {
                     size: function.size_mb.unwrap_or(1024u16),
                     timeout: function.timeout_seconds.unwrap_or(5u16),
                     http: match &function.clone().http.as_ref() {
-                        Some(http) => {
-                            Some(Http {
-                                verb: http.verb.clone(),
-                                path: http.path.clone(),
-                            })
-                        },
+                        Some(http) => Some(Http {
+                            verb: http.verb.clone(),
+                            path: http.path.clone(),
+                        }),
                         None => None,
                     },
                     authorizer_id: function.authorizer_id.clone(),
@@ -87,25 +88,29 @@ impl Context {
                     service_name: service.name.clone(),
                     r#type: authorizer.auth_type.clone(),
                     scopes: authorizer
-                        .scopes.clone()
-                        .as_ref().as_ref()
+                        .scopes
+                        .clone()
+                        .as_ref()
+                        .as_ref()
                         .unwrap_or(&Rc::new(Vec::<String>::new()))
                         .clone(),
                     jwt_config: match authorizer.auth_type.clone().to_lowercase().as_str() {
-                        "jwt" => {
-                            Some(AuthorizerJwt {
-                                audience: authorizer
-                                    .audience.clone()
-                                    .as_ref().as_ref()
-                                    .expect("JWT authorizer requires audience field")
-                                    .clone(),
-                                issuer: authorizer
-                                    .issuer.clone()
-                                    .as_ref().as_ref()
-                                    .expect("JWT authorizer requires issuer field")
-                                    .clone(),
-                            })
-                        }
+                        "jwt" => Some(AuthorizerJwt {
+                            audience: authorizer
+                                .audience
+                                .clone()
+                                .as_ref()
+                                .as_ref()
+                                .expect("JWT authorizer requires audience field")
+                                .clone(),
+                            issuer: authorizer
+                                .issuer
+                                .clone()
+                                .as_ref()
+                                .as_ref()
+                                .expect("JWT authorizer requires issuer field")
+                                .clone(),
+                        }),
                         _ => None,
                     },
                 })
@@ -118,7 +123,7 @@ impl Context {
                 path: (*project.dir()).into_os_string().into_string().unwrap(),
             },
             terraform: match manifest.terraform {
-                Some(tf) => Some(Terraform { 
+                Some(tf) => Some(Terraform {
                     state_bucket_name: tf.state_bucket_name,
                     lock_table_name: tf.lock_table_name,
                 }),
@@ -171,12 +176,8 @@ impl Castable for Context {
         hcl_content.push_str(&*tmpl.render());
 
         for service in &self.services {
-            hcl_content.push_str(
-                &service
-                    .cast(ctx.clone(), Some(&*service.name))
-                    .unwrap()[0]
-                    .clone(),
-            );
+            hcl_content
+                .push_str(&service.cast(ctx.clone(), Some(&*service.name)).unwrap()[0].clone());
         }
 
         Ok(vec![hcl_content])
@@ -190,7 +191,7 @@ impl Castable for Context {
 pub struct Project {
     pub name: String,
     pub path: String,
-//    pub version: String,
+    //    pub version: String,
 }
 
 pub struct Terraform {
@@ -343,4 +344,3 @@ terraform {
 "#
     }
 }
-

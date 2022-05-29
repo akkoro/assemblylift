@@ -55,7 +55,9 @@ impl Castable for KubernetesProvider {
         }
 
         let data = ServiceTemplate {
-            service_name: selector.expect("selector must be a service name").to_string(),
+            service_name: selector
+                .expect("selector must be a service name")
+                .to_string(),
             container_registry: ContainerRegistryData {
                 is_dockerhub: registry_type == "dockerhub",
                 is_ecr: registry_type == "ecr",
@@ -137,7 +139,9 @@ impl Castable for KubernetesFunction {
         reg.register_template_string("function", FUNCTION_TEMPLATE)
             .unwrap();
 
-        let name = selector.expect("selector must be a function name").to_string();
+        let name = selector
+            .expect("selector must be a function name")
+            .to_string();
         match ctx.functions.iter().find(|&f| f.name == name) {
             Some(function) => {
                 let service = function.service_name.clone();
@@ -148,17 +152,22 @@ impl Castable for KubernetesFunction {
                         ctx.service(service.clone())
                             .unwrap()
                             .option("registry_type")
-                            .unwrap()
+                            .unwrap(),
                     )
                     .clone();
 
-                let iomods: Vec<IomodContainer> = ctx.iomods.iter()
+                let iomods: Vec<IomodContainer> = ctx
+                    .iomods
+                    .iter()
                     .filter(|i| i.service_name == service.clone())
                     .map(|i| {
                         let coords: Vec<&str> = i.coordinates.split(".").collect();
                         IomodContainer {
                             // TODO eventually we'll allow overriding which service/mirror the IOmods come from
-                            image: format!("public.ecr.aws/{}/iomod/{}/{}:{}", coords[0], coords[1], coords[2], i.version),
+                            image: format!(
+                                "public.ecr.aws/{}/iomod/{}/{}:{}",
+                                coords[0], coords[1], coords[2], i.version
+                            ),
                             name: i.coordinates.clone().replacen('.', "-", 2),
                         }
                     })
@@ -185,7 +194,7 @@ impl Castable for KubernetesFunction {
                                 ctx.service(service.clone())
                                     .unwrap()
                                     .option("registry_name")
-                                    .unwrap_or(&"".to_string())
+                                    .unwrap_or(&"".to_string()),
                             )
                             .clone(),
                         aws_account_id: self
@@ -195,7 +204,7 @@ impl Castable for KubernetesFunction {
                                 ctx.service(service.clone())
                                     .unwrap()
                                     .option("aws_account_id")
-                                    .unwrap()
+                                    .unwrap(),
                             )
                             .clone(),
                         aws_region: self
@@ -216,7 +225,7 @@ impl Castable for KubernetesFunction {
                     service.clone(),
                     function.name.clone()
                 ))
-                    .expect("could not create runtime Dockerfile");
+                .expect("could not create runtime Dockerfile");
                 file.write_all(rendered_dockerfile.as_bytes())
                     .expect("could not write runtime Dockerfile");
 
