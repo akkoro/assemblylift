@@ -63,47 +63,6 @@ impl GlooCtl {
         serde_json::from_str(json).unwrap()
     }
 
-    // pub fn add_route(&self, path: &str, upstream_name: &str) -> Result<Value, String> {
-    //     let out = self
-    //         .command()
-    //         .arg("add")
-    //         .arg("route")
-    //         .arg("--path-exact")
-    //         .arg(path)
-    //         .arg("--dest-name")
-    //         .arg(upstream_name)
-    //         .arg("-o")
-    //         .arg("json")
-    //         .output()
-    //         .unwrap();
-    //     let json = std::str::from_utf8(&out.stdout).unwrap();
-    //     Ok(serde_json::from_str(json).unwrap())
-    // }
-    //
-    // pub fn remove_route(&self, _path: &str, function_coordinates: Vec<&str>) -> Result<(), String> {
-    //     let val = self.get_virtualservice("default", None).unwrap();
-    //     let mut vs: VirtualService = serde_json::from_value(val).unwrap();
-    //
-    //     vs.spec.virtual_host.routes.retain(|r| {
-    //         r.route_action.single.upstream.name
-    //             != format!(
-    //                 "asml-{}-{}-asml-{}-{}",
-    //                 function_coordinates[0],
-    //                 function_coordinates[1],
-    //                 function_coordinates[1],
-    //                 function_coordinates[2]
-    //             )
-    //     });
-    //
-    //     // println!("vs = {:?}", vs);
-    //
-    //     let kube = KubeCtl::default();
-    //     let res = kube.apply(&*serde_json::to_string(&vs).unwrap()).unwrap();
-    //     println!("res = {:?}", res);
-    //
-    //     Ok(())
-    // }
-
     pub fn get_virtualservice(&self, vs: &str, ns: Option<&str>) -> Result<Value, String> {
         let kube = KubeCtl::default();
         let out = kube
