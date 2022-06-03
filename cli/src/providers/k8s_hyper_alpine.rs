@@ -1,17 +1,12 @@
-use std::io::Write;
-use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use clap::crate_version;
-use handlebars::{Handlebars, to_json};
+use handlebars::Handlebars;
 use serde::Serialize;
 
-use crate::providers::{Options, Provider, ProviderError};
-use crate::tools::glooctl::GlooCtl;
-use crate::tools::kubectl::KubeCtl;
-use crate::transpiler::{BoxedCastable, Castable, CastError, ContentType, context, Template};
+use crate::providers::{gloo, Options, Provider, ProviderError};
+use crate::transpiler::{Artifact, Castable, CastError, ContentType, Template};
 use crate::transpiler::context::Context;
 
 pub struct KubernetesProvider {
@@ -26,8 +21,78 @@ impl KubernetesProvider {
     }
 }
 
+impl Provider for KubernetesProvider {
+    fn name(&self) -> String {
+        String::from("k8s-hyper-alpine")
+    }
+
+    fn options(&self) -> Arc<Options> {
+        self.options.clone()
+    }
+
+    fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError> {
+        self.options = opts;
+        Ok(())
+    }
+}
+
 impl Castable for KubernetesProvider {
-    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<String>, CastError> {
+    fn cast(&self, ctx: Rc<Context>, _selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
+        let service_subprovider = KubernetesService {
+            options: self.options.clone(),
+        };
+        // TODO in future we want to support other API Gateway providers -- for now, just Gloo :)
+        let api_provider = gloo::ApiProvider::new();
+
+        let api_artifacts = api_provider.cast(ctx.clone(), None).unwrap();
+        let api_kube = api_artifacts
+            .iter()
+            .find(|a| a.content_type == ContentType::KubeYaml("kube-yaml"))
+            .unwrap();
+        let service_artifacts = ctx
+            .services
+            .iter()
+            .map(|s| {
+                service_subprovider
+                    .cast(ctx.clone(), Some(&s.name))
+                    .unwrap()
+            })
+            .reduce(|mut accum, mut v| {
+                let mut out = Vec::new();
+                out.append(&mut accum);
+                out.append(&mut v);
+                out
+            })
+            .unwrap();
+        let service_hcl = service_artifacts
+            .iter()
+            .filter(|a| a.content_type == ContentType::HCL("HCL"))
+            .map(|a| a.content.clone())
+            .reduce(|accum, s| format!("{}{}", &accum, &s))
+            .unwrap();
+        let hcl = Artifact {
+            content_type: ContentType::HCL("HCL"),
+            content: service_hcl,
+            write_path: "net/plan.tf".to_string(),
+        };
+        let mut out = vec![hcl, api_kube.clone()];
+        out.append(
+            &mut service_artifacts
+                .iter()
+                .filter(|a| a.content_type == ContentType::Dockerfile("Dockerfile"))
+                .map(|a| a.clone())
+                .collect::<Vec<Artifact>>(),
+        );
+        Ok(out)
+    }
+}
+
+struct KubernetesService {
+    options: Arc<Options>,
+}
+
+impl Castable for KubernetesService {
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
         let name = selector
             .expect("selector must be a service name")
             .to_string();
@@ -55,7 +120,7 @@ impl Castable for KubernetesProvider {
             }
         }
 
-        let mut hcl_content = ServiceTemplate {
+        let hcl_content = ServiceTemplate {
             service_name: name.clone(),
             container_registry: ContainerRegistryData {
                 is_dockerhub: registry_type == "dockerhub",
@@ -89,40 +154,46 @@ impl Castable for KubernetesProvider {
         }
         .render();
 
-        let functions_subprovider = KubernetesFunction {
+        let function_subprovider = KubernetesFunction {
             options: self.options.clone(),
         };
-        ctx.functions
+        let function_artifacts = ctx
+            .functions
             .iter()
             .filter(|f| f.service_name == name)
             .map(|f| {
-                hcl_content.push_str(
-                    &*functions_subprovider
-                        .cast(ctx.clone(), Some(&f.name))
-                        .unwrap()[0],
-                )
-            });
+                function_subprovider
+                    .cast(ctx.clone(), Some(&f.name))
+                    .unwrap()
+            })
+            .reduce(|mut accum, mut v| {
+                let mut out = Vec::new();
+                out.append(&mut accum);
+                out.append(&mut v);
+                out
+            })
+            .unwrap();
+        let function_hcl = function_artifacts
+            .iter()
+            .filter(|a| a.content_type == ContentType::HCL("HCL"))
+            .map(|artifact| artifact.content.clone())
+            .reduce(|accum, s| format!("{}{}", &accum, &s))
+            .unwrap();
 
-        Ok(vec![hcl_content])
-    }
-
-    fn content_type(&self) -> Vec<ContentType> {
-        todo!()
-    }
-}
-
-impl Provider for KubernetesProvider {
-    fn name(&self) -> String {
-        String::from("k8s-hyper-alpine")
-    }
-
-    fn options(&self) -> Arc<Options> {
-        self.options.clone()
-    }
-
-    fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError> {
-        self.options = opts;
-        Ok(())
+        let hcl = Artifact {
+            content_type: ContentType::HCL("HCL"),
+            content: format!("{}{}", &hcl_content, &function_hcl),
+            write_path: "net/plan.tf".into(),
+        };
+        let mut out = vec![hcl];
+        out.append(
+            &mut function_artifacts
+                .iter()
+                .filter(|a| a.content_type == ContentType::Dockerfile("Dockerfile"))
+                .map(|a| a.clone())
+                .collect::<Vec<Artifact>>(),
+        );
+        Ok(out)
     }
 }
 
@@ -130,16 +201,8 @@ struct KubernetesFunction {
     options: Arc<Options>,
 }
 
-impl KubernetesFunction {
-    pub fn new() -> Self {
-        Self {
-            options: Arc::new(Options::new()),
-        }
-    }
-}
-
 impl Castable for KubernetesFunction {
-    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<String>, CastError> {
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
         let name = selector
             .expect("selector must be a function name")
             .to_string();
@@ -227,26 +290,37 @@ impl Castable for KubernetesFunction {
                 }
                 .render();
 
-                let mut file = std::fs::File::create(format!(
-                    "./net/services/{}/{}/Dockerfile",
-                    service.clone(),
-                    function.name.clone()
-                ))
-                .expect("could not create runtime Dockerfile");
-                file.write_all(dockerfile_content.as_bytes())
-                    .expect("could not write runtime Dockerfile");
+                // let mut file = std::fs::File::create(format!(
+                //     "./net/services/{}/{}/Dockerfile",
+                //     service.clone(),
+                //     function.name.clone()
+                // ))
+                // .expect("could not create runtime Dockerfile");
+                // file.write_all(dockerfile_content.as_bytes())
+                //     .expect("could not write runtime Dockerfile");
 
-                Ok(vec![hcl_content, dockerfile_content])
+                let hcl = Artifact {
+                    content_type: ContentType::HCL("HCL"),
+                    content: hcl_content,
+                    write_path: "net/plan.tf".into(),
+                };
+                let dockerfile = Artifact {
+                    content_type: ContentType::Dockerfile("Dockerfile"),
+                    content: dockerfile_content,
+                    write_path: format!(
+                        "net/services/{}/{}/Dockerfile",
+                        service.clone(),
+                        function.name.clone()
+                    )
+                    .into(),
+                };
+                Ok(vec![hcl, dockerfile])
             }
             None => Err(CastError(format!(
                 "unable to find function {} in context",
                 name.clone()
             ))),
         }
-    }
-
-    fn content_type(&self) -> Vec<ContentType> {
-        todo!()
     }
 }
 

@@ -71,12 +71,6 @@ async fn main() {
 }
 "#;
 
-static FUNCTION_GITIGNORE: &str = r#".DS_Store
-*.wasm
-target/
-build/
-"#;
-
 static FUNCTION_HANDLER_RB: &str = r#"require 'asml'
 require 'base64'
 require 'json'

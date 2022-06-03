@@ -1,10 +1,6 @@
-use std::borrow::BorrowMut;
-use std::iter::Map;
 use std::path::{Path, PathBuf};
-use std::process;
 use std::process::Command;
 
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::tools::kubectl::KubeCtl;
@@ -41,6 +37,17 @@ impl GlooCtl {
             .arg(format!("asml-gloo-{}", project_name))
             .output()
             .expect("glooctl could not install gloo gateway");
+    }
+
+    pub fn uninstall_gateway(&self, project_name: &str) {
+        println!("Uninstalling Gloo API Gateway");
+        self.
+            command()
+            .args(vec!["uninstall", "gateway"])
+            .arg("-n")
+            .arg(format!("asml-gloo-{}", project_name))
+            .output()
+            .expect("glooctl could not uninstall gloo gateway");
     }
 
     pub fn get_upstreams(&self) -> Value {

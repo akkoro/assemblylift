@@ -5,10 +5,10 @@ use crate::transpiler::context::Context;
 pub mod context;
 pub mod toml;
 
-pub type BoxedCastable = Box<dyn Castable>;
 pub type Map<K, V> = std::collections::HashMap<K, V>;
 pub type StringMap<V> = Map<String, V>;
 
+#[derive(Clone, Debug, PartialEq)]
 pub enum ContentType {
     HCL(&'static str),
     Dockerfile(&'static str),
@@ -18,9 +18,7 @@ pub enum ContentType {
 /// A net-castable artifact
 pub trait Castable {
     /// Cast the implementor into Strings; binary artifacts must be encoded with e.g. base64
-    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<String>, CastError>;
-    /// The types of document this Castable will `cast` to
-    fn content_type(&self) -> Vec<ContentType>;
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError>;
 }
 
 pub trait Template {
@@ -30,3 +28,10 @@ pub trait Template {
 
 #[derive(Debug)]
 pub struct CastError(pub String);
+
+#[derive(Debug, Clone)]
+pub struct Artifact {
+    pub content_type: ContentType,
+    pub content: String,
+    pub write_path: String,
+}

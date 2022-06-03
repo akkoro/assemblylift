@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use path_abs::PathInfo;
-use walkdir::WalkDir;
 
 use crate::archive::unzip;
 use crate::projectfs::Project;

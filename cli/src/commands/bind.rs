@@ -9,6 +9,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         _ => panic!("could not get matches for bind command"),
     };
 
+    // TODO terraform should be refactored around Tool trait
     terraform::commands::init();
     terraform::commands::apply();
 

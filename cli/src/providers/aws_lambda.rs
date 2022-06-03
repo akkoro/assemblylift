@@ -6,7 +6,7 @@ use handlebars::{Handlebars, to_json};
 use serde::Serialize;
 
 use crate::providers::{Options, Provider, ProviderError, render_string_list};
-use crate::transpiler::{BoxedCastable, Castable, CastError, ContentType, context};
+use crate::transpiler::{Artifact, Castable, CastError, ContentType};
 use crate::transpiler::context::Context;
 
 pub struct ServiceProvider;
@@ -33,7 +33,7 @@ impl ServiceProvider {
 }
 
 impl Castable for ServiceProvider {
-    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<String>, CastError> {
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
         let mut reg = Box::new(Handlebars::new());
         reg.register_template_string("service", SERVICE_TEMPLATE)
             .unwrap();
@@ -81,12 +81,12 @@ impl Castable for ServiceProvider {
         let data = to_json(data);
 
         let rendered = reg.render("service", &data).unwrap();
-
-        Ok(vec![rendered])
-    }
-
-    fn content_type(&self) -> Vec<ContentType> {
-        vec![ContentType::HCL("HCL")]
+        let hcl = Artifact {
+            content_type: ContentType::HCL("HCL"),
+            content: rendered,
+            write_path: "net/plan.tf".into(),
+        };
+        Ok(vec![hcl])
     }
 }
 
@@ -107,7 +107,7 @@ impl Provider for ServiceProvider {
 pub struct FunctionProvider;
 
 impl Castable for FunctionProvider {
-    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<String>, CastError> {
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
         let mut reg = Box::new(Handlebars::new());
         reg.register_template_string("function", FUNCTION_TEMPLATE)
             .unwrap();
@@ -171,15 +171,15 @@ impl Castable for FunctionProvider {
                 let data = to_json(data);
 
                 let rendered = reg.render("function", &data).unwrap();
-
-                Ok(vec![rendered])
+                let hcl = Artifact {
+                    content_type: ContentType::HCL("HCL"),
+                    content: rendered,
+                    write_path: "net/plan.tf".into(),
+                };
+                Ok(vec![hcl])
             }
             None => Err(CastError(format!("unable to find function {} in context", name.clone()))),
         }
-    }
-
-    fn content_type(&self) -> Vec<ContentType> {
-        todo!()
     }
 }
 
