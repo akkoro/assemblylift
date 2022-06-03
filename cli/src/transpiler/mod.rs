@@ -17,7 +17,7 @@ pub enum ContentType {
 
 /// A net-castable artifact
 pub trait Castable {
-    /// Cast the implementor into Strings; binary artifacts must be encoded with e.g. base64
+    /// Cast the implementor into Artifacts; binary artifacts must be encoded with e.g. base64
     fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError>;
 }
 

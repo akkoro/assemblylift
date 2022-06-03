@@ -169,7 +169,7 @@ pub mod service {
 
     #[derive(Deserialize)]
     pub struct Iomod {
-        pub dependencies: Rc<Vec<Dependency>>, // map dependency_id -> dependency
+        pub dependencies: Rc<Vec<Dependency>>,
     }
 
     #[derive(Clone, Deserialize)]
