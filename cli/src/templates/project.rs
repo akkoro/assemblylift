@@ -15,8 +15,8 @@ net/
 static ASSEMBLYLIFT_TOML: &str = r#"[project]
 name = "{{project_name}}"
 
-[services]
-default = { name = "{{default_service_name}}" }
+[[services]]
+name = "{{default_service_name}}"
 "#;
 
 pub static ROOT_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
@@ -33,7 +33,7 @@ pub static ROOT_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec:
 static SERVICE_TOML: &str = r#"[service]
 name = "{{service_name}}"
 
-[api.functions.my-function]
+[[api.functions]]
 name = "my-function"
 language = {{function_language}}"
 "#;
@@ -92,10 +92,6 @@ pub static RUST_FUNCTION_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc:
         file_name: "src/main.rs",
         document: String::from(FUNCTION_MAIN_RS),
     },
-    // Document {
-    //     file_name: ".gitignore",
-    //     document: String::from(FUNCTION_GITIGNORE),
-    // },
 ])));
 
 pub static RUBY_FUNCTION_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
