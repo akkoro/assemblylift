@@ -2,17 +2,18 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use clap::crate_version;
-use handlebars::{Handlebars, to_json};
+use handlebars::Handlebars;
 use serde::Serialize;
 
-use crate::providers::{Options, Provider, ProviderArtifact, ProviderError};
-use crate::transpiler::{Artifact, asml};
+use crate::providers::{gloo, Options, Provider, ProviderError};
+use crate::transpiler::{Artifact, Castable, CastError, ContentType, Template};
+use crate::transpiler::context::Context;
 
-pub struct ServiceProvider {
+pub struct KubernetesProvider {
     options: Arc<Options>,
 }
 
-impl ServiceProvider {
+impl KubernetesProvider {
     pub fn new() -> Self {
         Self {
             options: Arc::new(Options::new()),
@@ -20,23 +21,81 @@ impl ServiceProvider {
     }
 }
 
-impl Provider for ServiceProvider {
+impl Provider for KubernetesProvider {
     fn name(&self) -> String {
         String::from("k8s-hyper-alpine")
     }
 
-    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
-        Ok(())
+    fn options(&self) -> Arc<Options> {
+        self.options.clone()
     }
 
-    fn transform(
-        &self,
-        _ctx: Rc<asml::Context>,
-        name: String,
-    ) -> Result<Box<dyn Artifact>, ProviderError> {
-        let mut reg = Box::new(Handlebars::new());
-        reg.register_template_string("service", SERVICE_TEMPLATE)
+    fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError> {
+        self.options = opts;
+        Ok(())
+    }
+}
+
+impl Castable for KubernetesProvider {
+    fn cast(&self, ctx: Rc<Context>, _selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
+        let service_subprovider = KubernetesService {
+            options: self.options.clone(),
+        };
+        // TODO in future we want to support other API Gateway providers -- for now, just Gloo :)
+        let api_provider = gloo::ApiProvider::new();
+
+        let api_artifacts = api_provider.cast(ctx.clone(), None).unwrap();
+        let api_kube = api_artifacts
+            .iter()
+            .find(|a| a.content_type == ContentType::KubeYaml("kube-yaml"))
             .unwrap();
+        let service_artifacts = ctx
+            .services
+            .iter()
+            .map(|s| {
+                service_subprovider
+                    .cast(ctx.clone(), Some(&s.name))
+                    .unwrap()
+            })
+            .reduce(|mut accum, mut v| {
+                let mut out = Vec::new();
+                out.append(&mut accum);
+                out.append(&mut v);
+                out
+            })
+            .unwrap();
+        let service_hcl = service_artifacts
+            .iter()
+            .filter(|a| a.content_type == ContentType::HCL("HCL"))
+            .map(|a| a.content.clone())
+            .reduce(|accum, s| format!("{}{}", &accum, &s))
+            .unwrap();
+        let hcl = Artifact {
+            content_type: ContentType::HCL("HCL"),
+            content: service_hcl,
+            write_path: "net/plan.tf".to_string(),
+        };
+        let mut out = vec![hcl, api_kube.clone()];
+        out.append(
+            &mut service_artifacts
+                .iter()
+                .filter(|a| a.content_type == ContentType::Dockerfile("Dockerfile"))
+                .map(|a| a.clone())
+                .collect::<Vec<Artifact>>(),
+        );
+        Ok(out)
+    }
+}
+
+struct KubernetesService {
+    options: Arc<Options>,
+}
+
+impl Castable for KubernetesService {
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
+        let name = selector
+            .expect("selector must be a service name")
+            .to_string();
 
         let registry_type = self
             .options
@@ -47,7 +106,7 @@ impl Provider for ServiceProvider {
         // TODO this should happen in a validate() step
         if registry_type == "ecr" {
             if self.options.get("aws_account_id").is_none() {
-                return Err(ProviderError::TransformationError(format!(
+                return Err(CastError(format!(
                     "ecr registry type requires aws_account_id"
                 )));
             }
@@ -55,13 +114,13 @@ impl Provider for ServiceProvider {
         }
         if registry_type == "dockerhub" {
             if self.options.get("registry_name").is_none() {
-                return Err(ProviderError::TransformationError(format!(
+                return Err(CastError(format!(
                     "dockerhub registry type requires registry_name"
                 )));
             }
         }
 
-        let data = ServiceData {
+        let hcl_content = ServiceTemplate {
             service_name: name.clone(),
             container_registry: ContainerRegistryData {
                 is_dockerhub: registry_type == "dockerhub",
@@ -92,59 +151,62 @@ impl Provider for ServiceProvider {
                 .get("docker_config_path")
                 .unwrap_or(&"~/.docker/config.json".to_string())
                 .clone(),
+        }
+        .render();
+
+        let function_subprovider = KubernetesFunction {
+            options: self.options.clone(),
         };
-        let data = to_json(data);
+        let function_artifacts = ctx
+            .functions
+            .iter()
+            .filter(|f| f.service_name == name)
+            .map(|f| {
+                function_subprovider
+                    .cast(ctx.clone(), Some(&f.name))
+                    .unwrap()
+            })
+            .reduce(|mut accum, mut v| {
+                let mut out = Vec::new();
+                out.append(&mut accum);
+                out.append(&mut v);
+                out
+            })
+            .unwrap();
+        let function_hcl = function_artifacts
+            .iter()
+            .filter(|a| a.content_type == ContentType::HCL("HCL"))
+            .map(|artifact| artifact.content.clone())
+            .reduce(|accum, s| format!("{}{}", &accum, &s))
+            .unwrap();
 
-        let rendered = reg.render("service", &data).unwrap();
-
-        Ok(Box::new(ProviderArtifact::new(rendered)))
-    }
-
-    fn options(&self) -> Arc<Options> {
-        self.options.clone()
-    }
-
-    fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError> {
-        self.options = opts;
-        Ok(())
+        let hcl = Artifact {
+            content_type: ContentType::HCL("HCL"),
+            content: format!("{}{}", &hcl_content, &function_hcl),
+            write_path: "net/plan.tf".into(),
+        };
+        let mut out = vec![hcl];
+        out.append(
+            &mut function_artifacts
+                .iter()
+                .filter(|a| a.content_type == ContentType::Dockerfile("Dockerfile"))
+                .map(|a| a.clone())
+                .collect::<Vec<Artifact>>(),
+        );
+        Ok(out)
     }
 }
 
-pub struct FunctionProvider {
+struct KubernetesFunction {
     options: Arc<Options>,
 }
 
-impl FunctionProvider {
-    pub fn new() -> Self {
-        Self {
-            options: Arc::new(Options::new()),
-        }
-    }
-}
-
-impl Provider for FunctionProvider {
-    fn name(&self) -> String {
-        String::from("k8s-hyper-alpine")
-    }
-
-    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
-        Ok(())
-    }
-
-    fn transform(
-        &self,
-        ctx: Rc<asml::Context>,
-        name: String,
-    ) -> Result<Box<dyn Artifact>, ProviderError> {
-        use std::io::Write;
-
-        let mut reg = Box::new(Handlebars::new());
-        reg.register_template_string("dockerfile", DOCKERFILE_TEMPLATE)
-            .unwrap();
-        reg.register_template_string("function", FUNCTION_TEMPLATE)
-            .unwrap();
-
-        match ctx.functions.iter().find(|&f| *f.name == name.clone()) {
+impl Castable for KubernetesFunction {
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
+        let name = selector
+            .expect("selector must be a function name")
+            .to_string();
+        match ctx.functions.iter().find(|&f| f.name == name) {
             Some(function) => {
                 let service = function.service_name.clone();
                 let registry_type = self
@@ -154,23 +216,28 @@ impl Provider for FunctionProvider {
                         ctx.service(service.clone())
                             .unwrap()
                             .option("registry_type")
-                            .unwrap()
+                            .unwrap(),
                     )
                     .clone();
 
-                let iomods: Vec<IomodContainer> = ctx.iomods.iter()
+                let iomods: Vec<IomodContainer> = ctx
+                    .iomods
+                    .iter()
                     .filter(|i| i.service_name == service.clone())
                     .map(|i| {
                         let coords: Vec<&str> = i.coordinates.split(".").collect();
                         IomodContainer {
                             // TODO eventually we'll allow overriding which service/mirror the IOmods come from
-                            image: format!("public.ecr.aws/{}/iomod/{}/{}:{}", coords[0], coords[1], coords[2], i.version),
+                            image: format!(
+                                "public.ecr.aws/{}/iomod/{}/{}:{}",
+                                coords[0], coords[1], coords[2], i.version
+                            ),
                             name: i.coordinates.clone().replacen('.', "-", 2),
                         }
                     })
                     .collect();
 
-                let data = FunctionData {
+                let hcl_tmpl = FunctionTemplate {
                     base_image_version: crate_version!().to_string(),
                     function_name: function.name.clone(),
                     service_name: service.clone(),
@@ -191,7 +258,7 @@ impl Provider for FunctionProvider {
                                 ctx.service(service.clone())
                                     .unwrap()
                                     .option("registry_name")
-                                    .unwrap_or(&"".to_string())
+                                    .unwrap_or(&"".to_string()),
                             )
                             .clone(),
                         aws_account_id: self
@@ -201,7 +268,7 @@ impl Provider for FunctionProvider {
                                 ctx.service(service.clone())
                                     .unwrap()
                                     .option("aws_account_id")
-                                    .unwrap()
+                                    .unwrap(),
                             )
                             .clone(),
                         aws_region: self
@@ -212,84 +279,69 @@ impl Provider for FunctionProvider {
                     },
                     is_ruby: function.language == "ruby".to_string(),
                 };
-                let data = to_json(data);
+                let hcl_content = hcl_tmpl.render();
 
-                let rendered_hcl = reg.render("function", &data).unwrap();
-                let rendered_dockerfile = reg.render("dockerfile", &data).unwrap();
+                let dockerfile_content = DockerfileTemplate {
+                    base_image_version: hcl_tmpl.base_image_version,
+                    service_name: hcl_tmpl.service_name,
+                    function_name: hcl_tmpl.function_name,
+                    handler_name: hcl_tmpl.handler_name,
+                    is_ruby: hcl_tmpl.is_ruby,
+                }
+                .render();
 
-                let mut file = std::fs::File::create(format!(
-                    "./net/services/{}/{}/Dockerfile",
-                    service.clone(),
-                    function.name.clone()
-                ))
-                .expect("could not create runtime Dockerfile");
-                file.write_all(rendered_dockerfile.as_bytes())
-                    .expect("could not write runtime Dockerfile");
+                // let mut file = std::fs::File::create(format!(
+                //     "./net/services/{}/{}/Dockerfile",
+                //     service.clone(),
+                //     function.name.clone()
+                // ))
+                // .expect("could not create runtime Dockerfile");
+                // file.write_all(dockerfile_content.as_bytes())
+                //     .expect("could not write runtime Dockerfile");
 
-                Ok(Box::new(ProviderArtifact::new(rendered_hcl)))
+                let hcl = Artifact {
+                    content_type: ContentType::HCL("HCL"),
+                    content: hcl_content,
+                    write_path: "net/plan.tf".into(),
+                };
+                let dockerfile = Artifact {
+                    content_type: ContentType::Dockerfile("Dockerfile"),
+                    content: dockerfile_content,
+                    write_path: format!(
+                        "net/services/{}/{}/Dockerfile",
+                        service.clone(),
+                        function.name.clone()
+                    )
+                    .into(),
+                };
+                Ok(vec![hcl, dockerfile])
             }
-            None => Err(ProviderError::TransformationError(format!(
+            None => Err(CastError(format!(
                 "unable to find function {} in context",
                 name.clone()
             ))),
         }
     }
-
-    fn options(&self) -> Arc<Options> {
-        self.options.clone()
-    }
-
-    fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError> {
-        self.options = opts;
-        Ok(())
-    }
 }
 
 #[derive(Serialize)]
-pub struct ServiceData {
+pub struct ServiceTemplate {
     pub service_name: String,
     pub container_registry: ContainerRegistryData,
     pub kube_config_path: String,
     pub docker_config_path: String,
 }
 
-#[derive(Serialize)]
-pub struct FunctionData {
-    pub base_image_version: String,
-    pub service_name: String,
-    pub function_name: String,
-    pub handler_name: String,
-    pub has_iomods: bool,
-    pub container_registry: ContainerRegistryData,
-    pub iomods: Vec<IomodContainer>,
+impl Template for ServiceTemplate {
+    fn render(&self) -> String {
+        let mut reg = Box::new(Handlebars::new());
+        reg.register_template_string("hcl_template", Self::tmpl())
+            .unwrap();
+        reg.render("hcl_template", &self).unwrap()
+    }
 
-    pub is_ruby: bool,
-}
-
-#[derive(Serialize)]
-pub struct ContainerRegistryData {
-    pub is_dockerhub: bool,
-    pub is_ecr: bool,
-    pub registry_name: String,
-    pub aws_account_id: String,
-    pub aws_region: String,
-}
-
-#[derive(Serialize, Clone, Debug)]
-pub struct IomodContainer {
-    pub image: String,
-    pub name: String,
-}
-
-static DOCKERFILE_TEMPLATE: &str = r#"FROM public.ecr.aws/akkoro/assemblylift/hyper-alpine:{{base_image_version}}
-ENV ASML_WASM_MODULE_NAME {{handler_name}}
-ADD ./{{function_name}}/{{handler_name}} /opt/assemblylift/{{handler_name}}
-{{#if is_ruby}}COPY ./{{function_name}}/ruby-wasm32-wasi /usr/bin/ruby-wasm32-wasi
-COPY ./{{function_name}}/rubysrc/* /usr/bin/ruby-wasm32-wasi/src/
-ENV ASML_FUNCTION_ENV ruby{{/if}}
-"#;
-
-static SERVICE_TEMPLATE: &str = r#"locals {
+    fn tmpl() -> &'static str {
+        r#"locals {
     {{#if container_registry.is_ecr}}ecr_address = "{{container_registry.aws_account_id}}.dkr.ecr.{{container_registry.aws_region}}.amazonaws.com"{{/if}}
 }
 
@@ -326,10 +378,36 @@ resource kubernetes_namespace {{service_name}} {
         name = "asml-${local.project_name}-{{service_name}}"
     }
 }
+"#
+    }
+}
 
-"#;
+#[derive(Serialize)]
+pub struct FunctionTemplate {
+    pub base_image_version: String,
+    pub service_name: String,
+    pub function_name: String,
+    pub handler_name: String,
+    pub has_iomods: bool,
+    pub container_registry: ContainerRegistryData,
+    pub iomods: Vec<IomodContainer>,
 
-static FUNCTION_TEMPLATE: &str = r#"locals {
+    pub is_ruby: bool,
+}
+
+impl Template for FunctionTemplate {
+    fn render(&self) -> String {
+        let mut reg = Box::new(Handlebars::new());
+        reg.register_template_string("hcl_template", Self::tmpl())
+            .unwrap();
+        reg.render("hcl_template", &self).unwrap()
+    }
+
+    fn tmpl() -> &'static str {
+        r#"
+# Begin function `{{function_name}}` (in `{{service_name}}`)
+
+locals {
     {{service_name}}_{{function_name}}_image_name = "asml-${local.project_name}-{{service_name}}-{{function_name}}"
 }
 
@@ -445,4 +523,49 @@ resource kubernetes_service {{service_name}}_{{function_name}} {
         }
     }
 }
-"#;
+"#
+    }
+}
+
+#[derive(Serialize)]
+pub struct DockerfileTemplate {
+    pub base_image_version: String,
+    pub service_name: String,
+    pub function_name: String,
+    pub handler_name: String,
+    pub is_ruby: bool,
+}
+
+impl Template for DockerfileTemplate {
+    fn render(&self) -> String {
+        let mut reg = Box::new(Handlebars::new());
+        reg.register_template_string("dockerfile_template", Self::tmpl())
+            .unwrap();
+        reg.render("dockerfile_template", &self).unwrap()
+    }
+
+    fn tmpl() -> &'static str {
+        r#"FROM public.ecr.aws/akkoro/assemblylift/hyper-alpine:{{base_image_version}}
+ENV ASML_WASM_MODULE_NAME {{handler_name}}
+ADD ./{{function_name}}/{{handler_name}} /opt/assemblylift/{{handler_name}}
+{{#if is_ruby}}COPY ./{{function_name}}/ruby-wasm32-wasi /usr/bin/ruby-wasm32-wasi
+COPY ./{{function_name}}/rubysrc/* /usr/bin/ruby-wasm32-wasi/src/
+ENV ASML_FUNCTION_ENV ruby{{/if}}
+"#
+    }
+}
+
+#[derive(Serialize)]
+pub struct ContainerRegistryData {
+    pub is_dockerhub: bool,
+    pub is_ecr: bool,
+    pub registry_name: String,
+    pub aws_account_id: String,
+    pub aws_region: String,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct IomodContainer {
+    pub image: String,
+    pub name: String,
+}

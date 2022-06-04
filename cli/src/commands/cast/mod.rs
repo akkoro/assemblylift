@@ -1,8 +1,5 @@
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
-use std::process;
-use std::process::Stdio;
 use std::str::FromStr;
 
 use clap::ArgMatches;
@@ -19,7 +16,8 @@ use wasmer_engine_universal::Universal;
 use crate::archive;
 use crate::projectfs::Project;
 use crate::terraform;
-use crate::transpiler::{Artifact, asml, hcl, toml};
+use crate::transpiler::{Castable, toml};
+use crate::transpiler::context::Context;
 
 mod ruby;
 mod rust;
@@ -71,7 +69,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     terraform::fetch(&*project.dir());
 
     let services = asml_manifest.services.clone();
-    for (_id, service_ref) in services.as_ref() {
+    for service_ref in services.as_ref() {
         let mut service_toml = project.service_dir(service_ref.name.clone()).dir();
         service_toml.push("service.toml");
         let service_manifest = toml::service::Manifest::read(&service_toml).unwrap();
@@ -89,8 +87,9 @@ pub fn command(matches: Option<&ArgMatches>) {
             // TODO   |-> terraform can zip directories
             let iomods = service_manifest.iomods().clone();
             let mut dependencies: Vec<String> = Vec::new();
-            for (id, dependency) in iomods.as_ref() {
-                let dependency_name = id.clone();
+            for dependency in iomods.as_ref() {
+                let dependency_coords: Vec<&str> = dependency.coordinates.split('.').collect();
+                let dependency_name = dependency_coords.get(2).unwrap().to_string();
                 match dependency.dependency_type.as_deref() {
                     Some("file") => {
                         let dependency_path = format!("{}/net/services/{}/iomods/{}", project_path, service_name, dependency_name);
@@ -149,7 +148,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         }
 
         let functions = service_manifest.functions();
-        for (_id, function) in functions.as_ref() {
+        for function in functions.as_ref() {
             let function_name = function.name.clone();
             let function_artifact_path =
                 format!("./net/services/{}/{}", service_name, function_name);
@@ -200,23 +199,24 @@ pub fn command(matches: Option<&ArgMatches>) {
     }
 
     {
-        let ctx = asml::Context::from_project(project.clone(), asml_manifest)
-            .expect("could not make context from manifest");
-        let mut module = hcl::root::Module::new(Rc::new(ctx));
-        let hcl_content = module.cast().expect("could not cast HCL modules");
+        let ctx = Rc::new(Context::from_project(project.clone(), asml_manifest)
+            .expect("could not make context from manifest"));
+        let artifacts = ctx.cast(ctx.clone(), None)
+            .expect("could not cast assemblylift context");
+        for artifact in artifacts {
+            let path = artifact.write_path;
+            let mut file = match fs::File::create(path.clone()) {
+                Err(why) => panic!(
+                    "couldn't create file {}: {}",
+                    path.clone(),
+                    why.to_string()
+                ),
+                Ok(file) => file,
+            };
 
-        let path = String::from("./net/plan.tf");
-        let mut file = match fs::File::create(path.clone()) {
-            Err(why) => panic!(
-                "couldn't create file {}: {}",
-                path.clone(),
-                why.to_string()
-            ),
-            Ok(file) => file,
-        };
-
-        println!("📄 > Wrote {}", path.clone());
-        file.write_all(hcl_content.as_bytes()).expect("could not write plan.tf");
+            file.write_all(artifact.content.as_bytes()).expect("could not write artifact");
+            println!("📄 > Wrote {}", path.clone());
+        }
     }
 
     terraform::commands::init();

@@ -1,6 +1,7 @@
 use clap::ArgMatches;
 
 use crate::terraform;
+use crate::tools::kubectl::KubeCtl;
 
 pub fn command(matches: Option<&ArgMatches>) {
     let _matches = match matches {
@@ -8,6 +9,10 @@ pub fn command(matches: Option<&ArgMatches>) {
         _ => panic!("could not get matches for bind command"),
     };
 
+    // TODO terraform should be refactored around Tool trait
     terraform::commands::init();
     terraform::commands::apply();
+
+    let kubectl = KubeCtl::default();
+    kubectl.apply().expect("kubectl apply failed");
 }

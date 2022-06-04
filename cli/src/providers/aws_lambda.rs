@@ -1,22 +1,18 @@
+use std::io::Read;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use handlebars::{Handlebars, to_json};
 use serde::Serialize;
 
-use crate::providers::{Options, Provider, ProviderArtifact, ProviderError, render_string_list};
-use crate::transpiler::{Artifact, asml};
+use crate::providers::{Options, Provider, ProviderError, render_string_list};
+use crate::transpiler::{Artifact, Castable, CastError, ContentType};
+use crate::transpiler::context::Context;
 
 pub struct ServiceProvider;
 
-impl Provider for ServiceProvider {
-    fn name(&self) -> String {
-        String::from("aws-lambda")
-    }
-
-    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
-        use std::io::Read;
-
+impl ServiceProvider {
+    pub fn new() -> Self {
         let runtime_url = &*format!(
             "http://public.assemblylift.akkoro.io/runtime/{}/aws-lambda/bootstrap.zip",
             clap::crate_version!(),
@@ -32,19 +28,22 @@ impl Provider for ServiceProvider {
         std::fs::create_dir_all("./.asml/runtime").unwrap();
         std::fs::write("./.asml/runtime/bootstrap.zip", response_buffer).unwrap();
 
-        Ok(())
+        Self
     }
-    
-    fn transform(&self, ctx: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError> {
-        let mut reg = Box::new(Handlebars::new()); 
+}
+
+impl Castable for ServiceProvider {
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
+        let mut reg = Box::new(Handlebars::new());
         reg.register_template_string("service", SERVICE_TEMPLATE)
             .unwrap();
 
-        let layer_name = format!("asml-{}-{}-{}-runtime", 
-            ctx.project.name.clone(), 
-            name.clone(), 
-            self.name().clone(),
-        ); 
+        let name = selector.expect("selector must be a service name").to_string();
+        let layer_name = format!("asml-{}-{}-{}-runtime",
+                                 ctx.project.name.clone(),
+                                 name.clone(),
+                                 self.name().clone(),
+        );
 
         let use_apigw = ctx.functions.iter().find(|f| f.http.is_some()).is_some();
         let has_service_layer = ctx.iomods.len() > 0;
@@ -70,7 +69,7 @@ impl Provider for ServiceProvider {
             })
             .collect();
 
-        let data = ServiceData { 
+        let data = ServiceData {
             name: name.clone(),
             aws_region: String::from("us-east-1"),
             hcl_provider: String::from("aws"),
@@ -80,10 +79,20 @@ impl Provider for ServiceProvider {
             authorizers,
         };
         let data = to_json(data);
-        
-        let rendered = reg.render("service", &data).unwrap();
 
-        Ok(Box::new(ProviderArtifact::new(rendered)))
+        let rendered = reg.render("service", &data).unwrap();
+        let hcl = Artifact {
+            content_type: ContentType::HCL("HCL"),
+            content: rendered,
+            write_path: "net/plan.tf".into(),
+        };
+        Ok(vec![hcl])
+    }
+}
+
+impl Provider for ServiceProvider {
+    fn name(&self) -> String {
+        String::from("aws-lambda")
     }
 
     fn options(&self) -> Arc<Options> {
@@ -97,21 +106,14 @@ impl Provider for ServiceProvider {
 
 pub struct FunctionProvider;
 
-impl Provider for FunctionProvider {
-    fn name(&self) -> String {
-        String::from("aws-lambda")
-    }
-    
-    fn init(&self, _ctx: Rc<asml::Context>, _name: String) -> Result<(), ProviderError> {
-        Ok(())
-    }
-
-    fn transform(&self, ctx: Rc<asml::Context>, name: String) -> Result<Box<dyn Artifact>, ProviderError> {
-        let mut reg = Box::new(Handlebars::new()); 
+impl Castable for FunctionProvider {
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
+        let mut reg = Box::new(Handlebars::new());
         reg.register_template_string("function", FUNCTION_TEMPLATE)
             .unwrap();
 
-        match ctx.functions.iter().find(|&f| *f.name == name.clone()) {
+        let name = selector.expect("selector must be a function name").to_string();
+        match ctx.functions.iter().find(|&f| f.name == name) {
             Some(function) => {
                 let service = function.service_name.clone();
 
@@ -167,22 +169,17 @@ impl Provider for FunctionProvider {
                     auth,
                 };
                 let data = to_json(data);
-                
+
                 let rendered = reg.render("function", &data).unwrap();
-
-                Ok(Box::new(ProviderArtifact::new(rendered)))
+                let hcl = Artifact {
+                    content_type: ContentType::HCL("HCL"),
+                    content: rendered,
+                    write_path: "net/plan.tf".into(),
+                };
+                Ok(vec![hcl])
             }
-            None => Err(ProviderError::TransformationError(format!("unable to find function {} in context", name.clone()))),
+            None => Err(CastError(format!("unable to find function {} in context", name.clone()))),
         }
-
-    }
-    
-    fn options(&self) -> Arc<Options> {
-        Arc::new(Options::new())
-    }
-
-    fn set_options(&mut self, _opts: Arc<Options>) -> Result<(), ProviderError> {
-        Ok(())
     }
 }
 

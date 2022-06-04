@@ -10,6 +10,7 @@ mod projectfs;
 mod providers;
 mod templates;
 mod terraform;
+mod tools;
 mod transpiler;
 
 fn main() {

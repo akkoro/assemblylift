@@ -5,12 +5,10 @@ pub mod asml {
 
     use serde::Deserialize;
 
-    use crate::transpiler::StringMap;
-
     #[derive(Deserialize)]
     pub struct Manifest {
         pub project: Project,
-        pub services: Rc<StringMap<Rc<ServiceRef>>>, // map service_id -> service
+        pub services: Rc<Vec<Rc<ServiceRef>>>,
         pub terraform: Option<Terraform>,
     }
 
@@ -107,13 +105,9 @@ pub mod service {
         }
     }
 
-    pub type Functions = StringMap<Function>;
-    pub type Iomods = StringMap<Dependency>;
-    pub type Authorizers = StringMap<HttpAuth>;
-
-    fn default_api_provider() -> String {
-        String::from("aws-apigw")
-    }
+    pub type Functions = Vec<Function>;
+    pub type Iomods = Vec<Dependency>;
+    pub type Authorizers = Vec<HttpAuth>;
 
     #[derive(Deserialize)]
     pub struct Provider {
@@ -140,14 +134,13 @@ pub mod service {
 
     #[derive(Deserialize)]
     pub struct Api {
-        #[serde(default = "default_api_provider")]
-        pub provider: String,
-        pub functions: Rc<StringMap<Function>>, // map function_id -> function
-        pub authorizers: Option<Rc<StringMap<HttpAuth>>> // map auth_id -> authorizer
+        pub functions: Rc<Vec<Function>>,
+        pub authorizers: Option<Rc<Vec<HttpAuth>>>,
     }
 
     #[derive(Deserialize)]
     pub struct HttpAuth {
+        pub id: String,
         pub auth_type: String,
         pub audience: Rc<Option<Rc<Vec<String>>>>,
         pub scopes: Rc<Option<Rc<Vec<String>>>>,
@@ -176,7 +169,7 @@ pub mod service {
 
     #[derive(Deserialize)]
     pub struct Iomod {
-        pub dependencies: Rc<StringMap<Dependency>>, // map dependency_id -> dependency
+        pub dependencies: Rc<Vec<Dependency>>,
     }
 
     #[derive(Clone, Deserialize)]
