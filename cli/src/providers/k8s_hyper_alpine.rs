@@ -36,6 +36,7 @@ impl Provider for KubernetesProvider {
     }
 }
 
+// TODO kube context name as provider option
 impl Castable for KubernetesProvider {
     fn cast(&self, ctx: Rc<Context>, _selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
         let service_subprovider = KubernetesService {
@@ -44,11 +45,7 @@ impl Castable for KubernetesProvider {
         // TODO in future we want to support other API Gateway providers -- for now, just Gloo :)
         let api_provider = gloo::ApiProvider::new();
 
-        let api_artifacts = api_provider.cast(ctx.clone(), None).unwrap();
-        let api_kube = api_artifacts
-            .iter()
-            .find(|a| a.content_type == ContentType::KubeYaml("kube-yaml"))
-            .unwrap();
+        let mut api_artifacts = api_provider.cast(ctx.clone(), None).unwrap();
         let service_artifacts = ctx
             .services
             .iter()
@@ -70,12 +67,18 @@ impl Castable for KubernetesProvider {
             .map(|a| a.content.clone())
             .reduce(|accum, s| format!("{}{}", &accum, &s))
             .unwrap();
+
+        let base_tmpl = KubernetesBaseTemplate {
+            project_name: ctx.project.name.clone(),
+        };
         let hcl = Artifact {
             content_type: ContentType::HCL("HCL"),
-            content: service_hcl,
+            content: format!("{}{}", base_tmpl.render(), service_hcl),
             write_path: "net/plan.tf".to_string(),
         };
-        let mut out = vec![hcl, api_kube.clone()];
+
+        let mut out = vec![hcl];
+        out.append(&mut api_artifacts);
         out.append(
             &mut service_artifacts
                 .iter()
@@ -290,15 +293,6 @@ impl Castable for KubernetesFunction {
                 }
                 .render();
 
-                // let mut file = std::fs::File::create(format!(
-                //     "./net/services/{}/{}/Dockerfile",
-                //     service.clone(),
-                //     function.name.clone()
-                // ))
-                // .expect("could not create runtime Dockerfile");
-                // file.write_all(dockerfile_content.as_bytes())
-                //     .expect("could not write runtime Dockerfile");
-
                 let hcl = Artifact {
                     content_type: ContentType::HCL("HCL"),
                     content: hcl_content,
@@ -321,6 +315,30 @@ impl Castable for KubernetesFunction {
                 name.clone()
             ))),
         }
+    }
+}
+
+#[derive(Serialize)]
+struct KubernetesBaseTemplate {
+    project_name: String,
+}
+
+impl Template for KubernetesBaseTemplate {
+    fn render(&self) -> String {
+        let mut reg = Box::new(Handlebars::new());
+        reg.register_template_string("hcl_template", Self::tmpl())
+            .unwrap();
+        reg.render("hcl_template", &self).unwrap()
+    }
+
+    fn tmpl() -> &'static str {
+        r#"# AssemblyLift K8S Provider Begin
+provider kubernetes {
+    alias       = "{{project_name}}"
+    config_path = pathexpand("~/.kube/config")
+}
+
+"#
     }
 }
 
@@ -378,6 +396,19 @@ resource kubernetes_namespace {{service_name}} {
         name = "asml-${local.project_name}-{{service_name}}"
     }
 }
+
+// resource kubernetes_secret {{service_name}} {
+//   provider = kubernetes.{{service_name}}
+//   metadata {
+//     name      = "regcred"
+//     namespace = "asml-${local.project_name}-{{service_name}}"
+//   }
+//   data = {
+//     ".dockerconfigjson" = file("~/.docker/config.json")
+//   }
+//   type = "kubernetes.io/dockerconfigjson"
+// }
+
 "#
     }
 }
@@ -404,8 +435,7 @@ impl Template for FunctionTemplate {
     }
 
     fn tmpl() -> &'static str {
-        r#"
-# Begin function `{{function_name}}` (in `{{service_name}}`)
+        r#"# Begin function `{{function_name}}` (in `{{service_name}}`)
 
 locals {
     {{service_name}}_{{function_name}}_image_name = "asml-${local.project_name}-{{service_name}}-{{function_name}}"
@@ -453,7 +483,7 @@ resource docker_registry_image {{service_name}}_{{function_name}} {
 
 resource kubernetes_deployment {{function_name}} {
     provider   = kubernetes.{{service_name}}
-    depends_on = [docker_registry_image.{{service_name}}_{{function_name}}]
+    depends_on = [docker_registry_image.{{service_name}}_{{function_name}}, kubernetes_namespace.{{service_name}}]
     metadata {
         name      = "{{function_name}}"
         namespace = "asml-${local.project_name}-{{service_name}}"
@@ -482,6 +512,9 @@ resource kubernetes_deployment {{function_name}} {
             }
 
             spec {
+                image_pull_secrets {
+                    name = "regcred"
+                }
                 container {
                     image = docker_registry_image.{{service_name}}_{{function_name}}.name
                     name  = "asml-{{service_name}}-{{function_name}}"
@@ -504,7 +537,8 @@ resource kubernetes_deployment {{function_name}} {
 }
 
 resource kubernetes_service {{service_name}}_{{function_name}} {
-    provider = kubernetes.{{service_name}}
+    provider   = kubernetes.{{service_name}}
+    depends_on = [kubernetes_namespace.{{service_name}}]
 
     metadata {
         name      = "asml-{{service_name}}-{{function_name}}"
@@ -523,6 +557,7 @@ resource kubernetes_service {{service_name}}_{{function_name}} {
         }
     }
 }
+
 "#
     }
 }
