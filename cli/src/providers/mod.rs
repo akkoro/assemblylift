@@ -12,7 +12,7 @@ pub mod k8s_hyper_alpine;
 
 pub type ProviderMap = StringMap<Mutex<Box<dyn Provider + Send + Sync>>>;
 
-pub static SERVICE_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
+pub static PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     let mut map = ProviderMap::new();
     map.insert(
         String::from("aws-lambda"),

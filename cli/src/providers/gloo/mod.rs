@@ -61,7 +61,7 @@ impl Castable for ApiProvider {
             }
         }
 
-        let template_name = "yaml_template";
+        let template_name = "hcl_template";
         let mut reg = Box::new(Handlebars::new());
         reg.register_template_string(template_name, VIRTUALSERVICE_TEMPLATE)
             .unwrap();
@@ -86,13 +86,13 @@ impl Castable for ApiProvider {
                 .collect(),
         };
         let data = to_json(data);
-        let rendered_yaml = reg
+        let rendered_hcl = reg
             .render(template_name, &data)
-            .expect("couldn't render yaml template");
+            .expect("couldn't render hcl template");
         let yaml = Artifact {
-            content_type: ContentType::KubeYaml("kube-yaml"),
-            content: rendered_yaml,
-            write_path: "net/kube.yaml".into(),
+            content_type: ContentType::HCL("HCL"),
+            content: rendered_hcl,
+            write_path: "net/plan.tf".into(),
         };
         Ok(vec![yaml])
     }
@@ -172,23 +172,61 @@ struct RouteData {
 }
 
 // TODO add another domain to the list for the user's public domain
-static VIRTUALSERVICE_TEMPLATE: &str = r#"apiVersion: gateway.solo.io/v1
-kind: VirtualService
-metadata:
-  name: {{project_name}}
-  namespace: asml-gloo-{{project_name}}
-spec:
-  virtualHost:
-    domains:
-    - '{{project_name}}.asml.local'
-    {{#if has_routes}}routes:
-    {{#each routes}}- matchers:
-      - exact: {{this.path}}
-      routeAction:
-        single:
-          upstream:
-            name: asml-{{../project_name}}-{{to_service_name}}-asml-{{to_service_name}}-{{to_function_name}}-5543
-            namespace: asml-gloo-{{../project_name}}
-    {{/each}}
-    {{/if}}
+// static VIRTUALSERVICE_TEMPLATE: &str = r#"apiVersion: gateway.solo.io/v1
+// kind: VirtualService
+// metadata:
+//   name: {{project_name}}
+//   namespace: asml-gloo-{{project_name}}
+// spec:
+//   virtualHost:
+//     domains:
+//     - '{{project_name}}.asml.local'
+//     {{#if has_routes}}routes:
+//     {{#each routes}}- matchers:
+//       - exact: {{this.path}}
+//       routeAction:
+//         single:
+//           upstream:
+//             name: asml-{{../project_name}}-{{to_service_name}}-asml-{{to_service_name}}-{{to_function_name}}-5543
+//             namespace: asml-gloo-{{../project_name}}
+//     {{/each}}
+//     {{/if}}
+// "#;
+static VIRTUALSERVICE_TEMPLATE: &str = r#"# Begin Gloo VirtualService
+resource kubernetes_manifest gloo_virtualservice {
+  provider = kubernetes.{{project_name}}
+  manifest = {
+    apiVersion = "gateway.solo.io/v1"
+    kind       = "VirtualService"
+
+    metadata = {
+      name      = "{{project_name}}"
+      namespace = "asml-gloo-{{project_name}}"
+    }
+
+    spec = {
+      virtualHost = {
+        domains = ["*"]
+        {{#if has_routes}}routes = [
+          {{#each routes}}{
+            matchers = [
+              {
+                exact = "{{this.path}}"
+              }
+            ]
+            routeAction = {
+              single = {
+                upstream = {
+                  name      = "asml-{{../project_name}}-{{to_service_name}}-asml-{{to_service_name}}-{{to_function_name}}-5543"
+                  namespace = "asml-gloo-{{../project_name}}"
+                }
+              }
+            }
+          },
+        {{/each}}]{{/if}}
+      }
+    }
+  }
+}
+
 "#;

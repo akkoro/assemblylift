@@ -125,9 +125,9 @@ impl Tool for GlooCtl {
 
     fn fetch_url(&self) -> &str {
         #[cfg(target_os = "linux")]
-        return "https://github.com/solo-io/gloo/releases/download/v1.12.0-beta7/glooctl-linux-amd64";
+        return "https://github.com/solo-io/gloo/releases/download/v1.11.13/glooctl-linux-amd64";
         #[cfg(target_os = "macos")]
-        return "https://github.com/solo-io/gloo/releases/download/v1.12.0-beta7/glooctl-darwin-amd64";
+        return "https://github.com/solo-io/gloo/releases/download/v1.11.13/glooctl-darwin-amd64";
     }
 }
 

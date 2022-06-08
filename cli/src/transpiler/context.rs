@@ -9,7 +9,7 @@ use itertools::Itertools;
 use serde::Serialize;
 
 use crate::projectfs::Project as ProjectFs;
-use crate::providers::SERVICE_PROVIDERS;
+use crate::providers::PROVIDERS;
 use crate::transpiler::{Artifact, Castable, CastError, ContentType, StringMap, Template, toml};
 
 pub struct Context {
@@ -182,7 +182,7 @@ impl Castable for Context {
         let mut out: Vec<Artifact> = Vec::new();
         let providers: Vec<Rc<Provider>> = ctx.services.iter().map(|s| s.provider.clone()).collect();
         for p in providers {
-            let provider = SERVICE_PROVIDERS
+            let provider = PROVIDERS
                 .get(&*p.name.clone())
                 .expect("could not find provider");
             provider
@@ -190,28 +190,19 @@ impl Castable for Context {
                 .unwrap()
                 .set_options(p.options.clone())
                 .expect("could not set provider options");
+
             let artifacts = provider
                 .lock()
                 .unwrap()
                 .cast(ctx.clone(), None)
                 .unwrap();
-            let hcl = artifacts
-                .iter()
-                .find(|a| a.content_type == ContentType::HCL("HCL"))
-                .unwrap();
-            let kube_yaml = artifacts
-                .iter()
-                .find(|a| a.content_type == ContentType::KubeYaml("kube-yaml"))
-                .unwrap();
-            hcl_content.push_str(&hcl.content.clone());
-            kube_content.push_str(&kube_yaml.content.clone());
-            out.append(
-                &mut artifacts
-                    .iter()
-                    .filter(|a| a.content_type == ContentType::Dockerfile("Dockerfile"))
-                    .map(|a| a.clone())
-                    .collect::<Vec<Artifact>>(),
-            );
+            for a in artifacts {
+                match a.content_type {
+                    ContentType::HCL(_) => hcl_content.push_str(&*a.content.clone()),
+                    ContentType::KubeYaml(_) => kube_content.push_str(&*a.content.clone()),
+                    ContentType::Dockerfile(_) => out.push(a.clone()),
+                }
+            }
         }
 
         let hcl = Artifact {
