@@ -19,6 +19,7 @@ pub struct Context {
     pub functions: Vec<Function>,
     pub authorizers: Vec<Authorizer>,
     pub iomods: Vec<Iomod>,
+    pub registries: Vec<Registry>,
 }
 
 impl Context {
@@ -30,6 +31,12 @@ impl Context {
         let mut ctx_functions: Vec<Function> = Vec::new();
         let mut ctx_authorizers: Vec<Authorizer> = Vec::new();
         let mut ctx_iomods: Vec<Iomod> = Vec::new();
+        let mut ctx_registries: Vec<Registry> = manifest
+            .registries
+            .unwrap_or(Vec::new())
+            .iter()
+            .map(|r| Registry { host: r.host.clone(), options: r.options.clone() })
+            .collect();
 
         for service_ref in &*manifest.services {
             let mut service_path = project.service_dir(service_ref.name.clone()).dir();
@@ -59,6 +66,7 @@ impl Context {
                         name: function.provider.name.clone(),
                         options: function.provider.options.clone(),
                     }),
+                    registry: function.registry.clone().unwrap_or("dockerhub".to_string()),
                     service_name: service.name.clone(),
                     language: function.language.clone().unwrap_or("rust".to_string()),
                     size: function.size_mb.unwrap_or(1024u16),
@@ -136,6 +144,7 @@ impl Context {
             functions: ctx_functions,
             authorizers: ctx_authorizers,
             iomods: ctx_iomods,
+            registries: ctx_registries,
         })
     }
 
@@ -180,7 +189,8 @@ impl Castable for Context {
         hcl_content.push_str(&*tmpl.render());
 
         let mut out: Vec<Artifact> = Vec::new();
-        let providers: Vec<Rc<Provider>> = ctx.services.iter().map(|s| s.provider.clone()).collect();
+        let mut providers: Vec<Rc<Provider>> = ctx.services.iter().map(|s| s.provider.clone()).collect();
+        providers.dedup_by(|a, b| a.name.eq_ignore_ascii_case(&*b.name));
         for p in providers {
             let provider = PROVIDERS
                 .get(&*p.name.clone())
@@ -231,6 +241,11 @@ pub struct Terraform {
     pub lock_table_name: String,
 }
 
+pub struct Registry {
+    pub host: String,
+    pub options: StringMap<String>,
+}
+
 pub struct Service {
     pub name: String,
     pub provider: Rc<Provider>,
@@ -251,6 +266,7 @@ pub struct Provider {
 pub struct Function {
     pub name: String,
     pub provider: Rc<Provider>,
+    pub registry: String,
     pub language: String,
     pub service_name: String,
 

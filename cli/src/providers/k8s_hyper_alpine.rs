@@ -7,7 +7,15 @@ use serde::Serialize;
 
 use crate::providers::{gloo, Options, Provider, ProviderError};
 use crate::transpiler::{Artifact, Castable, CastError, ContentType, Template};
-use crate::transpiler::context::Context;
+use crate::transpiler::context::{Context, Registry};
+
+fn map_container_registry(r: &Registry) -> ContainerRegistry {
+    ContainerRegistry {
+        is_dockerhub: r.host.eq_ignore_ascii_case("dockerhub"),
+        is_ecr: r.host.eq_ignore_ascii_case("ecr"),
+        options: r.options.clone(),
+    }
+}
 
 pub struct KubernetesProvider {
     options: Arc<Options>,
@@ -42,11 +50,10 @@ impl Castable for KubernetesProvider {
         let service_subprovider = KubernetesService {
             options: self.options.clone(),
         };
-        // TODO in future we want to support other API Gateway providers -- for now, just Gloo :)
-        let api_provider = gloo::ApiProvider::new();
 
-        let mut api_artifacts = api_provider.cast(ctx.clone(), None).unwrap();
-        let service_artifacts = ctx
+        let registries = ctx.registries.iter().map(map_container_registry).collect();
+
+        let mut service_artifacts = ctx
             .services
             .iter()
             .map(|s| {
@@ -61,31 +68,24 @@ impl Castable for KubernetesProvider {
                 out
             })
             .unwrap();
-        let service_hcl = service_artifacts
-            .iter()
-            .filter(|a| a.content_type == ContentType::HCL("HCL"))
-            .map(|a| a.content.clone())
-            .reduce(|accum, s| format!("{}{}", &accum, &s))
-            .unwrap();
 
         let base_tmpl = KubernetesBaseTemplate {
             project_name: ctx.project.name.clone(),
+            docker_config_path: self
+                .options
+                .get("docker_config_path")
+                .unwrap_or(&"~/.docker/config.json".to_string())
+                .clone(),
+            registries,
         };
         let hcl = Artifact {
             content_type: ContentType::HCL("HCL"),
-            content: format!("{}{}", base_tmpl.render(), service_hcl),
+            content: base_tmpl.render(),
             write_path: "net/plan.tf".to_string(),
         };
 
         let mut out = vec![hcl];
-        out.append(&mut api_artifacts);
-        out.append(
-            &mut service_artifacts
-                .iter()
-                .filter(|a| a.content_type == ContentType::Dockerfile("Dockerfile"))
-                .map(|a| a.clone())
-                .collect::<Vec<Artifact>>(),
-        );
+        out.append(&mut service_artifacts);
         Ok(out)
     }
 }
@@ -100,62 +100,23 @@ impl Castable for KubernetesService {
             .expect("selector must be a service name")
             .to_string();
 
-        let registry_type = self
-            .options
-            .get("registry_type")
-            .unwrap_or(&"dockerhub".to_string())
-            .clone();
-
-        // TODO this should happen in a validate() step
-        if registry_type == "ecr" {
-            if self.options.get("aws_account_id").is_none() {
-                return Err(CastError(format!(
-                    "ecr registry type requires aws_account_id"
-                )));
-            }
-            // TODO warn if defaulting aws_region
-        }
-        if registry_type == "dockerhub" {
-            if self.options.get("registry_name").is_none() {
-                return Err(CastError(format!(
-                    "dockerhub registry type requires registry_name"
-                )));
-            }
-        }
+        let registries = ctx.registries.iter().map(map_container_registry).collect();
 
         let hcl_content = ServiceTemplate {
+            project_name: ctx.project.name.clone(),
             service_name: name.clone(),
-            container_registry: ContainerRegistryData {
-                is_dockerhub: registry_type == "dockerhub",
-                is_ecr: registry_type == "ecr",
-                registry_name: self
-                    .options
-                    .get("registry_name")
-                    .unwrap_or(&"".to_string())
-                    .clone(),
-                aws_account_id: self
-                    .options
-                    .get("aws_account_id")
-                    .unwrap_or(&"".to_string())
-                    .clone(),
-                aws_region: self
-                    .options
-                    .get("aws_region")
-                    .unwrap_or(&"us-east-1".to_string())
-                    .clone(),
-            },
             kube_config_path: self
                 .options
                 .get("kube_config_path")
                 .unwrap_or(&"~/.kube/config".to_string())
                 .clone(),
-            docker_config_path: self
-                .options
-                .get("docker_config_path")
-                .unwrap_or(&"~/.docker/config.json".to_string())
-                .clone(),
+            registries,
         }
         .render();
+
+        // TODO in future we want to support other API Gateway providers -- for now, just Gloo :)
+        let api_provider = gloo::ApiProvider::new();
+        let mut api_artifacts = api_provider.cast(ctx.clone(), Some(&*name)).unwrap();
 
         let function_subprovider = KubernetesFunction {
             options: self.options.clone(),
@@ -189,6 +150,7 @@ impl Castable for KubernetesService {
             write_path: "net/plan.tf".into(),
         };
         let mut out = vec![hcl];
+        out.append(&mut api_artifacts);
         out.append(
             &mut function_artifacts
                 .iter()
@@ -212,16 +174,6 @@ impl Castable for KubernetesFunction {
         match ctx.functions.iter().find(|&f| f.name == name) {
             Some(function) => {
                 let service = function.service_name.clone();
-                let registry_type = self
-                    .options
-                    .get("registry_type")
-                    .unwrap_or(
-                        ctx.service(service.clone())
-                            .unwrap()
-                            .option("registry_type")
-                            .unwrap(),
-                    )
-                    .clone();
 
                 let iomods: Vec<IomodContainer> = ctx
                     .iomods
@@ -240,8 +192,12 @@ impl Castable for KubernetesFunction {
                     })
                     .collect();
 
+                let registries: Vec<ContainerRegistry> =
+                    ctx.registries.iter().map(map_container_registry).collect();
+
                 let hcl_tmpl = FunctionTemplate {
                     base_image_version: crate_version!().to_string(),
+                    project_name: ctx.project.name.clone(),
                     function_name: function.name.clone(),
                     service_name: service.clone(),
                     handler_name: match function.language.as_str() {
@@ -251,33 +207,18 @@ impl Castable for KubernetesFunction {
                     },
                     iomods: iomods.clone(),
                     has_iomods: iomods.len() > 0,
-                    container_registry: ContainerRegistryData {
-                        is_dockerhub: registry_type == "dockerhub",
-                        is_ecr: registry_type == "ecr",
-                        registry_name: self
+                    registry: ContainerRegistry {
+                        is_dockerhub: function.registry.eq_ignore_ascii_case("dockerhub"),
+                        is_ecr: function.registry.eq_ignore_ascii_case("ecr"),
+                        options: registries
+                            .iter()
+                            .find(|r| {
+                                (r.is_ecr && function.registry.eq_ignore_ascii_case("ecr"))
+                                    || (r.is_dockerhub
+                                        && function.registry.eq_ignore_ascii_case("dockerhub"))
+                            })
+                            .expect(&*format!("no registry configured for `{}` for function `{}`", &function.registry, &function.name))
                             .options
-                            .get("registry_name")
-                            .unwrap_or(
-                                ctx.service(service.clone())
-                                    .unwrap()
-                                    .option("registry_name")
-                                    .unwrap_or(&"".to_string()),
-                            )
-                            .clone(),
-                        aws_account_id: self
-                            .options
-                            .get("aws_account_id")
-                            .unwrap_or(
-                                ctx.service(service.clone())
-                                    .unwrap()
-                                    .option("aws_account_id")
-                                    .unwrap(),
-                            )
-                            .clone(),
-                        aws_region: self
-                            .options
-                            .get("aws_region")
-                            .unwrap_or(&"us-east-1".to_string())
                             .clone(),
                     },
                     is_ruby: function.language == "ruby".to_string(),
@@ -318,9 +259,11 @@ impl Castable for KubernetesFunction {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 struct KubernetesBaseTemplate {
     project_name: String,
+    docker_config_path: String,
+    registries: Vec<ContainerRegistry>,
 }
 
 impl Template for KubernetesBaseTemplate {
@@ -333,9 +276,32 @@ impl Template for KubernetesBaseTemplate {
 
     fn tmpl() -> &'static str {
         r#"# AssemblyLift K8S Provider Begin
+
 provider kubernetes {
     alias       = "{{project_name}}"
     config_path = pathexpand("~/.kube/config")
+}
+
+{{#each registries}}{{#if this.is_ecr}}provider aws {
+    alias  = "{{../project_name}}"
+    region = "{{this.options.aws_region}}"
+}{{/if}}
+
+{{#if this.is_ecr}}data aws_ecr_authorization_token token {
+    provider = aws.{{../project_name}}
+}{{/if}}{{/each}}
+
+provider docker {
+    alias = "{{project_name}}"
+    {{#each registries}}{{#if this.is_dockerhub}}registry_auth {
+        address     = "registry-1.docker.io"
+        config_file = pathexpand("{{../docker_config_path}}")
+    }{{/if}}
+    {{#if this.is_ecr}}registry_auth {
+        address  = data.aws_ecr_authorization_token.token.proxy_endpoint
+        password = data.aws_ecr_authorization_token.token.password
+        username = data.aws_ecr_authorization_token.token.user_name
+    }{{/if}}{{/each}}
 }
 
 "#
@@ -344,10 +310,10 @@ provider kubernetes {
 
 #[derive(Serialize)]
 pub struct ServiceTemplate {
+    pub project_name: String,
     pub service_name: String,
-    pub container_registry: ContainerRegistryData,
     pub kube_config_path: String,
-    pub docker_config_path: String,
+    pub registries: Vec<ContainerRegistry>,
 }
 
 impl Template for ServiceTemplate {
@@ -359,55 +325,40 @@ impl Template for ServiceTemplate {
     }
 
     fn tmpl() -> &'static str {
-        r#"locals {
-    {{#if container_registry.is_ecr}}ecr_address = "{{container_registry.aws_account_id}}.dkr.ecr.{{container_registry.aws_region}}.amazonaws.com"{{/if}}
-}
-
-{{#if container_registry.is_ecr}}provider aws {
-    alias  = "{{service_name}}"
-    region = "{{container_registry.aws_region}}"
-}{{/if}}
-
-{{#if container_registry.is_ecr}}data aws_ecr_authorization_token {{service_name}}_token {
-    provider = aws.{{service_name}}
-}{{/if}}
-
-provider kubernetes {
-    alias       = "{{service_name}}"
-    config_path = pathexpand("{{kube_config_path}}")
-}
-
-provider docker {
-    alias = "{{service_name}}"
-    registry_auth {
-        address     = "registry-1.docker.io"
-        config_file = pathexpand("{{docker_config_path}}")
-    }
-    registry_auth {
-        address  = local.ecr_address
-        password = data.aws_ecr_authorization_token.{{service_name}}_token.password
-        username = data.aws_ecr_authorization_token.{{service_name}}_token.user_name
-    }
-}
+        r#"# Begin service `{{service_name}}`
 
 resource kubernetes_namespace {{service_name}} {
-    provider = kubernetes.{{service_name}}
+    provider = kubernetes.{{project_name}}
     metadata {
         name = "asml-${local.project_name}-{{service_name}}"
     }
 }
 
-// resource kubernetes_secret {{service_name}} {
-//   provider = kubernetes.{{service_name}}
-//   metadata {
-//     name      = "regcred"
-//     namespace = "asml-${local.project_name}-{{service_name}}"
-//   }
-//   data = {
-//     ".dockerconfigjson" = file("~/.docker/config.json")
-//   }
-//   type = "kubernetes.io/dockerconfigjson"
-// }
+{{#each registries}}{{#if is_ecr}}provider aws {
+    alias  = "{{../service_name}}"
+    region = "{{this.options.aws_region}}"
+}{{/if}}
+
+{{#if is_ecr}}resource kubernetes_secret dockerconfig_{{../service_name}} {
+  provider = kubernetes.{{../project_name}}
+  metadata {
+    name      = "regcred"
+    namespace = "asml-${local.project_name}-{{../service_name}}"
+  }
+  data = {
+    ".dockerconfigjson" = jsonencode({
+      auths = {
+        (data.aws_ecr_authorization_token.token.proxy_endpoint) = {
+          "username" = data.aws_ecr_authorization_token.token.user_name
+          "password" = data.aws_ecr_authorization_token.token.password
+          "email"    = "assemblylift@akkoro.io"
+          "auth"     = data.aws_ecr_authorization_token.token.authorization_token
+        }
+      }
+    })
+  }
+  type = "kubernetes.io/dockerconfigjson"
+}{{/if}}{{/each}}
 
 "#
     }
@@ -416,12 +367,13 @@ resource kubernetes_namespace {{service_name}} {
 #[derive(Serialize)]
 pub struct FunctionTemplate {
     pub base_image_version: String,
+    pub project_name: String,
     pub service_name: String,
     pub function_name: String,
     pub handler_name: String,
     pub has_iomods: bool,
-    pub container_registry: ContainerRegistryData,
     pub iomods: Vec<IomodContainer>,
+    pub registry: ContainerRegistry,
 
     pub is_ruby: bool,
 }
@@ -441,7 +393,7 @@ locals {
     {{service_name}}_{{function_name}}_image_name = "asml-${local.project_name}-{{service_name}}-{{function_name}}"
 }
 
-{{#if container_registry.is_ecr}}resource aws_ecr_repository {{service_name}}_{{function_name}} {
+{{#if registry.is_ecr}}resource aws_ecr_repository {{service_name}}_{{function_name}} {
     provider = aws.{{service_name}}
     name     = "asml/${local.project_name}/{{service_name}}/{{function_name}}"
 }{{/if}}
@@ -469,20 +421,21 @@ resource random_id {{service_name}}_{{function_name}}_image {
 }
 
 resource docker_registry_image {{service_name}}_{{function_name}} {
-    provider = docker.{{service_name}}
-    {{#if container_registry.is_dockerhub}}name = "{{container_registry.registry_name}}/${local.{{service_name}}_{{function_name}}_image_name}:${random_id.{{service_name}}_{{function_name}}_image.hex}"{{/if}}
-    {{#if container_registry.is_ecr}}name = "${aws_ecr_repository.{{service_name}}_{{function_name}}.repository_url}:${random_id.{{service_name}}_{{function_name}}_image.hex}"{{/if}}
+    provider = docker.{{project_name}}
+    {{#if registry.is_dockerhub}}name = "{{registry.options.registry_name}}/${local.{{service_name}}_{{function_name}}_image_name}:${random_id.{{service_name}}_{{function_name}}_image.hex}"{{/if}}
+    {{#if registry.is_ecr}}name = "${aws_ecr_repository.{{service_name}}_{{function_name}}.repository_url}:${random_id.{{service_name}}_{{function_name}}_image.hex}"{{/if}}
 
     build {
         context      = "${path.module}/services/{{service_name}}"
         dockerfile   = "{{function_name}}/Dockerfile"
         pull_parent  = true
         force_remove = true
+        no_cache     = true
     }
 }
 
 resource kubernetes_deployment {{function_name}} {
-    provider   = kubernetes.{{service_name}}
+    provider   = kubernetes.{{project_name}}
     depends_on = [docker_registry_image.{{service_name}}_{{function_name}}, kubernetes_namespace.{{service_name}}]
     metadata {
         name      = "{{function_name}}"
@@ -537,7 +490,7 @@ resource kubernetes_deployment {{function_name}} {
 }
 
 resource kubernetes_service {{service_name}}_{{function_name}} {
-    provider   = kubernetes.{{service_name}}
+    provider   = kubernetes.{{project_name}}
     depends_on = [kubernetes_namespace.{{service_name}}]
 
     metadata {
@@ -550,7 +503,7 @@ resource kubernetes_service {{service_name}}_{{function_name}} {
             asml_function = "{{function_name}}"
             asml_service  = "{{service_name}}"
         }
-        type = "NodePort"
+        type = "ClusterIP"
         port {
             port        = 5543
             target_port = 5543
@@ -580,7 +533,7 @@ impl Template for DockerfileTemplate {
     }
 
     fn tmpl() -> &'static str {
-        r#"FROM public.ecr.aws/akkoro/assemblylift/hyper-alpine:{{base_image_version}}
+        r#"FROM public.ecr.aws/akkoro/assemblylift/hyper-alpine:0.4.0-alpha.2
 ENV ASML_WASM_MODULE_NAME {{handler_name}}
 ADD ./{{function_name}}/{{handler_name}} /opt/assemblylift/{{handler_name}}
 {{#if is_ruby}}COPY ./{{function_name}}/ruby-wasm32-wasi /usr/bin/ruby-wasm32-wasi
@@ -590,13 +543,11 @@ ENV ASML_FUNCTION_ENV ruby{{/if}}
     }
 }
 
-#[derive(Serialize)]
-pub struct ContainerRegistryData {
+#[derive(Serialize, Debug)]
+pub struct ContainerRegistry {
     pub is_dockerhub: bool,
     pub is_ecr: bool,
-    pub registry_name: String,
-    pub aws_account_id: String,
-    pub aws_region: String,
+    pub options: Options,
 }
 
 #[derive(Serialize, Clone, Debug)]

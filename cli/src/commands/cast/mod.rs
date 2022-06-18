@@ -87,57 +87,57 @@ pub fn command(matches: Option<&ArgMatches>) {
             // TODO   |-> terraform can zip directories
             let iomods = service_manifest.iomods().clone();
             let mut dependencies: Vec<String> = Vec::new();
-            for dependency in iomods.as_ref() {
-                let dependency_coords: Vec<&str> = dependency.coordinates.split('.').collect();
-                let dependency_name = dependency_coords.get(2).unwrap().to_string();
-                match dependency.dependency_type.as_deref() {
-                    Some("file") => {
-                        let dependency_path = format!("{}/net/services/{}/iomods/{}", project_path, service_name, dependency_name);
-                        let dependency_from = dependency.from.as_ref()
-                            .expect("`from` must be defined when dependency type is `file`");
-                        match fs::metadata(dependency_from.clone()) {
-                            Ok(_) => {
-                                fs::copy(dependency_from.clone(), &dependency_path).unwrap();
-                                ()
-                            }
-                            Err(_) => panic!("ERROR: could not find file-type dependency named {} (check path)", dependency_name),
-                        }
-
-                        dependencies.push(dependency_path);
-                    }
-                    Some("registry") => {
-                        let dependency_path = format!(
-                            "{}/net/services/{}/iomods/{}@{}.iomod",
-                            project_path,
-                            service_name,
-                            dependency.coordinates,
-                            dependency.version,
-                        );
-                        let client = reqwest::blocking::ClientBuilder::new()
-                            .build()
-                            .expect("could not build blocking HTTP client");
-                        let registry_url = format!(
-                            "https://registry.assemblylift.akkoro.io/iomod/{}/{}",
-                            dependency.coordinates,
-                            dependency.version
-                        );
-                        let res: GetIomodAtResponse = client.get(registry_url)
-                            .send()
-                            .unwrap()
-                            .json()
-                            .unwrap();
-                        let bytes = client.get(res.url)
-                            .send()
-                            .unwrap()
-                            .bytes()
-                            .unwrap();
-                        fs::write(&dependency_path, &*bytes).expect("could not write iomod package");
-                        dependencies.push(dependency_path);
-                    }
-                    Some("container") => {}
-                    _ => unimplemented!("invalid dependency type (supported: [container, file, registry])"),
-                }
-            }
+            // for dependency in iomods.as_ref() {
+            //     let dependency_coords: Vec<&str> = dependency.coordinates.split('.').collect();
+            //     let dependency_name = dependency_coords.get(2).unwrap().to_string();
+            //     match dependency.dependency_type.as_deref() {
+            //         Some("file") => {
+            //             let dependency_path = format!("{}/net/services/{}/iomods/{}", project_path, service_name, dependency_name);
+            //             let dependency_from = dependency.from.as_ref()
+            //                 .expect("`from` must be defined when dependency type is `file`");
+            //             match fs::metadata(dependency_from.clone()) {
+            //                 Ok(_) => {
+            //                     fs::copy(dependency_from.clone(), &dependency_path).unwrap();
+            //                     ()
+            //                 }
+            //                 Err(_) => panic!("ERROR: could not find file-type dependency named {} (check path)", dependency_name),
+            //             }
+            //
+            //             dependencies.push(dependency_path);
+            //         }
+            //         Some("registry") => {
+            //             let dependency_path = format!(
+            //                 "{}/net/services/{}/iomods/{}@{}.iomod",
+            //                 project_path,
+            //                 service_name,
+            //                 dependency.coordinates,
+            //                 dependency.version,
+            //             );
+            //             let client = reqwest::blocking::ClientBuilder::new()
+            //                 .build()
+            //                 .expect("could not build blocking HTTP client");
+            //             let registry_url = format!(
+            //                 "https://registry.assemblylift.akkoro.io/iomod/{}/{}",
+            //                 dependency.coordinates,
+            //                 dependency.version
+            //             );
+            //             let res: GetIomodAtResponse = client.get(registry_url)
+            //                 .send()
+            //                 .unwrap()
+            //                 .json()
+            //                 .unwrap();
+            //             let bytes = client.get(res.url)
+            //                 .send()
+            //                 .unwrap()
+            //                 .bytes()
+            //                 .unwrap();
+            //             fs::write(&dependency_path, &*bytes).expect("could not write iomod package");
+            //             dependencies.push(dependency_path);
+            //         }
+            //         Some("container") => {}
+            //         _ => unimplemented!("invalid dependency type (supported: [container, file, registry])"),
+            //     }
+            // }
 
             archive::zip_files(
                 dependencies,

@@ -21,6 +21,7 @@ pub trait Castable {
     fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError>;
 }
 
+/// A renderable Handlebars template
 pub trait Template {
     fn render(&self) -> String;
     fn tmpl() -> &'static str;
