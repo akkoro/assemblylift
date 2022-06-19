@@ -8,7 +8,7 @@ use serde_json::Value;
 use crate::providers::{Options, Provider, ProviderError};
 use crate::tools::glooctl::GlooCtl;
 use crate::tools::kubectl::KubeCtl;
-use crate::transpiler::{Artifact, Castable, CastError, ContentType};
+use crate::transpiler::{Artifact, Castable, CastError, ContentType, Template};
 use crate::transpiler::context::{Context, Function};
 
 pub struct ApiProvider {
@@ -50,21 +50,20 @@ impl ApiProvider {
 }
 
 impl Castable for ApiProvider {
-    fn cast(&self, ctx: Rc<Context>, _selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
+    /// `selector` parameter is the name of service to deploy this API for
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
         let project_name = ctx.project.name.clone();
-        {
-            // FIXME this should really happen at the beginning of the `bind` command,
-            //       but we don't have a way to queue actions from `cast` (yet)
-            if !self.gloo_installed {
-                let glooctl = GlooCtl::default();
-                glooctl.install_gateway(&project_name);
-            }
-        }
-
-        let template_name = "hcl_template";
-        let mut reg = Box::new(Handlebars::new());
-        reg.register_template_string(template_name, VIRTUALSERVICE_TEMPLATE)
-            .unwrap();
+        let service_name = selector
+            .expect("selector must be a service name")
+            .to_string();
+        // {
+        //     // FIXME this should really happen at the beginning of the `bind` command,
+        //     //       but we don't have a way to queue actions from `cast` (yet)
+        //     if !self.gloo_installed {
+        //         let glooctl = GlooCtl::default();
+        //         glooctl.install_gateway(&project_name);
+        //     }
+        // }
 
         let http_fns: Vec<&Function> = ctx
             .functions
@@ -73,28 +72,26 @@ impl Castable for ApiProvider {
             .map(|f| f)
             .collect();
 
-        let data = VirtualServiceData {
+        let rendered_hcl = VirtualServiceTemplate {
             project_name: project_name.clone(),
+            service_name: service_name.clone(),
             has_routes: http_fns.len() > 0,
             routes: http_fns
                 .iter()
+                .filter(|f| f.service_name == service_name)
                 .map(|f| RouteData {
                     path: f.http.as_ref().unwrap().path.clone(),
                     to_service_name: f.service_name.clone(),
                     to_function_name: f.name.clone(),
                 })
                 .collect(),
-        };
-        let data = to_json(data);
-        let rendered_hcl = reg
-            .render(template_name, &data)
-            .expect("couldn't render hcl template");
-        let yaml = Artifact {
+        }.render();
+        let out = Artifact {
             content_type: ContentType::HCL("HCL"),
             content: rendered_hcl,
             write_path: "net/plan.tf".into(),
         };
-        Ok(vec![yaml])
+        Ok(vec![out])
     }
 }
 
@@ -158,42 +155,24 @@ struct Upstream {
 }
 
 #[derive(Serialize)]
-struct VirtualServiceData {
+struct VirtualServiceTemplate {
     project_name: String,
+    service_name: String,
     has_routes: bool,
     routes: Vec<RouteData>,
 }
 
-#[derive(Serialize)]
-struct RouteData {
-    path: String,
-    to_service_name: String,
-    to_function_name: String,
-}
+impl Template for VirtualServiceTemplate {
+    fn render(&self) -> String {
+        let mut reg = Box::new(Handlebars::new());
+        reg.register_template_string("hcl_template", Self::tmpl())
+            .unwrap();
+        reg.render("hcl_template", &self).unwrap()
+    }
 
-// TODO add another domain to the list for the user's public domain
-// static VIRTUALSERVICE_TEMPLATE: &str = r#"apiVersion: gateway.solo.io/v1
-// kind: VirtualService
-// metadata:
-//   name: {{project_name}}
-//   namespace: asml-gloo-{{project_name}}
-// spec:
-//   virtualHost:
-//     domains:
-//     - '{{project_name}}.asml.local'
-//     {{#if has_routes}}routes:
-//     {{#each routes}}- matchers:
-//       - exact: {{this.path}}
-//       routeAction:
-//         single:
-//           upstream:
-//             name: asml-{{../project_name}}-{{to_service_name}}-asml-{{to_service_name}}-{{to_function_name}}-5543
-//             namespace: asml-gloo-{{../project_name}}
-//     {{/each}}
-//     {{/if}}
-// "#;
-static VIRTUALSERVICE_TEMPLATE: &str = r#"# Begin Gloo VirtualService
-resource kubernetes_manifest gloo_virtualservice {
+    fn tmpl() -> &'static str {
+        r#"# Begin Gloo VirtualService
+resource kubernetes_manifest gloo_virtualservice_{{service_name}} {
   provider = kubernetes.{{project_name}}
   manifest = {
     apiVersion = "gateway.solo.io/v1"
@@ -201,12 +180,12 @@ resource kubernetes_manifest gloo_virtualservice {
 
     metadata = {
       name      = "{{project_name}}"
-      namespace = "asml-gloo-{{project_name}}"
+      namespace = "asml-{{project_name}}-{{service_name}}"
     }
 
     spec = {
       virtualHost = {
-        domains = ["*"]
+        domains = ["*"] # TODO service domain
         {{#if has_routes}}routes = [
           {{#each routes}}{
             matchers = [
@@ -217,8 +196,8 @@ resource kubernetes_manifest gloo_virtualservice {
             routeAction = {
               single = {
                 upstream = {
-                  name      = "asml-{{../project_name}}-{{to_service_name}}-asml-{{to_service_name}}-{{to_function_name}}-5543"
-                  namespace = "asml-gloo-{{../project_name}}"
+                  name      = "asml-{{../project_name}}-{{../service_name}}-asml-{{../service_name}}-{{to_function_name}}-5543"
+                  namespace = "gloo-system"
                 }
               }
             }
@@ -229,4 +208,13 @@ resource kubernetes_manifest gloo_virtualservice {
   }
 }
 
-"#;
+"#
+    }
+}
+
+#[derive(Serialize)]
+struct RouteData {
+    path: String,
+    to_service_name: String,
+    to_function_name: String,
+}

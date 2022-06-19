@@ -75,77 +75,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         let service_manifest = toml::service::Manifest::read(&service_toml).unwrap();
         let service_name = service_manifest.service().name.clone();
 
-        {
-            // TODO copy ruby env if language==ruby for any function
-
-            let iomod_path = format!("{}/net/services/{}/iomods", project_path, service_name);
-            let _ = fs::remove_dir_all(iomod_path.clone()); // we don't care about this result
-            fs::create_dir_all(iomod_path.clone()).expect("could not create iomod directory");
-
-            // FIXME some dependency types are not supported by some providers
-            // TODO maybe dependency types should be transparent? and orchestrated at the provider level instead of here
-            // TODO   |-> terraform can zip directories
-            let iomods = service_manifest.iomods().clone();
-            let mut dependencies: Vec<String> = Vec::new();
-            for dependency in iomods.as_ref() {
-                let dependency_coords: Vec<&str> = dependency.coordinates.split('.').collect();
-                let dependency_name = dependency_coords.get(2).unwrap().to_string();
-                match dependency.dependency_type.as_deref() {
-                    Some("file") => {
-                        let dependency_path = format!("{}/net/services/{}/iomods/{}", project_path, service_name, dependency_name);
-                        let dependency_from = dependency.from.as_ref()
-                            .expect("`from` must be defined when dependency type is `file`");
-                        match fs::metadata(dependency_from.clone()) {
-                            Ok(_) => {
-                                fs::copy(dependency_from.clone(), &dependency_path).unwrap();
-                                ()
-                            }
-                            Err(_) => panic!("ERROR: could not find file-type dependency named {} (check path)", dependency_name),
-                        }
-
-                        dependencies.push(dependency_path);
-                    }
-                    Some("registry") => {
-                        let dependency_path = format!(
-                            "{}/net/services/{}/iomods/{}@{}.iomod",
-                            project_path,
-                            service_name,
-                            dependency.coordinates,
-                            dependency.version,
-                        );
-                        let client = reqwest::blocking::ClientBuilder::new()
-                            .build()
-                            .expect("could not build blocking HTTP client");
-                        let registry_url = format!(
-                            "https://registry.assemblylift.akkoro.io/iomod/{}/{}",
-                            dependency.coordinates,
-                            dependency.version
-                        );
-                        let res: GetIomodAtResponse = client.get(registry_url)
-                            .send()
-                            .unwrap()
-                            .json()
-                            .unwrap();
-                        let bytes = client.get(res.url)
-                            .send()
-                            .unwrap()
-                            .bytes()
-                            .unwrap();
-                        fs::write(&dependency_path, &*bytes).expect("could not write iomod package");
-                        dependencies.push(dependency_path);
-                    }
-                    Some("container") => {}
-                    _ => unimplemented!("invalid dependency type (supported: [container, file, registry])"),
-                }
-            }
-
-            archive::zip_files(
-                dependencies,
-                format!("./.asml/runtime/{}.zip", &service_name),
-                Some("iomod/"),
-                false,
-            );
-        }
+        // TODO copy ruby env if language==ruby for any function
 
         let functions = service_manifest.functions();
         for function in functions.as_ref() {

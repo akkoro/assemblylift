@@ -5,11 +5,14 @@ pub mod asml {
 
     use serde::Deserialize;
 
+    use crate::providers::Options;
+
     #[derive(Deserialize)]
     pub struct Manifest {
         pub project: Project,
         pub services: Rc<Vec<Rc<ServiceRef>>>,
         pub terraform: Option<Terraform>,
+        pub registries: Option<Vec<Registry>>,
     }
 
     #[derive(Deserialize)]
@@ -27,6 +30,12 @@ pub mod asml {
     #[derive(Deserialize)]
     pub struct ServiceRef {
         pub name: String,
+    }
+
+    #[derive(Deserialize)]
+    pub struct Registry {
+        pub host: String,
+        pub options: Options,
     }
 
     impl Manifest {
@@ -158,6 +167,7 @@ pub mod service {
         pub name: String,
         #[serde(default)]
         pub provider: Rc<Provider>,
+        pub registry: Option<String>,
         pub language: Option<String>,
 
         pub http: Rc<Option<HttpFunction>>,
@@ -174,14 +184,7 @@ pub mod service {
 
     #[derive(Clone, Deserialize)]
     pub struct Dependency {
-        #[serde(alias = "type", default = "default_dependency_type")]
-        pub dependency_type: Option<String>,
-        pub from: Option<String>,
         pub version: String,
         pub coordinates: String,
-    }
-
-    fn default_dependency_type() -> Option<String> {
-        Some("registry".to_string())
     }
 }

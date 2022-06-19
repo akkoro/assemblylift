@@ -13,6 +13,6 @@ pub fn command(matches: Option<&ArgMatches>) {
     terraform::commands::init();
     terraform::commands::apply();
 
-    let kubectl = KubeCtl::default();
-    kubectl.apply().expect("kubectl apply failed");
+    // let kubectl = KubeCtl::default();
+    // kubectl.apply().expect("kubectl apply failed");
 }
