@@ -1,12 +1,15 @@
+use std::fs;
 use std::io::Read;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use handlebars::{Handlebars, to_json};
+use registry_common::models::GetIomodAtResponse;
 use serde::Serialize;
 
+use crate::archive;
 use crate::providers::{Options, Provider, ProviderError, render_string_list};
-use crate::transpiler::{Artifact, Castable, CastError, ContentType};
+use crate::transpiler::{Artifact, Castable, CastError, ContentType, context};
 use crate::transpiler::context::Context;
 
 pub struct ServiceProvider;
@@ -17,8 +20,8 @@ impl ServiceProvider {
             "http://public.assemblylift.akkoro.io/runtime/{}/aws-lambda/bootstrap.zip",
             clap::crate_version!(),
         );
-        let mut response = reqwest::blocking::get(runtime_url)
-            .expect("could not download bootstrap.zip");
+        let mut response =
+            reqwest::blocking::get(runtime_url).expect("could not download bootstrap.zip");
         if !response.status().is_success() {
             panic!("unable to fetch asml runtime from {}", runtime_url);
         }
@@ -30,6 +33,59 @@ impl ServiceProvider {
 
         Self
     }
+
+    pub fn cast_iomods(ctx: Rc<Context>, service_name: &str) -> Result<(), CastError> {
+        let project_path = ctx.project.path.clone();
+        let iomod_path = format!("{}/net/services/{}/iomods", project_path, service_name);
+        let _ = fs::remove_dir_all(iomod_path.clone()); // we don't care about this result
+        fs::create_dir_all(iomod_path.clone()).expect("could not create iomod directory");
+
+        let mut dependencies: Vec<String> = Vec::new();
+        for iomod in &ctx.iomods {
+            // let dependency_coords: Vec<&str> = iomod.coordinates.split('.').collect();
+            // let dependency_name = dependency_coords.get(2).unwrap().to_string();
+
+            // TODO try from file
+            // if _ {
+            //     let dependency_path = format!("{}/net/services/{}/iomods/{}", project_path, service_name, dependency_name);
+            //     let dependency_from = dependency.from.as_ref()
+            //         .expect("`from` must be defined when dependency type is `file`");
+            //     match fs::metadata(dependency_from.clone()) {
+            //         Ok(_) => {
+            //             fs::copy(dependency_from.clone(), &dependency_path).unwrap();
+            //             ()
+            //         }
+            //         Err(_) => panic!("ERROR: could not find file-type dependency named {} (check path)", dependency_name),
+            //     }
+            //
+            //     dependencies.push(dependency_path);
+            // } else {
+            let dependency_path = format!(
+                "{}/net/services/{}/iomods/{}@{}.iomod",
+                project_path, service_name, iomod.coordinates, iomod.version,
+            );
+            let client = reqwest::blocking::ClientBuilder::new()
+                .build()
+                .expect("could not build blocking HTTP client");
+            let registry_url = format!(
+                "https://registry.assemblylift.akkoro.io/iomod/{}/{}",
+                iomod.coordinates, iomod.version
+            );
+            let res: GetIomodAtResponse = client.get(registry_url).send().unwrap().json().unwrap();
+            let bytes = client.get(res.url).send().unwrap().bytes().unwrap();
+            fs::write(&dependency_path, &*bytes).expect("could not write iomod package");
+            dependencies.push(dependency_path);
+        }
+
+        archive::zip_files(
+            dependencies,
+            format!("./.asml/runtime/{}.zip", &service_name),
+            Some("iomod/"),
+            false,
+        );
+
+        Ok(())
+    }
 }
 
 impl Castable for ServiceProvider {
@@ -38,34 +94,39 @@ impl Castable for ServiceProvider {
         reg.register_template_string("service", SERVICE_TEMPLATE)
             .unwrap();
 
-        let name = selector.expect("selector must be a service name").to_string();
-        let layer_name = format!("asml-{}-{}-{}-runtime",
-                                 ctx.project.name.clone(),
-                                 name.clone(),
-                                 self.name().clone(),
+        let name = selector
+            .expect("selector must be a service name")
+            .to_string();
+        let layer_name = format!(
+            "asml-{}-{}-{}-runtime",
+            ctx.project.name.clone(),
+            name.clone(),
+            self.name().clone(),
         );
+
+        ServiceProvider::cast_iomods(ctx.clone(), &name).unwrap();
 
         let use_apigw = ctx.functions.iter().find(|f| f.http.is_some()).is_some();
         let has_service_layer = ctx.iomods.len() > 0;
 
-        let authorizers: Vec<ServiceAuthData> = ctx.authorizers.iter()
+        let authorizers: Vec<ServiceAuthData> = ctx
+            .authorizers
+            .iter()
             .filter(|a| a.r#type.to_lowercase() != "aws_iam")
-            .map(|a| {
-                ServiceAuthData {
-                    id: a.id.clone(),
-                    r#type: a.r#type.clone(),
-                    jwt_config: match &a.jwt_config {
-                        Some(jwt) => {
-                            let audience = render_string_list(jwt.audience.clone());
+            .map(|a| ServiceAuthData {
+                id: a.id.clone(),
+                r#type: a.r#type.clone(),
+                jwt_config: match &a.jwt_config {
+                    Some(jwt) => {
+                        let audience = render_string_list(jwt.audience.clone());
 
-                            Some(ServiceAuthDataJwtConfig {
-                                audience,
-                                issuer: jwt.issuer.clone(),
-                            })
-                        }
-                        None => None,
-                    },
-                }
+                        Some(ServiceAuthDataJwtConfig {
+                            audience,
+                            issuer: jwt.issuer.clone(),
+                        })
+                    }
+                    None => None,
+                },
             })
             .collect();
 
@@ -112,13 +173,17 @@ impl Castable for FunctionProvider {
         reg.register_template_string("function", FUNCTION_TEMPLATE)
             .unwrap();
 
-        let name = selector.expect("selector must be a function name").to_string();
+        let name = selector
+            .expect("selector must be a function name")
+            .to_string();
         match ctx.functions.iter().find(|&f| f.name == name) {
             Some(function) => {
                 let service = function.service_name.clone();
 
                 // find dependencies for service
-                let iomod_names: Vec<String> = ctx.iomods.iter()
+                let iomod_names: Vec<String> = ctx
+                    .iomods
+                    .iter()
                     .filter(|&m| *m.service_name == service.clone())
                     .map(|m| m.name.clone())
                     .collect();
@@ -126,15 +191,24 @@ impl Castable for FunctionProvider {
                 // find authorizers for service
                 let auth = match &function.authorizer_id {
                     Some(id) => {
-                        let authorizer = ctx.authorizers.iter()
+                        let authorizer = ctx
+                            .authorizers
+                            .iter()
                             .filter(|a| a.service_name == service.clone())
                             .find(|a| a.id == id.clone())
-                            .expect(&format!("could not find authorizer by id \"{}\" in context", id.clone()));
+                            .expect(&format!(
+                                "could not find authorizer by id \"{}\" in context",
+                                id.clone()
+                            ));
                         let auth_type = authorizer.r#type.clone();
                         Some(FunctionAuthData {
                             id: match auth_type.to_lowercase().as_str() {
                                 "aws_iam" => None,
-                                _ => Some(format!("aws_apigatewayv2_authorizer.{}_{}.id", service.clone(), id)),
+                                _ => Some(format!(
+                                    "aws_apigatewayv2_authorizer.{}_{}.id",
+                                    service.clone(),
+                                    id
+                                )),
                             },
                             r#type: auth_type.clone(),
                             scopes: match auth_type.to_lowercase().as_str() {
@@ -142,28 +216,32 @@ impl Castable for FunctionProvider {
                                 _ => Some(render_string_list(authorizer.scopes.clone())),
                             },
                         })
-                    },
+                    }
                     None => None,
                 };
 
                 let data = FunctionData {
                     name: function.name.clone(),
                     service: service.clone(),
-                    runtime_layer: format!("aws_lambda_layer_version.asml_{}_runtime.arn", service.clone()),
+                    runtime_layer: format!(
+                        "aws_lambda_layer_version.asml_{}_runtime.arn",
+                        service.clone()
+                    ),
                     service_layer: match iomod_names.len() {
                         0 => None,
-                        _ => Some(format!("aws_lambda_layer_version.asml_{}_service.arn", service.clone())),
+                        _ => Some(format!(
+                            "aws_lambda_layer_version.asml_{}_service.arn",
+                            service.clone()
+                        )),
                     },
                     project_name: ctx.project.name.clone(),
                     size: function.size,
                     timeout: function.timeout,
                     http: match &function.http {
-                        Some(http) => {
-                            Some(HttpData {
-                                verb: http.verb.clone(),
-                                path: http.path.clone(),
-                            })
-                        }
+                        Some(http) => Some(HttpData {
+                            verb: http.verb.clone(),
+                            path: http.path.clone(),
+                        }),
                         None => None,
                     },
                     auth,
@@ -178,7 +256,10 @@ impl Castable for FunctionProvider {
                 };
                 Ok(vec![hcl])
             }
-            None => Err(CastError(format!("unable to find function {} in context", name.clone()))),
+            None => Err(CastError(format!(
+                "unable to find function {} in context",
+                name.clone()
+            ))),
         }
     }
 }
@@ -233,8 +314,7 @@ pub struct HttpData {
     pub path: String,
 }
 
-static SERVICE_TEMPLATE: &str = 
-r#"provider "aws" {
+static SERVICE_TEMPLATE: &str = r#"provider "aws" {
     alias  = "{{name}}"
     region = "{{aws_region}}"
 }
@@ -288,8 +368,7 @@ resource "aws_apigatewayv2_authorizer" "{{../name}}_{{this.id}}" {
 {{/each}}
 "#;
 
-static FUNCTION_TEMPLATE: &str =
-r#"resource "aws_lambda_function" "asml_{{service}}_{{name}}" {
+static FUNCTION_TEMPLATE: &str = r#"resource "aws_lambda_function" "asml_{{service}}_{{name}}" {
     provider = aws.{{service}}
 
     function_name = "asml-{{project_name}}-{{service}}-{{name}}"

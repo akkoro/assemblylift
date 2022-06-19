@@ -6,10 +6,10 @@ use handlebars::Handlebars;
 use serde::Serialize;
 
 use crate::providers::{gloo, Options, Provider, ProviderError};
-use crate::transpiler::{Artifact, Castable, CastError, ContentType, Template};
-use crate::transpiler::context::{Context, Registry};
+use crate::transpiler::{Artifact, Castable, CastError, ContentType, context, Template};
+use crate::transpiler::context::Context;
 
-fn map_container_registry(r: &Registry) -> ContainerRegistry {
+fn map_container_registry(r: &context::Registry) -> ContainerRegistry {
     ContainerRegistry {
         is_dockerhub: r.host.eq_ignore_ascii_case("dockerhub"),
         is_ecr: r.host.eq_ignore_ascii_case("ecr"),
@@ -217,7 +217,10 @@ impl Castable for KubernetesFunction {
                                     || (r.is_dockerhub
                                         && function.registry.eq_ignore_ascii_case("dockerhub"))
                             })
-                            .expect(&*format!("no registry configured for `{}` for function `{}`", &function.registry, &function.name))
+                            .expect(&*format!(
+                                "no registry configured for `{}` for function `{}`",
+                                &function.registry, &function.name
+                            ))
                             .options
                             .clone(),
                     },
