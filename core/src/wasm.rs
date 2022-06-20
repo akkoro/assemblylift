@@ -11,7 +11,7 @@ use assemblylift_core_iomod::registry::RegistryTx;
 use crate::abi::*;
 use crate::threader::ThreaderEnv;
 
-pub type ModuleTreble<S> = (wasmer::Module, Resolver, ThreaderEnv<S>);
+pub type ModuleTreble<S> = (Module, Resolver, ThreaderEnv<S>);
 pub type Resolver = NamedResolverChain<ImportObject, ImportObject>;
 
 pub fn deserialize_module_from_path<R, S>(
@@ -27,7 +27,7 @@ where
     let compiler = Cranelift::default();
     let store = Store::new(&Universal::new(compiler).engine());
     Ok((
-        unsafe { wasmer::Module::deserialize_from_file(&store, file_path.clone()) }
+        unsafe { Module::deserialize_from_file(&store, file_path.clone()) }
             .expect(&format!("could not load wasm from {}", file_path.clone())),
         store,
     ))

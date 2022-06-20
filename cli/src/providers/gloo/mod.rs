@@ -8,7 +8,7 @@ use serde_json::Value;
 use crate::providers::{Options, Provider, ProviderError};
 use crate::tools::glooctl::GlooCtl;
 use crate::tools::kubectl::KubeCtl;
-use crate::transpiler::{Artifact, Castable, CastError, ContentType, Template};
+use crate::transpiler::{Artifact, Bindable, Castable, CastError, ContentType, Template};
 use crate::transpiler::context::{Context, Function};
 
 pub struct ApiProvider {
@@ -43,7 +43,7 @@ impl ApiProvider {
                     .unwrap()
                     .as_str()
                     .unwrap()
-                    .contains("asml-gloo-")
+                    .contains("gloo-system")
             })
             .is_some()
     }
@@ -56,14 +56,6 @@ impl Castable for ApiProvider {
         let service_name = selector
             .expect("selector must be a service name")
             .to_string();
-        // {
-        //     // FIXME this should really happen at the beginning of the `bind` command,
-        //     //       but we don't have a way to queue actions from `cast` (yet)
-        //     if !self.gloo_installed {
-        //         let glooctl = GlooCtl::default();
-        //         glooctl.install_gateway(&project_name);
-        //     }
-        // }
 
         let http_fns: Vec<&Function> = ctx
             .functions
@@ -81,7 +73,6 @@ impl Castable for ApiProvider {
                 .filter(|f| f.service_name == service_name)
                 .map(|f| RouteData {
                     path: f.http.as_ref().unwrap().path.clone(),
-                    to_service_name: f.service_name.clone(),
                     to_function_name: f.name.clone(),
                 })
                 .collect(),
@@ -92,6 +83,12 @@ impl Castable for ApiProvider {
             write_path: "net/plan.tf".into(),
         };
         Ok(vec![out])
+    }
+}
+
+impl Bindable for ApiProvider {
+    fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        todo!()
     }
 }
 
@@ -215,6 +212,5 @@ resource kubernetes_manifest gloo_virtualservice_{{service_name}} {
 #[derive(Serialize)]
 struct RouteData {
     path: String,
-    to_service_name: String,
     to_function_name: String,
 }

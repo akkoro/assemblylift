@@ -21,6 +21,10 @@ pub trait Castable {
     fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError>;
 }
 
+pub trait Bindable {
+    fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError>;
+}
+
 /// A renderable Handlebars template
 pub trait Template {
     fn render(&self) -> String;

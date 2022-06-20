@@ -28,24 +28,20 @@ impl GlooCtl {
         s
     }
 
-    pub fn install_gateway(&self, project_name: &str) {
+    pub fn install_gateway(&self) {
         println!("Installing Gloo API Gateway");
         self.
             command()
             .args(vec!["install", "gateway"])
-            .arg("-n")
-            .arg(format!("asml-gloo-{}", project_name))
             .output()
             .expect("glooctl could not install gloo gateway");
     }
 
-    pub fn uninstall_gateway(&self, project_name: &str) {
+    pub fn uninstall_gateway(&self) {
         println!("Uninstalling Gloo API Gateway");
         self.
             command()
             .args(vec!["uninstall", "gateway"])
-            .arg("-n")
-            .arg(format!("asml-gloo-{}", project_name))
             .output()
             .expect("glooctl could not uninstall gloo gateway");
     }
