@@ -105,9 +105,10 @@ async fn main() {
         }
     }
 
-    let lambda_path = env::var("LAMBDA_TASK_ROOT").unwrap();
+    let module_path = env::var("LAMBDA_TASK_ROOT").unwrap();
     let handler_coordinates = env::var("_HANDLER").unwrap();
     let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
+    let module_name = format!("{}.wasm.bin", coords[0]);
 
     let (status_sender, _status_receiver) = bounded::<()>(1);
 
@@ -115,8 +116,8 @@ async fn main() {
     task_set
         .run_until(async move {
             let (module, store) = match wasm::deserialize_module_from_path::<LambdaAbi, ()>(
-                &lambda_path,
-                coords[0],
+                &module_path,
+                &module_name,
             ) {
                 Ok(module) => (Arc::new(module.0), Arc::new(module.1)),
                 Err(_) => panic!("PANIC this shouldn't happen"),

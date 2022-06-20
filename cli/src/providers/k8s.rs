@@ -92,9 +92,8 @@ impl Castable for KubernetesProvider {
 }
 
 impl Bindable for KubernetesProvider {
-    fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
-        let gloo = GlooCtl::default();
-        gloo.install_gateway();
+    fn bind(&self, _ctx: Rc<Context>) -> Result<(), CastError> {
+        GlooCtl::default().install_gateway();
         Ok(())
     }
 }

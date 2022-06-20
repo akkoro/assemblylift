@@ -43,7 +43,7 @@ impl ApiProvider {
                     .unwrap()
                     .as_str()
                     .unwrap()
-                    .contains("asml-gloo-")
+                    .contains("gloo-system")
             })
             .is_some()
     }
@@ -73,7 +73,6 @@ impl Castable for ApiProvider {
                 .filter(|f| f.service_name == service_name)
                 .map(|f| RouteData {
                     path: f.http.as_ref().unwrap().path.clone(),
-                    to_service_name: f.service_name.clone(),
                     to_function_name: f.name.clone(),
                 })
                 .collect(),
@@ -213,6 +212,5 @@ resource kubernetes_manifest gloo_virtualservice_{{service_name}} {
 #[derive(Serialize)]
 struct RouteData {
     path: String,
-    to_service_name: String,
     to_function_name: String,
 }

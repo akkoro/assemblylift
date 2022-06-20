@@ -16,12 +16,8 @@ pub static PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     let mut map = ProviderMap::new();
     map.insert(
         String::from("aws-lambda"),
-        Mutex::new(Box::new(aws_lambda::ServiceProvider::new())),
+        Mutex::new(Box::new(aws_lambda::AwsLambdaProvider::new())),
     );
-    // map.insert(
-    //     String::from("aws-lambda-alpine"),
-    //     Mutex::new(Box::new(aws_lambda_alpine::ServiceProvider::new())),
-    // );
     map.insert(
         String::from("k8s"),
         Mutex::new(Box::new(k8s::KubernetesProvider::new())),
