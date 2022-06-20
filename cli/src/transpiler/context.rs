@@ -10,7 +10,7 @@ use serde::Serialize;
 
 use crate::projectfs::Project as ProjectFs;
 use crate::providers::PROVIDERS;
-use crate::transpiler::{Artifact, Castable, CastError, ContentType, StringMap, Template, toml};
+use crate::transpiler::{Artifact, Bindable, Castable, CastError, ContentType, StringMap, Template, toml};
 
 pub struct Context {
     pub project: Project,
@@ -66,7 +66,7 @@ impl Context {
                         name: function.provider.name.clone(),
                         options: function.provider.options.clone(),
                     }),
-                    registry: function.registry.clone().unwrap_or("dockerhub".to_string()),
+                    registry: function.registry.clone().unwrap_or("ecr".to_string()),
                     service_name: service.name.clone(),
                     language: function.language.clone().unwrap_or("rust".to_string()),
                     size: function.size_mb.unwrap_or(1024u16),
@@ -227,6 +227,30 @@ impl Castable for Context {
         };
         out.append(&mut vec![hcl, yaml]);
         Ok(out)
+    }
+}
+
+impl Bindable for Context {
+    fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        let mut providers: Vec<Rc<Provider>> = ctx.services.iter().map(|s| s.provider.clone()).collect();
+        providers.dedup_by(|a, b| a.name.eq_ignore_ascii_case(&*b.name));
+        for p in providers {
+            let provider = PROVIDERS
+                .get(&*p.name.clone())
+                .expect("could not find provider");
+            provider
+                .lock()
+                .unwrap()
+                .set_options(p.options.clone())
+                .expect("could not set provider options");
+            provider
+                .lock()
+                .unwrap()
+                .bind(ctx.clone())
+                .expect("could not run provider bind step")
+        }
+
+        Ok(())
     }
 }
 

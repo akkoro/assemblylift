@@ -8,7 +8,7 @@ use serde_json::Value;
 use crate::providers::{Options, Provider, ProviderError};
 use crate::tools::glooctl::GlooCtl;
 use crate::tools::kubectl::KubeCtl;
-use crate::transpiler::{Artifact, Castable, CastError, ContentType, Template};
+use crate::transpiler::{Artifact, Bindable, Castable, CastError, ContentType, Template};
 use crate::transpiler::context::{Context, Function};
 
 pub struct ApiProvider {
@@ -56,14 +56,6 @@ impl Castable for ApiProvider {
         let service_name = selector
             .expect("selector must be a service name")
             .to_string();
-        // {
-        //     // FIXME this should really happen at the beginning of the `bind` command,
-        //     //       but we don't have a way to queue actions from `cast` (yet)
-        //     if !self.gloo_installed {
-        //         let glooctl = GlooCtl::default();
-        //         glooctl.install_gateway(&project_name);
-        //     }
-        // }
 
         let http_fns: Vec<&Function> = ctx
             .functions
@@ -92,6 +84,12 @@ impl Castable for ApiProvider {
             write_path: "net/plan.tf".into(),
         };
         Ok(vec![out])
+    }
+}
+
+impl Bindable for ApiProvider {
+    fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        todo!()
     }
 }
 

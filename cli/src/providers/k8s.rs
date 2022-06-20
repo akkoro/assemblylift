@@ -6,7 +6,8 @@ use handlebars::Handlebars;
 use serde::Serialize;
 
 use crate::providers::{gloo, Options, Provider, ProviderError};
-use crate::transpiler::{Artifact, Castable, CastError, ContentType, context, Template};
+use crate::tools::glooctl::GlooCtl;
+use crate::transpiler::{Artifact, Bindable, Castable, CastError, ContentType, context, Template};
 use crate::transpiler::context::Context;
 
 fn map_container_registry(r: &context::Registry) -> ContainerRegistry {
@@ -31,7 +32,7 @@ impl KubernetesProvider {
 
 impl Provider for KubernetesProvider {
     fn name(&self) -> String {
-        String::from("k8s-hyper-alpine")
+        String::from("k8s")
     }
 
     fn options(&self) -> Arc<Options> {
@@ -87,6 +88,14 @@ impl Castable for KubernetesProvider {
         let mut out = vec![hcl];
         out.append(&mut service_artifacts);
         Ok(out)
+    }
+}
+
+impl Bindable for KubernetesProvider {
+    fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        let gloo = GlooCtl::default();
+        gloo.install_gateway();
+        Ok(())
     }
 }
 
@@ -304,7 +313,8 @@ provider docker {
         address  = data.aws_ecr_authorization_token.token.proxy_endpoint
         password = data.aws_ecr_authorization_token.token.password
         username = data.aws_ecr_authorization_token.token.user_name
-    }{{/if}}{{/each}}
+    }{{/if}}
+    {{/each}}
 }
 
 "#
@@ -337,28 +347,43 @@ resource kubernetes_namespace {{service_name}} {
     }
 }
 
-{{#each registries}}{{#if is_ecr}}provider aws {
-    alias  = "{{../service_name}}"
-    region = "{{this.options.aws_region}}"
-}{{/if}}
-
-{{#if is_ecr}}resource kubernetes_secret dockerconfig_{{../service_name}} {
+{{#each registries}}{{#if is_ecr}}resource kubernetes_secret dockerconfig_{{../service_name}}_ecr {
   provider = kubernetes.{{../project_name}}
   metadata {
-    name      = "regcred"
-    namespace = "asml-${local.project_name}-{{../service_name}}"
+      name      = "regcred-ecr"
+      namespace = "asml-${local.project_name}-{{../service_name}}"
   }
   data = {
-    ".dockerconfigjson" = jsonencode({
-      auths = {
-        (data.aws_ecr_authorization_token.token.proxy_endpoint) = {
-          "username" = data.aws_ecr_authorization_token.token.user_name
-          "password" = data.aws_ecr_authorization_token.token.password
-          "email"    = "assemblylift@akkoro.io"
-          "auth"     = data.aws_ecr_authorization_token.token.authorization_token
-        }
-      }
-    })
+      ".dockerconfigjson" = jsonencode({
+          auths = {
+              (data.aws_ecr_authorization_token.token.proxy_endpoint) = {
+                "username" = data.aws_ecr_authorization_token.token.user_name
+                "password" = data.aws_ecr_authorization_token.token.password
+                "email"    = "assemblylift@akkoro.io"
+                "auth"     = data.aws_ecr_authorization_token.token.authorization_token
+              }
+          }
+      })
+  }
+  type = "kubernetes.io/dockerconfigjson"
+}{{/if}}
+{{#if is_dockerhub}}resource kubernetes_secret dockerconfig_{{../service_name}}_dockerhub {
+  provider = kubernetes.{{../project_name}}
+  metadata {
+      name      = "regcred-dockerhub"
+      namespace = "asml-${local.project_name}-{{../service_name}}"
+  }
+  data = {
+      ".dockerconfigjson" = jsonencode({
+          auths = {
+              "registry-1.docker.io" = {
+                "username" = "{{this.options.username}}"
+                "password" = "{{this.options.password}}"
+                "email"    = "assemblylift@akkoro.io"
+                "auth"     = base64encode("{{this.options.username}}:{{this.options.password}}")
+              }
+          }
+      })
   }
   type = "kubernetes.io/dockerconfigjson"
 }{{/if}}{{/each}}
@@ -397,7 +422,7 @@ locals {
 }
 
 {{#if registry.is_ecr}}resource aws_ecr_repository {{service_name}}_{{function_name}} {
-    provider = aws.{{service_name}}
+    provider = aws.{{project_name}}
     name     = "asml/${local.project_name}/{{service_name}}/{{function_name}}"
 }{{/if}}
 
@@ -433,7 +458,6 @@ resource docker_registry_image {{service_name}}_{{function_name}} {
         dockerfile   = "{{function_name}}/Dockerfile"
         pull_parent  = true
         force_remove = true
-        no_cache     = true
     }
 }
 
@@ -469,7 +493,7 @@ resource kubernetes_deployment {{function_name}} {
 
             spec {
                 image_pull_secrets {
-                    name = "regcred"
+                    name = "regcred-{{#if registry.is_ecr}}ecr{{/if}}{{#if registry.is_dockerhub}}dockerhub{{/if}}"
                 }
                 container {
                     image = docker_registry_image.{{service_name}}_{{function_name}}.name

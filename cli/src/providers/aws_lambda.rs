@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use crate::archive;
 use crate::providers::{Options, Provider, ProviderError, render_string_list};
-use crate::transpiler::{Artifact, Castable, CastError, ContentType, context};
+use crate::transpiler::{Artifact, Bindable, Castable, CastError, ContentType, context};
 use crate::transpiler::context::Context;
 
 pub struct ServiceProvider;
@@ -28,8 +28,8 @@ impl ServiceProvider {
         let mut response_buffer = Vec::new();
         response.read_to_end(&mut response_buffer).unwrap();
 
-        std::fs::create_dir_all("./.asml/runtime").unwrap();
-        std::fs::write("./.asml/runtime/bootstrap.zip", response_buffer).unwrap();
+        fs::create_dir_all("./.asml/runtime").unwrap();
+        fs::write("./.asml/runtime/bootstrap.zip", response_buffer).unwrap();
 
         Self
     }
@@ -148,6 +148,12 @@ impl Castable for ServiceProvider {
             write_path: "net/plan.tf".into(),
         };
         Ok(vec![hcl])
+    }
+}
+
+impl Bindable for ServiceProvider {
+    fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        todo!()
     }
 }
 

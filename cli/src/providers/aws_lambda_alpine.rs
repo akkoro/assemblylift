@@ -6,7 +6,7 @@ use handlebars::{Handlebars, to_json};
 use serde::Serialize;
 
 use crate::providers::{Options, Provider, ProviderError, render_string_list};
-use crate::transpiler::{Artifact, Castable, CastError, ContentType};
+use crate::transpiler::{Artifact, Bindable, Castable, CastError, ContentType};
 use crate::transpiler::context::Context;
 
 pub struct ServiceProvider {
@@ -74,6 +74,12 @@ impl Castable for ServiceProvider {
             write_path: "net/plan.tf".into(),
         };
         Ok(vec![hcl])
+    }
+}
+
+impl Bindable for ServiceProvider {
+    fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        todo!()
     }
 }
 
@@ -186,6 +192,12 @@ impl Castable for FunctionProvider {
             }
             None => Err(CastError(format!("unable to find function {} in context", name.clone()))),
         }
+    }
+}
+
+impl Bindable for FunctionProvider {
+    fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        todo!()
     }
 }
 
