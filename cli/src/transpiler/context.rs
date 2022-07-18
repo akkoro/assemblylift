@@ -62,10 +62,6 @@ impl Context {
             for function in functions.as_ref() {
                 ctx_functions.push(Function {
                     name: function.name.clone(),
-                    provider: Rc::new(Provider {
-                        name: function.provider.name.clone(),
-                        options: function.provider.options.clone(),
-                    }),
                     registry: function.registry.clone().unwrap_or("ecr".to_string()),
                     service_name: service.name.clone(),
                     language: function.language.clone().unwrap_or("rust".to_string()),
@@ -289,7 +285,6 @@ pub struct Provider {
 
 pub struct Function {
     pub name: String,
-    pub provider: Rc<Provider>,
     pub registry: String,
     pub language: String,
     pub service_name: String,

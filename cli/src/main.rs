@@ -2,7 +2,7 @@ extern crate serde_json;
 
 use clap::{App, AppSettings, Arg, crate_version};
 
-use crate::commands::{bind, burn, cast, init, make, pack, push, user};
+use crate::commands::{bind, burn, cast, init, make, pack, push, r#move, user};
 
 mod archive;
 mod commands;
@@ -18,14 +18,14 @@ fn main() {
         .version(crate_version!())
         .subcommand(
             App::new("init")
-                .about("Initialize a basic AssemblyLift application")
-                .arg(
-                    Arg::with_name("language")
-                        .short("l")
-                        .long("lang")
-                        .default_value("rust")
-                        .takes_value(true),
-                )
+                .about("Initialize a new AssemblyLift application")
+                // .arg(
+                //     Arg::with_name("language")
+                //         .short("l")
+                //         .long("lang")
+                //         .default_value("rust")
+                //         .takes_value(true),
+                // )
                 .arg(
                     Arg::with_name("project_name")
                         .short("n")
@@ -48,6 +48,15 @@ fn main() {
                     .takes_value(true)
             )
         )
+        .subcommand(App::new("move")
+            .about("Rename a service or function, or move a function between services")
+            .after_help("RESOURCE SYNTAX:\n    asml move service <service-name> <new-name>\n    asml move function <service-name>.<function-name> <new-service>.<new-function>")
+            .arg(
+                Arg::with_name("resource")
+                    .multiple(true)
+                    .required(true)
+            )
+        )
         .subcommand(App::new("cast").about("Build the AssemblyLift application"))
         .subcommand(
             App::new("bind")
@@ -56,8 +65,13 @@ fn main() {
         )
         .subcommand(
             App::new("burn")
-                .about("Destroy all infrastructure created by 'bind'")
-                .after_help("Equivalent to 'terraform destroy'"),
+                .about("Destroy a service or function")
+                .after_help("RESOURCE SYNTAX:\n    asml burn service <service-name>\n    asml burn function <service-name>.<function-name>")
+                .arg(
+                    Arg::with_name("resource")
+                        .multiple(true)
+                        .required(true)
+                ),
         )
         .subcommand(
             App::new("pack")
@@ -115,6 +129,7 @@ fn main() {
         ("bind", matches) => bind::command(matches),
         ("burn", matches) => burn::command(matches),
         ("make", matches) => make::command(matches),
+        ("move", matches) => r#move::command(matches),
         ("pack", matches) => pack::command(matches),
         ("push", matches) => push::command(matches),
         ("user", matches) => user::command(matches),
