@@ -95,9 +95,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             }
         }
 
-        Some(_) => {
-            panic!("must specify either 'service', 'function', or 'all' as an argument to burn")
-        }
+        Some(_) => panic!("must specify either 'service', 'function', or 'all' as an argument to burn"),
         None => panic!("must specify either 'service', 'function' or 'all' as an argument to burn"),
     }
 }

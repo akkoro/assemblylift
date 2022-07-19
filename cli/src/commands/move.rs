@@ -59,6 +59,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             service_manifest.rename(&*new_name.clone());
             service_manifest.write(service_dir.clone()).unwrap();
         }
+
         Some("function") => unimplemented!("function move is not yet implemented"),
 
         Some(_) => panic!("must specify either 'service' or 'function' as an argument to move"),
