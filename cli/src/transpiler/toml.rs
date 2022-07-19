@@ -122,7 +122,7 @@ pub mod service {
     pub struct Manifest {
         service: Rc<Service>,
         #[serde(default)]
-        api: Api,
+        pub api: Api, // FIXME not pub
         iomod: Rc<Option<Iomod>>,
     }
 
@@ -198,6 +198,23 @@ pub mod service {
             {
                 functions.push(svc.clone());
             }
+            self.api.functions = Rc::new(functions);
+        }
+
+        pub fn rename_function(&mut self, old_name: &str, new_name: &str) {
+            let mut to_rename = self
+                .functions()
+                .iter()
+                .find(|f| f.name == old_name)
+                .unwrap()
+                .clone();
+            to_rename.name = new_name.into();
+            self.remove_function(old_name);
+            let mut functions = Vec::new();
+            for fun in self.functions().as_ref() {
+                functions.push(fun.clone());
+            }
+            functions.push(to_rename);
             self.api.functions = Rc::new(functions);
         }
     }
