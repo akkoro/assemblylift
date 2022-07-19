@@ -20,7 +20,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     let default_service_name = "my-service";
     let default_function_name = "my-function";
     let project_name = matches.value_of("project_name").unwrap();
-    let function_language = matches.value_of("language").unwrap();
+    // let function_language = matches.value_of("language").unwrap();
 
     let project = Project::new(project_name.parse().unwrap(), None);
 
@@ -45,10 +45,10 @@ pub fn command(matches: Option<&ArgMatches>) {
             "service_name".to_string(),
             to_json(default_service_name.to_string()),
         );
-        data.insert(
-            "function_language".to_string(),
-            to_json(function_language.to_string()),
-        );
+        // data.insert(
+        //     "function_language".to_string(),
+        //     to_json(function_language.to_string()),
+        // );
         write_documents(
             &project
                 .service_dir(String::from(default_service_name))
@@ -58,46 +58,46 @@ pub fn command(matches: Option<&ArgMatches>) {
         );
     }
 
-    match function_language {
-        "rust" => {
-            assert_prereqs();
+    // match function_language {
+    //     "rust" => {
+    //         assert_prereqs();
+    //
+    //         std::fs::create_dir_all(format!(
+    //             "{}/src",
+    //             project
+    //                 .service_dir(String::from(default_service_name))
+    //                 .function_dir(String::from(default_function_name))
+    //                 .to_str()
+    //                 .unwrap()
+    //         ))
+    //         .unwrap();
+    //
+    //         let data = &mut Map::<String, Json>::new();
+    //         data.insert(
+    //             "function_name".to_string(),
+    //             to_json(default_function_name.to_string()),
+    //         );
+    //         write_documents(
+    //             &project
+    //                 .service_dir(String::from(default_service_name))
+    //                 .function_dir(String::from(default_function_name)),
+    //             (*RUST_FUNCTION_DOCUMENTS).clone().as_ref(),
+    //             data,
+    //         );
+    //     }
+    //     "ruby" => {
+    //         write_documents(
+    //             &project
+    //                 .service_dir(String::from(default_service_name))
+    //                 .function_dir(String::from(default_function_name)),
+    //             (*RUBY_FUNCTION_DOCUMENTS).clone().as_ref(),
+    //             &mut Map::<String, Json>::new(),
+    //         );
+    //     }
+    //     unknown => panic!("unsupported language: {}", unknown),
+    // }
 
-            std::fs::create_dir_all(format!(
-                "{}/src",
-                project
-                    .service_dir(String::from(default_service_name))
-                    .function_dir(String::from(default_function_name))
-                    .to_str()
-                    .unwrap()
-            ))
-            .unwrap();
-
-            let data = &mut Map::<String, Json>::new();
-            data.insert(
-                "function_name".to_string(),
-                to_json(default_function_name.to_string()),
-            );
-            write_documents(
-                &project
-                    .service_dir(String::from(default_service_name))
-                    .function_dir(String::from(default_function_name)),
-                (*RUST_FUNCTION_DOCUMENTS).clone().as_ref(),
-                data,
-            );
-        }
-        "ruby" => {
-            write_documents(
-                &project
-                    .service_dir(String::from(default_service_name))
-                    .function_dir(String::from(default_function_name)),
-                (*RUBY_FUNCTION_DOCUMENTS).clone().as_ref(),
-                &mut Map::<String, Json>::new(),
-            );
-        }
-        unknown => panic!("unsupported language: {}", unknown),
-    }
-
-    println!("\r\n✅  Done! Your project root is: {:?}", project.dir())
+    println!("\r\n✅  Done! Your project root is: {:?}", project.dir());
 }
 
 fn check_rust_prereqs() -> bool {
