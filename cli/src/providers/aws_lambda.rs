@@ -87,7 +87,7 @@ impl AwsLambdaProvider {
 
         archive::zip_files(
             dependencies,
-            format!("./.asml/runtime/{}.zip", &service_name),
+            format!("./.asml/runtime/{}-iomods.zip", &service_name),
             Some("iomod/"),
             false,
         );
@@ -172,7 +172,7 @@ impl Castable for LambdaService {
         AwsLambdaProvider::cast_iomods(ctx.clone(), &name).unwrap();
 
         let use_apigw = ctx.functions.iter().find(|f| f.http.is_some()).is_some();
-        let has_service_layer = ctx.iomods.len() > 0;
+        let has_iomods_layer = ctx.iomods.len() > 0;
 
         let authorizers: Vec<ServiceAuthData> = ctx
             .authorizers
@@ -200,7 +200,7 @@ impl Castable for LambdaService {
             service_name: name.clone(),
             layer_name,
             use_apigw,
-            has_service_layer,
+            has_iomods_layer,
             authorizers,
             options: self.options.clone(),
         }.render();
@@ -301,10 +301,10 @@ impl Castable for LambdaFunction {
                         "aws_lambda_layer_version.asml_{}_runtime.arn",
                         service.clone()
                     ),
-                    service_layer: match iomod_names.len() {
+                    iomods_layer: match iomod_names.len() {
                         0 => None,
                         _ => Some(format!(
-                            "aws_lambda_layer_version.asml_{}_service.arn",
+                            "aws_lambda_layer_version.asml_{}_iomods.arn",
                             service.clone()
                         )),
                     },
@@ -366,7 +366,7 @@ struct ServiceTemplate {
     project_name: String,
     service_name: String,
     layer_name: String,
-    has_service_layer: bool,
+    has_iomods_layer: bool,
     use_apigw: bool,
     authorizers: Vec<ServiceAuthData>,
     options: Arc<Options>,
@@ -392,13 +392,13 @@ resource aws_lambda_layer_version asml_{{service_name}}_runtime {
     source_code_hash = filebase64sha256("${local.project_path}/.asml/runtime/bootstrap.zip")
 }
 
-{{#if has_service_layer}}resource aws_lambda_layer_version asml_{{service_name}}_service {
+{{#if has_iomods_layer}}resource aws_lambda_layer_version asml_{{service_name}}_iomods {
     provider = aws.{{project_name}}
 
-    filename   = "${local.project_path}/.asml/runtime/{{service_name}}.zip"
+    filename   = "${local.project_path}/.asml/runtime/{{service_name}}-iomods.zip"
     layer_name = "asml-${local.project_name}-{{service_name}}-service"
 
-    source_code_hash = filebase64sha256("${local.project_path}/.asml/runtime/{{service_name}}.zip")
+    source_code_hash = filebase64sha256("${local.project_path}/.asml/runtime/{{service_name}}-iomods.zip")
 }{{/if}}
 
 {{#if use_apigw}}resource aws_apigatewayv2_api {{service_name}}_http_api {
@@ -437,7 +437,7 @@ pub struct FunctionTemplate {
     pub service_name: String,
     pub function_name: String,
     pub runtime_layer: String,
-    pub service_layer: Option<String>,
+    pub iomods_layer: Option<String>,
     pub http: Option<HttpData>,
     pub auth: Option<FunctionAuthData>,
     pub size: u16,
@@ -467,7 +467,7 @@ resource aws_lambda_function asml_{{service_name}}_{{function_name}} {
     timeout       = {{timeout}}
     memory_size   = {{size}}
 
-    layers = [{{runtime_layer}}{{#if service_layer}}, {{service_layer}}{{/if}}]
+    layers = [{{runtime_layer}}{{#if iomods_layer}}, {{iomods_layer}}{{/if}}]
 
     source_code_hash = filebase64sha256("${local.project_path}/net/services/{{service_name}}/{{function_name}}/{{function_name}}.zip")
 }
