@@ -39,7 +39,6 @@ impl AwsLambdaProvider {
         }
     }
 
-    // TODO split service layer into iomod layer & ruby layer
     pub fn cast_iomods(ctx: Rc<Context>, service_name: &str) -> Result<(), CastError> {
         let project_path = ctx.project.path.clone();
         let iomod_path = format!("{}/net/services/{}/iomods", project_path, service_name);
@@ -93,6 +92,15 @@ impl AwsLambdaProvider {
         );
 
         Ok(())
+    }
+
+    pub fn cast_ruby(ctx: Rc<Context>, service_name: &str) -> Result<(), CastError> {
+        let project_path = ctx.project.path.clone();
+        let ruby_dir = format!("{}/net/services/{}/ruby-wasm32-wasi", project_path, service_name);
+        archive::zip_dir(
+            ruby_dir.into(),
+            format!("./.asml/runtime/{}-ruby.zip", &service_name)
+        ).map_err(|_| CastError("could not zip ruby env directory".into()))
     }
 }
 
@@ -170,6 +178,11 @@ impl Castable for LambdaService {
         );
 
         AwsLambdaProvider::cast_iomods(ctx.clone(), &name).unwrap();
+        let mut has_ruby_layer = false;
+        if ctx.functions.iter().find(|f| f.language == "ruby").is_some() {
+            AwsLambdaProvider::cast_ruby(ctx.clone(), &name)?;
+            has_ruby_layer = true;
+        }
 
         let use_apigw = ctx.functions.iter().find(|f| f.http.is_some()).is_some();
         let has_iomods_layer = ctx.iomods.len() > 0;
@@ -201,6 +214,7 @@ impl Castable for LambdaService {
             layer_name,
             use_apigw,
             has_iomods_layer,
+            has_ruby_layer,
             authorizers,
             options: self.options.clone(),
         }.render();
@@ -308,6 +322,13 @@ impl Castable for LambdaFunction {
                             service.clone()
                         )),
                     },
+                    ruby_layer: match &*function.language {
+                        "ruby" => Some(format!(
+                            "aws_lambda_layer_version.asml_{}_ruby.arn",
+                            service.clone()
+                        )),
+                        _ => None,
+                    },
                     size: function.size,
                     timeout: function.timeout,
                     http: match &function.http {
@@ -367,6 +388,7 @@ struct ServiceTemplate {
     service_name: String,
     layer_name: String,
     has_iomods_layer: bool,
+    has_ruby_layer: bool,
     use_apigw: bool,
     authorizers: Vec<ServiceAuthData>,
     options: Arc<Options>,
@@ -396,9 +418,18 @@ resource aws_lambda_layer_version asml_{{service_name}}_runtime {
     provider = aws.{{project_name}}
 
     filename   = "${local.project_path}/.asml/runtime/{{service_name}}-iomods.zip"
-    layer_name = "asml-${local.project_name}-{{service_name}}-service"
+    layer_name = "asml-${local.project_name}-{{service_name}}-iomods"
 
     source_code_hash = filebase64sha256("${local.project_path}/.asml/runtime/{{service_name}}-iomods.zip")
+}{{/if}}
+
+{{#if has_ruby_layer}}resource aws_lambda_layer_version asml_{{service_name}}_ruby {
+    provider = aws.{{project_name}}
+
+    filename   = "${local.project_path}/.asml/runtime/{{service_name}}-ruby.zip"
+    layer_name = "asml-${local.project_name}-{{service_name}}-ruby"
+
+    source_code_hash = filebase64sha256("${local.project_path}/.asml/runtime/{{service_name}}-ruby.zip")
 }{{/if}}
 
 {{#if use_apigw}}resource aws_apigatewayv2_api {{service_name}}_http_api {
@@ -438,6 +469,7 @@ pub struct FunctionTemplate {
     pub function_name: String,
     pub runtime_layer: String,
     pub iomods_layer: Option<String>,
+    pub ruby_layer: Option<String>,
     pub http: Option<HttpData>,
     pub auth: Option<FunctionAuthData>,
     pub size: u16,
@@ -467,7 +499,7 @@ resource aws_lambda_function asml_{{service_name}}_{{function_name}} {
     timeout       = {{timeout}}
     memory_size   = {{size}}
 
-    layers = [{{runtime_layer}}{{#if iomods_layer}}, {{iomods_layer}}{{/if}}]
+    layers = [{{runtime_layer}}{{#if iomods_layer}}, {{iomods_layer}}{{/if}}{{#if ruby_layer}}, {{ruby_layer}}{{/if}}]
 
     source_code_hash = filebase64sha256("${local.project_path}/net/services/{{service_name}}/{{function_name}}/{{function_name}}.zip")
 }
