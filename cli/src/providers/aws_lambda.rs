@@ -1,5 +1,6 @@
 use std::fs;
 use std::io::Read;
+use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -38,10 +39,13 @@ impl AwsLambdaProvider {
         }
     }
 
+    // TODO split service layer into iomod layer & ruby layer
     pub fn cast_iomods(ctx: Rc<Context>, service_name: &str) -> Result<(), CastError> {
         let project_path = ctx.project.path.clone();
         let iomod_path = format!("{}/net/services/{}/iomods", project_path, service_name);
-        fs::remove_dir_all(iomod_path.clone()).expect("could not rm iomod directory");
+        if Path::new(&iomod_path.clone()).exists() {
+            fs::remove_dir_all(iomod_path.clone()).expect("could not rm iomod directory");
+        }
         fs::create_dir_all(iomod_path.clone()).expect("could not create iomod directory");
 
         let mut dependencies: Vec<String> = Vec::new();
