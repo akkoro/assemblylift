@@ -63,13 +63,21 @@ where
     let threader_env = ThreaderEnv::new(registry_tx, status_sender);
     let function_env = std::env::var("ASML_FUNCTION_ENV").unwrap_or("default".into());
     let mut wasi_env = match function_env.as_str() {
-        // TODO ruby-docker ruby-lambda
-        "ruby" => WasiState::new(module_name.clone())
+        "ruby-docker" => WasiState::new(module_name.clone())
             .arg("/src/handler.rb")
             .env("RUBY_PLATFORM", "wasm32-wasi")
             .map_dir("/src", "/usr/bin/ruby-wasm32-wasi/src")
             .expect("could not preopen `src` directory")
             .map_dir("/usr", "/usr/bin/ruby-wasm32-wasi/usr")
+            .expect("could not map ruby fs")
+            .finalize()
+            .expect("could not init WASI env"),
+        "ruby-lambda" => WasiState::new(module_name.clone())
+            .arg("/src/handler.rb")
+            .env("RUBY_PLATFORM", "wasm32-wasi")
+            .map_dir("/src", "/opt/ruby-wasm32-wasi/src")
+            .expect("could not preopen `src` directory")
+            .map_dir("/usr", "/opt/ruby-wasm32-wasi/usr")
             .expect("could not map ruby fs")
             .finalize()
             .expect("could not init WASI env"),

@@ -74,8 +74,6 @@ pub fn command(matches: Option<&ArgMatches>) {
         let service_manifest = toml::service::Manifest::read(&service_toml).unwrap();
         let service_name = service_manifest.service().name.clone();
 
-        // TODO copy ruby env if language==ruby for any function
-
         let functions = service_manifest.functions();
         for function in functions.as_ref() {
             let function_name = function.name.clone();

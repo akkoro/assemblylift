@@ -1,18 +1,24 @@
 # Builder
-FROM rust:1.61-alpine3.16 as builder
-RUN rustup target add x86_64-unknown-linux-musl
-RUN apk --no-cache add capnproto-dev musl-dev
+#FROM rust:1.61-alpine3.16 as builder
+FROM rust:1.61-buster as builder
+#RUN rustup target add x86_64-unknown-linux-musl
+#RUN apk --no-cache add capnproto-dev musl-dev
+RUN apt-get update && apt-get install build-essential capnproto -y
 ENV USER=root
 
 WORKDIR /usr/src/assemblylift
 COPY . .
 
-RUN cd ./runtimes/hyper && cargo install --target x86_64-unknown-linux-musl --path .
+#RUN cd ./runtimes/hyper && cargo install --target x86_64-unknown-linux-musl --path .
+RUN cd ./runtimes/hyper && cargo install --path .
+
 
 # Runner Image
-FROM alpine:3.16 as runner
-RUN apk --no-cache add curl ca-certificates \
-    && addgroup -S app && adduser -S -g app app
+#FROM alpine:3.16 as runner
+FROM debian:buster-slim as runner
+#RUN apk --no-cache add curl ca-certificates \
+#    && addgroup -S app && adduser -S -g app app
+RUN apt-get update && apt-get install ca-certificates openssl -y
 ENV USER=app
 
 COPY --from=builder /usr/local/cargo/bin/assemblylift-hyper-runtime /usr/bin/assemblylift-hyper-runtime
