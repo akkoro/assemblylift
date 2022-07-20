@@ -559,12 +559,12 @@ impl Template for DockerfileTemplate {
     }
 
     fn tmpl() -> &'static str {
-        r#"FROM public.ecr.aws/akkoro/assemblylift/hyper-alpine:0.4.0-alpha.2
+        r#"FROM public.ecr.aws/akkoro/assemblylift/hyper-alpine:{{base_image_version}}
 ENV ASML_WASM_MODULE_NAME {{handler_name}}
 ADD ./{{function_name}}/{{handler_name}} /opt/assemblylift/{{handler_name}}
 {{#if is_ruby}}COPY ./{{function_name}}/ruby-wasm32-wasi /usr/bin/ruby-wasm32-wasi
 COPY ./{{function_name}}/rubysrc/* /usr/bin/ruby-wasm32-wasi/src/
-ENV ASML_FUNCTION_ENV ruby{{/if}}
+ENV ASML_FUNCTION_ENV ruby-docker{{/if}}
 "#
     }
 }
