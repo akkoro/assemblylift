@@ -99,7 +99,8 @@ impl AwsLambdaProvider {
         let ruby_dir = format!("{}/net/services/{}/ruby-wasm32-wasi", project_path, service_name);
         archive::zip_dir(
             ruby_dir.into(),
-            format!("./.asml/runtime/{}-ruby.zip", &service_name)
+            format!("./.asml/runtime/{}-ruby.zip", &service_name),
+            vec!["ruby.wasmu", "ruby"],
         ).map_err(|_| CastError("could not zip ruby env directory".into()))
     }
 }

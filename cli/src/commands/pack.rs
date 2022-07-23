@@ -39,5 +39,5 @@ fn command_iomod(matches: Option<&ArgMatches>) {
 
     let out_path = matches.value_of("out").unwrap(); // unwrap: this arg is required
 
-    archive::zip_dir(cwd, out_path).expect("zip_dir failed during pack");
+    archive::zip_dir(cwd, out_path, vec![]).expect("zip_dir failed during pack");
 }

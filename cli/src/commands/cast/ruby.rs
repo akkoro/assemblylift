@@ -10,6 +10,7 @@ use crate::transpiler::toml::service::Function;
 
 pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> PathBuf {
     let function_name = function.name.clone();
+    let service_artifact_path = format!("./net/services/{}", service_name);
     let function_artifact_path = format!("./net/services/{}/{}", service_name, function_name);
 
     let rubysrc_path = format!("{}/rubysrc", function_artifact_path);
@@ -41,19 +42,20 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
     }
     copy_entries(&function_dir, &PathBuf::from(rubysrc_path));
 
-    if !Path::new(&format!("{}/ruby-wasm32-wasi", function_artifact_path)).exists() {
+    if !Path::new(&format!("{}/ruby-wasm32-wasi", service_artifact_path)).exists() {
         let mut zip = Vec::new();
+        println!("Fetching additional Ruby runtime archive...");
         let mut response = reqwest::blocking::get(
             "http://public.assemblylift.akkoro.io/runtime/ruby/ruby-wasm32-wasi.zip",
         )
         .expect("could not fetch ruby runtime zip");
         response.read_to_end(&mut zip).unwrap();
-        unzip(&zip, &function_artifact_path).unwrap();
+        unzip(&zip, &service_artifact_path).unwrap();
     }
 
     let copy_from = format!(
         "{}/ruby-wasm32-wasi/usr/local/bin/ruby.wasmu",
-        function_artifact_path
+        service_artifact_path
     );
     let copy_to = format!("{}/ruby.wasmu", function_artifact_path.clone());
     let copy_result = std::fs::copy(copy_from.clone(), copy_to.clone());
