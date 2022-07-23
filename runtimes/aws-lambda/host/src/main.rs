@@ -34,7 +34,7 @@ async fn main() {
         crate_version!()
     );
 
-    let registry_channel = mpsc::channel(100);
+    let registry_channel = mpsc::channel(32);
     let tx = registry_channel.0.clone();
     let rx = registry_channel.1;
     registry::spawn_registry(rx).unwrap();
@@ -106,9 +106,10 @@ async fn main() {
     }
 
     let module_path = env::var("LAMBDA_TASK_ROOT").unwrap();
-    let handler_coordinates = env::var("_HANDLER").unwrap();
-    let coords = handler_coordinates.split(".").collect::<Vec<&str>>();
-    let module_name = format!("{}.wasm.bin", coords[0]);
+    let handler_name = env::var("_HANDLER").unwrap();
+    let coords = handler_name.split(".").collect::<Vec<&str>>();
+    // let module_name = format!("{}.wasm.bin", coords[0]);
+    let function_name = String::from(coords[0]);
 
     let (status_sender, _status_receiver) = bounded::<()>(1);
 
@@ -117,7 +118,7 @@ async fn main() {
         .run_until(async move {
             let (module, store) = match wasm::deserialize_module_from_path::<LambdaAbi, ()>(
                 &module_path,
-                &module_name,
+                &handler_name,
             ) {
                 Ok(module) => (Arc::new(module.0), Arc::new(module.1)),
                 Err(_) => panic!("PANIC this shouldn't happen"),
@@ -136,7 +137,7 @@ async fn main() {
                     tx.clone(),
                     status_sender.clone(),
                     module.clone(),
-                    coords[0],
+                    &function_name,
                     store.clone(),
                 ).expect("could not build WASM module");
                 // TODO we can save some cycles by creating Instances up-front in a pool & recycling them

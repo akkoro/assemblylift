@@ -312,6 +312,11 @@ impl Castable for LambdaFunction {
                     project_name: ctx.project.name.clone(),
                     service_name: service.clone(),
                     function_name: function.name.clone(),
+                    handler_name: match function.language.as_str() {
+                        "rust" => format!("{}.wasm.bin", function.name.clone()),
+                        "ruby" => "ruby.wasmu".into(),
+                        _ => "handler".into(),
+                    },
                     runtime_layer: format!(
                         "aws_lambda_layer_version.asml_{}_runtime.arn",
                         service.clone()
@@ -468,6 +473,7 @@ resource aws_apigatewayv2_stage {{service_name}}_default_stage {
 pub struct FunctionTemplate {
     pub service_name: String,
     pub function_name: String,
+    pub handler_name: String,
     pub runtime_layer: String,
     pub iomods_layer: Option<String>,
     pub ruby_layer: Option<String>,
@@ -495,7 +501,7 @@ resource aws_lambda_function asml_{{service_name}}_{{function_name}} {
     function_name = "asml-{{project_name}}-{{service_name}}-{{function_name}}"
     role          = aws_iam_role.{{service_name}}_{{function_name}}_lambda_iam_role.arn
     runtime       = "provided"
-    handler       = "{{function_name}}.wasi._start"
+    handler       = "{{handler_name}}"
     filename      = "${local.project_path}/net/services/{{service_name}}/{{function_name}}/{{function_name}}.zip"
     timeout       = {{timeout}}
     memory_size   = {{size}}

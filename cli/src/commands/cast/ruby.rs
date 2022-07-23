@@ -54,7 +54,8 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
     }
 
     let copy_from = format!(
-        "{}/ruby-wasm32-wasi/usr/local/bin/ruby.wasmu",
+        // "{}/ruby-wasm32-wasi/usr/local/bin/ruby.wasmu",
+        "{}/ruby-wasm32-wasi/usr/local/bin/ruby",
         service_artifact_path
     );
     let copy_to = format!("{}/ruby.wasmu", function_artifact_path.clone());
