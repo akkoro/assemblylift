@@ -43,7 +43,7 @@ where
     let compiler = Cranelift::default();
     let store = Store::new(&Universal::new(compiler).engine());
     Ok((
-        unsafe { wasmer::Module::deserialize(&store, module_bytes) }
+        unsafe { Module::deserialize(&store, module_bytes) }
             .expect(&format!("could not load wasm from bytes")),
         store,
     ))

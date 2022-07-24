@@ -107,9 +107,8 @@ async fn main() {
 
     let module_path = env::var("LAMBDA_TASK_ROOT").unwrap();
     let handler_name = env::var("_HANDLER").unwrap();
-    let coords = handler_name.split(".").collect::<Vec<&str>>();
-    // let module_name = format!("{}.wasm.bin", coords[0]);
-    let function_name = String::from(coords[0]);
+    let parts = handler_name.split(".").collect::<Vec<&str>>();
+    let function_name = String::from(parts[0]);
 
     let (status_sender, _status_receiver) = bounded::<()>(1);
 
