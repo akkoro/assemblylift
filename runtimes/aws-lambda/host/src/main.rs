@@ -4,7 +4,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::{Arc, Mutex};
 
@@ -112,6 +112,13 @@ async fn main() {
     let function_name = String::from(parts[0]);
 
     if env::var("RUBY_PLATFORM").is_ok() {
+        let ruby_path = "/tmp/rubysrc";
+        if !Path::new(&ruby_path).exists() {
+            fs::create_dir_all(ruby_path).expect(&*format!(
+                "unable to create directory {:?}",
+                ruby_path
+            ));
+        }
         fn copy_entries(dir: &PathBuf, to: &PathBuf) {
             for entry in fs::read_dir(dir).unwrap() {
                 let entry = entry.unwrap();
@@ -130,7 +137,7 @@ async fn main() {
                 }
             }
         }
-        copy_entries(&PathBuf::from(format!("{}/rubysrc", &module_path)), &PathBuf::from("/tmp/rubysrc"));
+        copy_entries(&PathBuf::from(format!("{}/rubysrc", &module_path)), &PathBuf::from(ruby_path));
     }
 
     let (status_sender, _status_receiver) = bounded::<()>(1);
