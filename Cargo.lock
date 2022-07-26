@@ -107,6 +107,7 @@ name = "assemblylift-cli"
 version = "0.4.0-alpha.5"
 dependencies = [
  "asml-iomod-registry-common",
+ "assemblylift-core",
  "assemblylift-core-iomod",
  "base64 0.13.0",
  "bytes 1.1.0",
@@ -134,7 +135,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core"
-version = "0.4.0-alpha.2"
+version = "0.4.0-alpha.3"
 dependencies = [
  "anyhow",
  "assemblylift-core-io-common 0.3.0",

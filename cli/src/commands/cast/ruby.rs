@@ -1,8 +1,10 @@
+use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use path_abs::PathInfo;
+use assemblylift_core::wasm;
 
 use crate::archive::unzip;
 use crate::projectfs::Project;
@@ -53,18 +55,24 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
         unzip(&zip, &service_artifact_path).unwrap();
     }
 
-    let copy_from = format!(
-        // "{}/ruby-wasm32-wasi/usr/local/bin/ruby.wasmu",
+    let ruby_bin = PathBuf::from(format!(
         "{}/ruby-wasm32-wasi/usr/local/bin/ruby",
         service_artifact_path
-    );
-    // let copy_to = format!("{}/ruby.wasmu", function_artifact_path.clone());
-    let copy_to = format!("{}/ruby.wasm", function_artifact_path.clone());
-    let copy_result = std::fs::copy(copy_from.clone(), copy_to.clone());
+    ));
+    let mut ruby_wasm = ruby_bin.clone();
+    ruby_wasm.set_extension("wasm");
+    std::fs::copy(ruby_bin.clone(), ruby_wasm.clone()).unwrap();
+    let mut ruby_wasmu = ruby_bin.clone();
+    ruby_wasmu.set_extension("wasmu");
+    if !Path::new(&ruby_wasmu).exists() {
+        wasm::precompile(PathBuf::from(ruby_wasm)).unwrap();
+    }
+    let copy_to = format!("{}/ruby.wasmu", function_artifact_path.clone());
+    let copy_result = std::fs::copy(ruby_wasmu.clone(), copy_to.clone());
     if copy_result.is_err() {
         println!(
             "ERROR COPY from={} to={}",
-            copy_from.clone(),
+            ruby_wasmu.as_path().display(),
             copy_to.clone()
         );
         panic!("{:?}", copy_result.err());

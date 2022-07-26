@@ -2,6 +2,8 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use assemblylift_core::wasm;
+
 use crate::projectfs::Project;
 use crate::transpiler::toml::service::Function;
 
@@ -60,5 +62,6 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
         println!("ERROR COPY from={} to={}", copy_from.clone(), copy_to.clone());
         panic!("{:?}", copy_result.err());
     }
-    PathBuf::from(copy_to)
+
+    wasm::precompile(PathBuf::from(copy_to)).unwrap()
 }

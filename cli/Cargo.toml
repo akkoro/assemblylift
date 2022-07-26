@@ -40,7 +40,8 @@ wasmer-compiler-cranelift = "2.1.1"
 wasmer-compiler-singlepass = "2.1.1"
 wasmer-engine-universal = "2.1.1"
 
-assemblylift_core_iomod = { version = "0.4.0-alpha.0", package = "assemblylift-core-iomod", path = "../core/iomod" }
+assemblylift-core = { version = "0.4.0-alpha.3", path = "../core" }
+assemblylift-core-iomod = { version = "0.4.0-alpha.0", path = "../core/iomod" }
 
 registry_common = { version = "0.1", package = "asml-iomod-registry-common" }
 
