@@ -102,7 +102,7 @@ impl AwsLambdaProvider {
         archive::zip_dirs(
             vec![ruby_dir.into()],
             format!("./.asml/runtime/{}-ruby.zip", &service_name),
-            vec!["ruby.wasmu", "ruby"],
+            vec!["ruby.wasmu", "ruby.wasm", "ruby"],
         )
         .map_err(|_| CastError("could not zip ruby env directory".into()))
     }
@@ -116,7 +116,7 @@ impl AwsLambdaProvider {
             f.name.clone(),
             f.name.clone()
         );
-        File::open(artifact_path).unwrap().metadata().unwrap().size() > (50 * 1024 * 1024)
+        File::open(artifact_path).unwrap().metadata().unwrap().size() > (50 * 1000 * 1000)
     }
 }
 

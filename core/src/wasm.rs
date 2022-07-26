@@ -75,7 +75,7 @@ where
         "ruby-lambda" => WasiState::new(module_name.clone())
             .arg("/src/handler.rb")
             .env("RUBY_PLATFORM", "wasm32-wasi")
-            .map_dir("/src", format!("{}/rubysrc", std::env::var("LAMBDA_TASK_ROOT").unwrap()))
+            .map_dir("/src", "/tmp/rubysrc")
             .expect("could not preopen `src` directory")
             .map_dir("/usr", "/opt/ruby-wasm32-wasi/usr")
             .expect("could not map ruby fs")

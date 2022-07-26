@@ -4,6 +4,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::os::unix::fs::PermissionsExt;
+use std::path::PathBuf;
 use std::process;
 use std::sync::{Arc, Mutex};
 
@@ -109,6 +110,28 @@ async fn main() {
     let handler_name = env::var("_HANDLER").unwrap();
     let parts = handler_name.split(".").collect::<Vec<&str>>();
     let function_name = String::from(parts[0]);
+
+    if env::var("RUBY_PLATFORM").is_ok() {
+        fn copy_entries(dir: &PathBuf, to: &PathBuf) {
+            for entry in fs::read_dir(dir).unwrap() {
+                let entry = entry.unwrap();
+                if entry.file_type().unwrap().is_file() {
+                    let copy_to = format!(
+                        "{}/{}",
+                        to.to_str().unwrap(),
+                        entry.file_name().to_str().unwrap()
+                    );
+                    fs::copy(entry.path(), copy_to).unwrap();
+                } else if entry.file_type().unwrap().is_dir() {
+                    let mut copy_to = PathBuf::from(to);
+                    copy_to.push(entry.path().iter().last().unwrap());
+                    fs::create_dir_all(&copy_to).unwrap();
+                    copy_entries(&entry.path(), &copy_to);
+                }
+            }
+        }
+        copy_entries(&PathBuf::from(format!("{}/rubysrc", &module_path)), &PathBuf::from("/tmp/rubysrc"));
+    }
 
     let (status_sender, _status_receiver) = bounded::<()>(1);
 

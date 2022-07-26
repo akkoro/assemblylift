@@ -9,6 +9,6 @@ RUN curl -O https://capnproto.org/capnproto-c++-0.8.0.tar.gz && tar zxf capnprot
 WORKDIR /usr/src/assemblylift
 COPY . .
 
-RUN $HOME/.cargo/bin/cargo build --release
+RUN cd ./runtimes/aws-lambda/host && $HOME/.cargo/bin/cargo build --release
 
 CMD cat cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/"//g'
