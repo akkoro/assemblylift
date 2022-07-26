@@ -41,7 +41,6 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
         std::process::exit(-1);
     }
 
-    // FIXME this should use the binary name in Cargo.toml if present
     let copy_from = format!(
         "{}/target/{}/{}/{}.wasm",
         project

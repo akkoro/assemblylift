@@ -54,12 +54,12 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
     }
 
     let copy_from = format!(
-        "{}/ruby-wasm32-wasi/usr/local/bin/ruby.wasmu",
-        // "{}/ruby-wasm32-wasi/usr/local/bin/ruby",
+        // "{}/ruby-wasm32-wasi/usr/local/bin/ruby.wasmu",
+        "{}/ruby-wasm32-wasi/usr/local/bin/ruby",
         service_artifact_path
     );
-    let copy_to = format!("{}/ruby.wasmu", function_artifact_path.clone());
-    // let copy_to = format!("{}/ruby.wasm", function_artifact_path.clone());
+    // let copy_to = format!("{}/ruby.wasmu", function_artifact_path.clone());
+    let copy_to = format!("{}/ruby.wasm", function_artifact_path.clone());
     let copy_result = std::fs::copy(copy_from.clone(), copy_to.clone());
     if copy_result.is_err() {
         println!(

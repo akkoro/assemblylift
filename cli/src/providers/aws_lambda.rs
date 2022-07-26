@@ -2,7 +2,7 @@ use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::os::unix::fs::MetadataExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -49,7 +49,7 @@ impl AwsLambdaProvider {
         }
         fs::create_dir_all(iomod_path.clone()).expect("could not create iomod directory");
 
-        let mut dependencies: Vec<String> = Vec::new();
+        let mut dependencies: Vec<PathBuf> = Vec::new();
         for iomod in &ctx.iomods {
             // let dependency_coords: Vec<&str> = iomod.coordinates.split('.').collect();
             // let dependency_name = dependency_coords.get(2).unwrap().to_string();
@@ -70,8 +70,8 @@ impl AwsLambdaProvider {
             //     dependencies.push(dependency_path);
             // } else {
             let dependency_path = format!(
-                "{}/net/services/{}/iomods/{}@{}.iomod",
-                project_path, service_name, iomod.coordinates, iomod.version,
+                "{}/{}@{}.iomod",
+                iomod_path, iomod.coordinates, iomod.version,
             );
             let client = reqwest::blocking::ClientBuilder::new()
                 .build()
@@ -83,17 +83,14 @@ impl AwsLambdaProvider {
             let res: GetIomodAtResponse = client.get(registry_url).send().unwrap().json().unwrap();
             let bytes = client.get(res.url).send().unwrap().bytes().unwrap();
             fs::write(&dependency_path, &*bytes).expect("could not write iomod package");
-            dependencies.push(dependency_path);
+            dependencies.push(PathBuf::from(dependency_path));
         }
-
-        archive::zip_files(
+        
+        archive::zip_dirs(
             dependencies,
             format!("./.asml/runtime/{}-iomods.zip", &service_name),
-            Some("iomod/"),
-            false,
-        );
-
-        Ok(())
+            Vec::new(),
+        ).map_err(|_| CastError("unable to zip IOmods".into()))
     }
 
     pub fn cast_ruby(ctx: Rc<Context>, service_name: &str) -> Result<(), CastError> {
@@ -102,8 +99,8 @@ impl AwsLambdaProvider {
             "{}/net/services/{}/ruby-wasm32-wasi",
             project_path, service_name
         );
-        archive::zip_dir(
-            ruby_dir.into(),
+        archive::zip_dirs(
+            vec![ruby_dir.into()],
             format!("./.asml/runtime/{}-ruby.zip", &service_name),
             vec!["ruby.wasmu", "ruby"],
         )
@@ -342,9 +339,8 @@ impl Castable for LambdaFunction {
                     service_name: service.clone(),
                     function_name: function.name.clone(),
                     handler_name: match function.language.as_str() {
-                        "rust" => format!("{}.wasm.bin", function.name.clone()),
+                        "rust" => format!("{}.wasmu", function.name.clone()),
                         "ruby" => "ruby.wasmu".into(),
-                        // "ruby" => "ruby.wasm".into(),
                         _ => "handler".into(),
                     },
                     runtime_layer: format!(

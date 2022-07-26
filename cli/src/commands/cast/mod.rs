@@ -1,5 +1,6 @@
 use std::fs;
 use std::io::Write;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use clap::ArgMatches;
@@ -85,7 +86,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             let module_file_path = match is_wasmu {
                 false => {
                     // TODO compiler configuration
-                    let file_path = format!("{}.bin", wasm_path.to_str().unwrap());
+                    let file_path = format!("{}u", wasm_path.to_str().unwrap());
                     println!("Precompiling WASM to {}...", file_path.clone());
                     let compiler = Cranelift::default();
                     let triple = Triple::from_str("x86_64-unknown-unknown").unwrap();
@@ -109,19 +110,22 @@ pub fn command(matches: Option<&ArgMatches>) {
                     println!("📄 > Wrote {}", &file_path);
                     module_file.write_all(&module_bytes).unwrap();
 
-                    file_path
+                    PathBuf::from(file_path)
                 }
 
-                true => wasm_path.to_str().unwrap().to_string()
+                true => wasm_path
             };
 
             // TODO not needed w/ container functions
-            archive::zip_files(
-                vec![module_file_path],
+            let mut function_dirs = vec![module_file_path];
+            if let Some("ruby") = function.language.clone().as_deref() {
+                function_dirs.push(PathBuf::from(format!("{}/rubysrc", &function_artifact_path)));
+            }
+            archive::zip_dirs(
+                function_dirs,
                 format!("{}/{}.zip", function_artifact_path.clone(), &function_name),
-                None,
-                false,
-            );
+                Vec::new(),
+            ).expect("unable to zip function artifacts");
         }
     }
 
