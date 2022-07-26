@@ -1,5 +1,6 @@
 use std::fs;
 use std::io::Write;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use clap::ArgMatches;
@@ -81,47 +82,17 @@ pub fn command(matches: Option<&ArgMatches>) {
                 format!("./net/services/{}/{}", service_name, function_name);
 
             let wasm_path = lang::compile(project.clone(), &service_name, function);
-            let is_wasmu = wasm_path.extension().unwrap_or("wasm".as_ref()).eq("wasmu");
-            let module_file_path = match is_wasmu {
-                false => {
-                    // TODO compiler configuration
-                    let file_path = format!("{}.bin", wasm_path.to_str().unwrap());
-                    println!("Precompiling WASM to {}...", file_path.clone());
-                    let compiler = Cranelift::default();
-                    let triple = Triple::from_str("x86_64-unknown-unknown").unwrap();
-                    let mut cpuid = CpuFeature::set();
-                    cpuid.insert(CpuFeature::SSE2); // required for x86
-                    let store = Store::new(&/*Native*/Universal::new(compiler)
-                        .target(Target::new(triple, cpuid))
-                        .engine()
-                    );
-
-                    let wasm_bytes = match fs::read(wasm_path.clone()) {
-                        Ok(bytes) => bytes,
-                        Err(err) => panic!("{}", err.to_string()),
-                    };
-                    let module = Module::new(&store, wasm_bytes).unwrap();
-                    let module_bytes = module.serialize().unwrap();
-                    let mut module_file = match fs::File::create(file_path.clone()) {
-                        Ok(file) => file,
-                        Err(err) => panic!("{}", err.to_string()),
-                    };
-                    println!("📄 > Wrote {}", &file_path);
-                    module_file.write_all(&module_bytes).unwrap();
-
-                    file_path
-                }
-
-                true => wasm_path.to_str().unwrap().to_string()
-            };
 
             // TODO not needed w/ container functions
-            archive::zip_files(
-                vec![module_file_path],
+            let mut function_dirs = vec![wasm_path];
+            if let Some("ruby") = function.language.clone().as_deref() {
+                function_dirs.push(PathBuf::from(format!("{}/rubysrc", &function_artifact_path)));
+            }
+            archive::zip_dirs(
+                function_dirs,
                 format!("{}/{}.zip", function_artifact_path.clone(), &function_name),
-                None,
-                false,
-            );
+                Vec::new(),
+            ).expect("unable to zip function artifacts");
         }
     }
 

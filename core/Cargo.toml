@@ -1,6 +1,6 @@
 [package]
 name = "assemblylift-core"
-version = "0.4.0-alpha.2"
+version = "0.4.0-alpha.3"
 description = "AssemblyLift core library"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"

@@ -1,17 +1,19 @@
 use std::fs;
+use std::fs::File;
 use std::io::Read;
-use std::path::Path;
+use std::os::unix::fs::MetadataExt;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use handlebars::{Handlebars, to_json};
+use handlebars::{to_json, Handlebars};
 use registry_common::models::GetIomodAtResponse;
 use serde::Serialize;
 
 use crate::archive;
-use crate::providers::{Options, Provider, ProviderError, render_string_list};
-use crate::transpiler::{Artifact, Bindable, Castable, CastError, ContentType, context, Template};
-use crate::transpiler::context::Context;
+use crate::providers::{render_string_list, Options, Provider, ProviderError};
+use crate::transpiler::context::{Context, Function};
+use crate::transpiler::{context, Artifact, Bindable, CastError, Castable, ContentType, Template};
 
 pub struct AwsLambdaProvider {
     options: Arc<Options>,
@@ -47,7 +49,7 @@ impl AwsLambdaProvider {
         }
         fs::create_dir_all(iomod_path.clone()).expect("could not create iomod directory");
 
-        let mut dependencies: Vec<String> = Vec::new();
+        let mut dependencies: Vec<PathBuf> = Vec::new();
         for iomod in &ctx.iomods {
             // let dependency_coords: Vec<&str> = iomod.coordinates.split('.').collect();
             // let dependency_name = dependency_coords.get(2).unwrap().to_string();
@@ -68,8 +70,8 @@ impl AwsLambdaProvider {
             //     dependencies.push(dependency_path);
             // } else {
             let dependency_path = format!(
-                "{}/net/services/{}/iomods/{}@{}.iomod",
-                project_path, service_name, iomod.coordinates, iomod.version,
+                "{}/{}@{}.iomod",
+                iomod_path, iomod.coordinates, iomod.version,
             );
             let client = reqwest::blocking::ClientBuilder::new()
                 .build()
@@ -81,27 +83,40 @@ impl AwsLambdaProvider {
             let res: GetIomodAtResponse = client.get(registry_url).send().unwrap().json().unwrap();
             let bytes = client.get(res.url).send().unwrap().bytes().unwrap();
             fs::write(&dependency_path, &*bytes).expect("could not write iomod package");
-            dependencies.push(dependency_path);
+            dependencies.push(PathBuf::from(dependency_path));
         }
-
-        archive::zip_files(
+        
+        archive::zip_dirs(
             dependencies,
             format!("./.asml/runtime/{}-iomods.zip", &service_name),
-            Some("iomod/"),
-            false,
-        );
-
-        Ok(())
+            Vec::new(),
+        ).map_err(|_| CastError("unable to zip IOmods".into()))
     }
 
     pub fn cast_ruby(ctx: Rc<Context>, service_name: &str) -> Result<(), CastError> {
         let project_path = ctx.project.path.clone();
-        let ruby_dir = format!("{}/net/services/{}/ruby-wasm32-wasi", project_path, service_name);
-        archive::zip_dir(
-            ruby_dir.into(),
+        let ruby_dir = format!(
+            "{}/net/services/{}/ruby-wasm32-wasi",
+            project_path, service_name
+        );
+        archive::zip_dirs(
+            vec![ruby_dir.into()],
             format!("./.asml/runtime/{}-ruby.zip", &service_name),
             vec!["ruby.wasmu", "ruby"],
-        ).map_err(|_| CastError("could not zip ruby env directory".into()))
+        )
+        .map_err(|_| CastError("could not zip ruby env directory".into()))
+    }
+
+    pub fn is_function_large(ctx: Rc<Context>, f: &Function) -> bool {
+        let project_path = ctx.project.path.clone();
+        let artifact_path = format!(
+            "{}/net/services/{}/{}/{}.zip",
+            &project_path,
+            f.service_name.clone(),
+            f.name.clone(),
+            f.name.clone()
+        );
+        File::open(artifact_path).unwrap().metadata().unwrap().size() > (50 * 1024 * 1024)
     }
 }
 
@@ -180,13 +195,22 @@ impl Castable for LambdaService {
 
         AwsLambdaProvider::cast_iomods(ctx.clone(), &name).unwrap();
         let mut has_ruby_layer = false;
-        if ctx.functions.iter().find(|f| f.language == "ruby").is_some() {
+        if ctx
+            .functions
+            .iter()
+            .find(|f| f.language == "ruby")
+            .is_some()
+        {
             AwsLambdaProvider::cast_ruby(ctx.clone(), &name)?;
             has_ruby_layer = true;
         }
-
-        let use_apigw = ctx.functions.iter().find(|f| f.http.is_some()).is_some();
         let has_iomods_layer = ctx.iomods.len() > 0;
+        let has_large_payloads = ctx
+            .functions
+            .iter()
+            .find(|f| AwsLambdaProvider::is_function_large(ctx.clone(), f))
+            .is_some();
+        let use_apigw = ctx.functions.iter().find(|f| f.http.is_some()).is_some();
 
         let authorizers: Vec<ServiceAuthData> = ctx
             .authorizers
@@ -216,9 +240,11 @@ impl Castable for LambdaService {
             use_apigw,
             has_iomods_layer,
             has_ruby_layer,
+            has_large_payloads,
             authorizers,
             options: self.options.clone(),
-        }.render();
+        }
+        .render();
 
         let function_subprovider = LambdaFunction {
             options: self.options.clone(),
@@ -313,7 +339,7 @@ impl Castable for LambdaFunction {
                     service_name: service.clone(),
                     function_name: function.name.clone(),
                     handler_name: match function.language.as_str() {
-                        "rust" => format!("{}.wasm.bin", function.name.clone()),
+                        "rust" => format!("{}.wasmu", function.name.clone()),
                         "ruby" => "ruby.wasmu".into(),
                         _ => "handler".into(),
                     },
@@ -335,6 +361,7 @@ impl Castable for LambdaFunction {
                         )),
                         _ => None,
                     },
+                    large_payload: AwsLambdaProvider::is_function_large(ctx.clone(), function),
                     size: function.size,
                     timeout: function.timeout,
                     http: match &function.http {
@@ -395,6 +422,7 @@ struct ServiceTemplate {
     layer_name: String,
     has_iomods_layer: bool,
     has_ruby_layer: bool,
+    has_large_payloads: bool,
     use_apigw: bool,
     authorizers: Vec<ServiceAuthData>,
     options: Arc<Options>,
@@ -465,6 +493,15 @@ resource aws_apigatewayv2_stage {{service_name}}_default_stage {
     }{{/if}}
 }{{/each}}
 
+{{#if has_large_payloads}}resource aws_s3_bucket asml_{{service_name}}_functions {
+    provider = aws.{{project_name}}
+    bucket   = "asml-${local.project_name}-{{service_name}}-functions"
+}
+resource aws_s3_bucket_acl functions {
+    provider = aws.{{project_name}}
+    bucket   = aws_s3_bucket.asml_{{service_name}}_functions.id
+    acl      = "private"
+}{{/if}}
 "#
     }
 }
@@ -477,6 +514,7 @@ pub struct FunctionTemplate {
     pub runtime_layer: String,
     pub iomods_layer: Option<String>,
     pub ruby_layer: Option<String>,
+    pub large_payload: bool,
     pub http: Option<HttpData>,
     pub auth: Option<FunctionAuthData>,
     pub size: u16,
@@ -495,6 +533,13 @@ impl Template for FunctionTemplate {
     fn tmpl() -> &'static str {
         r#"# Begin function `{{function_name}}` (in `{{service_name}}`)
 
+{{#if large_payload}}resource aws_s3_object asml_{{service_name}}_{{function_name}} {
+    key    = "{{function_name}}.zip"
+    bucket = aws_s3_bucket.asml_{{service_name}}_functions.id
+    source = "${local.project_path}/net/services/{{service_name}}/{{function_name}}/{{function_name}}.zip"
+    etag   = filemd5("${local.project_path}/net/services/{{service_name}}/{{function_name}}/{{function_name}}.zip")
+}{{/if}}
+
 resource aws_lambda_function asml_{{service_name}}_{{function_name}} {
     provider = aws.{{project_name}}
 
@@ -502,9 +547,15 @@ resource aws_lambda_function asml_{{service_name}}_{{function_name}} {
     role          = aws_iam_role.{{service_name}}_{{function_name}}_lambda_iam_role.arn
     runtime       = "provided"
     handler       = "{{handler_name}}"
-    filename      = "${local.project_path}/net/services/{{service_name}}/{{function_name}}/{{function_name}}.zip"
     timeout       = {{timeout}}
     memory_size   = {{size}}
+
+    {{#if large_payload}}
+    s3_key    = "{{../function_name}}.zip"
+    s3_bucket = aws_s3_bucket.asml_{{../service_name}}_functions.id
+    {{else}}
+    filename  = "${local.project_path}/net/services/{{../service_name}}/{{../function_name}}/{{../function_name}}.zip"
+    {{/if}}
 
     {{#if ruby_layer}}environment {
       variables = {
