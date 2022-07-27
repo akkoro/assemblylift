@@ -83,7 +83,7 @@ pub fn command(matches: Option<&ArgMatches>) {
 
             let wasm_path = lang::compile(project.clone(), &service_name, function);
 
-            // TODO not needed w/ container functions
+            // TODO zip not needed w/ container functions
             let mut function_dirs = vec![wasm_path];
             if let Some("ruby") = function.language.clone().as_deref() {
                 function_dirs.push(PathBuf::from(format!("{}/rubysrc", &function_artifact_path)));
