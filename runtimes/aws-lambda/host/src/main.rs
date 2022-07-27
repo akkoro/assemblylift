@@ -111,7 +111,7 @@ async fn main() {
     let parts = handler_name.split(".").collect::<Vec<&str>>();
     let function_name = String::from(parts[0]);
 
-    if env::var("RUBY_PLATFORM").is_ok() {
+    if let Ok("ruby-lambda") = env::var("ASML_FUNCTION_ENV").as_deref() {
         let ruby_path = "/tmp/rubysrc";
         if !Path::new(&ruby_path).exists() {
             fs::create_dir_all(ruby_path).expect(&*format!(
