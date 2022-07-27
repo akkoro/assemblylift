@@ -61,7 +61,9 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
     ));
     let mut ruby_wasm = ruby_bin.clone();
     ruby_wasm.set_extension("wasm");
-    std::fs::rename(ruby_bin.clone(), ruby_wasm.clone()).unwrap();
+    if Path::new(&ruby_bin).exists() {
+        std::fs::rename(ruby_bin.clone(), ruby_wasm.clone()).unwrap();
+    }
     let mut ruby_wasmu = ruby_bin.clone();
     ruby_wasmu.set_extension("wasmu");
     if !Path::new(&ruby_wasmu).exists() {
