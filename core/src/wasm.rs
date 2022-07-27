@@ -77,7 +77,7 @@ where
             .env("RUBY_PLATFORM", "wasm32-wasi")
             .map_dir("/src", "/tmp/rubysrc")
             .expect("could not preopen `src` directory")
-            .map_dir("/usr", "/opt/ruby-wasm32-wasi/usr")
+            .map_dir("/usr", "/tmp/rubyusr")
             .expect("could not map ruby fs")
             .finalize()
             .expect("could not init WASI env"),

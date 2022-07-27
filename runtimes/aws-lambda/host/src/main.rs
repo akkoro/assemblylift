@@ -112,13 +112,21 @@ async fn main() {
     let function_name = String::from(parts[0]);
 
     if let Ok("ruby-lambda") = env::var("ASML_FUNCTION_ENV").as_deref() {
-        let ruby_path = "/tmp/rubysrc";
-        if !Path::new(&ruby_path).exists() {
-            fs::create_dir_all(ruby_path).expect(&*format!(
+        let rubysrc_path = "/tmp/rubysrc";
+        if !Path::new(&rubysrc_path).exists() {
+            fs::create_dir_all(rubysrc_path).expect(&*format!(
                 "unable to create directory {:?}",
-                ruby_path
+                rubysrc_path
             ));
         }
+        let rubyusr_path = "/tmp/rubyusr";
+        if !Path::new(&rubyusr_path).exists() {
+            fs::create_dir_all(rubyusr_path).expect(&*format!(
+                "unable to create directory {:?}",
+                rubyusr_path
+            ));
+        }
+
         fn copy_entries(dir: &PathBuf, to: &PathBuf) {
             for entry in fs::read_dir(dir).unwrap() {
                 let entry = entry.unwrap();
@@ -137,7 +145,8 @@ async fn main() {
                 }
             }
         }
-        copy_entries(&PathBuf::from(format!("{}/rubysrc", &module_path)), &PathBuf::from(ruby_path));
+        copy_entries(&PathBuf::from(format!("{}/rubysrc", &module_path)), &PathBuf::from(rubysrc_path));
+        copy_entries(&PathBuf::from("/opt/ruby-wasm32-wasi/usr"), &PathBuf::from(rubyusr_path));
     }
 
     let (status_sender, _status_receiver) = bounded::<()>(1);
