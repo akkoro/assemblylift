@@ -50,7 +50,7 @@ impl AwsLambdaProvider {
         fs::create_dir_all(iomod_path.clone()).expect("could not create iomod directory");
 
         let mut dependencies: Vec<PathBuf> = Vec::new();
-        for iomod in &ctx.iomods {
+        for iomod in &ctx.iomods.iter().filter(|m| &m.service_name == service_name).collect::<Vec<&context::Iomod>>() {
             // let dependency_coords: Vec<&str> = iomod.coordinates.split('.').collect();
             // let dependency_name = dependency_coords.get(2).unwrap().to_string();
 
@@ -627,8 +627,9 @@ resource aws_apigatewayv2_route asml_{{service_name}}_{{function_name}} {
 resource aws_apigatewayv2_integration asml_{{service_name}}_{{function_name}} {
     provider = aws.{{project_name}}
 
-    api_id           = aws_apigatewayv2_api.{{service_name}}_http_api.id
-    integration_type = "AWS_PROXY"
+    api_id                 = aws_apigatewayv2_api.{{service_name}}_http_api.id
+    integration_type       = "AWS_PROXY"
+    payload_format_version = "2.0"
 
     connection_type    = "INTERNET"
     integration_method = "POST"
