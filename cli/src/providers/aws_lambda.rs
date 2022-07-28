@@ -6,14 +6,15 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use handlebars::{to_json, Handlebars};
+use handlebars::{Handlebars, to_json};
+use itertools::Itertools;
 use registry_common::models::GetIomodAtResponse;
 use serde::Serialize;
 
 use crate::archive;
-use crate::providers::{render_string_list, Options, Provider, ProviderError};
+use crate::providers::{Options, Provider, ProviderError, render_string_list};
+use crate::transpiler::{Artifact, Bindable, Castable, CastError, ContentType, context, Template};
 use crate::transpiler::context::{Context, Function};
-use crate::transpiler::{context, Artifact, Bindable, CastError, Castable, ContentType, Template};
 
 pub struct AwsLambdaProvider {
     options: Arc<Options>,
@@ -50,7 +51,7 @@ impl AwsLambdaProvider {
         fs::create_dir_all(iomod_path.clone()).expect("could not create iomod directory");
 
         let mut dependencies: Vec<PathBuf> = Vec::new();
-        for iomod in &ctx.iomods.iter().filter(|m| &m.service_name == service_name).collect::<Vec<&context::Iomod>>() {
+        for iomod in ctx.iomods.iter().filter(|&m| m.service_name == service_name).collect_vec() {
             // let dependency_coords: Vec<&str> = iomod.coordinates.split('.').collect();
             // let dependency_name = dependency_coords.get(2).unwrap().to_string();
 
@@ -198,16 +199,18 @@ impl Castable for LambdaService {
         if ctx
             .functions
             .iter()
+            .filter(|&f| f.service_name == name.clone())
             .find(|f| f.language == "ruby")
             .is_some()
         {
             AwsLambdaProvider::cast_ruby(ctx.clone(), &name)?;
             has_ruby_layer = true;
         }
-        let has_iomods_layer = ctx.iomods.len() > 0;
+        let has_iomods_layer = ctx.iomods.iter().filter(|&m| m.service_name == name.clone()).collect_vec().len() > 0;
         let has_large_payloads = ctx
             .functions
             .iter()
+            .filter(|&f| f.service_name == name.clone())
             .find(|f| AwsLambdaProvider::is_function_large(ctx.clone(), f))
             .is_some();
         let use_apigw = ctx.functions.iter().find(|f| f.http.is_some()).is_some();
@@ -215,7 +218,8 @@ impl Castable for LambdaService {
         let authorizers: Vec<ServiceAuthData> = ctx
             .authorizers
             .iter()
-            .filter(|a| a.r#type.to_lowercase() != "aws_iam")
+            .filter(|&a| a.service_name == name.clone())
+            .filter(|&a| a.r#type.to_lowercase() != "aws_iam")
             .map(|a| ServiceAuthData {
                 id: a.id.clone(),
                 r#type: a.r#type.clone(),
