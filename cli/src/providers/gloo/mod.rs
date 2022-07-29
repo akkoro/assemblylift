@@ -170,7 +170,7 @@ impl Template for VirtualServiceTemplate {
     fn tmpl() -> &'static str {
         r#"# Begin Gloo VirtualService
 resource kubernetes_manifest gloo_virtualservice_{{service_name}} {
-  provider = kubernetes.{{project_name}}
+  provider = kubernetes.{{project_name}}-k8s
   manifest = {
     apiVersion = "gateway.solo.io/v1"
     kind       = "VirtualService"

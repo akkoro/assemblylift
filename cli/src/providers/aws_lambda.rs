@@ -51,7 +51,15 @@ impl AwsLambdaProvider {
         fs::create_dir_all(iomod_path.clone()).expect("could not create iomod directory");
 
         let mut dependencies: Vec<PathBuf> = Vec::new();
-        for iomod in ctx.iomods.iter().filter(|&m| m.service_name == service_name).collect_vec() {
+        // println!("DEBUG service_name={:?}", service_name);
+        // println!("DEBUG iomods={:?}", ctx.iomods);
+        let service_iomods: Vec<&context::Iomod> = ctx
+            .iomods
+            .iter()
+            .filter(|m| m.service_name == service_name.to_string())
+            .collect();
+        // println!("DEBUG iomods={:?}", service_iomods);
+        for iomod in service_iomods {
             // let dependency_coords: Vec<&str> = iomod.coordinates.split('.').collect();
             // let dependency_name = dependency_coords.get(2).unwrap().to_string();
 
@@ -129,6 +137,7 @@ impl Castable for AwsLambdaProvider {
         let mut service_artifacts = ctx
             .services
             .iter()
+            .filter(|&s| s.provider.name == self.name())
             .map(|s| {
                 service_subprovider
                     .cast(ctx.clone(), Some(&s.name))
@@ -251,6 +260,7 @@ impl Castable for LambdaService {
         .render();
 
         let function_subprovider = LambdaFunction {
+            service_name: name.clone(),
             options: self.options.clone(),
         };
         let function_artifacts = ctx
@@ -286,6 +296,7 @@ impl Castable for LambdaService {
 }
 
 struct LambdaFunction {
+    service_name: String,
     options: Arc<Options>,
 }
 
@@ -294,7 +305,7 @@ impl Castable for LambdaFunction {
         let name = selector
             .expect("selector must be a function name")
             .to_string();
-        match ctx.functions.iter().find(|&f| f.name == name) {
+        match ctx.functions.iter().filter(|&f| f.service_name == self.service_name).find(|&f| f.name == name) {
             Some(function) => {
                 let service = function.service_name.clone();
 
@@ -411,7 +422,7 @@ impl Template for LambdaBaseTemplate {
         r#"# AssemblyLift AWS Lambda Provider Begin
 
 provider aws {
-    alias  = "{{project_name}}"
+    alias  = "{{project_name}}-aws-lambda"
     region = "{{options.aws_region}}"
 }
 
@@ -444,7 +455,7 @@ impl Template for ServiceTemplate {
         r#"# Begin service `{{service_name}}`
 
 resource aws_lambda_layer_version asml_{{service_name}}_runtime {
-    provider = aws.{{project_name}}
+    provider = aws.{{project_name}}-aws-lambda
 
     filename   = "${local.project_path}/.asml/runtime/bootstrap.zip"
     layer_name = "{{layer_name}}"
@@ -453,7 +464,7 @@ resource aws_lambda_layer_version asml_{{service_name}}_runtime {
 }
 
 {{#if has_iomods_layer}}resource aws_lambda_layer_version asml_{{service_name}}_iomods {
-    provider = aws.{{project_name}}
+    provider = aws.{{project_name}}-aws-lambda
 
     filename   = "${local.project_path}/.asml/runtime/{{service_name}}-iomods.zip"
     layer_name = "asml-${local.project_name}-{{service_name}}-iomods"
@@ -462,7 +473,7 @@ resource aws_lambda_layer_version asml_{{service_name}}_runtime {
 }{{/if}}
 
 {{#if has_ruby_layer}}resource aws_lambda_layer_version asml_{{service_name}}_ruby {
-    provider = aws.{{project_name}}
+    provider = aws.{{project_name}}-aws-lambda
 
     filename   = "${local.project_path}/.asml/runtime/{{service_name}}-ruby.zip"
     layer_name = "asml-${local.project_name}-{{service_name}}-ruby"
@@ -471,20 +482,20 @@ resource aws_lambda_layer_version asml_{{service_name}}_runtime {
 }{{/if}}
 
 {{#if use_apigw}}resource aws_apigatewayv2_api {{service_name}}_http_api {
-    provider      = aws.{{project_name}}
+    provider      = aws.{{project_name}}-aws-lambda
     name          = "asml-${local.project_name}-{{service_name}}"
     protocol_type = "HTTP"
 }
 
 resource aws_apigatewayv2_stage {{service_name}}_default_stage {
-    provider    = aws.{{project_name}}
+    provider    = aws.{{project_name}}-aws-lambda
     api_id      = aws_apigatewayv2_api.{{service_name}}_http_api.id
     name        = "$default"
     auto_deploy = true
 }{{/if}}
 
 {{#each authorizers}}resource aws_apigatewayv2_authorizer {{../service_name}}_{{this.id}} {
-    provider    = aws.{{../project_name}}
+    provider    = aws.{{../project_name}}-aws-lambda
 
     api_id           = aws_apigatewayv2_api.{{../service_name}}_http_api.id
     authorizer_type  = "{{this.type}}"
@@ -498,11 +509,11 @@ resource aws_apigatewayv2_stage {{service_name}}_default_stage {
 }{{/each}}
 
 {{#if has_large_payloads}}resource aws_s3_bucket asml_{{service_name}}_functions {
-    provider = aws.{{project_name}}
+    provider = aws.{{project_name}}-aws-lambda
     bucket   = "asml-${local.project_name}-{{service_name}}-functions"
 }
 resource aws_s3_bucket_acl functions {
-    provider = aws.{{project_name}}
+    provider = aws.{{project_name}}-aws-lambda
     bucket   = aws_s3_bucket.asml_{{service_name}}_functions.id
     acl      = "private"
 }{{/if}}
@@ -545,7 +556,7 @@ impl Template for FunctionTemplate {
 }{{/if}}
 
 resource aws_lambda_function asml_{{service_name}}_{{function_name}} {
-    provider = aws.{{project_name}}
+    provider = aws.{{project_name}}-aws-lambda
 
     function_name = "asml-{{project_name}}-{{service_name}}-{{function_name}}"
     role          = aws_iam_role.{{service_name}}_{{function_name}}_lambda_iam_role.arn
@@ -573,7 +584,7 @@ resource aws_lambda_function asml_{{service_name}}_{{function_name}} {
 }
 
 resource aws_iam_role {{service_name}}_{{function_name}}_lambda_iam_role {
-    provider = aws.{{project_name}}
+    provider = aws.{{project_name}}-aws-lambda
     name     = "asml-{{project_name}}-{{service_name}}-{{function_name}}"
 
     assume_role_policy = <<EOF
@@ -614,7 +625,7 @@ EOF
 }
 {{#if http}}
 resource aws_apigatewayv2_route asml_{{service_name}}_{{function_name}} {
-    provider = aws.{{project_name}}
+    provider = aws.{{project_name}}-aws-lambda
 
     api_id    = aws_apigatewayv2_api.{{service_name}}_http_api.id
     route_key = "{{http.verb}} {{http.path}}"
@@ -629,7 +640,7 @@ resource aws_apigatewayv2_route asml_{{service_name}}_{{function_name}} {
 }
 
 resource aws_apigatewayv2_integration asml_{{service_name}}_{{function_name}} {
-    provider = aws.{{project_name}}
+    provider = aws.{{project_name}}-aws-lambda
 
     api_id                 = aws_apigatewayv2_api.{{service_name}}_http_api.id
     integration_type       = "AWS_PROXY"
@@ -641,7 +652,7 @@ resource aws_apigatewayv2_integration asml_{{service_name}}_{{function_name}} {
 }
 
 resource aws_lambda_permission asml_{{service_name}}_{{function_name}} {
-    provider = aws.{{project_name}}
+    provider = aws.{{project_name}}-aws-lambda
 
     action        = "lambda:InvokeFunction"
     function_name = "asml-{{project_name}}-{{service_name}}-{{function_name}}"

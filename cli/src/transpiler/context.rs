@@ -188,6 +188,7 @@ impl Castable for Context {
         let mut providers: Vec<Rc<Provider>> = ctx.services.iter().map(|s| s.provider.clone()).collect();
         providers.dedup_by(|a, b| a.name.eq_ignore_ascii_case(&*b.name));
         for p in providers {
+            // println!("DEBUG casting provider {}", p.name.clone());
             let provider = PROVIDERS
                 .get(&*p.name.clone())
                 .expect("could not find provider");
@@ -314,6 +315,7 @@ pub struct AuthorizerJwt {
     pub audience: Rc<Vec<String>>,
 }
 
+#[derive(Debug, Clone)]
 pub struct Iomod {
     pub name: String,
     pub service_name: String,
