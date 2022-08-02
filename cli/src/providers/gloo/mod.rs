@@ -60,17 +60,22 @@ impl Castable for ApiProvider {
         let http_fns: Vec<&Function> = ctx
             .functions
             .iter()
-            .filter(|f| f.http.is_some())
+            .filter(|&f| f.http.is_some() && &f.service_name == &service_name)
             .map(|f| f)
             .collect();
 
         let rendered_hcl = VirtualServiceTemplate {
             project_name: project_name.clone(),
             service_name: service_name.clone(),
+            domain_name: ctx
+                .service(service_name.clone())
+                .unwrap()
+                .domain_name
+                .clone(),
             has_routes: http_fns.len() > 0,
             routes: http_fns
                 .iter()
-                .filter(|f| f.service_name == service_name)
+                .filter(|&f| f.service_name == service_name)
                 .map(|f| RouteData {
                     path: f.http.as_ref().unwrap().path.clone(),
                     to_function_name: f.name.clone(),
@@ -155,6 +160,7 @@ struct Upstream {
 struct VirtualServiceTemplate {
     project_name: String,
     service_name: String,
+    domain_name: String,
     has_routes: bool,
     routes: Vec<RouteData>,
 }
@@ -182,7 +188,7 @@ resource kubernetes_manifest gloo_virtualservice_{{service_name}} {
 
     spec = {
       virtualHost = {
-        domains = ["*"] # TODO service domain
+        domains = ["{{domain_name}}"]
         {{#if has_routes}}routes = [
           {{#each routes}}{
             matchers = [

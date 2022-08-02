@@ -122,7 +122,7 @@ pub mod service {
     pub struct Manifest {
         service: Rc<Service>,
         #[serde(default)]
-        pub api: Api, // FIXME not pub
+        pub api: Api,
         iomod: Rc<Option<Iomod>>,
     }
 
@@ -263,6 +263,7 @@ pub mod service {
 
     #[derive(Serialize, Deserialize, Clone, Default)]
     pub struct Api {
+        pub domain_name: Option<String>,
         pub functions: Rc<Vec<Function>>,
         pub authorizers: Option<Rc<Vec<HttpAuth>>>,
     }
