@@ -11,7 +11,7 @@ use serde::Serialize;
 use crate::projectfs::Project as ProjectFs;
 use crate::providers::PROVIDERS;
 use crate::transpiler::{
-    toml, Artifact, Bindable, CastError, Castable, ContentType, StringMap, Template,
+    Artifact, Bindable, Castable, CastError, ContentType, StringMap, Template, toml,
 };
 
 pub struct Context {
@@ -158,10 +158,10 @@ impl Context {
     }
 
     pub fn service(&self, name: String) -> Option<&Service> {
-        match self.services.binary_search_by(|s| s.name.cmp(&name)) {
-            Ok(idx) => Some(self.services.get(idx).unwrap()),
-            Err(_) => None,
-        }
+        self
+            .services
+            .iter()
+            .find(|&s| &s.name == &name)
     }
 }
 
