@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::providers::{Options, Provider, ProviderError};
+use crate::tools::cmctl::CmCtl;
 use crate::tools::glooctl::GlooCtl;
 use crate::tools::kubectl::KubeCtl;
 use crate::transpiler::{Artifact, Bindable, Castable, CastError, ContentType, Template};
@@ -97,8 +98,9 @@ impl Castable for ApiProvider {
 }
 
 impl Bindable for ApiProvider {
-    fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
-        todo!()
+    fn bind(&self, _ctx: Rc<Context>) -> Result<(), CastError> {
+        CmCtl::default().install();
+        Ok(())
     }
 }
 

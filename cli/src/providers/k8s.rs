@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use clap::crate_version;
 use handlebars::Handlebars;
+use itertools::Itertools;
 use serde::Serialize;
 
 use crate::providers::{gloo, Options, Provider, ProviderError};
@@ -19,12 +20,17 @@ fn map_container_registry(r: &context::Registry) -> ContainerRegistry {
 }
 
 pub struct KubernetesProvider {
+    service_subprovider: KubernetesService,
     options: Arc<Options>,
 }
 
 impl KubernetesProvider {
     pub fn new() -> Self {
         Self {
+            service_subprovider: KubernetesService {
+                api_provider: gloo::ApiProvider::new(),
+                options: Arc::new(Options::new()),
+            },
             options: Arc::new(Options::new()),
         }
     }
@@ -40,7 +46,8 @@ impl Provider for KubernetesProvider {
     }
 
     fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError> {
-        self.options = opts;
+        self.options = opts.clone();
+        self.service_subprovider.options = opts.clone();
         Ok(())
     }
 }
@@ -48,10 +55,6 @@ impl Provider for KubernetesProvider {
 // TODO kube context name as provider option
 impl Castable for KubernetesProvider {
     fn cast(&self, ctx: Rc<Context>, _selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
-        let service_subprovider = KubernetesService {
-            options: self.options.clone(),
-        };
-
         let registries = ctx.registries.iter().map(map_container_registry).collect();
 
         let mut service_artifacts = ctx
@@ -59,7 +62,7 @@ impl Castable for KubernetesProvider {
             .iter()
             .filter(|&s| s.provider.name == self.name())
             .map(|s| {
-                service_subprovider
+                self.service_subprovider
                     .cast(ctx.clone(), Some(&s.name))
                     .unwrap()
             })
@@ -87,19 +90,27 @@ impl Castable for KubernetesProvider {
         };
 
         let mut out = vec![hcl];
+
         out.append(&mut service_artifacts);
         Ok(out)
     }
 }
 
 impl Bindable for KubernetesProvider {
-    fn bind(&self, _ctx: Rc<Context>) -> Result<(), CastError> {
+    fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
         GlooCtl::default().install_gateway();
+        ctx
+            .services
+            .iter()
+            .filter(|&s| s.provider.name == self.name())
+            .map(|s| self.service_subprovider.bind(ctx.clone()))
+            .collect_vec();
         Ok(())
     }
 }
 
 struct KubernetesService {
+    api_provider: gloo::ApiProvider,
     options: Arc<Options>,
 }
 
@@ -124,8 +135,7 @@ impl Castable for KubernetesService {
         .render();
 
         // TODO in future we want to support other API Gateway providers -- for now, just Gloo :)
-        let api_provider = gloo::ApiProvider::new();
-        let mut api_artifacts = api_provider.cast(ctx.clone(), Some(&*name)).unwrap();
+        let mut api_artifacts = self.api_provider.cast(ctx.clone(), Some(&*name)).unwrap();
 
         let function_subprovider = KubernetesFunction {
             service_name: name.clone(),
@@ -169,6 +179,12 @@ impl Castable for KubernetesService {
                 .collect::<Vec<Artifact>>(),
         );
         Ok(out)
+    }
+}
+
+impl Bindable for KubernetesService {
+    fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        self.api_provider.bind(ctx)
     }
 }
 
