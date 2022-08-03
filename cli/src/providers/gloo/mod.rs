@@ -67,11 +67,16 @@ impl Castable for ApiProvider {
         let rendered_hcl = VirtualServiceTemplate {
             project_name: project_name.clone(),
             service_name: service_name.clone(),
-            domain_name: ctx
-                .service(service_name.clone())
-                .unwrap()
-                .domain_name
-                .clone(),
+            domain_name: format!(
+                "{}.{}",
+                &service_name,
+                ctx
+                    .service(&service_name)
+                    .unwrap()
+                    .domain_name
+                    .as_ref()
+                    .unwrap_or(&format!("{}.com", &project_name))
+            ),
             has_routes: http_fns.len() > 0,
             routes: http_fns
                 .iter()

@@ -61,14 +61,7 @@ impl Context {
                     name: service_provider.name.clone(),
                     options: service_provider.options.clone(),
                 }),
-                domain_name: format!(
-                    "{}.{}",
-                    &service.name,
-                    service_manifest
-                        .api
-                        .domain_name
-                        .unwrap_or(format!("{}.com", &project.name))
-                ),
+                domain_name: service_manifest.api.domain_name,
                 project_name: project.name.clone(),
             });
 
@@ -157,11 +150,11 @@ impl Context {
         })
     }
 
-    pub fn service(&self, name: String) -> Option<&Service> {
+    pub fn service(&self, name: &str) -> Option<&Service> {
         self
             .services
             .iter()
-            .find(|&s| &s.name == &name)
+            .find(|&s| &s.name == name)
     }
 }
 
@@ -282,7 +275,7 @@ pub struct Registry {
 pub struct Service {
     pub name: String,
     pub provider: Rc<Provider>,
-    pub domain_name: String,
+    pub domain_name: Option<String>,
     pub project_name: String,
 }
 
@@ -375,8 +368,7 @@ locals {
 {{#if user_inject}}module "usermod" {
   source = "../user_tf"
 }{{/if}}
-{{#if remote_state}}
-terraform {
+{{#if remote_state}}terraform {
   backend "s3" {
     encrypt = true
     bucket = "{{state_bucket_name}}"

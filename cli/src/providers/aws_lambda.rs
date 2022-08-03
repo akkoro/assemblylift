@@ -6,15 +6,15 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use handlebars::{Handlebars, to_json};
+use handlebars::{to_json, Handlebars};
 use itertools::Itertools;
 use registry_common::models::GetIomodAtResponse;
 use serde::Serialize;
 
 use crate::archive;
-use crate::providers::{Options, Provider, ProviderError, render_string_list};
-use crate::transpiler::{Artifact, Bindable, Castable, CastError, ContentType, context, Template};
+use crate::providers::{render_string_list, Options, Provider, ProviderError};
 use crate::transpiler::context::{Context, Function};
+use crate::transpiler::{context, Artifact, Bindable, CastError, Castable, ContentType, Template};
 
 pub struct AwsLambdaProvider {
     options: Arc<Options>,
@@ -94,12 +94,13 @@ impl AwsLambdaProvider {
             fs::write(&dependency_path, &*bytes).expect("could not write iomod package");
             dependencies.push(PathBuf::from(dependency_path));
         }
-        
+
         archive::zip_dirs(
             dependencies,
             format!("./.asml/runtime/{}-iomods.zip", &service_name),
             Vec::new(),
-        ).map_err(|_| CastError("unable to zip IOmods".into()))
+        )
+        .map_err(|_| CastError("unable to zip IOmods".into()))
     }
 
     pub fn cast_ruby(ctx: Rc<Context>, service_name: &str) -> Result<(), CastError> {
@@ -125,7 +126,12 @@ impl AwsLambdaProvider {
             f.name.clone(),
             f.name.clone()
         );
-        File::open(artifact_path).unwrap().metadata().unwrap().size() > (50 * 1000 * 1000)
+        File::open(artifact_path)
+            .unwrap()
+            .metadata()
+            .unwrap()
+            .size()
+            > (50 * 1000 * 1000)
     }
 }
 
@@ -197,11 +203,13 @@ impl Castable for LambdaService {
         let name = selector
             .expect("selector must be a service name")
             .to_string();
+        let project_name = ctx.project.name.clone();
         let layer_name = format!(
             "asml-{}-{}-lambda-runtime",
             ctx.project.name.clone(),
             name.clone(),
         );
+        let service = ctx.service(&name).unwrap();
 
         AwsLambdaProvider::cast_iomods(ctx.clone(), &name).unwrap();
         let mut has_ruby_layer = false;
@@ -215,7 +223,13 @@ impl Castable for LambdaService {
             AwsLambdaProvider::cast_ruby(ctx.clone(), &name)?;
             has_ruby_layer = true;
         }
-        let has_iomods_layer = ctx.iomods.iter().filter(|&m| m.service_name == name.clone()).collect_vec().len() > 0;
+        let has_iomods_layer = ctx
+            .iomods
+            .iter()
+            .filter(|&m| m.service_name == name.clone())
+            .collect_vec()
+            .len()
+            > 0;
         let has_large_payloads = ctx
             .functions
             .iter()
@@ -223,6 +237,7 @@ impl Castable for LambdaService {
             .find(|f| AwsLambdaProvider::is_function_large(ctx.clone(), f))
             .is_some();
         let use_apigw = ctx.functions.iter().find(|f| f.http.is_some()).is_some();
+        let has_domain_name = service.domain_name.is_some();
 
         let authorizers: Vec<ServiceAuthData> = ctx
             .authorizers
@@ -249,11 +264,18 @@ impl Castable for LambdaService {
         let hcl_content = ServiceTemplate {
             project_name: ctx.project.name.clone(),
             service_name: name.clone(),
+            domain_name: String::from(
+                service
+                    .domain_name
+                    .as_ref()
+                    .unwrap_or(&format!("{}.com", &project_name)),
+            ),
             layer_name,
             use_apigw,
             has_iomods_layer,
             has_ruby_layer,
             has_large_payloads,
+            has_domain_name,
             authorizers,
             options: self.options.clone(),
         }
@@ -305,7 +327,12 @@ impl Castable for LambdaFunction {
         let name = selector
             .expect("selector must be a function name")
             .to_string();
-        match ctx.functions.iter().filter(|&f| f.service_name == self.service_name).find(|&f| f.name == name) {
+        match ctx
+            .functions
+            .iter()
+            .filter(|&f| f.service_name == self.service_name)
+            .find(|&f| f.name == name)
+        {
             Some(function) => {
                 let service = function.service_name.clone();
 
@@ -435,10 +462,12 @@ struct ServiceTemplate {
     project_name: String,
     service_name: String,
     layer_name: String,
+    domain_name: String,
     has_iomods_layer: bool,
     has_ruby_layer: bool,
     has_large_payloads: bool,
     use_apigw: bool,
+    has_domain_name: bool,
     authorizers: Vec<ServiceAuthData>,
     options: Arc<Options>,
 }
@@ -492,7 +521,23 @@ resource aws_apigatewayv2_stage {{service_name}}_default_stage {
     api_id      = aws_apigatewayv2_api.{{service_name}}_http_api.id
     name        = "$default"
     auto_deploy = true
-}{{/if}}
+}
+
+{{#if has_domain_name}}resource aws_apigatewayv2_domain_name {{service_name}}_domain {
+  domain_name = "{{service_name}}.{{domain_name}}"
+
+  domain_name_configuration {
+    certificate_arn = "{{options.certificate_arn}}"
+    endpoint_type   = "REGIONAL"
+    security_policy = "TLS_1_2"
+  }
+}
+
+resource aws_apigatewayv2_api_mapping {{service_name}} {
+  api_id      = aws_apigatewayv2_api.{{service_name}}_http_api.id
+  domain_name = aws_apigatewayv2_domain_name.{{service_name}}_domain.id
+  stage       = "$default"
+}{{/if}}{{/if}}
 
 {{#each authorizers}}resource aws_apigatewayv2_authorizer {{../service_name}}_{{this.id}} {
     provider    = aws.{{../project_name}}-aws-lambda

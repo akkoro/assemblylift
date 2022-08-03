@@ -4,7 +4,6 @@ use clap::ArgMatches;
 
 use crate::projectfs::Project;
 use crate::terraform;
-use crate::tools::kubectl::KubeCtl;
 use crate::transpiler::Bindable;
 use crate::transpiler::context::Context;
 use crate::transpiler::toml;
@@ -30,7 +29,4 @@ pub fn command(matches: Option<&ArgMatches>) {
     // TODO terraform should be refactored around Tool trait
     terraform::commands::init();
     terraform::commands::apply();
-
-    // let kubectl = KubeCtl::default();
-    // kubectl.apply().expect("kubectl apply failed");
 }
