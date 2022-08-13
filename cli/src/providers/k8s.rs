@@ -76,13 +76,6 @@ impl Castable for KubernetesProvider {
                 out
             })
             .unwrap();
-        service_artifacts.append(
-            &mut self
-                .service_subprovider
-                .api_provider
-                .cast(ctx.clone(), None)
-                .unwrap(),
-        );
 
         let base_tmpl = KubernetesBaseTemplate {
             project_name: ctx.project.name.clone(),
