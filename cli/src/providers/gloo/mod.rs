@@ -100,32 +100,33 @@ impl Castable for ApiProvider {
             None => {
                 let project_name = ctx.project.name.clone();
 
-                let rendered_hcl = CertIssuerTemplate {
-                    project_name: project_name.clone(),
-                    domain_names: ctx
-                        .services
-                        .clone()
-                        .into_iter()
-                        .map(|s| {
-                            s.domain_name
-                                .clone()
-                                .unwrap_or(format!("{}.com", &project_name))
-                        })
-                        .collect_vec(),
-                    has_domain: ctx
-                        .services
-                        .iter()
-                        .find(|&s| s.domain_name.is_some())
-                        .is_some(),
-                }
-                .render();
+                // let rendered_hcl = CertIssuerTemplate {
+                //     project_name: project_name.clone(),
+                //     domain_names: ctx
+                //         .services
+                //         .clone()
+                //         .into_iter()
+                //         .map(|s| {
+                //             s.domain_name
+                //                 .clone()
+                //                 .unwrap_or(format!("{}.com", &project_name))
+                //         })
+                //         .collect_vec(),
+                //     has_domain: ctx
+                //         .services
+                //         .iter()
+                //         .find(|&s| s.domain_name.is_some())
+                //         .is_some(),
+                // }
+                // .render();
 
-                let out = Artifact {
-                    content_type: ContentType::HCL("HCL"),
-                    content: rendered_hcl,
-                    write_path: "net/plan.tf".into(),
-                };
-                Ok(vec![out])
+                // let out = Artifact {
+                //     content_type: ContentType::HCL("HCL"),
+                //     content: rendered_hcl,
+                //     write_path: "net/plan.tf".into(),
+                // };
+                // Ok(vec![out])
+                Ok(vec![])
             }
         }
     }
@@ -143,6 +144,24 @@ impl Bootable for ApiProvider {
         println!("DEBUG booting gloo provider");
         let kubectl = KubeCtl::default();
         let project_name = ctx.project.name.clone();
+
+        let issuer_yaml = CertIssuerTemplate {
+            project_name: project_name.clone(),
+            domain_names: ctx
+                .services
+                .clone()
+                .into_iter()
+                .map(|s| {
+                    s.domain_name
+                        .clone()
+                        .unwrap_or(format!("{}.com", &project_name))
+                })
+                .collect_vec(),
+        }.render();
+        kubectl
+            .apply_from_str(&issuer_yaml)
+            .expect("could not apply issuer yaml");
+
         for service in &ctx.services {
             if service.domain_name.is_some() {
                 let rendered_yaml = CertificateTemplate {
@@ -391,7 +410,6 @@ spec:
 struct CertIssuerTemplate {
     project_name: String,
     domain_names: Vec<String>,
-    has_domain: bool,
 }
 
 impl Template for CertIssuerTemplate {
@@ -403,42 +421,27 @@ impl Template for CertIssuerTemplate {
     }
 
     fn tmpl() -> &'static str {
-        r#"# Begin Gloo CertIssuer
-{{#if has_domain}}resource kubernetes_manifest gloo_cert_issuer {
-  provider = kubernetes.{{project_name}}-k8s
-  manifest = {
-    apiVersion = "cert-manager.io/v1"
-    kind       = "ClusterIssuer"
+r#"# Begin cert-manager ClusterIssuer
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
 
-    metadata = {
-      name      = "asml-letsencrypt-staging-http01"
-    }
+metadata:
+  name: asml-letsencrypt-staging-http01
 
-    spec = {
-      acme = {
-        server = "https://acme-staging-v02.api.letsencrypt.org/directory"
-        email  = "assemblylift@akkoro.io"
-        privateKeySecretRef = {
-          name = "asml-letsencrypt-staging-http01"
-        }
-        solvers = [
-          {
-            http01 = {
-              ingress = {
-                serviceType = "ClusterIP"
-              }
-            }
-            selector = {
-              dnsNames = [
-                {{#each domain_names}}"{{this}}",
-              {{/each}}]
-            }
-          }
-        ]
-      }
-    }
-  }
-}{{/if}}
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: assemblylift@akkoro.io
+    privateKeySecretRef:
+      name: asml-letsencrypt-staging-http01
+    solvers:
+      - http01:
+          ingress:
+            serviceType: ClusterIP
+        selector:
+          dnsNames:
+            {{#each domain_names}}- "{{this}}"
+          {{/each}}
 "#
     }
 }

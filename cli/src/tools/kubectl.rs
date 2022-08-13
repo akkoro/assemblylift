@@ -62,10 +62,12 @@ impl KubeCtl {
             .spawn()
             .unwrap();
 
+        println!("DEBUG writing stdin");
         let mut stdin = child.stdin.take().unwrap();
         let mut stdin_writer = BufWriter::new(&mut stdin);
         stdin_writer.write(config.as_ref()).unwrap();
 
+        println!("DEBUG waiting for command...");
         let output = child.wait_with_output().unwrap();
         if output.status.code().unwrap() != 0i32 {
             return Err(format!("kubectl apply exited with error code {:?}", output.status))
