@@ -247,6 +247,7 @@ impl Bindable for Context {
                 .set_options(p.options.clone())
                 .expect("could not set provider options");
             if !provider_lock.is_booted(ctx.clone()) {
+                println!("Booting provider {}...", provider_lock.name());
                 provider_lock
                     .boot(ctx.clone())
                     .expect("could not bootstrap provider");

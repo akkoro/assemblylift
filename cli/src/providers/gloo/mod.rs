@@ -96,38 +96,6 @@ impl Castable for ApiProvider {
                 };
                 Ok(vec![out])
             }
-
-            None => {
-                let project_name = ctx.project.name.clone();
-
-                // let rendered_hcl = CertIssuerTemplate {
-                //     project_name: project_name.clone(),
-                //     domain_names: ctx
-                //         .services
-                //         .clone()
-                //         .into_iter()
-                //         .map(|s| {
-                //             s.domain_name
-                //                 .clone()
-                //                 .unwrap_or(format!("{}.com", &project_name))
-                //         })
-                //         .collect_vec(),
-                //     has_domain: ctx
-                //         .services
-                //         .iter()
-                //         .find(|&s| s.domain_name.is_some())
-                //         .is_some(),
-                // }
-                // .render();
-
-                // let out = Artifact {
-                //     content_type: ContentType::HCL("HCL"),
-                //     content: rendered_hcl,
-                //     write_path: "net/plan.tf".into(),
-                // };
-                // Ok(vec![out])
-                Ok(vec![])
-            }
         }
     }
 }
@@ -141,7 +109,6 @@ impl Bindable for ApiProvider {
 
 impl Bootable for ApiProvider {
     fn boot(&self, ctx: Rc<Context>) -> Result<(), CastError> {
-        println!("DEBUG booting gloo provider");
         let kubectl = KubeCtl::default();
         let project_name = ctx.project.name.clone();
 
@@ -157,8 +124,8 @@ impl Bootable for ApiProvider {
                         .unwrap_or(format!("{}.com", &project_name))
                 })
                 .collect_vec(),
-        }.render();
-        println!("DEBUG issuer_yaml={:?}", issuer_yaml);
+        }
+        .render();
         kubectl
             .apply_from_str(&issuer_yaml)
             .expect("could not apply issuer yaml");
@@ -185,15 +152,18 @@ impl Bootable for ApiProvider {
 
     fn is_booted(&self, ctx: Rc<Context>) -> bool {
         let kubectl = KubeCtl::default();
-        for service in &ctx.services {
-            if service.domain_name.is_some() {
-                let certificates = kubectl
-                    .get("certificates.cert-manager.io")
-                    .expect("kubectl could not get certificates");
-                println!("DEBUG {:?}", certificates);
-            }
-        }
-        false
+        let issuers = kubectl
+            .get("clusterissuers")
+            .expect("kubectl could not get clusterissuers");
+        issuers
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|&v| {
+                &v.get("metadata").unwrap().get("name").unwrap()
+                    == "asml-letsencrypt-staging-http01"
+            })
+            .is_some()
         // TODO orders after apply in boot(), not here :)
         // let orders = kubectl
         //     .get("orders.acme.cert-manager.io")
@@ -376,34 +346,10 @@ spec:
   issuerRef:
     kind: ClusterIssuer
     name: asml-letsencrypt-staging-http01
-  commonName = {{domain_name}}
+  commonName: {{domain_name}}
   dnsNames:
-    - {{domain_name}}
+  - {{domain_name}}
 "#
-        // r#"{{#if has_domain}}resource kubernetes_manifest {{service_name}}_certificate {
-        //   depends_on = [kubernetes_manifest.gloo_cert_issuer]
-        //
-        //   provider = kubernetes.{{project_name}}-k8s
-        //   manifest = {
-        //     apiVersion = "cert-manager.io/v1"
-        //     kind       = "Certificate"
-        //
-        //     metadata = {
-        //       name      = "asml-{{project_name}}-{{service_name}}-certificate"
-        //       namespace = "asml-{{project_name}}-{{service_name}}"
-        //     }
-        //
-        //     spec = {
-        //       secretName = "asml-{{project_name}}-{{service_name}}-tls"
-        //       issuerRef = {
-        //         kind = "ClusterIssuer"
-        //         name = "asml-letsencrypt-staging-http01"
-        //       }
-        //       commonName = "{{domain_name}}"
-        //       dnsNames   = ["{{domain_name}}"]
-        //     }
-        //   }
-        // }{{/if}}"#
     }
 }
 
@@ -422,13 +368,11 @@ impl Template for CertIssuerTemplate {
     }
 
     fn tmpl() -> &'static str {
-r#"# Begin cert-manager ClusterIssuer
+        r#"# Begin cert-manager ClusterIssuer
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
-
 metadata:
   name: asml-letsencrypt-staging-http01
-
 spec:
   acme:
     server: https://acme-staging-v02.api.letsencrypt.org/directory
@@ -436,13 +380,13 @@ spec:
     privateKeySecretRef:
       name: asml-letsencrypt-staging-http01
     solvers:
-      - http01:
-          ingress:
-            serviceType: ClusterIP
-        selector:
-          dnsNames:
-            {{#each domain_names}}- "{{this}}"
-          {{/each}}
+    - http01:
+      ingress:
+        serviceType: ClusterIP
+    selector:
+      dnsNames:
+      {{#each domain_names}}- {{this}}
+      {{/each}}
 "#
     }
 }
