@@ -14,7 +14,7 @@ use serde::Serialize;
 use crate::archive;
 use crate::providers::{render_string_list, Options, Provider, ProviderError};
 use crate::transpiler::context::{Context, Function};
-use crate::transpiler::{context, Artifact, Bindable, CastError, Castable, ContentType, Template};
+use crate::transpiler::{context, Artifact, Bindable, CastError, Castable, ContentType, Template, Bootable};
 
 pub struct AwsLambdaProvider {
     options: Arc<Options>,
@@ -176,6 +176,16 @@ impl Castable for AwsLambdaProvider {
 impl Bindable for AwsLambdaProvider {
     fn bind(&self, _ctx: Rc<Context>) -> Result<(), CastError> {
         Ok(())
+    }
+}
+
+impl Bootable for AwsLambdaProvider {
+    fn boot(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        Ok(())
+    }
+
+    fn is_booted(&self, ctx: Rc<Context>) -> bool {
+        true
     }
 }
 

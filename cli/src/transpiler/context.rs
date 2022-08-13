@@ -240,14 +240,18 @@ impl Bindable for Context {
             let provider = PROVIDERS
                 .get(&*p.name.clone())
                 .expect("could not find provider");
-            provider
+            let mut provider_lock = provider
                 .lock()
-                .unwrap()
+                .unwrap();
+            provider_lock
                 .set_options(p.options.clone())
                 .expect("could not set provider options");
-            provider
-                .lock()
-                .unwrap()
+            if !provider_lock.is_booted(ctx.clone()) {
+                provider_lock
+                    .boot(ctx.clone())
+                    .expect("could not bootstrap provider");
+            }
+            provider_lock
                 .bind(ctx.clone())
                 .expect("could not run provider bind step")
         }
@@ -272,6 +276,7 @@ pub struct Registry {
     pub options: StringMap<String>,
 }
 
+#[derive(Clone)]
 pub struct Service {
     pub name: String,
     pub provider: Rc<Provider>,

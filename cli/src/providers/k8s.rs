@@ -8,8 +8,8 @@ use serde::Serialize;
 
 use crate::providers::{gloo, Options, Provider, ProviderError};
 use crate::tools::glooctl::GlooCtl;
-use crate::transpiler::{Artifact, Bindable, Castable, CastError, ContentType, context, Template};
 use crate::transpiler::context::Context;
+use crate::transpiler::{context, Artifact, Bindable, CastError, Castable, ContentType, Template, Bootable};
 
 fn map_container_registry(r: &context::Registry) -> ContainerRegistry {
     ContainerRegistry {
@@ -20,15 +20,18 @@ fn map_container_registry(r: &context::Registry) -> ContainerRegistry {
 }
 
 pub struct KubernetesProvider {
+    api_provider: Arc<gloo::ApiProvider>,
     service_subprovider: KubernetesService,
     options: Arc<Options>,
 }
 
 impl KubernetesProvider {
     pub fn new() -> Self {
+        let api_provider = Arc::new(gloo::ApiProvider::new());
         Self {
+            api_provider: api_provider.clone(),
             service_subprovider: KubernetesService {
-                api_provider: gloo::ApiProvider::new(),
+                api_provider: api_provider.clone(),
                 options: Arc::new(Options::new()),
             },
             options: Arc::new(Options::new()),
@@ -73,6 +76,13 @@ impl Castable for KubernetesProvider {
                 out
             })
             .unwrap();
+        service_artifacts.append(
+            &mut self
+                .service_subprovider
+                .api_provider
+                .cast(ctx.clone(), None)
+                .unwrap(),
+        );
 
         let base_tmpl = KubernetesBaseTemplate {
             project_name: ctx.project.name.clone(),
@@ -99,8 +109,7 @@ impl Castable for KubernetesProvider {
 impl Bindable for KubernetesProvider {
     fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
         GlooCtl::default().install_gateway();
-        ctx
-            .services
+        ctx.services
             .iter()
             .filter(|&s| s.provider.name == self.name())
             .map(|s| self.service_subprovider.bind(ctx.clone()))
@@ -109,8 +118,18 @@ impl Bindable for KubernetesProvider {
     }
 }
 
+impl Bootable for KubernetesProvider {
+    fn boot(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        self.api_provider.boot(ctx)
+    }
+
+    fn is_booted(&self, ctx: Rc<Context>) -> bool {
+        self.api_provider.is_booted(ctx)
+    }
+}
+
 struct KubernetesService {
-    api_provider: gloo::ApiProvider,
+    api_provider: Arc<gloo::ApiProvider>,
     options: Arc<Options>,
 }
 
@@ -198,7 +217,12 @@ impl Castable for KubernetesFunction {
         let name = selector
             .expect("selector must be a function name")
             .to_string();
-        match ctx.functions.iter().filter(|&f| f.service_name == self.service_name).find(|&f| f.name == name) {
+        match ctx
+            .functions
+            .iter()
+            .filter(|&f| f.service_name == self.service_name)
+            .find(|&f| f.name == name)
+        {
             Some(function) => {
                 let service = function.service_name.clone();
 
@@ -315,9 +339,9 @@ provider kubernetes {
 {{#each registries}}{{#if this.is_ecr}}provider aws {
     alias  = "{{../project_name}}-k8s"
     region = "{{this.options.aws_region}}"
-}{{/if}}
+}
 
-{{#if this.is_ecr}}data aws_ecr_authorization_token token {
+data aws_ecr_authorization_token token {
     provider = aws.{{../project_name}}-k8s
 }{{/if}}{{/each}}
 

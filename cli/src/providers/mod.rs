@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use once_cell::sync::Lazy;
 
-use crate::transpiler::{Bindable, Castable, StringMap};
+use crate::transpiler::{Bindable, Bootable, Castable, StringMap};
 
 pub mod aws_lambda;
 pub mod aws_lambda_alpine;
@@ -27,7 +27,7 @@ pub static PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
 
 pub type Options = StringMap<String>;
 
-pub trait Provider: Castable + Bindable {
+pub trait Provider: Castable + Bindable + Bootable {
     fn name(&self) -> String;
     fn options(&self) -> Arc<Options>;
     fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError>;

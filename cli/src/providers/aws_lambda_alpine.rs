@@ -6,7 +6,7 @@ use handlebars::{Handlebars, to_json};
 use serde::Serialize;
 
 use crate::providers::{Options, Provider, ProviderError, render_string_list};
-use crate::transpiler::{Artifact, Bindable, Castable, CastError, ContentType};
+use crate::transpiler::{Artifact, Bindable, Bootable, Castable, CastError, ContentType};
 use crate::transpiler::context::Context;
 
 pub struct ServiceProvider {
@@ -80,6 +80,16 @@ impl Castable for ServiceProvider {
 impl Bindable for ServiceProvider {
     fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
         todo!()
+    }
+}
+
+impl Bootable for ServiceProvider {
+    fn boot(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        todo!()
+    }
+
+    fn is_booted(&self, ctx: Rc<Context>) -> bool {
+        true
     }
 }
 
@@ -198,6 +208,16 @@ impl Castable for FunctionProvider {
 impl Bindable for FunctionProvider {
     fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
         todo!()
+    }
+}
+
+impl Bootable for FunctionProvider {
+    fn boot(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        todo!()
+    }
+
+    fn is_booted(&self, ctx: Rc<Context>) -> bool {
+        true
     }
 }
 

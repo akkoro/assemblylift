@@ -15,14 +15,20 @@ pub enum ContentType {
     KubeYaml(&'static str),
 }
 
-/// A net-castable artifact
 pub trait Castable {
     /// Cast the implementor into Artifacts; binary artifacts must be encoded with e.g. base64
     fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError>;
 }
 
 pub trait Bindable {
+    /// Bind the implementor to the backend provider
     fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError>;
+}
+
+pub trait Bootable {
+    /// Provides an opportunity deploy prerequisite infra if not already present
+    fn boot(&self, ctx: Rc<Context>) -> Result<(), CastError>;
+    fn is_booted(&self, ctx: Rc<Context>) -> bool;
 }
 
 /// A renderable Handlebars template
