@@ -54,49 +54,47 @@ impl ApiProvider {
 impl Castable for ApiProvider {
     /// `selector` parameter is the name of service to deploy this API for
     fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
-        match selector {
-            Some(service_name) => {
-                let project_name = ctx.project.name.clone();
+        let service_name = selector
+            .expect("selector must be a service name");
+        let project_name = ctx.project.name.clone();
 
-                let http_fns: Vec<&Function> = ctx
-                    .functions
-                    .iter()
-                    .filter(|&f| f.http.is_some() && &f.service_name == &service_name)
-                    .map(|f| f)
-                    .collect();
+        let http_fns: Vec<&Function> = ctx
+            .functions
+            .iter()
+            .filter(|&f| f.http.is_some() && &f.service_name == &service_name)
+            .map(|f| f)
+            .collect();
 
-                let rendered_hcl = VirtualServiceTemplate {
-                    project_name: project_name.clone(),
-                    service_name: service_name.into(),
-                    domain_name: format!(
-                        "{}.{}",
-                        &service_name,
-                        ctx.service(&service_name)
-                            .unwrap()
-                            .domain_name
-                            .as_ref()
-                            .unwrap_or(&format!("{}.com", &project_name))
-                    ),
-                    has_routes: http_fns.len() > 0,
-                    has_domain: ctx.service(&service_name).unwrap().domain_name.is_some(),
-                    routes: http_fns
-                        .iter()
-                        .filter(|&f| f.service_name == service_name)
-                        .map(|f| RouteData {
-                            path: f.http.as_ref().unwrap().path.clone(),
-                            to_function_name: f.name.clone(),
-                        })
-                        .collect(),
-                }
-                .render();
-                let out = Artifact {
-                    content_type: ContentType::HCL("HCL"),
-                    content: rendered_hcl,
-                    write_path: "net/plan.tf".into(),
-                };
-                Ok(vec![out])
-            }
+        let rendered_hcl = VirtualServiceTemplate {
+            project_name: project_name.clone(),
+            service_name: service_name.into(),
+            domain_name: format!(
+                "{}.{}",
+                &service_name,
+                ctx.service(&service_name)
+                    .unwrap()
+                    .domain_name
+                    .as_ref()
+                    .unwrap_or(&format!("{}.com", &project_name))
+            ),
+            has_routes: http_fns.len() > 0,
+            has_domain: ctx.service(&service_name).unwrap().domain_name.is_some(),
+            routes: http_fns
+                .iter()
+                .filter(|&f| f.service_name == service_name)
+                .map(|f| RouteData {
+                    path: f.http.as_ref().unwrap().path.clone(),
+                    to_function_name: f.name.clone(),
+                })
+                .collect(),
         }
+        .render();
+        let out = Artifact {
+            content_type: ContentType::HCL("HCL"),
+            content: rendered_hcl,
+            write_path: "net/plan.tf".into(),
+        };
+        Ok(vec![out])
     }
 }
 
