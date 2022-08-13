@@ -158,6 +158,7 @@ impl Bootable for ApiProvider {
                 })
                 .collect_vec(),
         }.render();
+        println!("DEBUG issuer_yaml={:?}", issuer_yaml);
         kubectl
             .apply_from_str(&issuer_yaml)
             .expect("could not apply issuer yaml");
