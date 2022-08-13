@@ -412,7 +412,6 @@ impl Template for CertIssuerTemplate {
 
     metadata = {
       name      = "asml-letsencrypt-staging-http01"
-      namespace = "gloo-system"
     }
 
     spec = {
