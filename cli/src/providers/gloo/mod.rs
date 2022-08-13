@@ -160,7 +160,7 @@ impl Bootable for ApiProvider {
             .unwrap()
             .iter()
             .find(|&v| {
-                &v.get("metadata").unwrap().get("name").unwrap()
+                v.get("metadata").unwrap().get("name").unwrap().as_str().unwrap()
                     == "asml-letsencrypt-staging-http01"
             })
             .is_some()
