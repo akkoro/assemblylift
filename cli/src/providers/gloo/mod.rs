@@ -153,15 +153,17 @@ impl Bootable for ApiProvider {
         let issuers = kubectl
             .get("clusterissuers")
             .expect("kubectl could not get clusterissuers");
-        issuers
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|&v| {
-                v.get("metadata").unwrap().get("name").unwrap().as_str().unwrap()
-                    == "asml-letsencrypt-staging-http01"
-            })
-            .is_some()
+        return if let Some(issuers) = issuers.as_array() {
+            issuers
+                .iter()
+                .find(|&v| {
+                    v.get("metadata").unwrap().get("name").unwrap().as_str().unwrap()
+                        == "asml-letsencrypt-staging-http01"
+                })
+                .is_some()
+        } else {
+            false
+        }
         // TODO orders after apply in boot(), not here :)
         // let orders = kubectl
         //     .get("orders.acme.cert-manager.io")
