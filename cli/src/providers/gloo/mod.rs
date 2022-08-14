@@ -133,26 +133,47 @@ impl Bootable for ApiProvider {
             .filter(|&s| &s.provider.name == "k8s")
             .collect_vec()
         {
-            if service.domain_name.is_some() {
-                let rendered_yaml = CertificateTemplate {
+            if let Some(domain_name) = service.domain_name.clone() {
+                let certificate_yaml = CertificateTemplate {
                     project_name: project_name.clone(),
                     service_name: service.name.clone(),
-                    domain_name: service
-                        .domain_name
-                        .clone()
-                        .unwrap_or(format!("{}.com", &project_name)),
+                    domain_name,
                 }
                 .render();
                 kubectl
-                    .apply_from_str(&rendered_yaml)
+                    .apply_from_str(&certificate_yaml)
                     .expect("could not apply certificate yaml");
+
+                // TODO get order token & create virtual service
+                let orders = kubectl
+                    .get("orders.acme.cert-manager.io")
+                    .expect("kubectl could not get acme orders");
+                let token = orders
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|&o| {
+                        serde_json::from_value::<Status>(o.get("status").unwrap().clone())
+                            .unwrap()
+                            .authorizations[0]
+                            .challenges
+                            .iter()
+                            .find(|&c| &c.r#type == "http-01")
+                            .is_some()
+                    })
+                    .unwrap()
+                    .get("token")
+                    .unwrap()
+                    .as_str()
+                    .unwrap();
+                println!("DEBUG token={:?}", token);
             }
         }
 
         Ok(())
     }
 
-    fn is_booted(&self, ctx: Rc<Context>) -> bool {
+    fn is_booted(&self, _ctx: Rc<Context>) -> bool {
         let kubectl = KubeCtl::default();
         let issuers = kubectl
             .get("clusterissuers")
@@ -173,24 +194,6 @@ impl Bootable for ApiProvider {
         } else {
             false
         };
-        // TODO orders after apply in boot(), not here :)
-        // let orders = kubectl
-        //     .get("orders.acme.cert-manager.io")
-        //     .expect("kubectl could not get acme orders");
-        // let token = orders
-        //     .as_array()
-        //     .unwrap()
-        //     .iter()
-        //     .find(|&o| {
-        //         serde_json::from_value::<Status>(o.get("status").unwrap().clone())
-        //             .unwrap()
-        //             .authorizations[0]
-        //             .challenges
-        //             .iter()
-        //             .find(|&c| &c.r#type == "http-01")
-        //             .is_some()
-        //     })
-        //     .unwrap();
     }
 }
 
@@ -282,9 +285,9 @@ struct VirtualServiceTemplate {
 impl Template for VirtualServiceTemplate {
     fn render(&self) -> String {
         let mut reg = Box::new(Handlebars::new());
-        reg.register_template_string("hcl_template", Self::tmpl())
+        reg.register_template_string("tmpl", Self::tmpl())
             .unwrap();
-        reg.render("hcl_template", &self).unwrap()
+        reg.render("tmpl", &self).unwrap()
     }
 
     fn tmpl() -> &'static str {
@@ -329,6 +332,48 @@ resource kubernetes_manifest gloo_virtualservice_{{service_name}} {
 }
 
 #[derive(Serialize)]
+struct AcmeChallengeServiceTemplate {
+    project_name: String,
+    service_name: String,
+    domain_names: Vec<String>,
+    token: String,
+    upstream_name: String,
+}
+
+impl Template for AcmeChallengeServiceTemplate {
+    fn render(&self) -> String {
+        let mut reg = Box::new(Handlebars::new());
+        reg.register_template_string("tmpl", Self::tmpl())
+            .unwrap();
+        reg.render("tmpl", &self).unwrap()
+    }
+
+    // TODO maybe not namespace in gloo-system
+    fn tmpl() -> &'static str {
+        r#"# Begin ACME Challenge VirtualService for `{{service_name}}`
+apiVersion: gateway.solo.io/v1
+kind: VirtualService
+metadata:
+  name: asml-{{project_name}}-{{service_name}}-letsencrypt
+  namespace: gloo-system
+spec:
+  virtualHost:
+    domains:
+    {{#each domain_names}}- {{this}}
+    {{/each}}
+    routes:
+    - matchers:
+      - exact: /.well-known/acme-challenge/{{token}}
+      routeAction:
+        single:
+          upstream:
+            name: {{upstream_name}}
+            namespace: gloo-system
+"#
+    }
+}
+
+#[derive(Serialize)]
 struct CertificateTemplate {
     project_name: String,
     service_name: String,
@@ -338,9 +383,9 @@ struct CertificateTemplate {
 impl Template for CertificateTemplate {
     fn render(&self) -> String {
         let mut reg = Box::new(Handlebars::new());
-        reg.register_template_string("hcl_template", Self::tmpl())
+        reg.register_template_string("tmpl", Self::tmpl())
             .unwrap();
-        reg.render("hcl_template", &self).unwrap()
+        reg.render("tmpl", &self).unwrap()
     }
 
     fn tmpl() -> &'static str {
@@ -371,9 +416,9 @@ struct CertIssuerTemplate {
 impl Template for CertIssuerTemplate {
     fn render(&self) -> String {
         let mut reg = Box::new(Handlebars::new());
-        reg.register_template_string("hcl_template", Self::tmpl())
+        reg.register_template_string("tmpl", Self::tmpl())
             .unwrap();
-        reg.render("hcl_template", &self).unwrap()
+        reg.render("tmpl", &self).unwrap()
     }
 
     fn tmpl() -> &'static str {

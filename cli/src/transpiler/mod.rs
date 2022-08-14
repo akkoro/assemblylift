@@ -28,6 +28,7 @@ pub trait Bindable {
 pub trait Bootable {
     /// Provides an opportunity deploy prerequisite infra if not already present
     fn boot(&self, ctx: Rc<Context>) -> Result<(), CastError>;
+    /// Query to see if boot step has already been run
     fn is_booted(&self, ctx: Rc<Context>) -> bool;
 }
 
