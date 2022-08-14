@@ -146,7 +146,10 @@ impl Bootable for ApiProvider {
 
                 // TODO get order token & create virtual service
                 let orders = kubectl
-                    .get("orders.acme.cert-manager.io")
+                    .get_in_namespace(
+                        "orders.acme.cert-manager.io",
+                        &format!("asml-{}-{}", project_name, service.name.clone()),
+                    )
                     .expect("kubectl could not get acme orders");
                 let token = orders
                     .as_array()
@@ -285,8 +288,7 @@ struct VirtualServiceTemplate {
 impl Template for VirtualServiceTemplate {
     fn render(&self) -> String {
         let mut reg = Box::new(Handlebars::new());
-        reg.register_template_string("tmpl", Self::tmpl())
-            .unwrap();
+        reg.register_template_string("tmpl", Self::tmpl()).unwrap();
         reg.render("tmpl", &self).unwrap()
     }
 
@@ -343,8 +345,7 @@ struct AcmeChallengeServiceTemplate {
 impl Template for AcmeChallengeServiceTemplate {
     fn render(&self) -> String {
         let mut reg = Box::new(Handlebars::new());
-        reg.register_template_string("tmpl", Self::tmpl())
-            .unwrap();
+        reg.register_template_string("tmpl", Self::tmpl()).unwrap();
         reg.render("tmpl", &self).unwrap()
     }
 
@@ -383,8 +384,7 @@ struct CertificateTemplate {
 impl Template for CertificateTemplate {
     fn render(&self) -> String {
         let mut reg = Box::new(Handlebars::new());
-        reg.register_template_string("tmpl", Self::tmpl())
-            .unwrap();
+        reg.register_template_string("tmpl", Self::tmpl()).unwrap();
         reg.render("tmpl", &self).unwrap()
     }
 
@@ -416,8 +416,7 @@ struct CertIssuerTemplate {
 impl Template for CertIssuerTemplate {
     fn render(&self) -> String {
         let mut reg = Box::new(Handlebars::new());
-        reg.register_template_string("tmpl", Self::tmpl())
-            .unwrap();
+        reg.register_template_string("tmpl", Self::tmpl()).unwrap();
         reg.render("tmpl", &self).unwrap()
     }
 

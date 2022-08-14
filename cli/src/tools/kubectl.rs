@@ -107,6 +107,21 @@ impl KubeCtl {
         let json = std::str::from_utf8(&*output.stdout).unwrap();
         Ok(serde_json::from_str(json).unwrap())
     }
+
+    pub fn get_in_namespace(&self, kind: &str, ns: &str) -> Result<Value, String> {
+        let mut child = self
+            .command()
+            .args(vec!["get", kind])
+            .args(vec!["-n", ns])
+            .args(vec!["-o", "json"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        let json = std::str::from_utf8(&*output.stdout).unwrap();
+        Ok(serde_json::from_str(json).unwrap())
+    }
 }
 
 impl Tool for KubeCtl {
