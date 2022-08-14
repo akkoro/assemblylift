@@ -152,6 +152,8 @@ impl Bootable for ApiProvider {
                     )
                     .expect("kubectl could not get acme orders");
                 let token = orders
+                    .get("items")
+                    .unwrap()
                     .as_array()
                     .unwrap()
                     .iter()
