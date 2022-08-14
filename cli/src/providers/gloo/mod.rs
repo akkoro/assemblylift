@@ -54,8 +54,7 @@ impl ApiProvider {
 impl Castable for ApiProvider {
     /// `selector` parameter is the name of service to deploy this API for
     fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
-        let service_name = selector
-            .expect("selector must be a service name");
+        let service_name = selector.expect("selector must be a service name");
         let project_name = ctx.project.name.clone();
 
         let http_fns: Vec<&Function> = ctx
@@ -128,7 +127,12 @@ impl Bootable for ApiProvider {
             .apply_from_str(&issuer_yaml)
             .expect("could not apply issuer yaml");
 
-        for service in &ctx.services {
+        for service in ctx
+            .services
+            .iter()
+            .filter(|&s| &s.provider.name == "k8s")
+            .collect_vec()
+        {
             if service.domain_name.is_some() {
                 let rendered_yaml = CertificateTemplate {
                     project_name: project_name.clone(),
@@ -157,13 +161,18 @@ impl Bootable for ApiProvider {
             issuers
                 .iter()
                 .find(|&v| {
-                    v.get("metadata").unwrap().get("name").unwrap().as_str().unwrap()
+                    v.get("metadata")
+                        .unwrap()
+                        .get("name")
+                        .unwrap()
+                        .as_str()
+                        .unwrap()
                         == "asml-letsencrypt-staging-http01"
                 })
                 .is_some()
         } else {
             false
-        }
+        };
         // TODO orders after apply in boot(), not here :)
         // let orders = kubectl
         //     .get("orders.acme.cert-manager.io")
@@ -381,12 +390,12 @@ spec:
       name: asml-letsencrypt-staging-http01
     solvers:
     - http01:
-      ingress:
-        serviceType: ClusterIP
-    selector:
-      dnsNames:
-      {{#each domain_names}}- {{this}}
-      {{/each}}
+        ingress:
+          serviceType: ClusterIP
+      selector:
+        dnsNames:
+        {{#each domain_names}}- {{this}}
+        {{/each}}
 "#
     }
 }
