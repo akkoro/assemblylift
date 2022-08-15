@@ -158,11 +158,11 @@ impl Bootable for ApiProvider {
                     .as_array()
                     .unwrap()
                     .iter()
-                    .find_map(|&item| {
+                    .find_map(|item| {
                         let status = serde_json::from_value::<Status>(item.get("status").unwrap().clone())
                             .unwrap();
                         if status.authorizations.len() == 0 {
-                            None
+                            return None;
                         }
                         match status.authorizations[0]
                             .challenges
