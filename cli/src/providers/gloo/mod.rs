@@ -1,3 +1,4 @@
+use std::os::linux::raw::stat;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -157,19 +158,21 @@ impl Bootable for ApiProvider {
                     .as_array()
                     .unwrap()
                     .iter()
-                    .find(|&o| {
-                        serde_json::from_value::<Status>(o.get("status").unwrap().clone())
-                            .unwrap()
-                            .authorizations[0]
+                    .find_map(|&item| {
+                        let status = serde_json::from_value::<Status>(item.get("status").unwrap().clone())
+                            .unwrap();
+                        if status.authorizations.len() == 0 {
+                            None
+                        }
+                        match status.authorizations[0]
                             .challenges
                             .iter()
                             .find(|&c| &c.r#type == "http-01")
-                            .is_some()
+                        {
+                            Some(c) => Some(c.token.clone()),
+                            None => None,
+                        }
                     })
-                    .unwrap()
-                    .get("token")
-                    .unwrap()
-                    .as_str()
                     .unwrap();
                 println!("DEBUG token={:?}", token);
             }
@@ -183,7 +186,7 @@ impl Bootable for ApiProvider {
         let issuers = kubectl
             .get("clusterissuers")
             .expect("kubectl could not get clusterissuers");
-        return if let Some(issuers) = issuers.as_array() {
+        return if let Some(issuers) = issuers.get("items").unwrap().as_array() {
             issuers
                 .iter()
                 .find(|&v| {
