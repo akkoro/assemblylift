@@ -134,17 +134,17 @@ impl Bootable for ApiProvider {
             .collect_vec()
         {
             if let Some(domain_name) = service.domain_name.clone() {
+                let service_domain = format!("{}.{}", service.name.clone(), domain_name.clone());
                 let certificate_yaml = CertificateTemplate {
                     project_name: project_name.clone(),
                     service_name: service.name.clone(),
-                    domain_name,
+                    domain_name: service_domain.clone(),
                 }
                 .render();
                 kubectl
                     .apply_from_str(&certificate_yaml)
                     .expect("could not apply certificate yaml");
 
-                // TODO get order token & create virtual service
                 let orders = kubectl
                     .get_in_namespace(
                         "orders.acme.cert-manager.io",
@@ -158,8 +158,9 @@ impl Bootable for ApiProvider {
                     .unwrap()
                     .iter()
                     .find_map(|item| {
-                        let status = serde_json::from_value::<Status>(item.get("status").unwrap().clone())
-                            .unwrap();
+                        let status =
+                            serde_json::from_value::<Status>(item.get("status").unwrap().clone())
+                                .unwrap();
                         if status.authorizations.len() == 0 {
                             return None;
                         }
@@ -174,6 +175,39 @@ impl Bootable for ApiProvider {
                     })
                     .unwrap();
                 println!("DEBUG token={:?}", token);
+                let upstreams = kubectl
+                    .get_in_namespace("upstreams", "gloo-system")
+                    .unwrap();
+                let upstreams = upstreams.get("items")
+                    .unwrap()
+                    .as_array()
+                    .unwrap();
+                let solver_upstream = upstreams
+                    .iter()
+                    .find_map(|u| {
+                        let upstream: Upstream = serde_json::from_value(u.clone()).unwrap();
+                        match upstream.name.contains(&format!(
+                            "asml-{}-{}-cm-acme-http-solver",
+                            project_name.clone(),
+                            service.name.clone()
+                        )) {
+                            true => Some(upstream),
+                            false => None,
+                        }
+                    })
+                    .unwrap();
+                let challenge_service_yaml = AcmeChallengeServiceTemplate {
+                    project_name: project_name.clone(),
+                    service_name: service.name.clone(),
+                    domain_names: vec![service_domain.clone()],
+                    token,
+                    upstream_name: solver_upstream.name.clone(),
+                }
+                .render();
+                println!("DEBUG challenge_service_yaml={:?}", challenge_service_yaml);
+                kubectl
+                    .apply_from_str(&challenge_service_yaml)
+                    .expect("could not apply acme challenge service yaml");
             }
         }
 
