@@ -17,6 +17,7 @@ use crate::transpiler::{
 pub struct Context {
     pub project: Project,
     pub terraform: Option<Terraform>,
+    pub domains: Vec<Domain>,
     pub services: Vec<Service>,
     pub functions: Vec<Function>,
     pub authorizers: Vec<Authorizer>,
@@ -40,6 +41,18 @@ impl Context {
             .map(|r| Registry {
                 host: r.host.clone(),
                 options: r.options.clone(),
+            })
+            .collect();
+        let mut ctx_domains= manifest
+            .domains
+            .unwrap_or(Vec::new())
+            .iter()
+            .map(|d| Domain {
+                dns_name: d.dns_name.clone(),
+                provider: Rc::new(Provider {
+                    name: d.provider_name.clone(),
+                    options: Arc::new(d.options.clone()),
+                }),
             })
             .collect();
 
@@ -142,6 +155,7 @@ impl Context {
                 }),
                 None => None,
             },
+            domains: ctx_domains,
             services: ctx_services,
             functions: ctx_functions,
             authorizers: ctx_authorizers,
@@ -275,6 +289,11 @@ pub struct Terraform {
 pub struct Registry {
     pub host: String,
     pub options: StringMap<String>,
+}
+
+pub struct Domain {
+    pub dns_name: String,
+    pub provider: Rc<Provider>,
 }
 
 #[derive(Clone)]

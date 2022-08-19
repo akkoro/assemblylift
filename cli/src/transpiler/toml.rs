@@ -12,6 +12,7 @@ pub mod asml {
         pub project: Project,
         #[serde(skip_serializing_if = "Vec::is_empty", default = "Default::default")]
         pub services: Rc<Vec<Rc<ServiceRef>>>,
+        pub domains: Option<Vec<Domain>>,
         pub terraform: Option<Terraform>,
         pub registries: Option<Vec<Registry>>,
     }
@@ -36,6 +37,13 @@ pub mod asml {
     #[derive(Serialize, Deserialize, Clone, Debug)]
     pub struct Registry {
         pub host: String,
+        pub options: Options,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug)]
+    pub struct Domain {
+        pub dns_name: String,
+        pub provider_name: String,
         pub options: Options,
     }
 

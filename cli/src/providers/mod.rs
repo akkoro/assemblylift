@@ -9,10 +9,17 @@ pub mod aws_lambda;
 pub mod aws_lambda_alpine;
 pub mod gloo;
 pub mod k8s;
+pub mod route53;
 
 pub type ProviderMap = StringMap<Mutex<Box<dyn Provider + Send + Sync>>>;
 
 pub static PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
+    let mut dns_providers = ProviderMap::new();
+    dns_providers.insert(
+        String::from("route53"),
+        Mutex::new(Box::new(route53::DnsProvider::new())),
+    );
+
     let mut map = ProviderMap::new();
     map.insert(
         String::from("aws-lambda"),
@@ -20,7 +27,7 @@ pub static PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     );
     map.insert(
         String::from("k8s"),
-        Mutex::new(Box::new(k8s::KubernetesProvider::new())),
+        Mutex::new(Box::new(k8s::KubernetesProvider::new(dns_providers))),
     );
     map
 });

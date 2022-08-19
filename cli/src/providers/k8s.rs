@@ -6,7 +6,7 @@ use handlebars::Handlebars;
 use itertools::Itertools;
 use serde::Serialize;
 
-use crate::providers::{gloo, Options, Provider, ProviderError};
+use crate::providers::{gloo, Options, Provider, ProviderError, ProviderMap};
 use crate::tools::glooctl::GlooCtl;
 use crate::transpiler::context::Context;
 use crate::transpiler::{context, Artifact, Bindable, CastError, Castable, ContentType, Template, Bootable};
@@ -21,15 +21,17 @@ fn map_container_registry(r: &context::Registry) -> ContainerRegistry {
 
 pub struct KubernetesProvider {
     api_provider: Arc<gloo::ApiProvider>,
+    dns_providers: ProviderMap,
     service_subprovider: KubernetesService,
     options: Arc<Options>,
 }
 
 impl KubernetesProvider {
-    pub fn new() -> Self {
+    pub fn new(dns_providers: ProviderMap) -> Self {
         let api_provider = Arc::new(gloo::ApiProvider::new());
         Self {
             api_provider: api_provider.clone(),
+            dns_providers,
             service_subprovider: KubernetesService {
                 api_provider: api_provider.clone(),
                 options: Arc::new(Options::new()),
