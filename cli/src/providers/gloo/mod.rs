@@ -116,9 +116,13 @@ impl Bootable for ApiProvider {
                 .clone()
                 .into_iter()
                 .map(|s| {
-                    s.domain_name
-                        .clone()
-                        .unwrap_or(format!("{}.com", &project_name))
+                    format!(
+                        "{}.{}", 
+                        s.name.clone(), 
+                        s.domain_name
+                            .clone()
+                            .unwrap_or(format!("{}.com", &project_name))
+                    )
                 })
                 .collect_vec(),
         }
@@ -158,6 +162,7 @@ impl Bootable for ApiProvider {
                     .unwrap()
                     .iter()
                     .find_map(|item| {
+                        println!("DEBUG item={:?}", item.clone());
                         let status =
                             serde_json::from_value::<Status>(item.get("status").unwrap().clone())
                                 .unwrap();
@@ -186,7 +191,7 @@ impl Bootable for ApiProvider {
                     .iter()
                     .find_map(|u| {
                         let upstream: Upstream = serde_json::from_value(u.clone()).unwrap();
-                        match upstream.name.contains(&format!(
+                        match upstream.metadata.name.contains(&format!(
                             "asml-{}-{}-cm-acme-http-solver",
                             project_name.clone(),
                             service.name.clone()
@@ -201,7 +206,7 @@ impl Bootable for ApiProvider {
                     service_name: service.name.clone(),
                     domain_names: vec![service_domain.clone()],
                     token,
-                    upstream_name: solver_upstream.name.clone(),
+                    upstream_name: solver_upstream.metadata.name.clone(),
                 }
                 .render();
                 println!("DEBUG challenge_service_yaml={:?}", challenge_service_yaml);
@@ -309,6 +314,11 @@ struct RouteActionSingle {
 
 #[derive(Deserialize, Clone, Debug)]
 struct Upstream {
+    metadata: Metadata,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+struct Metadata {
     name: String,
     namespace: String,
 }
