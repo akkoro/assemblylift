@@ -73,7 +73,14 @@ impl Provider for DnsProvider {
 #[derive(Serialize)]
 struct Route53Template {
     project_name: String,
-    hosted_zone_id: String,
+    records: Vec<Record>,
+    zone_name_snaked: String,
+    zone_name: String,
+}
+
+#[derive(Serialize)]
+struct Record {
+    name: String,
 }
 
 impl Template for Route53Template {
@@ -85,6 +92,18 @@ impl Template for Route53Template {
 
     fn tmpl() -> &'static str {
         r#"#Begin Route53
-        "#
+data aws_route53_zone {{zone_name_snaked}} {
+  name = {{zone_name}}
+}
+{{#each records}}
+resource aws_route53_record {{this.name}} {
+  zone_id = data.aws_route53_zone.{{../zone_name_snaked}}.zone_id
+  name    = "{{}}"
+  type    = "A"
+  ttl     = "300"
+  records = ["{{}}"]
+}
+{{/each}}
+"#
     }
 }
