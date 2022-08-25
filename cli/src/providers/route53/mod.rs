@@ -2,6 +2,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use handlebars::Handlebars;
+use itertools::Itertools;
 use serde::Serialize;
 
 use crate::providers::{Options, Provider, ProviderError};
@@ -24,12 +25,22 @@ impl DnsProvider {
 impl Castable for DnsProvider {
     fn cast(&self, ctx: Rc<Context>, _selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
         let project_name = ctx.project.name.clone();
-        // let domains = ctx.domains;
+        for domain in ctx
+            .domains
+            .iter()
+            .filter(|&d| d.provider.name == self.name())
+            .collect_vec()
+        {
+            let domain_provider = domain.provider.clone();
+        }
 
         let rendered_hcl = Route53Template {
             project_name,
-            hosted_zone_id: "".to_string(),
-        }.render();
+            records: vec![],
+            zone_name_snaked: "".to_string(),
+            zone_name: "".to_string(),
+        }
+        .render();
         let out = Artifact {
             content_type: ContentType::HCL("HCL"),
             content: rendered_hcl,
@@ -40,17 +51,17 @@ impl Castable for DnsProvider {
 }
 
 impl Bindable for DnsProvider {
-    fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+    fn bind(&self, _ctx: Rc<Context>) -> Result<(), CastError> {
         Ok(())
     }
 }
 
 impl Bootable for DnsProvider {
-    fn boot(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+    fn boot(&self, _ctx: Rc<Context>) -> Result<(), CastError> {
         Ok(())
     }
 
-    fn is_booted(&self, ctx: Rc<Context>) -> bool {
+    fn is_booted(&self, _ctx: Rc<Context>) -> bool {
         true
     }
 }
@@ -81,6 +92,7 @@ struct Route53Template {
 #[derive(Serialize)]
 struct Record {
     name: String,
+    target: String,
 }
 
 impl Template for Route53Template {
@@ -98,10 +110,10 @@ data aws_route53_zone {{zone_name_snaked}} {
 {{#each records}}
 resource aws_route53_record {{this.name}} {
   zone_id = data.aws_route53_zone.{{../zone_name_snaked}}.zone_id
-  name    = "{{}}"
+  name    = "{{this.name}}.{{../zone_name}}"
   type    = "A"
   ttl     = "300"
-  records = ["{{}}"]
+  records = ["{{this.target}}"]
 }
 {{/each}}
 "#
