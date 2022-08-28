@@ -19,27 +19,29 @@ name = "{{project_name}}"
 name = "{{default_service_name}}"
 "#;
 
-pub static ROOT_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
-    Document {
-        file_name: "assemblylift.toml",
-        document: String::from(ASSEMBLYLIFT_TOML),
-    },
-    Document {
-        file_name: ".gitignore",
-        document: String::from(ROOT_GITIGNORE),
-    },
-])));
+pub static ROOT_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| {
+    Arc::new(Vec::from([
+        Document {
+            file_name: "assemblylift.toml",
+            document: String::from(ASSEMBLYLIFT_TOML),
+        },
+        Document {
+            file_name: ".gitignore",
+            document: String::from(ROOT_GITIGNORE),
+        },
+    ]))
+});
 
 static SERVICE_TOML: &str = r#"[service]
 name = "{{service_name}}"
 "#;
 
-pub static SERVICE_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
-    Document {
+pub static SERVICE_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| {
+    Arc::new(Vec::from([Document {
         file_name: "service.toml",
         document: String::from(SERVICE_TOML),
-    },
-])));
+    }]))
+});
 
 static FUNCTION_CARGO_TOML: &str = r#"[package]
 name = "{{function_name}}"
@@ -79,20 +81,22 @@ end
 main(JSON.parse(Asml.get_function_input()))
 "#;
 
-pub static RUST_FUNCTION_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
-    Document {
-        file_name: "Cargo.toml",
-        document: String::from(FUNCTION_CARGO_TOML),
-    },
-    Document {
-        file_name: "src/main.rs",
-        document: String::from(FUNCTION_MAIN_RS),
-    },
-])));
+pub static RUST_FUNCTION_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| {
+    Arc::new(Vec::from([
+        Document {
+            file_name: "Cargo.toml",
+            document: String::from(FUNCTION_CARGO_TOML),
+        },
+        Document {
+            file_name: "src/main.rs",
+            document: String::from(FUNCTION_MAIN_RS),
+        },
+    ]))
+});
 
-pub static RUBY_FUNCTION_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| Arc::new(Vec::from([
-    Document {
+pub static RUBY_FUNCTION_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| {
+    Arc::new(Vec::from([Document {
         file_name: "handler.rb",
         document: String::from(FUNCTION_HANDLER_RB),
-    },
-])));
+    }]))
+});

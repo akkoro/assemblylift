@@ -46,7 +46,8 @@ impl Runner {
                     module.clone(),
                     module.name().unwrap_or("handler"),
                     store.clone(),
-                ).expect("could not assemble module environment");
+                )
+                .expect("could not assemble module environment");
 
                 mt.1.host_input_buffer
                     .clone()
@@ -63,16 +64,10 @@ impl Runner {
                 tokio::task::spawn_local(async move {
                     let start = instance.exports.get_function("_start").unwrap();
                     match start.call(&[]) {
-                        Ok(_) => {
-                            msg.status_sender
-                                .send(Status::Exited(0))
-                        }
-                        Err(_) => {
-                            msg.status_sender
-                                .send(Status::Failure(
-                                    "WASM module exited in error".to_string(),
-                                ))
-                        }
+                        Ok(_) => msg.status_sender.send(Status::Exited(0)),
+                        Err(_) => msg
+                            .status_sender
+                            .send(Status::Failure("WASM module exited in error".to_string())),
                     }
                 });
             }

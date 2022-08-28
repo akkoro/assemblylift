@@ -77,14 +77,13 @@ async fn main() {
         let (registry_tx, registry_rx) = mpsc::channel(32);
         registry::spawn_registry(registry_rx).unwrap();
 
-        let (module, store) =
-            match wasm::deserialize_module_from_path::<OpenFaasAbi, Status>(
-                "/opt/assemblylift", // TODO get from env
-                "handler",          // TODO get from env
-            ) {
-                Ok(module) => (Arc::new(module.0), Arc::new(module.1)),
-                Err(_) => panic!("Unable to build WASM module"),
-            };
+        let (module, store) = match wasm::deserialize_module_from_path::<OpenFaasAbi, Status>(
+            "/opt/assemblylift", // TODO get from env
+            "handler",           // TODO get from env
+        ) {
+            Ok(module) => (Arc::new(module.0), Arc::new(module.1)),
+            Err(_) => panic!("Unable to build WASM module"),
+        };
 
         let (resolver, threader_env) = wasm::build_module::<OpenFaasAbi, Status>(
             registry_tx.clone(),
@@ -92,7 +91,8 @@ async fn main() {
             module.clone(),
             "handler",
             store.clone(),
-        ).expect("could not build WASM module");
+        )
+        .expect("could not build WASM module");
 
         spawn_runner(
             status_tx.clone(),
@@ -103,7 +103,9 @@ async fn main() {
         );
 
         let mut rx = Some(status_rx);
-        Ok::<_, Infallible>(service_fn(move |req| launcher(req, runner_tx.clone(), rx.take().unwrap())))
+        Ok::<_, Infallible>(service_fn(move |req| {
+            launcher(req, runner_tx.clone(), rx.take().unwrap())
+        }))
     });
 
     if let Err(e) = Server::bind(&addr).serve(make_svc).await {

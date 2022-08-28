@@ -4,8 +4,8 @@ use tracing::{debug, instrument, warn};
 
 use crate::ProviderState;
 
-use super::ContainerState;
 use super::terminated::Terminated;
+use super::ContainerState;
 
 /// The container is starting.
 #[derive(Debug, TransitionTo)]

@@ -1,3 +1,5 @@
+use itertools::Itertools;
+use std::collections::HashMap;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -42,7 +44,10 @@ impl KubeCtl {
 
         let output = child.wait_with_output().unwrap();
         if output.status.code().unwrap() != 0i32 {
-            return Err(format!("kubectl apply exited with error code {:?}", output.status))
+            return Err(format!(
+                "kubectl apply exited with error code {:?}",
+                output.status
+            ));
         }
 
         let out = std::str::from_utf8(&*output.stdout).unwrap();
@@ -70,7 +75,10 @@ impl KubeCtl {
 
         let output = child.wait_with_output().unwrap();
         if output.status.code().unwrap() != 0i32 {
-            return Err(format!("kubectl apply exited with error code {:?}", output.status))
+            return Err(format!(
+                "kubectl apply exited with error code {:?}",
+                output.status
+            ));
         }
 
         let out = std::str::from_utf8(&*output.stdout).unwrap();
@@ -108,11 +116,32 @@ impl KubeCtl {
         Ok(serde_json::from_str(json).unwrap())
     }
 
-    pub fn get_in_namespace(&self, kind: &str, ns: &str) -> Result<Value, String> {
+    pub fn get_in_namespace(
+        &self,
+        kind: &str,
+        ns: &str,
+        labels: Option<HashMap<String, String>>,
+    ) -> Result<Value, String> {
+        let label_args = labels
+            .unwrap_or(Default::default())
+            .into_iter()
+            .map(|l| {
+                vec![
+                    "-l".to_string(),
+                    format!("{}={}", l.0.to_owned(), l.1.to_owned()),
+                ]
+            })
+            .reduce(|accum, mut v| {
+                let mut a = accum;
+                a.append(&mut v);
+                a
+            })
+            .unwrap();
         let mut child = self
             .command()
             .args(vec!["get", kind])
             .args(vec!["-n", ns])
+            .args(label_args)
             .args(vec!["-o", "json"])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

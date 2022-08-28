@@ -9,8 +9,7 @@ use crate::transpiler::toml::service::Function;
 
 pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> PathBuf {
     let function_name = function.name.clone();
-    let function_artifact_path =
-        format!("./net/services/{}/{}", service_name, function_name);
+    let function_artifact_path = format!("./net/services/{}/{}", service_name, function_name);
 
     let function_path = PathBuf::from(format!(
         "{}/Cargo.toml",
@@ -59,7 +58,11 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
     let copy_to = format!("{}/{}.wasm", function_artifact_path.clone(), &function_name);
     let copy_result = std::fs::copy(copy_from.clone(), copy_to.clone());
     if copy_result.is_err() {
-        println!("ERROR COPY from={} to={}", copy_from.clone(), copy_to.clone());
+        println!(
+            "ERROR COPY from={} to={}",
+            copy_from.clone(),
+            copy_to.clone()
+        );
         panic!("{:?}", copy_result.err());
     }
 

@@ -3,7 +3,10 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use wasmer::{ChainableNamedResolver, CpuFeature, Cranelift, Function, ImportObject, imports, Instance, InstantiationError, Module, NamedResolverChain, Store, Target, Triple, Universal};
+use wasmer::{
+    imports, ChainableNamedResolver, CpuFeature, Cranelift, Function, ImportObject, Instance,
+    InstantiationError, Module, NamedResolverChain, Store, Target, Triple, Universal,
+};
 use wasmer_wasi::WasiState;
 
 use assemblylift_core_iomod::registry::RegistryTx;
@@ -33,9 +36,7 @@ where
     ))
 }
 
-pub fn deserialize_module_from_bytes<R, S>(
-    module_bytes: &[u8],
-) -> anyhow::Result<(Module, Store)>
+pub fn deserialize_module_from_bytes<R, S>(module_bytes: &[u8]) -> anyhow::Result<(Module, Store)>
 where
     R: RuntimeAbi<S> + 'static,
     S: Clone + Send + Sized + 'static,
@@ -126,7 +127,10 @@ pub fn new_instance(
 
 pub fn precompile(module_path: PathBuf) -> Result<PathBuf, &'static str> {
     // TODO compiler configuration
-    let is_wasmu = module_path.extension().unwrap_or("wasm".as_ref()).eq("wasmu");
+    let is_wasmu = module_path
+        .extension()
+        .unwrap_or("wasm".as_ref())
+        .eq("wasmu");
     match is_wasmu {
         false => {
             let file_path = format!("{}u", module_path.as_path().display().to_string());
@@ -136,9 +140,10 @@ pub fn precompile(module_path: PathBuf) -> Result<PathBuf, &'static str> {
             let triple = Triple::from_str("x86_64-unknown-unknown").unwrap();
             let mut cpuid = CpuFeature::set();
             cpuid.insert(CpuFeature::SSE2); // required for x86
-            let store = Store::new(&/*Native*/Universal::new(compiler)
+            let store = Store::new(
+                &/*Native*/Universal::new(compiler)
                 .target(Target::new(triple, cpuid))
-                .engine()
+                .engine(),
             );
 
             let wasm_bytes = match std::fs::read(module_path.clone()) {
@@ -157,6 +162,6 @@ pub fn precompile(module_path: PathBuf) -> Result<PathBuf, &'static str> {
             Ok(PathBuf::from(file_path))
         }
 
-        true => Ok(module_path)
+        true => Ok(module_path),
     }
 }

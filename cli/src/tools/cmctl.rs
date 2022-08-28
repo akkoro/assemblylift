@@ -26,8 +26,7 @@ impl CmCtl {
 
     pub fn install(&self) {
         println!("Installing cert-manager");
-        self.
-            command()
+        self.command()
             .args(vec!["x", "install"])
             .output()
             .expect("cmctl could not install cert-manager");

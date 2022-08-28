@@ -1,13 +1,16 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use handlebars::Handlebars;
 use itertools::Itertools;
+use jsonpath_lib::Selector;
 use serde::Serialize;
 
 use crate::providers::{Options, Provider, ProviderError};
-use crate::transpiler::{Artifact, Bindable, Bootable, Castable, CastError, ContentType, Template};
+use crate::tools::kubectl::KubeCtl;
 use crate::transpiler::context::Context;
+use crate::transpiler::{Artifact, Bindable, Bootable, CastError, Castable, ContentType, Template};
 
 pub struct DnsProvider {
     /// access_key_id, secret_key, aws_region, hosted_zone_id
@@ -20,25 +23,54 @@ impl DnsProvider {
             options: Arc::new(Options::new()),
         }
     }
+
+    fn gloo_proxy_ip(&self) -> String {
+        let mut labels = HashMap::new();
+        labels.insert("gloo".to_string(), "gateway-proxy".to_string());
+        let kubectl = KubeCtl::default();
+        let gateways = kubectl
+            .get_in_namespace("services", "gloo-system", Some(labels))
+            .unwrap();
+        let mut selector = Selector::new();
+        selector
+            .str_path("$.items[0].status.loadBalancer.ingress[0].ip")
+            .unwrap()
+            .value(&gateways)
+            .select_as_str()
+            .unwrap()
+    }
 }
 
 impl Castable for DnsProvider {
     fn cast(&self, ctx: Rc<Context>, _selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
         let project_name = ctx.project.name.clone();
-        for domain in ctx
+        let zones = ctx
             .domains
             .iter()
             .filter(|&d| d.provider.name == self.name())
-            .collect_vec()
-        {
-            let domain_provider = domain.provider.clone();
-        }
+            .map(|d| Zone {
+                name: d.dns_name.clone(),
+                name_snaked: d.dns_name.replace(".", "_"),
+            })
+            .collect_vec();
+        let records = ctx
+            .services
+            .iter()
+            .filter(|&s| s.domain_name.is_some())
+            .map(|s| Record {
+                name: s.name.clone(),
+                target: "".to_string(), // TODO gloo or apigw (will need to lookup aws, run kubectl for gloo)
+                zone: Zone {
+                    name: s.domain_name.as_ref().unwrap().clone(),
+                    name_snaked: s.domain_name.as_ref().unwrap().replace(".", "_"),
+                },
+            })
+            .collect_vec();
 
         let rendered_hcl = Route53Template {
             project_name,
-            records: vec![],
-            zone_name_snaked: "".to_string(),
-            zone_name: "".to_string(),
+            records,
+            zones,
         }
         .render();
         let out = Artifact {
@@ -85,14 +117,20 @@ impl Provider for DnsProvider {
 struct Route53Template {
     project_name: String,
     records: Vec<Record>,
-    zone_name_snaked: String,
-    zone_name: String,
+    zones: Vec<Zone>,
 }
 
 #[derive(Serialize)]
 struct Record {
     name: String,
     target: String,
+    zone: Zone,
+}
+
+#[derive(Serialize)]
+struct Zone {
+    name: String,
+    name_snaked: String,
 }
 
 impl Template for Route53Template {
@@ -104,13 +142,13 @@ impl Template for Route53Template {
 
     fn tmpl() -> &'static str {
         r#"#Begin Route53
-data aws_route53_zone {{zone_name_snaked}} {
-  name = {{zone_name}}
-}
+{{#each zones}}data aws_route53_zone {{this.name_snaked}} {
+  name = {{this.name}}
+}{{/each}}
 {{#each records}}
 resource aws_route53_record {{this.name}} {
-  zone_id = data.aws_route53_zone.{{../zone_name_snaked}}.zone_id
-  name    = "{{this.name}}.{{../zone_name}}"
+  zone_id = data.aws_route53_zone.{{this.zone.name_snaked}}.zone_id
+  name    = "{{this.name}}.{{this.zone.name}}"
   type    = "A"
   ttl     = "300"
   records = ["{{this.target}}"]

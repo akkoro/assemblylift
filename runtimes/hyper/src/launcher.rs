@@ -3,13 +3,13 @@ use std::convert::Infallible;
 use std::net::SocketAddr;
 
 use crossbeam_channel::bounded;
-use hyper::{Body, Request, Response, Server};
 use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Request, Response, Server};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
 
-use crate::{Failure, RunnerMessage, RunnerTx, StatusRx, StatusTx, Success};
 use crate::Status::Exited;
+use crate::{Failure, RunnerMessage, RunnerTx, StatusRx, StatusTx, Success};
 
 pub struct Launcher {
     runtime: tokio::runtime::Runtime,
@@ -79,7 +79,10 @@ async fn launch(
 
     debug!("waiting for runner response...");
     while let Ok(result) = status_rx.recv() {
-        debug!("launcher received status response from runner: {:?}", result);
+        debug!(
+            "launcher received status response from runner: {:?}",
+            result
+        );
         return Ok(match result {
             Exited(_status) => continue, // TODO start timeout to default response
             Success(response) => Response::builder()

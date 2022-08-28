@@ -37,8 +37,7 @@ where
         if tool.fetch_url().contains(".tar.gz") {
             let tar = GzDecoder::new(response);
             let mut ar = tar::Archive::new(tar);
-            ar
-                .entries()
+            ar.entries()
                 .expect("cmctl archive is empty")
                 .find(|e| e.as_ref().unwrap().path().unwrap().file_name().unwrap() == "cmctl")
                 .expect("cmctl not found in archive")

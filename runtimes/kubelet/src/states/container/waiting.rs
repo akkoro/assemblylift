@@ -1,7 +1,7 @@
+use crossbeam_channel::bounded;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use crossbeam_channel::bounded;
 
 use tokio::sync::mpsc;
 use tracing::{debug, info, instrument};
@@ -177,7 +177,7 @@ impl State<ContainerState> for Waiting {
             log_path,
             tx,
         )
-            .await
+        .await
         {
             Ok(runtime) => runtime,
             Err(e) => {

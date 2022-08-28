@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 
-use serde::{Deserialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Deserialize};
 
 use assemblylift_core_io_common::constants::{FUNCTION_INPUT_BUFFER_SIZE, IO_BUFFER_SIZE_BYTES};
 
@@ -83,11 +83,9 @@ impl std::io::Read for IoDocument {
         let mut bytes_read = 0usize;
         if self.bytes_read < self.length {
             for idx in 0..std::cmp::min(self.length, buf.len()) {
-                // unsafe: bytes_read is always positive, mod IO_BUFFER_SIZE_BYTES 
+                // unsafe: bytes_read is always positive, mod IO_BUFFER_SIZE_BYTES
                 //         is always less than IO_BUFFER_SIZE_BYTES
-                buf[idx] = unsafe { 
-                    IO_BUFFER[self.bytes_read % IO_BUFFER_SIZE_BYTES]
-                };
+                buf[idx] = unsafe { IO_BUFFER[self.bytes_read % IO_BUFFER_SIZE_BYTES] };
                 bytes_read += 1;
                 self.bytes_read += 1;
                 if self.bytes_read % IO_BUFFER_SIZE_BYTES == 0 {
@@ -118,7 +116,7 @@ impl<'a, R: Deserialize<'a>> Io<'_, R> {
     }
 }
 
-impl<'a, R> Future for Io<'_, R> 
+impl<'a, R> Future for Io<'_, R>
 where
     R: DeserializeOwned,
 {
@@ -188,9 +186,8 @@ impl std::io::Read for FunctionInputBuffer {
             for idx in 0..std::cmp::min(self.length, buf.len()) {
                 // unsafe: bytes_read is always positive, mod FUNCTION_INPUT_BUFFER_SIZE
                 //         is always less than FUNCTION_INPUT_BUFFER_SIZE
-                buf[idx] = unsafe {
-                    FUNCTION_INPUT_BUFFER[self.bytes_read % FUNCTION_INPUT_BUFFER_SIZE]
-                };
+                buf[idx] =
+                    unsafe { FUNCTION_INPUT_BUFFER[self.bytes_read % FUNCTION_INPUT_BUFFER_SIZE] };
                 bytes_read += 1;
                 self.bytes_read += 1;
                 if self.bytes_read % FUNCTION_INPUT_BUFFER_SIZE == 0 {

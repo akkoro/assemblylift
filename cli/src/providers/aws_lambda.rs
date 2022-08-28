@@ -14,7 +14,9 @@ use serde::Serialize;
 use crate::archive;
 use crate::providers::{render_string_list, Options, Provider, ProviderError};
 use crate::transpiler::context::{Context, Function};
-use crate::transpiler::{context, Artifact, Bindable, CastError, Castable, ContentType, Template, Bootable};
+use crate::transpiler::{
+    context, Artifact, Bindable, Bootable, CastError, Castable, ContentType, Template,
+};
 
 pub struct AwsLambdaProvider {
     options: Arc<Options>,

@@ -114,17 +114,13 @@ async fn main() {
     if let Ok("ruby-lambda") = env::var("ASML_FUNCTION_ENV").as_deref() {
         let rubysrc_path = "/tmp/rubysrc";
         if !Path::new(&rubysrc_path).exists() {
-            fs::create_dir_all(rubysrc_path).expect(&*format!(
-                "unable to create directory {:?}",
-                rubysrc_path
-            ));
+            fs::create_dir_all(rubysrc_path)
+                .expect(&*format!("unable to create directory {:?}", rubysrc_path));
         }
         let rubyusr_path = "/tmp/rubyusr";
         if !Path::new(&rubyusr_path).exists() {
-            fs::create_dir_all(rubyusr_path).expect(&*format!(
-                "unable to create directory {:?}",
-                rubyusr_path
-            ));
+            fs::create_dir_all(rubyusr_path)
+                .expect(&*format!("unable to create directory {:?}", rubyusr_path));
         }
 
         fn copy_entries(dir: &PathBuf, to: &PathBuf) {
@@ -145,8 +141,14 @@ async fn main() {
                 }
             }
         }
-        copy_entries(&PathBuf::from(format!("{}/rubysrc", &module_path)), &PathBuf::from(rubysrc_path));
-        copy_entries(&PathBuf::from("/opt/ruby-wasm32-wasi/usr"), &PathBuf::from(rubyusr_path));
+        copy_entries(
+            &PathBuf::from(format!("{}/rubysrc", &module_path)),
+            &PathBuf::from(rubysrc_path),
+        );
+        copy_entries(
+            &PathBuf::from("/opt/ruby-wasm32-wasi/usr"),
+            &PathBuf::from(rubyusr_path),
+        );
     }
 
     let (status_sender, _status_receiver) = bounded::<()>(1);
@@ -177,7 +179,8 @@ async fn main() {
                     module.clone(),
                     &function_name,
                     store.clone(),
-                ).expect("could not build WASM module");
+                )
+                .expect("could not build WASM module");
                 // TODO we can save some cycles by creating Instances up-front in a pool & recycling them
                 let instance = match wasm::new_instance(module.clone(), import_object.clone()) {
                     Ok(instance) => Arc::new(instance),

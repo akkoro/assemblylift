@@ -11,7 +11,7 @@ use serde::Serialize;
 use crate::projectfs::Project as ProjectFs;
 use crate::providers::PROVIDERS;
 use crate::transpiler::{
-    Artifact, Bindable, Castable, CastError, ContentType, StringMap, Template, toml,
+    toml, Artifact, Bindable, CastError, Castable, ContentType, StringMap, Template,
 };
 
 pub struct Context {
@@ -43,7 +43,7 @@ impl Context {
                 options: r.options.clone(),
             })
             .collect();
-        let mut ctx_domains= manifest
+        let mut ctx_domains = manifest
             .domains
             .unwrap_or(Vec::new())
             .iter()
@@ -165,10 +165,7 @@ impl Context {
     }
 
     pub fn service(&self, name: &str) -> Option<&Service> {
-        self
-            .services
-            .iter()
-            .find(|&s| &s.name == name)
+        self.services.iter().find(|&s| &s.name == name)
     }
 }
 
@@ -254,17 +251,15 @@ impl Bindable for Context {
             let provider = PROVIDERS
                 .get(&*p.name.clone())
                 .expect("could not find provider");
-            let mut provider_lock = provider
-                .lock()
-                .unwrap();
+            let mut provider_lock = provider.lock().unwrap();
             provider_lock
                 .set_options(p.options.clone())
                 .expect("could not set provider options");
             // if !provider_lock.is_booted(ctx.clone()) {
-                println!("Booting provider {}...", provider_lock.name());
-                provider_lock
-                    .boot(ctx.clone())
-                    .expect("could not bootstrap provider");
+            println!("Booting provider {}...", provider_lock.name());
+            provider_lock
+                .boot(ctx.clone())
+                .expect("could not bootstrap provider");
             // }
             provider_lock
                 .bind(ctx.clone())

@@ -9,7 +9,9 @@ use serde::Serialize;
 use crate::providers::{gloo, Options, Provider, ProviderError, ProviderMap};
 use crate::tools::glooctl::GlooCtl;
 use crate::transpiler::context::Context;
-use crate::transpiler::{context, Artifact, Bindable, CastError, Castable, ContentType, Template, Bootable};
+use crate::transpiler::{
+    context, Artifact, Bindable, Bootable, CastError, Castable, ContentType, Template,
+};
 
 fn map_container_registry(r: &context::Registry) -> ContainerRegistry {
     ContainerRegistry {
@@ -61,6 +63,8 @@ impl Provider for KubernetesProvider {
 impl Castable for KubernetesProvider {
     fn cast(&self, ctx: Rc<Context>, _selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
         let registries = ctx.registries.iter().map(map_container_registry).collect();
+
+        // TODO cast domains
 
         let mut service_artifacts = ctx
             .services

@@ -101,10 +101,12 @@ pub fn command(matches: Option<&ArgMatches>) {
                     .clone();
                 service_manifest.remove_function(new_function);
 
-                let new_service_dir = &*project.service_dir(String::from(new_service)).dir().clone();
+                let new_service_dir =
+                    &*project.service_dir(String::from(new_service)).dir().clone();
                 let mut new_service_manifest_file = new_service_dir.clone();
                 new_service_manifest_file.push("service.toml");
-                let mut new_service_manifest = service::Manifest::read(&new_service_manifest_file).unwrap();
+                let mut new_service_manifest =
+                    service::Manifest::read(&new_service_manifest_file).unwrap();
                 let mut functions = Vec::new();
                 for fun in new_service_manifest.functions().as_ref() {
                     functions.push(fun.clone());

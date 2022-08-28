@@ -10,7 +10,10 @@ impl IomodManifest {
     pub fn read(path: &std::path::PathBuf) -> Result<Self, std::io::Error> {
         match std::fs::read_to_string(path) {
             Ok(contents) => Ok(Self::from(contents)),
-            Err(why) => Err(std::io::Error::new(std::io::ErrorKind::Other, why.to_string())),
+            Err(why) => Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                why.to_string(),
+            )),
         }
     }
 }

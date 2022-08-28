@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
-use wasmer::Module;
 use assemblylift_core::buffers::LinearBuffer;
 use assemblylift_core::threader::ThreaderEnv;
+use wasmer::Module;
 
 use assemblylift_core::wasm;
 use assemblylift_core::wasm::Resolver;
@@ -18,7 +18,13 @@ pub struct RunnerMessage {
     pub input: Vec<u8>,
 }
 
-pub fn spawn_runner(tx: StatusTx, mut rx: RunnerRx, module: Arc<Module>, resolver: Resolver, env: ThreaderEnv<Status>) {
+pub fn spawn_runner(
+    tx: StatusTx,
+    mut rx: RunnerRx,
+    module: Arc<Module>,
+    resolver: Resolver,
+    env: ThreaderEnv<Status>,
+) {
     std::thread::spawn(move || {
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         tokio::task::LocalSet::new().block_on(&mut rt, async {
@@ -38,7 +44,9 @@ pub fn spawn_runner(tx: StatusTx, mut rx: RunnerRx, module: Arc<Module>, resolve
                     let start = instance.exports.get_function("_start").unwrap();
                     match start.call(&[]) {
                         Ok(_) => tx.send(Status::Success("".to_string())),
-                        Err(_) => tx.send(Status::Failure("WASM module exited in error".to_string())),
+                        Err(_) => {
+                            tx.send(Status::Failure("WASM module exited in error".to_string()))
+                        }
                     }
                 });
             }

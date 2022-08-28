@@ -49,14 +49,21 @@ fn command_iomod(matches: Option<&ArgMatches>) {
             upload_part(
                 coordinates.clone(),
                 version.clone(),
-                package_bytes[(idx * part_size_bytes)..std::cmp::min((idx + 1usize) * part_size_bytes, package_bytes.len())].to_vec(),
+                package_bytes[(idx * part_size_bytes)
+                    ..std::cmp::min((idx + 1usize) * part_size_bytes, package_bytes.len())]
+                    .to_vec(),
                 auth_header.to_string(),
                 Some(idx as u32),
             )
             .unwrap();
         }
 
-        concat_parts(coordinates.clone(), version.clone(), auth_header.to_string()).unwrap();
+        concat_parts(
+            coordinates.clone(),
+            version.clone(),
+            auth_header.to_string(),
+        )
+        .unwrap();
     } else {
         upload_part(
             coordinates,
@@ -125,7 +132,7 @@ fn concat_parts(coordinates: Vec<&str>, version: Vec<&str>, auth_header: String)
             patch: version[2].parse::<u32>().unwrap(),
         },
     };
-    
+
     let client = reqwest::blocking::ClientBuilder::new()
         .build()
         .expect("could not build blocking HTTP client");

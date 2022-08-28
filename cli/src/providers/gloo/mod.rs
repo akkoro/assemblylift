@@ -117,8 +117,8 @@ impl Bootable for ApiProvider {
                 .into_iter()
                 .map(|s| {
                     format!(
-                        "{}.{}", 
-                        s.name.clone(), 
+                        "{}.{}",
+                        s.name.clone(),
                         s.domain_name
                             .clone()
                             .unwrap_or(format!("{}.com", &project_name))
@@ -153,6 +153,7 @@ impl Bootable for ApiProvider {
                     .get_in_namespace(
                         "orders.acme.cert-manager.io",
                         &format!("asml-{}-{}", project_name, service.name.clone()),
+                        None,
                     )
                     .expect("kubectl could not get acme orders");
                 let token = orders
@@ -181,12 +182,9 @@ impl Bootable for ApiProvider {
                     .unwrap();
                 println!("DEBUG token={:?}", token);
                 let upstreams = kubectl
-                    .get_in_namespace("upstreams", "gloo-system")
+                    .get_in_namespace("upstreams", "gloo-system", None)
                     .unwrap();
-                let upstreams = upstreams.get("items")
-                    .unwrap()
-                    .as_array()
-                    .unwrap();
+                let upstreams = upstreams.get("items").unwrap().as_array().unwrap();
                 let solver_upstream = upstreams
                     .iter()
                     .find_map(|u| {

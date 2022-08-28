@@ -4,15 +4,15 @@ use std::io;
 use std::io::ErrorKind;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use wasmer::{MemoryView, WasmPtr, Array};
+use wasmer::{Array, MemoryView, WasmPtr};
 
-use crate::{invoke_io, WasmBufferPtr};
 use crate::buffers::{LinearBuffer, PagedWasmBuffer};
 use crate::threader::ThreaderEnv;
+use crate::{invoke_io, WasmBufferPtr};
 
 pub type AsmlAbiFn<S> = fn(&ThreaderEnv<S>, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
 
-pub trait RuntimeAbi<S: Clone + Send + Sized + 'static,> {
+pub trait RuntimeAbi<S: Clone + Send + Sized + 'static> {
     fn log(env: &ThreaderEnv<S>, ptr: u32, len: u32);
     fn success(env: &ThreaderEnv<S>, ptr: u32, len: u32);
 }
@@ -44,11 +44,7 @@ pub fn asml_abi_io_poll<S>(env: &ThreaderEnv<S>, id: u32) -> i32
 where
     S: Clone + Send + Sized + 'static,
 {
-    env.threader
-        .clone()
-        .lock()
-        .unwrap()
-        .poll(id) as i32
+    env.threader.clone().lock().unwrap().poll(id) as i32
 }
 
 pub fn asml_abi_io_len<S>(env: &ThreaderEnv<S>, id: u32) -> u32
@@ -68,11 +64,7 @@ pub fn asml_abi_io_load<S>(env: &ThreaderEnv<S>, id: u32) -> i32
 where
     S: Clone + Send + Sized + 'static,
 {
-    match env.threader
-        .lock()
-        .unwrap()
-        .document_load(env, id)
-    {
+    match env.threader.lock().unwrap().document_load(env, id) {
         Ok(_) => 0,
         Err(_) => -1,
     }
@@ -82,11 +74,7 @@ pub fn asml_abi_io_next<S>(env: &ThreaderEnv<S>) -> i32
 where
     S: Clone + Send + Sized + 'static,
 {
-    match env.threader
-        .lock()
-        .unwrap()
-        .document_next(env)
-    {
+    match env.threader.lock().unwrap().document_next(env) {
         Ok(_) => 0,
         Err(_) => -1,
     }
@@ -97,9 +85,7 @@ where
     S: Clone + Send + Sized + 'static,
 {
     let start = SystemTime::now();
-    let unix_time = start
-        .duration_since(UNIX_EPOCH)
-        .expect("time is broken");
+    let unix_time = start.duration_since(UNIX_EPOCH).expect("time is broken");
     unix_time.as_secs() * 1000u64
 }
 
@@ -118,25 +104,22 @@ pub fn asml_abi_input_next<S>(env: &ThreaderEnv<S>) -> i32
 where
     S: Clone + Send + Sized + 'static,
 {
-    env.host_input_buffer
-        .clone()
-        .lock()
-        .unwrap()
-        .next(env)
+    env.host_input_buffer.clone().lock().unwrap().next(env)
 }
 
 pub fn asml_abi_input_length_get<S>(env: &ThreaderEnv<S>) -> u64
 where
     S: Clone + Send + Sized + 'static,
 {
-    env.host_input_buffer
-        .clone()
-        .lock()
-        .unwrap()
-        .len() as u64
+    env.host_input_buffer.clone().lock().unwrap().len() as u64
 }
 
-pub fn asml_abi_z85_encode<S>(env: &ThreaderEnv<S>, ptr: u32, len: u32, out_ptr: WasmPtr<u8, Array>) -> i32
+pub fn asml_abi_z85_encode<S>(
+    env: &ThreaderEnv<S>,
+    ptr: u32,
+    len: u32,
+    out_ptr: WasmPtr<u8, Array>,
+) -> i32
 where
     S: Clone + Send + Sized + 'static,
 {
@@ -145,12 +128,17 @@ where
         return match write_bytes_to_ptr(env, output.into_bytes(), out_ptr) {
             Ok(_) => 0i32,
             Err(_) => -1i32,
-        }
+        };
     }
     -1i32
 }
 
-pub fn asml_abi_z85_decode<S>(env: &ThreaderEnv<S>, ptr: u32, len: u32, out_ptr: WasmPtr<u8, Array>) -> i32
+pub fn asml_abi_z85_decode<S>(
+    env: &ThreaderEnv<S>,
+    ptr: u32,
+    len: u32,
+    out_ptr: WasmPtr<u8, Array>,
+) -> i32
 where
     S: Clone + Send + Sized + 'static,
 {
@@ -159,7 +147,7 @@ where
             return match write_bytes_to_ptr(env, output, out_ptr) {
                 Ok(_) => 0i32,
                 Err(_) => -1i32,
-            }
+            };
         }
     }
     -1i32
@@ -185,7 +173,11 @@ where
         .map_err(to_io_error)
 }
 
-fn write_bytes_to_ptr<S>(env: &ThreaderEnv<S>, s: Vec<u8>, ptr: WasmPtr<u8, Array>) -> Result<(), io::Error>
+fn write_bytes_to_ptr<S>(
+    env: &ThreaderEnv<S>,
+    s: Vec<u8>,
+    ptr: WasmPtr<u8, Array>,
+) -> Result<(), io::Error>
 where
     S: Clone + Send + Sized + 'static,
 {

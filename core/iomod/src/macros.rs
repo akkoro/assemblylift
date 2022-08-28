@@ -26,8 +26,7 @@ macro_rules! iomod {
         let stream = TcpStream::connect(format!("{}:13555", $ip)).await.unwrap();
         stream.set_nodelay(true).unwrap();
 
-        let (reader, writer) =
-            tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
+        let (reader, writer) = tokio_util::compat::TokioAsyncReadCompatExt::compat(stream).split();
 
         let rpc_network = Box::new(twoparty::VatNetwork::new(
             reader,

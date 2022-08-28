@@ -26,7 +26,11 @@ impl fmt::Display for ArchiveError {
     }
 }
 
-pub fn zip_dirs(dirs_in: Vec<PathBuf>, file_out: impl AsRef<Path>, exclude_files_named: Vec<&str>) -> Result<(), ()> {
+pub fn zip_dirs(
+    dirs_in: Vec<PathBuf>,
+    file_out: impl AsRef<Path>,
+    exclude_files_named: Vec<&str>,
+) -> Result<(), ()> {
     use walkdir::WalkDir;
 
     let file = match fs::File::create(&file_out) {
@@ -35,30 +39,38 @@ pub fn zip_dirs(dirs_in: Vec<PathBuf>, file_out: impl AsRef<Path>, exclude_files
     };
 
     let mut zip = zip::ZipWriter::new(file);
-    let options = FileOptions::default()
-        .compression_method(zip::CompressionMethod::Stored);
-
+    let options = FileOptions::default().compression_method(zip::CompressionMethod::Stored);
 
     for dir in dirs_in {
         for entry in WalkDir::new(dir.clone()).into_iter().filter_map(|e| e.ok()) {
-            if exclude_files_named.iter().find(|&f| f == &entry.file_name().to_str().unwrap()).is_none() {
+            if exclude_files_named
+                .iter()
+                .find(|&f| f == &entry.file_name().to_str().unwrap())
+                .is_none()
+            {
                 let mut root_dir_up = dir.clone();
                 root_dir_up.pop();
-                let zip_path = entry.path().to_str().unwrap().replace(root_dir_up.to_str().unwrap(), "");
+                let zip_path = entry
+                    .path()
+                    .to_str()
+                    .unwrap()
+                    .replace(root_dir_up.to_str().unwrap(), "");
 
                 let mut file_bytes = match fs::read(&entry.path()) {
                     Ok(bytes) => bytes,
                     Err(_) => continue,
                 };
 
-                zip.start_file(&format!("{}", zip_path), options).expect("could not create zip archive");
-                zip.write_all(file_bytes.as_mut_slice()).expect("could not create zip archive");
+                zip.start_file(&format!("{}", zip_path), options)
+                    .expect("could not create zip archive");
+                zip.write_all(file_bytes.as_mut_slice())
+                    .expect("could not create zip archive");
             }
         }
     }
 
     println!("🗜  > Wrote zip artifact {}", file_out.as_ref().display());
-    
+
     Ok(())
 }
 

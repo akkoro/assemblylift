@@ -20,7 +20,8 @@ impl RuntimeAbi<Status> for OpenFaasAbi {
 
     fn success(env: &ThreaderEnv<Status>, ptr: u32, len: u32) {
         let s = ptr_to_string(env, ptr, len).unwrap();
-        env.status_sender.send(Status::Success(s))
+        env.status_sender
+            .send(Status::Success(s))
             .expect_err("Could not send function status");
     }
 }

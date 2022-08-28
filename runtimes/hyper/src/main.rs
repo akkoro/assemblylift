@@ -14,8 +14,8 @@ use crate::runner::{Runner, RunnerMessage, RunnerTx};
 use crate::Status::{Failure, Success};
 
 mod abi;
-mod runner;
 mod launcher;
+mod runner;
 
 // pub type StatusTx = mpsc::Sender<Status>;
 // pub type StatusRx = mpsc::Receiver<Status>;
@@ -35,8 +35,7 @@ fn main() {
         .with_max_level(Level::DEBUG)
         .finish();
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     info!("Starting AssemblyLift hyper runtime v{}", crate_version!());
 
@@ -46,13 +45,12 @@ fn main() {
     let (module, store) = wasm::deserialize_module_from_path::<GenericDockerAbi, Status>(
         "/opt/assemblylift",
         &std::env::var("ASML_WASM_MODULE_NAME").unwrap_or("handler.wasm.bin".into()),
-    ).expect("could not deserialize WASM module");
+    )
+    .expect("could not deserialize WASM module");
 
     crossbeam_utils::thread::scope(|s| {
         let runner = Arc::new(Mutex::new(Runner::new(registry_tx)));
-        let tx = {
-            runner.clone().lock().unwrap().sender()
-        };
+        let tx = { runner.clone().lock().unwrap().sender() };
 
         let r = runner.clone();
         s.spawn(move |_| {
@@ -63,6 +61,6 @@ fn main() {
             let mut launcher = Launcher::new();
             launcher.spawn(tx);
         });
-
-    }).unwrap();
+    })
+    .unwrap();
 }

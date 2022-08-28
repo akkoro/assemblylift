@@ -4,23 +4,25 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use clap::crate_version;
-use kubelet::{Kubelet, node};
 use kubelet::config::Config;
-use kubelet::container::Container;
 use kubelet::container::state::prelude::SharedState;
+use kubelet::container::Container;
 use kubelet::log::Sender;
 use kubelet::node::Builder;
 use kubelet::plugin_watcher::PluginRegistry;
 use kubelet::pod::{Handle, Pod, PodKey};
-use kubelet::provider::{DevicePluginSupport, PluginSupport, Provider, ProviderError, VolumeSupport};
+use kubelet::provider::{
+    DevicePluginSupport, PluginSupport, Provider, ProviderError, VolumeSupport,
+};
 use kubelet::resources::DeviceManager;
-use kubelet::state::common::{GenericProvider, GenericProviderState};
 use kubelet::state::common::registered::Registered;
 use kubelet::state::common::terminated::Terminated;
+use kubelet::state::common::{GenericProvider, GenericProviderState};
 use kubelet::store::composite::ComposableStore;
 use kubelet::store::oci::FileStore;
 use kubelet::store::Store;
 use kubelet::volume::VolumeRef;
+use kubelet::{node, Kubelet};
 use tempfile::NamedTempFile;
 use tokio::sync::{mpsc, RwLock};
 
@@ -37,7 +39,8 @@ mod states;
 const LOG_DIR_NAME: &str = "wasi-logs";
 const VOLUME_DIR: &str = "volumes";
 
-pub(crate) type PodHandleMap = Arc<RwLock<HashMap<PodKey, Arc<Handle<RuntimeHandle, HandleFactory>>>>>;
+pub(crate) type PodHandleMap =
+    Arc<RwLock<HashMap<PodKey, Arc<Handle<RuntimeHandle, HandleFactory>>>>>;
 
 pub(crate) struct ModuleRunContext {
     modules: HashMap<String, Vec<u8>>,
@@ -202,10 +205,7 @@ impl GenericProvider for RuntimeProvider {
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> anyhow::Result<()> {
     let version = crate_version!();
-    println!(
-        "Starting AssemblyLift Kubelet runtime {}",
-        version,
-    );
+    println!("Starting AssemblyLift Kubelet runtime {}", version,);
 
     let registry_channel = mpsc::channel(32);
     let tx = registry_channel.0.clone();
@@ -238,7 +238,7 @@ async fn main() -> anyhow::Result<()> {
         device_plugin_manager,
         tx,
     )
-        .await?;
+    .await?;
     let kubelet = Kubelet::new(provider, kube_config, config).await?;
     kubelet.start().await
 }
