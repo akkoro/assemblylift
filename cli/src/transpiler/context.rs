@@ -50,8 +50,8 @@ impl Context {
             .map(|d| Domain {
                 dns_name: d.dns_name.clone(),
                 provider: Rc::new(Provider {
-                    name: d.provider_name.clone(),
-                    options: Arc::new(d.options.clone()),
+                    name: d.provider.name.clone(),
+                    options: d.provider.options.clone(),
                 }),
             })
             .collect();
