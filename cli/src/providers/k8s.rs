@@ -13,12 +13,19 @@ use crate::transpiler::{
     context, Artifact, Bindable, Bootable, CastError, Castable, ContentType, Template,
 };
 
-fn map_container_registry(r: &context::Registry) -> ContainerRegistry {
+fn to_container_registry(r: &context::Registry) -> ContainerRegistry {
     ContainerRegistry {
         is_dockerhub: r.host.eq_ignore_ascii_case("dockerhub"),
         is_ecr: r.host.eq_ignore_ascii_case("ecr"),
         options: r.options.clone(),
     }
+}
+
+fn flatten(mut accum: Vec<Artifact>, mut v: Vec<Artifact>) -> Vec<Artifact> {
+    let mut out = Vec::new();
+    out.append(&mut accum);
+    out.append(&mut v);
+    out
 }
 
 pub struct KubernetesProvider {
@@ -62,9 +69,14 @@ impl Provider for KubernetesProvider {
 // TODO kube context name as provider option
 impl Castable for KubernetesProvider {
     fn cast(&self, ctx: Rc<Context>, _selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
-        let registries = ctx.registries.iter().map(map_container_registry).collect();
+        let registries = ctx.registries.iter().map(to_container_registry).collect();
 
-        // TODO cast domains
+        let mut domain_artifacts = self
+            .dns_providers
+            .iter()
+            .map(|p| p.1.lock().unwrap().cast(ctx.clone(), Some("gloo")).unwrap())
+            .reduce(flatten)
+            .unwrap();
 
         let mut service_artifacts = ctx
             .services
@@ -75,12 +87,7 @@ impl Castable for KubernetesProvider {
                     .cast(ctx.clone(), Some(&s.name))
                     .unwrap()
             })
-            .reduce(|mut accum, mut v| {
-                let mut out = Vec::new();
-                out.append(&mut accum);
-                out.append(&mut v);
-                out
-            })
+            .reduce(flatten)
             .unwrap();
 
         let base_tmpl = KubernetesBaseTemplate {
@@ -101,6 +108,7 @@ impl Castable for KubernetesProvider {
         let mut out = vec![hcl];
 
         out.append(&mut service_artifacts);
+        out.append(&mut domain_artifacts);
         Ok(out)
     }
 }
@@ -138,7 +146,7 @@ impl Castable for KubernetesService {
             .expect("selector must be a service name")
             .to_string();
 
-        let registries = ctx.registries.iter().map(map_container_registry).collect();
+        let registries = ctx.registries.iter().map(to_container_registry).collect();
 
         let hcl_content = ServiceTemplate {
             project_name: ctx.project.name.clone(),
@@ -243,7 +251,7 @@ impl Castable for KubernetesFunction {
                     .collect();
 
                 let registries: Vec<ContainerRegistry> =
-                    ctx.registries.iter().map(map_container_registry).collect();
+                    ctx.registries.iter().map(to_container_registry).collect();
 
                 let hcl_tmpl = FunctionTemplate {
                     base_image_version: crate_version!().to_string(),

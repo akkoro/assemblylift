@@ -42,7 +42,8 @@ impl DnsProvider {
 }
 
 impl Castable for DnsProvider {
-    fn cast(&self, ctx: Rc<Context>, _selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
+    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
+        let target = selector.expect("selector must be gloo or apigw");
         let project_name = ctx.project.name.clone();
         let zones = ctx
             .domains
@@ -59,7 +60,10 @@ impl Castable for DnsProvider {
             .filter(|&s| s.domain_name.is_some())
             .map(|s| Record {
                 name: s.name.clone(),
-                target: "".to_string(), // TODO gloo or apigw (will need to lookup aws, run kubectl for gloo)
+                target: match target {
+                    "gloo" => self.gloo_proxy_ip(),
+                    _ => "".to_string(),
+                }, // TODO gloo or apigw (will need to lookup aws, run kubectl for gloo)
                 zone: Zone {
                     name: s.domain_name.as_ref().unwrap().clone(),
                     name_snaked: s.domain_name.as_ref().unwrap().replace(".", "_"),
@@ -68,6 +72,7 @@ impl Castable for DnsProvider {
             .collect_vec();
 
         let rendered_hcl = Route53Template {
+            options: self.options.clone(),
             project_name,
             records,
             zones,
@@ -115,6 +120,7 @@ impl Provider for DnsProvider {
 
 #[derive(Serialize)]
 struct Route53Template {
+    options: Arc<Options>,
     project_name: String,
     records: Vec<Record>,
     zones: Vec<Zone>,
@@ -140,18 +146,26 @@ impl Template for Route53Template {
         reg.render("tmpl", &self).unwrap()
     }
 
+    // TODO target_type switch between gloo & apigw
     fn tmpl() -> &'static str {
         r#"#Begin Route53
+provider aws {
+  alias  = "{{project_name}}-r53"
+  region = "{{options.aws_region}}"
+}
+
 {{#each zones}}data aws_route53_zone {{this.name_snaked}} {
-  name = {{this.name}}
+  provider = aws.{{project_name}}-r53
+  name     = {{this.name}}
 }{{/each}}
 {{#each records}}
 resource aws_route53_record {{this.name}} {
-  zone_id = data.aws_route53_zone.{{this.zone.name_snaked}}.zone_id
-  name    = "{{this.name}}.{{this.zone.name}}"
-  type    = "A"
-  ttl     = "300"
-  records = ["{{this.target}}"]
+  provider = aws.{{project_name}}-r53
+  zone_id  = data.aws_route53_zone.{{this.zone.name_snaked}}.zone_id
+  name     = "{{this.name}}.{{this.zone.name}}"
+  type     = "A"
+  ttl      = "300"
+  records  = ["{{this.target}}"]
 }
 {{/each}}
 "#
