@@ -155,17 +155,17 @@ provider aws {
 }
 
 {{#each zones}}data aws_route53_zone {{this.name_snaked}} {
-  provider = aws.{{project_name}}-r53
-  name     = {{this.name}}
+  provider = aws.{{../project_name}}-r53
+  name     = "{{this.name}}"
 }{{/each}}
 {{#each records}}
 resource aws_route53_record {{this.name}} {
-  provider = aws.{{project_name}}-r53
+  provider = aws.{{../project_name}}-r53
   zone_id  = data.aws_route53_zone.{{this.zone.name_snaked}}.zone_id
   name     = "{{this.name}}.{{this.zone.name}}"
   type     = "A"
   ttl      = "300"
-  records  = ["{{this.target}}"]
+  records  = {{{this.target}}}
 }
 {{/each}}
 "#
