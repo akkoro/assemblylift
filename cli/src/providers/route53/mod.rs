@@ -67,13 +67,13 @@ impl Castable for DnsProvider {
                     name: d.dns_name.clone(),
                     name_snaked: d.dns_name.replace(".", "_"),
                     records,
+                    options: d.provider.options.clone(),
                 }
             })
             .collect_vec();
 
 
         let rendered_hcl = Route53Template {
-            options: self.options.clone(),
             project_name,
             zones,
         }
@@ -120,7 +120,6 @@ impl Provider for DnsProvider {
 
 #[derive(Serialize)]
 struct Route53Template {
-    options: Arc<Options>,
     project_name: String,
     zones: Vec<Zone>,
 }
@@ -136,6 +135,7 @@ struct Zone {
     name: String,
     name_snaked: String,
     records: Vec<Record>,
+    options: Arc<Options>,
 }
 
 impl Template for Route53Template {
@@ -148,18 +148,19 @@ impl Template for Route53Template {
     // TODO target_type switch between gloo & apigw
     fn tmpl() -> &'static str {
         r#"#Begin Route53
+{{#each zones}}
 provider aws {
-  alias  = "{{project_name}}-r53"
+  alias  = "{{../project_name}}-r53-{{this.name_snaked}}"
   region = "{{options.aws_region}}"
 }
 
-{{#each zones}}data aws_route53_zone {{this.name_snaked}} {
-  provider = aws.{{../project_name}}-r53
+data aws_route53_zone {{this.name_snaked}} {
+  provider = aws.{{../project_name}}-r53-{{this.name_snaked}}
   name     = "{{this.name}}"
 }
 {{#each this.records}}
 resource aws_route53_record {{this.name}} {
-  provider = aws.{{../../project_name}}-r53
+  provider = aws.{{../../project_name}}-r53-{{../name_snaked}}
   zone_id  = data.aws_route53_zone.{{../name_snaked}}.zone_id
   name     = "{{this.name}}.{{../../project_name}}"
   type     = "A"
