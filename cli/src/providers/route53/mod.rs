@@ -49,32 +49,32 @@ impl Castable for DnsProvider {
             .domains
             .iter()
             .filter(|&d| d.provider.name == self.name())
-            .map(|d| Zone {
-                name: d.dns_name.clone(),
-                name_snaked: d.dns_name.replace(".", "_"),
+            .map(|d| {
+                let records = ctx
+                    .services
+                    .iter()
+                    .filter(|&s| s.domain_name == Some(d.dns_name.clone()))
+                    .map(|s| Record {
+                        name: s.name.clone(),
+                        target: match target {
+                            "gloo" => self.gloo_proxy_ip(),
+                            _ => "".to_string(),
+                        },
+                    })
+                    .collect_vec();
+
+                Zone {
+                    name: d.dns_name.clone(),
+                    name_snaked: d.dns_name.replace(".", "_"),
+                    records,
+                }
             })
             .collect_vec();
-        let records = ctx
-            .services
-            .iter()
-            .filter(|&s| s.domain_name.is_some())
-            .map(|s| Record {
-                name: s.name.clone(),
-                target: match target {
-                    "gloo" => self.gloo_proxy_ip(),
-                    _ => "".to_string(),
-                }, // TODO gloo or apigw (will need to lookup aws, run kubectl for gloo)
-                zone: Zone {
-                    name: s.domain_name.as_ref().unwrap().clone(),
-                    name_snaked: s.domain_name.as_ref().unwrap().replace(".", "_"),
-                },
-            })
-            .collect_vec();
+
 
         let rendered_hcl = Route53Template {
             options: self.options.clone(),
             project_name,
-            records,
             zones,
         }
         .render();
@@ -122,7 +122,6 @@ impl Provider for DnsProvider {
 struct Route53Template {
     options: Arc<Options>,
     project_name: String,
-    records: Vec<Record>,
     zones: Vec<Zone>,
 }
 
@@ -130,13 +129,13 @@ struct Route53Template {
 struct Record {
     name: String,
     target: String,
-    zone: Zone,
 }
 
 #[derive(Serialize)]
 struct Zone {
     name: String,
     name_snaked: String,
+    records: Vec<Record>,
 }
 
 impl Template for Route53Template {
@@ -157,16 +156,17 @@ provider aws {
 {{#each zones}}data aws_route53_zone {{this.name_snaked}} {
   provider = aws.{{../project_name}}-r53
   name     = "{{this.name}}"
-}{{/each}}
-{{#each records}}
+}
+{{#each this.records}}
 resource aws_route53_record {{this.name}} {
-  provider = aws.{{../project_name}}-r53
-  zone_id  = data.aws_route53_zone.{{this.zone.name_snaked}}.zone_id
-  name     = "{{this.name}}.{{this.zone.name}}"
+  provider = aws.{{../../project_name}}-r53
+  zone_id  = data.aws_route53_zone.{{../name_snaked}}.zone_id
+  name     = "{{this.name}}.{{../../project_name}}"
   type     = "A"
   ttl      = "300"
   records  = {{{this.target}}}
 }
+{{/each}}
 {{/each}}
 "#
     }
