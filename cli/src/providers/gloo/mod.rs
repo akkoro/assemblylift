@@ -49,6 +49,18 @@ impl ApiProvider {
             })
             .is_some()
     }
+
+    fn domain_for_service(&self, ctx: Rc<Context>, name: &str) -> String {
+        let project_name = ctx.project.name.clone();
+        let domain_name = ctx
+            .service(&name)
+            .unwrap()
+            .domain_name
+            .as_ref()
+            .unwrap_or(&"local".to_string())
+            .clone();
+        format!("{}.{}.{}", name, project_name, domain_name)
+    }
 }
 
 impl Castable for ApiProvider {
@@ -67,15 +79,7 @@ impl Castable for ApiProvider {
         let rendered_hcl = VirtualServiceTemplate {
             project_name: project_name.clone(),
             service_name: service_name.into(),
-            domain_name: format!(
-                "{}.{}",
-                &service_name,
-                ctx.service(&service_name)
-                    .unwrap()
-                    .domain_name
-                    .as_ref()
-                    .unwrap_or(&format!("{}.com", &project_name))
-            ),
+            domain_name: self.domain_for_service(ctx.clone(), service_name),
             has_routes: http_fns.len() > 0,
             has_domain: ctx.service(&service_name).unwrap().domain_name.is_some(),
             routes: http_fns
@@ -99,32 +103,30 @@ impl Castable for ApiProvider {
 
 impl Bindable for ApiProvider {
     fn bind(&self, _ctx: Rc<Context>) -> Result<(), CastError> {
-        CmCtl::default().install();
         Ok(())
     }
 }
 
 impl Bootable for ApiProvider {
     fn boot(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        // TODO prompt before install & handle errors
+        CmCtl::default().install();
+
         let kubectl = KubeCtl::default();
         let project_name = ctx.project.name.clone();
 
+        let route53_provider = ctx
+            .domains
+            .iter()
+            .find(|&d| d.provider.name == "route53");
+
         let issuer_yaml = CertIssuerTemplate {
             project_name: project_name.clone(),
-            domain_names: ctx
-                .services
-                .clone()
-                .into_iter()
-                .map(|s| {
-                    format!(
-                        "{}.{}",
-                        s.name.clone(),
-                        s.domain_name
-                            .clone()
-                            .unwrap_or(format!("{}.com", &project_name))
-                    )
-                })
-                .collect_vec(),
+            route53_options: match route53_provider {
+                Some(r53) => r53.provider.options.clone(),
+                None => Default::default(),
+            },
+            has_route53: route53_provider.is_some(),
         }
         .render();
         kubectl
@@ -138,79 +140,15 @@ impl Bootable for ApiProvider {
             .collect_vec()
         {
             if let Some(domain_name) = service.domain_name.clone() {
-                let service_domain = format!("{}.{}", service.name.clone(), domain_name.clone());
                 let certificate_yaml = CertificateTemplate {
                     project_name: project_name.clone(),
                     service_name: service.name.clone(),
-                    domain_name: service_domain.clone(),
+                    domain_name: self.domain_for_service(ctx.clone(), &service.name.clone()),
                 }
                 .render();
                 kubectl
                     .apply_from_str(&certificate_yaml)
                     .expect("could not apply certificate yaml");
-
-                let orders = kubectl
-                    .get_in_namespace(
-                        "orders.acme.cert-manager.io",
-                        &format!("asml-{}-{}", project_name, service.name.clone()),
-                        None,
-                    )
-                    .expect("kubectl could not get acme orders");
-                let token = orders
-                    .get("items")
-                    .unwrap()
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .find_map(|item| {
-                        println!("DEBUG item={:?}", item.clone());
-                        let status =
-                            serde_json::from_value::<Status>(item.get("status").unwrap().clone())
-                                .unwrap();
-                        if status.authorizations.len() == 0 {
-                            return None;
-                        }
-                        match status.authorizations[0]
-                            .challenges
-                            .iter()
-                            .find(|&c| &c.r#type == "http-01")
-                        {
-                            Some(c) => Some(c.token.clone()),
-                            None => None,
-                        }
-                    })
-                    .unwrap();
-                println!("DEBUG token={:?}", token);
-                let upstreams = kubectl
-                    .get_in_namespace("upstreams", "gloo-system", None)
-                    .unwrap();
-                let upstreams = upstreams.get("items").unwrap().as_array().unwrap();
-                let solver_upstream = upstreams
-                    .iter()
-                    .find_map(|u| {
-                        let upstream: Upstream = serde_json::from_value(u.clone()).unwrap();
-                        match upstream.metadata.name.contains(&format!(
-                            "asml-{}-{}-cm-acme-http-solver",
-                            project_name.clone(),
-                            service.name.clone()
-                        )) {
-                            true => Some(upstream),
-                            false => None,
-                        }
-                    })
-                    .unwrap();
-                let challenge_service_yaml = AcmeChallengeServiceTemplate {
-                    project_name: project_name.clone(),
-                    service_name: service.name.clone(),
-                    domain_names: vec![service_domain.clone()],
-                    token,
-                    upstream_name: solver_upstream.metadata.name.clone(),
-                }
-                .render();
-                println!("DEBUG challenge_service_yaml={:?}", challenge_service_yaml);
-                kubectl
-                    .apply_from_str(&challenge_service_yaml)
-                    .expect("could not apply acme challenge service yaml");
             }
         }
 
@@ -372,50 +310,15 @@ resource kubernetes_manifest gloo_virtualservice_{{service_name}} {
           },
         {{/each}}]{{/if}}
       }
+      {{#if has_domain}}sslConfig = {
+        secretRef = {
+          name      = "asml-{{project_name}}-{{service_name}}-tls"
+          namespace = "asml-{{project_name}}-{{service_name}}"
+        }
+      }{{/if}}
     }
   }
 }
-"#
-    }
-}
-
-#[derive(Serialize)]
-struct AcmeChallengeServiceTemplate {
-    project_name: String,
-    service_name: String,
-    domain_names: Vec<String>,
-    token: String,
-    upstream_name: String,
-}
-
-impl Template for AcmeChallengeServiceTemplate {
-    fn render(&self) -> String {
-        let mut reg = Box::new(Handlebars::new());
-        reg.register_template_string("tmpl", Self::tmpl()).unwrap();
-        reg.render("tmpl", &self).unwrap()
-    }
-
-    // TODO maybe not namespace in gloo-system
-    fn tmpl() -> &'static str {
-        r#"# Begin ACME Challenge VirtualService for `{{service_name}}`
-apiVersion: gateway.solo.io/v1
-kind: VirtualService
-metadata:
-  name: asml-{{project_name}}-{{service_name}}-letsencrypt
-  namespace: gloo-system
-spec:
-  virtualHost:
-    domains:
-    {{#each domain_names}}- {{this}}
-    {{/each}}
-    routes:
-    - matchers:
-      - exact: /.well-known/acme-challenge/{{token}}
-      routeAction:
-        single:
-          upstream:
-            name: {{upstream_name}}
-            namespace: gloo-system
 "#
     }
 }
@@ -446,7 +349,6 @@ spec:
   issuerRef:
     kind: ClusterIssuer
     name: asml-letsencrypt-staging-http01
-  commonName: {{domain_name}}
   dnsNames:
   - {{domain_name}}
 "#
@@ -456,7 +358,8 @@ spec:
 #[derive(Serialize)]
 struct CertIssuerTemplate {
     project_name: String,
-    domain_names: Vec<String>,
+    route53_options: Arc<Options>,
+    has_route53: bool,
 }
 
 impl Template for CertIssuerTemplate {
@@ -479,13 +382,13 @@ spec:
     privateKeySecretRef:
       name: asml-letsencrypt-staging-http01
     solvers:
-    - http01:
-        ingress:
-          serviceType: ClusterIP
-      selector:
-        dnsNames:
-        {{#each domain_names}}- {{this}}
-        {{/each}}
+    {{#if has_route53}}- dns01:
+        route53:
+          region: {{route53_options.aws_region}}
+          accessKeyID: {{route53_options.access_key_id}}
+          secretAccessKeySecretRef:
+            name: {{route53_options.secret_access_key_secret_name}}
+    {{/if}}
 "#
     }
 }
