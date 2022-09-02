@@ -14,14 +14,12 @@ use crate::transpiler::context::{Context, Function};
 use crate::transpiler::{Artifact, Bindable, Bootable, CastError, Castable, ContentType, Template};
 
 pub struct ApiProvider {
-    gloo_installed: bool,
     options: Arc<Options>,
 }
 
 impl ApiProvider {
     pub fn new() -> Self {
         Self {
-            gloo_installed: Self::is_installed(),
             options: Arc::new(Options::new()),
         }
     }
@@ -139,7 +137,7 @@ impl Bootable for ApiProvider {
             .filter(|&s| &s.provider.name == "k8s")
             .collect_vec()
         {
-            if let Some(domain_name) = service.domain_name.clone() {
+            if let Some(_) = service.domain_name.clone() {
                 let certificate_yaml = CertificateTemplate {
                     project_name: project_name.clone(),
                     service_name: service.name.clone(),
@@ -161,6 +159,7 @@ impl Bootable for ApiProvider {
             .get("clusterissuers")
             .expect("kubectl could not get clusterissuers");
         return if let Some(issuers) = issuers.get("items").unwrap().as_array() {
+            // TODO use jsonpath
             issuers
                 .iter()
                 .find(|&v| {
@@ -170,7 +169,7 @@ impl Bootable for ApiProvider {
                         .unwrap()
                         .as_str()
                         .unwrap()
-                        == "asml-letsencrypt-staging-http01"
+                        == "asml-letsencrypt-staging"
                 })
                 .is_some()
         } else {
@@ -348,7 +347,7 @@ spec:
   secretName: asml-{{project_name}}-{{service_name}}-tls
   issuerRef:
     kind: ClusterIssuer
-    name: asml-letsencrypt-staging-http01
+    name: asml-letsencrypt-staging
   dnsNames:
   - {{domain_name}}
 "#
@@ -374,13 +373,13 @@ impl Template for CertIssuerTemplate {
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: asml-letsencrypt-staging-http01
+  name: asml-letsencrypt-staging
 spec:
   acme:
     server: https://acme-staging-v02.api.letsencrypt.org/directory
     email: assemblylift@akkoro.io
     privateKeySecretRef:
-      name: asml-letsencrypt-staging-http01
+      name: asml-letsencrypt-staging
     solvers:
     {{#if has_route53}}- dns01:
         route53:
