@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
-use handlebars::{to_json, Handlebars};
+use handlebars::{Handlebars, to_json};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -10,8 +10,8 @@ use crate::providers::{Options, Provider, ProviderError};
 use crate::tools::cmctl::CmCtl;
 use crate::tools::glooctl::GlooCtl;
 use crate::tools::kubectl::KubeCtl;
+use crate::transpiler::{Artifact, Bindable, Bootable, Castable, CastError, ContentType, Template};
 use crate::transpiler::context::{Context, Function};
-use crate::transpiler::{Artifact, Bindable, Bootable, CastError, Castable, ContentType, Template};
 
 pub struct ApiProvider {
     options: Arc<Options>,
@@ -28,6 +28,7 @@ impl ApiProvider {
         let kubectl = KubeCtl::default();
         let namespaces = kubectl.get_namespaces().unwrap();
         let items = namespaces.get("items").unwrap().as_array().unwrap();
+        // TODO use jsonpath
         items
             .iter()
             .find(|i| {
@@ -387,6 +388,7 @@ spec:
           accessKeyID: {{route53_options.access_key_id}}
           secretAccessKeySecretRef:
             name: {{route53_options.secret_access_key_secret_name}}
+            key: key
     {{/if}}
 "#
     }
