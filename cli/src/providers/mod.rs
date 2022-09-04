@@ -3,7 +3,7 @@ use std::sync::{Arc, LockResult, Mutex, MutexGuard};
 
 use once_cell::sync::Lazy;
 
-use crate::transpiler::{Bindable, Bootable, Castable, StringMap};
+use crate::transpiler::{Artifact, Bindable, Bootable, Castable, StringMap};
 
 pub mod aws_lambda;
 pub mod aws_lambda_alpine;
@@ -27,12 +27,6 @@ impl LockBox {
 }
 
 pub static PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
-    let mut dns_providers = ProviderMap::new();
-    dns_providers.insert(
-        String::from("route53"),
-        LockBox::new(route53::DnsProvider::new()),
-    );
-
     let mut map = ProviderMap::new();
     map.insert(
         String::from("aws-lambda"),
@@ -40,9 +34,18 @@ pub static PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     );
     map.insert(
         String::from("k8s"),
-        LockBox::new(k8s::KubernetesProvider::new(dns_providers)),
+        LockBox::new(k8s::KubernetesProvider::new()),
     );
     map
+});
+
+pub static DNS_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
+    let mut dns_providers = ProviderMap::new();
+    dns_providers.insert(
+        String::from("route53"),
+        LockBox::new(route53::DnsProvider::new()),
+    );
+    dns_providers
 });
 
 pub type Options = StringMap<String>;
@@ -58,7 +61,7 @@ pub enum ProviderError {
     TransformationError(String),
 }
 
-pub fn render_string_list(list: Rc<Vec<String>>) -> String {
+fn render_string_list(list: Rc<Vec<String>>) -> String {
     let mut out = String::from("[");
     for (i, l) in list.iter().enumerate() {
         out.push_str(&format!("\"{}\"", l));
@@ -67,5 +70,12 @@ pub fn render_string_list(list: Rc<Vec<String>>) -> String {
         }
     }
     out.push_str("]");
+    out
+}
+
+fn flatten(mut accum: Vec<Artifact>, mut v: Vec<Artifact>) -> Vec<Artifact> {
+    let mut out = Vec::new();
+    out.append(&mut accum);
+    out.append(&mut v);
     out
 }

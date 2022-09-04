@@ -9,9 +9,9 @@ use itertools::Itertools;
 use serde::Serialize;
 
 use crate::projectfs::Project as ProjectFs;
-use crate::providers::PROVIDERS;
+use crate::providers::{DNS_PROVIDERS, PROVIDERS};
 use crate::transpiler::{
-    toml, Artifact, Bindable, CastError, Castable, ContentType, StringMap, Template,
+    Artifact, Bindable, Castable, CastError, ContentType, StringMap, Template, toml,
 };
 
 pub struct Context {
@@ -225,6 +225,19 @@ impl Castable for Context {
                     ContentType::Dockerfile(_) => out.push(a.clone()),
                 }
             }
+        }
+
+        let mut dns_providers = ctx.domains.iter().map(|d| d.provider.clone()).collect_vec();
+        for p in dns_providers {
+            let provider = DNS_PROVIDERS
+                .get(&*p.name.clone())
+                .expect("could not find dns provider");
+            provider
+                .lock()
+                .unwrap()
+                .set_options(p.options.clone())
+                .expect("could not set dns provider options");
+            // TODO
         }
 
         let hcl = Artifact {

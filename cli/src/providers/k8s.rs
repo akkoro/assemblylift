@@ -1,17 +1,19 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use clap::crate_version;
 use handlebars::Handlebars;
 use itertools::Itertools;
+use once_cell::sync::Lazy;
 use serde::Serialize;
 
-use crate::providers::{gloo, Options, Provider, ProviderError, ProviderMap};
+use crate::providers::{DNS_PROVIDERS, flatten, gloo, LockBox, Options, Provider, ProviderError, ProviderMap};
 use crate::tools::glooctl::GlooCtl;
-use crate::transpiler::context::Context;
 use crate::transpiler::{
-    context, Artifact, Bindable, Bootable, CastError, Castable, ContentType, Template,
+    Artifact, Bindable, Bootable, Castable, CastError, ContentType, context, Template,
 };
+use crate::transpiler::context::Context;
 
 fn to_container_registry(r: &context::Registry) -> ContainerRegistry {
     ContainerRegistry {
@@ -21,26 +23,17 @@ fn to_container_registry(r: &context::Registry) -> ContainerRegistry {
     }
 }
 
-fn flatten(mut accum: Vec<Artifact>, mut v: Vec<Artifact>) -> Vec<Artifact> {
-    let mut out = Vec::new();
-    out.append(&mut accum);
-    out.append(&mut v);
-    out
-}
-
 pub struct KubernetesProvider {
     api_provider: Arc<gloo::ApiProvider>,
-    dns_providers: ProviderMap,
     service_subprovider: KubernetesService,
     options: Arc<Options>,
 }
 
 impl KubernetesProvider {
-    pub fn new(dns_providers: ProviderMap) -> Self {
+    pub fn new() -> Self {
         let api_provider = Arc::new(gloo::ApiProvider::new());
         Self {
             api_provider: api_provider.clone(),
-            dns_providers,
             service_subprovider: KubernetesService {
                 api_provider: api_provider.clone(),
                 options: Arc::new(Options::new()),
@@ -71,12 +64,11 @@ impl Castable for KubernetesProvider {
     fn cast(&self, ctx: Rc<Context>, _selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
         let registries = ctx.registries.iter().map(to_container_registry).collect();
 
-        let mut domain_artifacts = self
-            .dns_providers
-            .iter()
-            .map(|p| p.1.lock().unwrap().cast(ctx.clone(), Some("gloo")).unwrap())
-            .reduce(flatten)
-            .unwrap();
+        // let mut domain_artifacts = DNS_PROVIDERS
+        //     .iter()
+        //     .map(|p| p.1.lock().unwrap().cast(ctx.clone(), Some("gloo")).unwrap())
+        //     .reduce(flatten)
+        //     .unwrap();
 
         let mut service_artifacts = ctx
             .services
@@ -108,7 +100,7 @@ impl Castable for KubernetesProvider {
         let mut out = vec![hcl];
 
         out.append(&mut service_artifacts);
-        out.append(&mut domain_artifacts);
+        // out.append(&mut domain_artifacts);
         Ok(out)
     }
 }
@@ -176,12 +168,7 @@ impl Castable for KubernetesService {
                     .cast(ctx.clone(), Some(&f.name))
                     .unwrap()
             })
-            .reduce(|mut accum, mut v| {
-                let mut out = Vec::new();
-                out.append(&mut accum);
-                out.append(&mut v);
-                out
-            })
+            .reduce(flatten)
             .unwrap();
         let function_hcl = function_artifacts
             .iter()

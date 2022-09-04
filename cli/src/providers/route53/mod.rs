@@ -9,8 +9,8 @@ use serde::Serialize;
 
 use crate::providers::{Options, Provider, ProviderError};
 use crate::tools::kubectl::KubeCtl;
+use crate::transpiler::{Artifact, Bindable, Bootable, Castable, CastError, ContentType, Template};
 use crate::transpiler::context::Context;
-use crate::transpiler::{Artifact, Bindable, Bootable, CastError, Castable, ContentType, Template};
 
 pub struct DnsProvider {
     /// access_key_id, secret_key, aws_region, hosted_zone_id
@@ -54,11 +54,16 @@ impl Castable for DnsProvider {
                     .services
                     .iter()
                     .filter(|&s| s.domain_name == Some(d.dns_name.clone()))
+                    // TODO filter to those where s.provider.name == selector?
                     .map(|s| Record {
                         name: s.name.clone(),
                         target: match target {
                             "gloo" => self.gloo_proxy_ip(),
                             _ => "".to_string(),
+                        },
+                        is_apigw_target: match target {
+                            "apigw" => true,
+                            _ => false,
                         },
                     })
                     .collect_vec();
@@ -128,6 +133,7 @@ struct Route53Template {
 struct Record {
     name: String,
     target: String,
+    is_apigw_target: bool,
 }
 
 #[derive(Serialize)]
@@ -147,7 +153,7 @@ impl Template for Route53Template {
 
     // TODO target_type switch between gloo & apigw
     fn tmpl() -> &'static str {
-        r#"#Begin Route53
+        r#"# Begin Route53
 {{#each zones}}
 provider aws {
   alias  = "{{../project_name}}-r53-{{this.name_snaked}}"
@@ -159,13 +165,25 @@ data aws_route53_zone {{this.name_snaked}} {
   name     = "{{this.name}}"
 }
 {{#each this.records}}
+{{#if this.is_apigw_target}}
+resource aws_apigatewayv2_domain_name {{this.name}} {
+  provider    = aws.{{../../project_name}}-r53-{{../name_snaked}}
+  domain_name = "{{this.name}}.{{../../project_name}}.{{../name}}"
+
+  domain_name_configuration {
+    certificate_arn = aws_acm_certificate.TODO.arn
+    endpoint_type   = "REGIONAL"
+    security_policy = "TLS_1_2"
+  }
+}
+{{/if}}
 resource aws_route53_record {{this.name}} {
   provider = aws.{{../../project_name}}-r53-{{../name_snaked}}
   zone_id  = data.aws_route53_zone.{{../name_snaked}}.zone_id
   name     = "{{this.name}}.{{../../project_name}}"
   type     = "A"
   ttl      = "300"
-  records  = {{{this.target}}}
+  {{#unless this.is_apigw_target}}records  = {{{this.target}}}{{/unless}}
 }
 {{/each}}
 {{/each}}

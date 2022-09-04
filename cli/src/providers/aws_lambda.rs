@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
@@ -6,17 +7,18 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use handlebars::{to_json, Handlebars};
+use handlebars::{Handlebars, to_json};
 use itertools::Itertools;
+use once_cell::sync::Lazy;
 use registry_common::models::GetIomodAtResponse;
 use serde::Serialize;
 
 use crate::archive;
-use crate::providers::{render_string_list, Options, Provider, ProviderError};
-use crate::transpiler::context::{Context, Function};
+use crate::providers::{DNS_PROVIDERS, flatten, LockBox, Options, Provider, ProviderError, ProviderMap, render_string_list};
 use crate::transpiler::{
-    context, Artifact, Bindable, Bootable, CastError, Castable, ContentType, Template,
+    Artifact, Bindable, Bootable, Castable, CastError, ContentType, context, Template,
 };
+use crate::transpiler::context::{Context, Function};
 
 pub struct AwsLambdaProvider {
     options: Arc<Options>,
@@ -142,6 +144,13 @@ impl Castable for AwsLambdaProvider {
         let service_subprovider = LambdaService {
             options: self.options.clone(),
         };
+
+        // let mut domain_artifacts = DNS_PROVIDERS
+        //     .iter()
+        //     .map(|p| p.1.lock().unwrap().cast(ctx.clone(), Some("apigw")).unwrap())
+        //     .reduce(flatten)
+        //     .unwrap();
+
         let mut service_artifacts = ctx
             .services
             .iter()
@@ -151,12 +160,7 @@ impl Castable for AwsLambdaProvider {
                     .cast(ctx.clone(), Some(&s.name))
                     .unwrap()
             })
-            .reduce(|mut accum, mut v| {
-                let mut out = Vec::new();
-                out.append(&mut accum);
-                out.append(&mut v);
-                out
-            })
+            .reduce(flatten)
             .unwrap();
 
         let base_tmpl = LambdaBaseTemplate {
@@ -306,12 +310,7 @@ impl Castable for LambdaService {
                     .cast(ctx.clone(), Some(&f.name))
                     .unwrap()
             })
-            .reduce(|mut accum, mut v| {
-                let mut out = Vec::new();
-                out.append(&mut accum);
-                out.append(&mut v);
-                out
-            })
+            .reduce(flatten)
             .unwrap();
         let function_hcl = function_artifacts
             .iter()
