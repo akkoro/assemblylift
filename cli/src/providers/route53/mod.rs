@@ -54,7 +54,7 @@ impl Castable for DnsProvider {
                     .services
                     .iter()
                     .filter(|&s| s.domain_name == Some(d.dns_name.clone()))
-                    // TODO filter to those where s.provider.name == selector?
+                    .filter(|&s| &s.provider.name == target)
                     .map(|s| Record {
                         name: s.name.clone(),
                         target: match target {

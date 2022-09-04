@@ -217,6 +217,24 @@ impl Castable for Context {
                 .set_options(p.options.clone())
                 .expect("could not set provider options");
 
+            let mut dns_providers = ctx.domains.iter().map(|d| d.provider.clone()).collect_vec();
+            for dns in dns_providers {
+                let provider = DNS_PROVIDERS
+                    .get(&*dns.name.clone())
+                    .expect("could not find dns provider");
+                provider
+                    .lock()
+                    .unwrap()
+                    .set_options(dns.options.clone())
+                    .expect("could not set dns provider options");
+                let artifacts = provider.lock().unwrap().cast(ctx.clone(), Some(&*p.name.clone())).unwrap();
+                for a in artifacts {
+                    if let ContentType::HCL(_) = a.content_type {
+                        hcl_content.push_str(&*a.content.clone());
+                    }
+                }
+            }
+
             let artifacts = provider.lock().unwrap().cast(ctx.clone(), None).unwrap();
             for a in artifacts {
                 match a.content_type {
@@ -225,19 +243,6 @@ impl Castable for Context {
                     ContentType::Dockerfile(_) => out.push(a.clone()),
                 }
             }
-        }
-
-        let mut dns_providers = ctx.domains.iter().map(|d| d.provider.clone()).collect_vec();
-        for p in dns_providers {
-            let provider = DNS_PROVIDERS
-                .get(&*p.name.clone())
-                .expect("could not find dns provider");
-            provider
-                .lock()
-                .unwrap()
-                .set_options(p.options.clone())
-                .expect("could not set dns provider options");
-            // TODO
         }
 
         let hcl = Artifact {
