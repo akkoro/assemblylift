@@ -75,7 +75,6 @@ impl Castable for DnsProvider {
                     name: d.dns_name.clone(),
                     name_snaked: d.dns_name.replace(".", "_"),
                     records,
-                    options: d.provider.options.clone(),
                 }
             })
             .collect_vec();
@@ -83,6 +82,7 @@ impl Castable for DnsProvider {
         let rendered_hcl = Route53Template {
             project_name,
             zones,
+            options: self.options.clone(),
         }
         .render();
         let out = Artifact {
@@ -129,6 +129,7 @@ impl Provider for DnsProvider {
 struct Route53Template {
     project_name: String,
     zones: Vec<Zone>,
+    options: Arc<Options>,
 }
 
 #[derive(Serialize)]
@@ -143,7 +144,6 @@ struct Zone {
     name: String,
     name_snaked: String,
     records: Vec<Record>,
-    options: Arc<Options>,
 }
 
 impl Template for Route53Template {
@@ -155,26 +155,25 @@ impl Template for Route53Template {
 
     fn tmpl() -> &'static str {
         r#"# Begin Route53
-{{#each zones}}
 provider aws {
-  alias  = "{{../project_name}}-r53-{{this.name_snaked}}"
+  alias  = "{{project_name}}-r53"
   region = "{{options.aws_region}}"
 }
-
+{{#each zones}}
 data aws_route53_zone {{this.name_snaked}} {
-  provider = aws.{{../project_name}}-r53-{{this.name_snaked}}
+  provider = aws.{{../project_name}}-r53
   name     = "{{this.name}}"
 }
 {{#each this.records}}
 {{#if this.is_apigw_target}}
 resource aws_acm_certificate {{this.name}} {
-  provider    = aws.{{../../project_name}}-r53-{{../name_snaked}}
+  provider    = aws.{{../../project_name}}-r53
   domain_name = "{{this.name}}.{{../../project_name}}.{{../name}}"
   validation_method = "DNS"
 }
 
 resource aws_apigatewayv2_domain_name {{this.name}} {
-  provider    = aws.{{../../project_name}}-r53-{{../name_snaked}}
+  provider    = aws.{{../../project_name}}-r53
   domain_name = "{{this.name}}.{{../../project_name}}.{{../name}}"
 
   domain_name_configuration {
@@ -185,6 +184,7 @@ resource aws_apigatewayv2_domain_name {{this.name}} {
 }
 
 resource aws_route53_record {{this.name}}_validation {
+  provider = aws.{{../../project_name}}-r53
   for_each = {
     for dvo in aws_acm_certificate.{{this.name}}.domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
@@ -202,18 +202,20 @@ resource aws_route53_record {{this.name}}_validation {
 }
 
 resource aws_acm_certificate_validation {{this.name}} {
+  provider                = aws.{{../../project_name}}-r53
   certificate_arn         = aws_acm_certificate.{{this.name}}.arn
   validation_record_fqdns = [for record in aws_route53_record.{{this.name}}_validation : record.fqdn]
 }
 
 resource aws_apigatewayv2_api_mapping {{this.name}} {
+  provider    = aws.{{../../project_name}}-r53
   api_id      = aws_apigatewayv2_api.{{this.name}}_http_api.id
   domain_name = aws_apigatewayv2_domain_name.{{this.name}}.id
   stage       = "$default"
 }
 {{/if}}
 resource aws_route53_record {{this.name}} {
-  provider = aws.{{../../project_name}}-r53-{{../name_snaked}}
+  provider = aws.{{../../project_name}}-r53
   zone_id  = data.aws_route53_zone.{{../name_snaked}}.zone_id
   name     = "{{this.name}}.{{../../project_name}}"
   type     = "A"
