@@ -212,7 +212,12 @@ resource aws_route53_record {{this.name}} {
   name     = "{{this.name}}.{{../../project_name}}"
   type     = "A"
   ttl      = "300"
-  {{#unless this.is_apigw_target}}records  = {{{this.target}}}{{/unless}}
+  {{#unless this.is_apigw_target}}records  = {{{this.target}}}
+  {{else}}alias {
+    name                   = aws_apigatewayv2_domain_name.{{this.name}}.domain_name_configuration[0].target_domain_name
+    zone_id                = aws_apigatewayv2_domain_name.{{this.name}}.domain_name_configuration[0].hosted_zone_id
+    evaluate_target_health = false
+  }{{/unless}}
 }
 {{/each}}
 {{/each}}
