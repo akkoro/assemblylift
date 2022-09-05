@@ -211,8 +211,8 @@ resource aws_route53_record {{this.name}} {
   zone_id  = data.aws_route53_zone.{{../name_snaked}}.zone_id
   name     = "{{this.name}}.{{../../project_name}}"
   type     = "A"
-  ttl      = "300"
-  {{#unless this.is_apigw_target}}records  = {{{this.target}}}
+  {{#unless this.is_apigw_target}}ttl      = "300"
+  records  = {{{this.target}}}
   {{else}}alias {
     name                   = aws_apigatewayv2_domain_name.{{this.name}}.domain_name_configuration[0].target_domain_name
     zone_id                = aws_apigatewayv2_domain_name.{{this.name}}.domain_name_configuration[0].hosted_zone_id
