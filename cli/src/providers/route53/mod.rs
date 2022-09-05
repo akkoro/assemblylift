@@ -208,7 +208,7 @@ resource aws_acm_certificate_validation {{this.name}} {
 
 resource aws_apigatewayv2_api_mapping {{this.name}} {
   api_id      = aws_apigatewayv2_api.{{this.name}}_http_api.id
-  domain_name = aws_apigatewayv2_domain_name.{{this.name}}_domain.id
+  domain_name = aws_apigatewayv2_domain_name.{{this.name}}.id
   stage       = "$default"
 }
 {{/if}}
