@@ -13,7 +13,7 @@ use crate::transpiler::context::Context;
 use crate::transpiler::{Artifact, Bindable, Bootable, CastError, Castable, ContentType, Template};
 
 pub struct DnsProvider {
-    /// access_key_id, secret_key, aws_region, hosted_zone_id
+    /// access_key_id, secret_key, aws_region
     options: Arc<Options>,
 }
 
@@ -42,8 +42,7 @@ impl DnsProvider {
 }
 
 impl Castable for DnsProvider {
-    fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
-        let target = selector.expect("selector must be gloo or apigw");
+    fn cast(&self, ctx: Rc<Context>, _selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
         let project_name = ctx.project.name.clone();
         let zones = ctx
             .domains
@@ -54,7 +53,6 @@ impl Castable for DnsProvider {
                     .services
                     .iter()
                     .filter(|&s| s.domain_name == Some(d.dns_name.clone()))
-                    // .filter(|&s| &s.provider.name == target)
                     .map(|s| {
                         let target = s.provider.name.clone();
                         Record {
@@ -169,15 +167,43 @@ data aws_route53_zone {{this.name_snaked}} {
 }
 {{#each this.records}}
 {{#if this.is_apigw_target}}
+resource aws_acm_certificate {{this.name}} {
+  provider    = aws.{{../../project_name}}-r53-{{../name_snaked}}
+  domain_name = "{{this.name}}.{{../../project_name}}.{{../name}}"
+  validation_method = "DNS"
+}
+
 resource aws_apigatewayv2_domain_name {{this.name}} {
   provider    = aws.{{../../project_name}}-r53-{{../name_snaked}}
   domain_name = "{{this.name}}.{{../../project_name}}.{{../name}}"
 
   domain_name_configuration {
-    certificate_arn = aws_acm_certificate.TODO.arn
+    certificate_arn = aws_acm_certificate.{{this.name}}.arn
     endpoint_type   = "REGIONAL"
     security_policy = "TLS_1_2"
   }
+}
+
+resource aws_route53_record {{this.name}}_validation {
+  for_each = {
+    for dvo in aws_acm_certificate.{{this.name}}.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = data.aws_route53_zone.{{this.name}}.zone_id
+}
+
+resource aws_acm_certificate_validation {{this.name}} {
+  certificate_arn         = aws_acm_certificate.{{this.name}}.arn
+  validation_record_fqdns = [for record in aws_route53_record.{{this.name}}_validation : record.fqdn]
 }
 {{/if}}
 resource aws_route53_record {{this.name}} {
