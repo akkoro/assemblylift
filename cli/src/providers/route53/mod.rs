@@ -7,10 +7,10 @@ use itertools::Itertools;
 use jsonpath_lib::Selector;
 use serde::Serialize;
 
-use crate::providers::{Options, Provider, ProviderError};
+use crate::providers::{Options, Provider, ProviderError, AWS_LAMBDA_PROVIDER_NAME, KUBERNETES_PROVIDER_NAME, ROUTE53_PROVIDER_NAME};
 use crate::tools::kubectl::KubeCtl;
-use crate::transpiler::{Artifact, Bindable, Bootable, Castable, CastError, ContentType, Template};
 use crate::transpiler::context::Context;
+use crate::transpiler::{Artifact, Bindable, Bootable, CastError, Castable, ContentType, Template};
 
 pub struct DnsProvider {
     /// access_key_id, secret_key, aws_region, hosted_zone_id
@@ -54,17 +54,22 @@ impl Castable for DnsProvider {
                     .services
                     .iter()
                     .filter(|&s| s.domain_name == Some(d.dns_name.clone()))
-                    .filter(|&s| &s.provider.name == target)
-                    .map(|s| Record {
-                        name: s.name.clone(),
-                        target: match target {
-                            "gloo" => self.gloo_proxy_ip(),
-                            _ => "".to_string(),
-                        },
-                        is_apigw_target: match target {
-                            "apigw" => true,
-                            _ => false,
-                        },
+                    // .filter(|&s| &s.provider.name == target)
+                    .map(|s| {
+                        let target = s.provider.name.clone();
+                        Record {
+                            name: s.name.clone(),
+                            target: match target {
+                                _ if { target.eq_ignore_ascii_case(KUBERNETES_PROVIDER_NAME) } => {
+                                    self.gloo_proxy_ip()
+                                }
+                                _ => "".to_string(),
+                            },
+                            is_apigw_target: match target {
+                                _ if { target.eq_ignore_ascii_case(AWS_LAMBDA_PROVIDER_NAME) } => true,
+                                _ => false,
+                            },
+                        }
                     })
                     .collect_vec();
 
@@ -76,7 +81,6 @@ impl Castable for DnsProvider {
                 }
             })
             .collect_vec();
-
 
         let rendered_hcl = Route53Template {
             project_name,
@@ -110,7 +114,7 @@ impl Bootable for DnsProvider {
 
 impl Provider for DnsProvider {
     fn name(&self) -> String {
-        String::from("route53")
+        String::from(ROUTE53_PROVIDER_NAME)
     }
 
     fn options(&self) -> Arc<Options> {
@@ -151,7 +155,6 @@ impl Template for Route53Template {
         reg.render("tmpl", &self).unwrap()
     }
 
-    // TODO target_type switch between gloo & apigw
     fn tmpl() -> &'static str {
         r#"# Begin Route53
 {{#each zones}}

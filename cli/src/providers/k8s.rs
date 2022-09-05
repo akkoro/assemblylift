@@ -8,7 +8,7 @@ use itertools::Itertools;
 use once_cell::sync::Lazy;
 use serde::Serialize;
 
-use crate::providers::{DNS_PROVIDERS, flatten, gloo, LockBox, Options, Provider, ProviderError, ProviderMap};
+use crate::providers::{DNS_PROVIDERS, flatten, gloo, KUBERNETES_PROVIDER_NAME, LockBox, Options, Provider, ProviderError, ProviderMap};
 use crate::tools::glooctl::GlooCtl;
 use crate::transpiler::{
     Artifact, Bindable, Bootable, Castable, CastError, ContentType, context, Template,
@@ -45,7 +45,7 @@ impl KubernetesProvider {
 
 impl Provider for KubernetesProvider {
     fn name(&self) -> String {
-        String::from("k8s")
+        String::from(KUBERNETES_PROVIDER_NAME)
     }
 
     fn options(&self) -> Arc<Options> {

@@ -26,14 +26,18 @@ impl LockBox {
     }
 }
 
+pub static AWS_LAMBDA_PROVIDER_NAME: &str = "aws-lambda";
+pub static KUBERNETES_PROVIDER_NAME: &str = "k8s";
+pub static ROUTE53_PROVIDER_NAME: &str = "route53";
+
 pub static PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     let mut map = ProviderMap::new();
     map.insert(
-        String::from("aws-lambda"),
+        String::from(AWS_LAMBDA_PROVIDER_NAME),
         LockBox::new(aws_lambda::AwsLambdaProvider::new()),
     );
     map.insert(
-        String::from("k8s"),
+        String::from(KUBERNETES_PROVIDER_NAME),
         LockBox::new(k8s::KubernetesProvider::new()),
     );
     map
@@ -42,7 +46,7 @@ pub static PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
 pub static DNS_PROVIDERS: Lazy<ProviderMap> = Lazy::new(|| {
     let mut dns_providers = ProviderMap::new();
     dns_providers.insert(
-        String::from("route53"),
+        String::from(ROUTE53_PROVIDER_NAME),
         LockBox::new(route53::DnsProvider::new()),
     );
     dns_providers

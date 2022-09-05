@@ -14,7 +14,7 @@ use registry_common::models::GetIomodAtResponse;
 use serde::Serialize;
 
 use crate::archive;
-use crate::providers::{DNS_PROVIDERS, flatten, LockBox, Options, Provider, ProviderError, ProviderMap, render_string_list};
+use crate::providers::{AWS_LAMBDA_PROVIDER_NAME, DNS_PROVIDERS, flatten, LockBox, Options, Provider, ProviderError, ProviderMap, render_string_list};
 use crate::transpiler::{
     Artifact, Bindable, Bootable, Castable, CastError, ContentType, context, Template,
 };
@@ -197,7 +197,7 @@ impl Bootable for AwsLambdaProvider {
 
 impl Provider for AwsLambdaProvider {
     fn name(&self) -> String {
-        String::from("aws-lambda")
+        String::from(AWS_LAMBDA_PROVIDER_NAME)
     }
 
     fn options(&self) -> Arc<Options> {

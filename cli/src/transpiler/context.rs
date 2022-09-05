@@ -11,7 +11,7 @@ use serde::Serialize;
 use crate::projectfs::Project as ProjectFs;
 use crate::providers::{DNS_PROVIDERS, PROVIDERS};
 use crate::transpiler::{
-    Artifact, Bindable, Castable, CastError, ContentType, StringMap, Template, toml,
+    toml, Artifact, Bindable, CastError, Castable, ContentType, StringMap, Template,
 };
 
 pub struct Context {
@@ -202,6 +202,28 @@ impl Castable for Context {
         };
         hcl_content.push_str(&*tmpl.render());
 
+        let mut dns_providers = ctx.domains.iter().map(|d| d.provider.clone()).collect_vec();
+        for dns in dns_providers {
+            let provider = DNS_PROVIDERS
+                .get(&*dns.name.clone())
+                .expect("could not find dns provider");
+            provider
+                .lock()
+                .unwrap()
+                .set_options(dns.options.clone())
+                .expect("could not set dns provider options");
+            let artifacts = provider
+                .lock()
+                .unwrap()
+                .cast(ctx.clone(), None)
+                .unwrap();
+            for a in artifacts {
+                if let ContentType::HCL(_) = a.content_type {
+                    hcl_content.push_str(&*a.content.clone());
+                }
+            }
+        }
+
         let mut out: Vec<Artifact> = Vec::new();
         let mut providers: Vec<Rc<Provider>> =
             ctx.services.iter().map(|s| s.provider.clone()).collect();
@@ -216,24 +238,6 @@ impl Castable for Context {
                 .unwrap()
                 .set_options(p.options.clone())
                 .expect("could not set provider options");
-
-            let mut dns_providers = ctx.domains.iter().map(|d| d.provider.clone()).collect_vec();
-            for dns in dns_providers {
-                let provider = DNS_PROVIDERS
-                    .get(&*dns.name.clone())
-                    .expect("could not find dns provider");
-                provider
-                    .lock()
-                    .unwrap()
-                    .set_options(dns.options.clone())
-                    .expect("could not set dns provider options");
-                let artifacts = provider.lock().unwrap().cast(ctx.clone(), Some(&*p.name.clone())).unwrap();
-                for a in artifacts {
-                    if let ContentType::HCL(_) = a.content_type {
-                        hcl_content.push_str(&*a.content.clone());
-                    }
-                }
-            }
 
             let artifacts = provider.lock().unwrap().cast(ctx.clone(), None).unwrap();
             for a in artifacts {

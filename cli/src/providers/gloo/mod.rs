@@ -6,7 +6,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::providers::{Options, Provider, ProviderError};
+use crate::providers::{KUBERNETES_PROVIDER_NAME, Options, Provider, ProviderError, ROUTE53_PROVIDER_NAME};
 use crate::tools::cmctl::CmCtl;
 use crate::tools::glooctl::GlooCtl;
 use crate::tools::kubectl::KubeCtl;
@@ -117,7 +117,7 @@ impl Bootable for ApiProvider {
         let route53_provider = ctx
             .domains
             .iter()
-            .find(|&d| d.provider.name == "route53");
+            .find(|&d| d.provider.name == ROUTE53_PROVIDER_NAME);
 
         let issuer_yaml = CertIssuerTemplate {
             project_name: project_name.clone(),
@@ -135,7 +135,7 @@ impl Bootable for ApiProvider {
         for service in ctx
             .services
             .iter()
-            .filter(|&s| &s.provider.name == "k8s")
+            .filter(|&s| &s.provider.name == KUBERNETES_PROVIDER_NAME)
             .collect_vec()
         {
             if let Some(_) = service.domain_name.clone() {
@@ -144,12 +144,12 @@ impl Bootable for ApiProvider {
                     service_name: service.name.clone(),
                     domain_name: self.domain_for_service(ctx.clone(), &service.name.clone()),
                 }
-                .render();
+                    .render();
                 kubectl
                     .apply_from_str(&certificate_yaml)
                     .expect("could not apply certificate yaml");
             }
-        }
+        };
 
         Ok(())
     }
