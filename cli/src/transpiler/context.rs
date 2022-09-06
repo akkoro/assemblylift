@@ -202,6 +202,7 @@ impl Castable for Context {
         };
         hcl_content.push_str(&*tmpl.render());
 
+        // FIXME dedupe by name
         let mut dns_providers = ctx.domains.iter().map(|d| d.provider.clone()).collect_vec();
         for dns in dns_providers {
             let provider = DNS_PROVIDERS

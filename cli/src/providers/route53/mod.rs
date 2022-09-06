@@ -13,7 +13,7 @@ use crate::transpiler::context::Context;
 use crate::transpiler::{Artifact, Bindable, Bootable, CastError, Castable, ContentType, Template};
 
 pub struct DnsProvider {
-    /// access_key_id, secret_key, aws_region
+    /// aws_access_key_id, aws_secret_access_key_secret_name, aws_region
     options: Arc<Options>,
 }
 

@@ -385,9 +385,9 @@ spec:
     {{#if has_route53}}- dns01:
         route53:
           region: {{route53_options.aws_region}}
-          accessKeyID: {{route53_options.access_key_id}}
+          accessKeyID: {{route53_options.aws_access_key_id}}
           secretAccessKeySecretRef:
-            name: {{route53_options.secret_access_key_secret_name}}
+            name: {{route53_options.aws_secret_access_key_secret_name}}
             key: key
     {{/if}}
 "#
