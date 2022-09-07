@@ -1,17 +1,19 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
-use handlebars::{Handlebars, to_json};
+use handlebars::{to_json, Handlebars};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::providers::{KUBERNETES_PROVIDER_NAME, Options, Provider, ProviderError, ROUTE53_PROVIDER_NAME};
+use crate::providers::{
+    Options, Provider, ProviderError, KUBERNETES_PROVIDER_NAME, ROUTE53_PROVIDER_NAME,
+};
 use crate::tools::cmctl::CmCtl;
 use crate::tools::glooctl::GlooCtl;
 use crate::tools::kubectl::KubeCtl;
-use crate::transpiler::{Artifact, Bindable, Bootable, Castable, CastError, ContentType, Template};
 use crate::transpiler::context::{Context, Function};
+use crate::transpiler::{Artifact, Bindable, Bootable, CastError, Castable, ContentType, Template};
 
 pub struct ApiProvider {
     options: Arc<Options>,
@@ -119,6 +121,9 @@ impl Bootable for ApiProvider {
             .iter()
             .find(|&d| d.provider.name == ROUTE53_PROVIDER_NAME);
 
+        // TODO if cert_manager secret opt is set, then pull aws_region & key id from the secret
+
+
         let issuer_yaml = CertIssuerTemplate {
             project_name: project_name.clone(),
             route53_options: match route53_provider {
@@ -144,12 +149,12 @@ impl Bootable for ApiProvider {
                     service_name: service.name.clone(),
                     domain_name: self.domain_for_service(ctx.clone(), &service.name.clone()),
                 }
-                    .render();
+                .render();
                 kubectl
                     .apply_from_str(&certificate_yaml)
                     .expect("could not apply certificate yaml");
             }
-        };
+        }
 
         Ok(())
     }
@@ -388,8 +393,8 @@ spec:
           region: {{route53_options.aws_region}}
           accessKeyID: {{route53_options.aws_access_key_id}}
           secretAccessKeySecretRef:
-            name: {{route53_options.aws_secret_access_key_secret_name}}
-            key: key
+            name: {{route53_options.cert_manager_aws_credentials_secret_name}}
+            key: aws_secret_access_key
     {{/if}}
 "#
     }
