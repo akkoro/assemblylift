@@ -145,12 +145,6 @@ impl Castable for AwsLambdaProvider {
             options: self.options.clone(),
         };
 
-        // let mut domain_artifacts = DNS_PROVIDERS
-        //     .iter()
-        //     .map(|p| p.1.lock().unwrap().cast(ctx.clone(), Some("apigw")).unwrap())
-        //     .reduce(flatten)
-        //     .unwrap();
-
         let mut service_artifacts = ctx
             .services
             .iter()
@@ -186,11 +180,11 @@ impl Bindable for AwsLambdaProvider {
 }
 
 impl Bootable for AwsLambdaProvider {
-    fn boot(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+    fn boot(&self, _ctx: Rc<Context>) -> Result<(), CastError> {
         Ok(())
     }
 
-    fn is_booted(&self, ctx: Rc<Context>) -> bool {
+    fn is_booted(&self, _ctx: Rc<Context>) -> bool {
         true
     }
 }

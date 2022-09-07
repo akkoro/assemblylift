@@ -64,12 +64,6 @@ impl Castable for KubernetesProvider {
     fn cast(&self, ctx: Rc<Context>, _selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
         let registries = ctx.registries.iter().map(to_container_registry).collect();
 
-        // let mut domain_artifacts = DNS_PROVIDERS
-        //     .iter()
-        //     .map(|p| p.1.lock().unwrap().cast(ctx.clone(), Some("gloo")).unwrap())
-        //     .reduce(flatten)
-        //     .unwrap();
-
         let mut service_artifacts = ctx
             .services
             .iter()
@@ -100,7 +94,6 @@ impl Castable for KubernetesProvider {
         let mut out = vec![hcl];
 
         out.append(&mut service_artifacts);
-        // out.append(&mut domain_artifacts);
         Ok(out)
     }
 }

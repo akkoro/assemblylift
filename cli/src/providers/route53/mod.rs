@@ -154,7 +154,8 @@ impl Template for Route53Template {
     }
 
     fn tmpl() -> &'static str {
-        r#"# Begin Route53
+        r#"# Begin Route53 DNS Provider
+
 provider aws {
   alias  = "{{project_name}}-r53"
   region = "{{options.aws_region}}"

@@ -104,7 +104,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-cli"
-version = "0.4.0-alpha.5"
+version = "0.4.0-alpha.6"
 dependencies = [
  "asml-iomod-registry-common",
  "assemblylift-core",
@@ -117,8 +117,6 @@ dependencies = [
  "handlebars",
  "itertools",
  "jsonpath_lib",
- "k8s-openapi 0.14.0",
- "kube 0.71.0",
  "once_cell",
  "path_abs",
  "reqwest",
@@ -293,10 +291,10 @@ dependencies = [
  "clap 3.2.16",
  "crossbeam-channel",
  "futures",
- "k8s-openapi 0.13.1",
+ "k8s-openapi",
  "krator",
- "kube 0.60.0",
- "kube-runtime 0.60.0",
+ "kube",
+ "kube-runtime",
  "kubelet",
  "oci-distribution",
  "serde_json",
@@ -380,17 +378,6 @@ name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
-
-[[package]]
-name = "backoff"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b62ddb9cb1ec0a098ad4bbf9344d0713fa193ae1a80af55febcff2627b6a00c1"
-dependencies = [
- "getrandom",
- "instant",
- "rand",
-]
 
 [[package]]
 name = "backtrace"
@@ -893,7 +880,6 @@ dependencies = [
  "ident_case",
  "proc-macro2",
  "quote",
- "strsim 0.10.0",
  "syn",
 ]
 
@@ -1012,12 +998,6 @@ name = "doc-comment"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
-
-[[package]]
-name = "dyn-clone"
-version = "1.0.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d07a982d1fb29db01e5a59b1918e03da4df7297eaeee7686ac45542fd4e59c8"
 
 [[package]]
 name = "dynasm"
@@ -1483,12 +1463,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "http-range-header"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bfe8eed0a9285ef776bb792479ea3834e8b94e13d615c2f66d03dd50a435a29"
-
-[[package]]
 name = "httparse"
 version = "1.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1522,24 +1496,6 @@ dependencies = [
  "tower-service",
  "tracing",
  "want",
-]
-
-[[package]]
-name = "hyper-openssl"
-version = "0.9.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6ee5d7a8f718585d1c3c61dfde28ef5b0bb14734b4db13f5ada856cdc6c612b"
-dependencies = [
- "http",
- "hyper",
- "linked_hash_set",
- "once_cell",
- "openssl",
- "openssl-sys",
- "parking_lot",
- "tokio 1.20.1",
- "tokio-openssl",
- "tower-layer",
 ]
 
 [[package]]
@@ -1767,23 +1723,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "k8s-openapi"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0489fc937cc7616a9abfa61bf39c250d7e32e1325ef028c8d9278dd24ea395b3"
-dependencies = [
- "base64 0.13.0",
- "bytes 1.1.0",
- "chrono",
- "http",
- "percent-encoding 2.1.0",
- "serde",
- "serde-value",
- "serde_json",
- "url 2.2.2",
-]
-
-[[package]]
 name = "kernel32-sys"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1822,10 +1761,10 @@ dependencies = [
  "anyhow",
  "async-trait",
  "futures",
- "k8s-openapi 0.13.1",
+ "k8s-openapi",
  "krator-derive",
- "kube 0.60.0",
- "kube-runtime 0.60.0",
+ "kube",
+ "kube-runtime",
  "serde",
  "serde_json",
  "tokio 1.20.1",
@@ -1863,9 +1802,9 @@ dependencies = [
  "hyper-timeout",
  "hyper-tls",
  "jsonpath_lib",
- "k8s-openapi 0.13.1",
- "kube-core 0.60.0",
- "kube-derive 0.60.0",
+ "k8s-openapi",
+ "kube-core",
+ "kube-derive",
  "openssl",
  "pem 0.8.3",
  "pin-project 1.0.11",
@@ -1877,55 +1816,7 @@ dependencies = [
  "tokio-native-tls",
  "tokio-util 0.6.10",
  "tower",
- "tower-http 0.1.3",
- "tracing",
-]
-
-[[package]]
-name = "kube"
-version = "0.71.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "342744dfeb81fe186b84f485b33f12c6a15d3396987d933b06a566a3db52ca38"
-dependencies = [
- "k8s-openapi 0.14.0",
- "kube-client",
- "kube-core 0.71.0",
- "kube-derive 0.71.0",
- "kube-runtime 0.71.0",
-]
-
-[[package]]
-name = "kube-client"
-version = "0.71.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f69a504997799340408635d6e351afb8aab2c34ca3165e162f41b3b34a69a79"
-dependencies = [
- "base64 0.13.0",
- "bytes 1.1.0",
- "chrono",
- "dirs-next",
- "either",
- "futures",
- "http",
- "http-body",
- "hyper",
- "hyper-openssl",
- "hyper-timeout",
- "jsonpath_lib",
- "k8s-openapi 0.14.0",
- "kube-core 0.71.0",
- "openssl",
- "pem 1.1.0",
- "pin-project 1.0.11",
- "secrecy",
- "serde",
- "serde_json",
- "serde_yaml",
- "thiserror",
- "tokio 1.20.1",
- "tokio-util 0.7.3",
- "tower",
- "tower-http 0.2.5",
+ "tower-http",
  "tracing",
 ]
 
@@ -1938,26 +1829,8 @@ dependencies = [
  "form_urlencoded",
  "http",
  "json-patch",
- "k8s-openapi 0.13.1",
+ "k8s-openapi",
  "once_cell",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "kube-core"
-version = "0.71.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4a247487699941baaf93438d65b12d4e32450bea849d619d19ed394e8a4a645"
-dependencies = [
- "chrono",
- "form_urlencoded",
- "http",
- "json-patch",
- "k8s-openapi 0.14.0",
- "once_cell",
- "schemars",
  "serde",
  "serde_json",
  "thiserror",
@@ -1977,19 +1850,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kube-derive"
-version = "0.71.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "203f7c5acf9d0dfb0b08d44ec1d66ace3d1dfe0cdd82e65e274f3f96615d666c"
-dependencies = [
- "darling 0.13.4",
- "proc-macro2",
- "quote",
- "serde_json",
- "syn",
-]
-
-[[package]]
 name = "kube-runtime"
 version = "0.60.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1999,8 +1859,8 @@ dependencies = [
  "derivative",
  "futures",
  "json-patch",
- "k8s-openapi 0.13.1",
- "kube 0.60.0",
+ "k8s-openapi",
+ "kube",
  "pin-project 1.0.11",
  "serde",
  "serde_json",
@@ -2008,30 +1868,6 @@ dependencies = [
  "snafu",
  "tokio 1.20.1",
  "tokio-util 0.6.10",
- "tracing",
-]
-
-[[package]]
-name = "kube-runtime"
-version = "0.71.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02ea50e6ed56578e1d1d02548901b12fe6d3edbf110269a396955e285d487973"
-dependencies = [
- "ahash",
- "backoff",
- "derivative",
- "futures",
- "json-patch",
- "k8s-openapi 0.14.0",
- "kube-client",
- "parking_lot",
- "pin-project 1.0.11",
- "serde",
- "serde_json",
- "smallvec",
- "thiserror",
- "tokio 1.20.1",
- "tokio-util 0.7.3",
  "tracing",
 ]
 
@@ -2055,11 +1891,11 @@ dependencies = [
  "iovec",
  "json-patch",
  "k8s-csi",
- "k8s-openapi 0.13.1",
+ "k8s-openapi",
  "kernel32-sys",
  "krator",
- "kube 0.60.0",
- "kube-runtime 0.60.0",
+ "kube",
+ "kube-runtime",
  "lazy_static",
  "lazycell",
  "mio 0.6.23",
@@ -2139,15 +1975,6 @@ name = "linked-hash-map"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0717cef1bc8b636c6e1c1bbdefc09e6322da8a9321966e8928ef80d20f7f770f"
-
-[[package]]
-name = "linked_hash_set"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47186c6da4d81ca383c7c47c1bfc80f4b95f4720514d860a5407aaf4233f9588"
-dependencies = [
- "linked-hash-map",
-]
 
 [[package]]
 name = "lock_api"
@@ -3248,30 +3075,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "schemars"
-version = "0.8.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1847b767a3d62d95cbf3d8a9f0e421cf57a0d8aa4f411d4b16525afb0284d4ed"
-dependencies = [
- "dyn-clone",
- "schemars_derive",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "schemars_derive"
-version = "0.8.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af4d7e1b012cb3d9129567661a63755ea4b8a7386d339dc945ae187e403c6743"
-dependencies = [
- "proc-macro2",
- "quote",
- "serde_derive_internals",
- "syn",
-]
-
-[[package]]
 name = "scoped-tls"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3298,16 +3101,6 @@ name = "seahash"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c107b6f4780854c8b126e228ea8869f4d7b71260f962fefb57b996b8959ba6b"
-
-[[package]]
-name = "secrecy"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bd1c54ea06cfd2f6b63219704de0b9b4f72dcc2b8fdef820be6cd799780e91e"
-dependencies = [
- "serde",
- "zeroize",
-]
 
 [[package]]
 name = "security-framework"
@@ -3386,17 +3179,6 @@ name = "serde_derive"
 version = "1.0.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75743a150d003dd863b51dc809bcad0d73f2102c53632f1e954e738192a3413f"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "serde_derive_internals"
-version = "0.26.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85bf8229e7920a9f636479437026331ce11aa132b4dde37d121944a44d6e5f3c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4005,18 +3787,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tokio-openssl"
-version = "0.6.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c08f9ffb7809f1b20c1b398d92acf4cc719874b3b2b2d9ea2f09b4a80350878a"
-dependencies = [
- "futures-util",
- "openssl",
- "openssl-sys",
- "tokio 1.20.1",
-]
-
-[[package]]
 name = "tokio-rustls"
 version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4078,7 +3848,6 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "pin-project-lite 0.2.9",
- "slab",
  "tokio 1.20.1",
  "tracing",
 ]
@@ -4169,26 +3938,6 @@ dependencies = [
  "http",
  "http-body",
  "pin-project 1.0.11",
- "tower-layer",
- "tower-service",
- "tracing",
-]
-
-[[package]]
-name = "tower-http"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aba3f3efabf7fb41fae8534fc20a817013dd1c12cb45441efb6c82e6556b4cd8"
-dependencies = [
- "base64 0.13.0",
- "bitflags",
- "bytes 1.1.0",
- "futures-core",
- "futures-util",
- "http",
- "http-body",
- "http-range-header",
- "pin-project-lite 0.2.9",
  "tower-layer",
  "tower-service",
  "tracing",
