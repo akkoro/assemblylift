@@ -1,9 +1,9 @@
-use itertools::Itertools;
 use std::collections::HashMap;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+use itertools::Itertools;
 use serde_json::Value;
 
 use crate::tools::Tool;
@@ -136,7 +136,7 @@ impl KubeCtl {
                 a.append(&mut v);
                 a
             })
-            .unwrap();
+            .unwrap_or(Default::default());
         let mut child = self
             .command()
             .args(vec!["get", kind])

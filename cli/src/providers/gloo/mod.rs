@@ -1,19 +1,22 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
-use handlebars::{to_json, Handlebars};
+use handlebars::{Handlebars, to_json};
 use itertools::Itertools;
+use jsonpath_lib::Selector;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::providers::{
-    Options, Provider, ProviderError, KUBERNETES_PROVIDER_NAME, ROUTE53_PROVIDER_NAME,
+    KUBERNETES_PROVIDER_NAME, Options, Provider, ProviderError, ROUTE53_PROVIDER_NAME,
 };
 use crate::tools::cmctl::CmCtl;
 use crate::tools::glooctl::GlooCtl;
 use crate::tools::kubectl::KubeCtl;
-use crate::transpiler::context::{Context, Function};
-use crate::transpiler::{Artifact, Bindable, Bootable, CastError, Castable, ContentType, Template};
+use crate::transpiler::{
+    Artifact, Bindable, Bootable, Castable, CastError, ContentType, StringMap, Template,
+};
+use crate::transpiler::context::{Context, Domain, Function};
 
 pub struct ApiProvider {
     options: Arc<Options>,
@@ -121,14 +124,85 @@ impl Bootable for ApiProvider {
             .iter()
             .find(|&d| d.provider.name == ROUTE53_PROVIDER_NAME);
 
-        // TODO if cert_manager secret opt is set, then pull aws_region & key id from the secret
-
-
         let issuer_yaml = CertIssuerTemplate {
             project_name: project_name.clone(),
             route53_options: match route53_provider {
-                Some(r53) => r53.provider.options.clone(),
-                None => Default::default(),
+                Some(r53) => {
+                    let opts = r53.provider.options.clone();
+                    println!("DEBUG opts={:?}", opts);
+                    match opts.get("cert_manager_aws_credentials_secret_name") {
+                        Some(secret) => {
+                            let secrets = kubectl
+                                .get_in_namespace("secrets", "cert-manager", None)
+                                .unwrap();
+                            // println!("DEBUG secrets={:?}", secrets);
+                            let mut selector = Selector::new();
+                            let results = selector
+                                .str_path(&*format!(
+                                    "$.items[?(@.metadata.name == '{}')].data",
+                                    secret
+                                ))
+                                .unwrap()
+                                .value(&secrets)
+                                .select()
+                                .unwrap();
+                            let data = results[0];
+                            let mut opts = StringMap::new();
+                            opts.insert(
+                                "cert_manager_aws_credentials_secret_name".to_string(),
+                                secret.clone(),
+                            );
+                            opts.insert(
+                                "aws_region".to_string(),
+                                std::str::from_utf8(
+                                    &*base64::decode(
+                                        data.get("aws_region")
+                                            .unwrap()
+                                            .as_str()
+                                            .unwrap()
+                                            .to_string(),
+                                    )
+                                    .unwrap(),
+                                )
+                                .unwrap()
+                                .to_string(),
+                            );
+                            opts.insert(
+                                "aws_access_key_id".to_string(),
+                                std::str::from_utf8(
+                                    &*base64::decode(
+                                        data.get("aws_access_key_id")
+                                            .unwrap()
+                                            .as_str()
+                                            .unwrap()
+                                            .to_string(),
+                                    )
+                                    .unwrap(),
+                                )
+                                .unwrap()
+                                .to_string(),
+                            );
+                            opts.insert(
+                                "aws_secret_access_key".to_string(),
+                                std::str::from_utf8(
+                                    &*base64::decode(
+                                        data.get("aws_secret_access_key")
+                                            .unwrap()
+                                            .as_str()
+                                            .unwrap()
+                                            .to_string(),
+                                    )
+                                    .unwrap(),
+                                )
+                                .unwrap()
+                                .to_string(),
+                            );
+                            Arc::new(opts)
+                        }
+                        None => Default::default(),
+                    }
+                }
+                _ => Default::default(),
             },
             has_route53: route53_provider.is_some(),
         }
