@@ -60,17 +60,19 @@ impl fmt::Display for HttpErrorCode {
 }
 
 impl HttpResponse {
-    pub fn ok(body: String, content_type: Option<String>, is_base64_encoded: bool, gzip: bool) -> Self {
+    pub fn ok(
+        body: String,
+        content_type: Option<String>,
+        is_base64_encoded: bool,
+        gzip: bool,
+    ) -> Self {
         let mut headers = HashMap::default();
         headers.insert(
             "content-type".to_string(),
             content_type.unwrap_or_else(|| String::from("application/json")),
         );
         if gzip {
-            headers.insert(
-                "content-encoding".to_string(),
-                "gzip".to_string(),
-            );
+            headers.insert("content-encoding".to_string(), "gzip".to_string());
         }
 
         Self {
@@ -97,7 +99,7 @@ impl HttpResponse {
                 desc: code.to_string(),
                 message,
             })
-                .unwrap(),
+            .unwrap(),
         }
     }
 }
@@ -118,13 +120,7 @@ macro_rules! http_ok {
 
     ($response:expr, $type:expr, $isb64:expr, $isgzip:expr) => {
         FunctionContext::success(
-            serde_json::to_string(&HttpResponse::ok(
-                $response,
-                $type,
-                $isb64,
-                $isgzip,
-            ))
-            .unwrap(),
+            serde_json::to_string(&HttpResponse::ok($response, $type, $isb64, $isgzip)).unwrap(),
         );
     };
 }
@@ -133,11 +129,8 @@ macro_rules! http_ok {
 macro_rules! http_error {
     ($message:expr) => {
         FunctionContext::success(
-            serde_json::to_string(&HttpResponse::error(
-                $message,
-                HttpErrorCode::FunctionError,
-            ))
-            .unwrap(),
+            serde_json::to_string(&HttpResponse::error($message, HttpErrorCode::FunctionError))
+                .unwrap(),
         );
     };
 }

@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use clap::ArgMatches;
 use dialoguer::Confirm;
 
@@ -41,7 +39,6 @@ pub fn command(matches: Option<&ArgMatches>) {
 
     match resource_type {
         // Some("all") => terraform::commands::destroy(),
-
         Some("service") => {
             let service_name = resource_name.unwrap();
             if Confirm::new()
@@ -95,7 +92,9 @@ pub fn command(matches: Option<&ArgMatches>) {
             }
         }
 
-        Some(_) => panic!("must specify either 'service', 'function', or 'all' as an argument to burn"),
+        Some(_) => {
+            panic!("must specify either 'service', 'function', or 'all' as an argument to burn")
+        }
         None => panic!("must specify either 'service', 'function' or 'all' as an argument to burn"),
     }
 }

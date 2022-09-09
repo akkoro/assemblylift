@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use wasmer::WasmCell;
 use assemblylift_core_io_common::constants::{FUNCTION_INPUT_BUFFER_SIZE, IO_BUFFER_SIZE_BYTES};
+use wasmer::WasmCell;
 
 use crate::threader::ThreaderEnv;
 
@@ -21,7 +21,12 @@ pub trait LinearBuffer {
 
 /// A trait representing a buffer in WASM guest memory
 pub trait WasmBuffer<S: Clone + Send + Sized + 'static> {
-    fn copy_to_wasm(&self, env: &ThreaderEnv<S>, src: (usize, usize), dst: (usize, usize)) -> Result<(), ()>;
+    fn copy_to_wasm(
+        &self,
+        env: &ThreaderEnv<S>,
+        src: (usize, usize),
+        dst: (usize, usize),
+    ) -> Result<(), ()>;
 }
 
 /// Implement paging data into a `WasmBuffer`
@@ -85,7 +90,8 @@ where
             true => self.buffer.len(),
             false => FUNCTION_INPUT_BUFFER_SIZE,
         };
-        self.copy_to_wasm(env, (0usize, end), (0usize, FUNCTION_INPUT_BUFFER_SIZE)).unwrap();
+        self.copy_to_wasm(env, (0usize, end), (0usize, FUNCTION_INPUT_BUFFER_SIZE))
+            .unwrap();
         self.page_idx = 0usize;
         0
     }
@@ -96,9 +102,16 @@ where
             self.page_idx += 1;
             self.copy_to_wasm(
                 env,
-                (FUNCTION_INPUT_BUFFER_SIZE * self.page_idx, min(FUNCTION_INPUT_BUFFER_SIZE * (self.page_idx + 1), self.buffer.len())),
-                (0usize, FUNCTION_INPUT_BUFFER_SIZE)
-            ).unwrap();
+                (
+                    FUNCTION_INPUT_BUFFER_SIZE * self.page_idx,
+                    min(
+                        FUNCTION_INPUT_BUFFER_SIZE * (self.page_idx + 1),
+                        self.buffer.len(),
+                    ),
+                ),
+                (0usize, FUNCTION_INPUT_BUFFER_SIZE),
+            )
+            .unwrap();
         }
         0
     }
@@ -108,7 +121,12 @@ impl<S> WasmBuffer<S> for FunctionInputBuffer
 where
     S: Clone + Send + Sized + 'static,
 {
-    fn copy_to_wasm(&self, env: &ThreaderEnv<S>, src: (usize, usize), dst: (usize, usize)) -> Result<(), ()> {
+    fn copy_to_wasm(
+        &self,
+        env: &ThreaderEnv<S>,
+        src: (usize, usize),
+        dst: (usize, usize),
+    ) -> Result<(), ()> {
         let wasm_memory = env.memory_ref().unwrap();
         let input_buffer = env
             .get_function_input_buffer
@@ -117,11 +135,7 @@ where
             .call()
             .unwrap();
         let memory_writer: Vec<WasmCell<u8>> = input_buffer
-            .deref(
-                &wasm_memory,
-                dst.0 as u32,
-                dst.1 as u32,
-            )
+            .deref(&wasm_memory, dst.0 as u32, dst.1 as u32)
             .unwrap();
 
         for (i, b) in self.buffer[src.0..src.1].iter().enumerate() {
@@ -196,7 +210,8 @@ where
             env,
             (self.active_buffer, 0usize),
             (0usize, IO_BUFFER_SIZE_BYTES),
-        ).unwrap();
+        )
+        .unwrap();
         0
     }
 
@@ -207,7 +222,8 @@ where
             env,
             (self.active_buffer, page_offset),
             (0usize, IO_BUFFER_SIZE_BYTES),
-        ).unwrap();
+        )
+        .unwrap();
         *self.page_indices.get_mut(&self.active_buffer).unwrap() = page_idx;
         0
     }
@@ -217,25 +233,24 @@ impl<S> WasmBuffer<S> for IoBuffer
 where
     S: Clone + Send + Sized + 'static,
 {
-    fn copy_to_wasm(&self, env: &ThreaderEnv<S>, src: (usize, usize), dst: (usize, usize)) -> Result<(), ()> {
+    fn copy_to_wasm(
+        &self,
+        env: &ThreaderEnv<S>,
+        src: (usize, usize),
+        dst: (usize, usize),
+    ) -> Result<(), ()> {
         use std::cmp::min;
         let wasm_memory = env.memory_ref().unwrap();
-        let io_buffer = env
-            .get_io_buffer
-            .get_ref()
-            .unwrap()
-            .call()
-            .unwrap();
+        let io_buffer = env.get_io_buffer.get_ref().unwrap().call().unwrap();
         let memory_writer: Vec<WasmCell<u8>> = io_buffer
-            .deref(
-                &wasm_memory,
-                dst.0 as u32,
-                dst.1 as u32,
-            )
+            .deref(&wasm_memory, dst.0 as u32, dst.1 as u32)
             .unwrap();
 
         let buffer = self.buffers.get(&src.0).unwrap();
-        for (i, b) in buffer[src.1..min(src.1 + IO_BUFFER_SIZE_BYTES, buffer.len())].iter().enumerate() {
+        for (i, b) in buffer[src.1..min(src.1 + IO_BUFFER_SIZE_BYTES, buffer.len())]
+            .iter()
+            .enumerate()
+        {
             memory_writer[i].set(*b);
         }
 

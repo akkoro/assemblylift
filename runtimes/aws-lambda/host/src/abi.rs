@@ -1,10 +1,10 @@
+use assemblylift_core::abi::RuntimeAbi;
+use assemblylift_core::threader::ThreaderEnv;
 use std::cell::Cell;
 use std::error::Error;
 use std::io;
 use std::io::ErrorKind;
 use wasmer::MemoryView;
-use assemblylift_core::abi::RuntimeAbi;
-use assemblylift_core::threader::ThreaderEnv;
 
 pub struct LambdaAbi;
 

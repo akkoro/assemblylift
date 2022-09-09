@@ -1,3 +1,4 @@
+use futures::TryFutureExt;
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::future::Future;
@@ -7,7 +8,6 @@ use std::path::{Path, PathBuf};
 use std::process;
 use std::process::Stdio;
 use std::sync::Arc;
-use futures::TryFutureExt;
 
 use kubelet::container::Handle as ContainerHandle;
 use kubelet::container::Status;
@@ -62,8 +62,10 @@ impl Runtime {
     ) -> anyhow::Result<Self> {
         let temp_file = tokio::task::spawn_blocking(move || -> anyhow::Result<NamedTempFile> {
             Ok(NamedTempFile::new_in(log_dir)?)
-        }).await??;
-        let (module, store) = wasm::deserialize_module_from_bytes::<KubeletAbi, Status>(&module_data)?;
+        })
+        .await??;
+        let (module, store) =
+            wasm::deserialize_module_from_bytes::<KubeletAbi, Status>(&module_data)?;
         let module = Arc::new(module);
         let store = Arc::new(store);
         let (resolver, threader_env) = wasm::build_module::<KubeletAbi, Status>(
@@ -87,31 +89,28 @@ impl Runtime {
             .expect("TODO handle this panic");
         let env = self.threader_env.clone();
 
-        let wasm_handle: JoinHandle<HandleResult> = tokio::task::spawn_blocking(move || -> HandleResult {
-            let start = instance.exports.get_function("_start").unwrap();
+        let wasm_handle: JoinHandle<HandleResult> =
+            tokio::task::spawn_blocking(move || -> HandleResult {
+                let start = instance.exports.get_function("_start").unwrap();
 
-            let status_sender = env.status_sender;
-            status_sender.send(Status::Running {
-                timestamp: chrono::Utc::now(),
-            });
+                let status_sender = env.status_sender;
+                status_sender.send(Status::Running {
+                    timestamp: chrono::Utc::now(),
+                });
 
-            match start.call(&[]) {
-                Ok(_) => {
-                    status_sender.send(Status::Terminated {
+                match start.call(&[]) {
+                    Ok(_) => status_sender.send(Status::Terminated {
                         timestamp: chrono::Utc::now(),
                         message: "WASM exited successfully".to_string(),
                         failed: false,
-                    })
-                }
-                Err(error) => {
-                    status_sender.send(Status::Terminated {
+                    }),
+                    Err(error) => status_sender.send(Status::Terminated {
                         timestamp: chrono::Utc::now(),
                         message: error.message(),
                         failed: true,
-                    })
+                    }),
                 }
-            }
-        });
+            });
 
         let log_handle_factory = HandleFactory {
             temp: self.output.clone(),

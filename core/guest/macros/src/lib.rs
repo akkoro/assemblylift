@@ -1,10 +1,12 @@
 use quote::{quote, quote_spanned};
-use syn::{ItemFn, parse2};
+use syn::{parse2, ItemFn};
 
 #[proc_macro_attribute]
-pub fn handler(_args: proc_macro::TokenStream, stream: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input: ItemFn = parse2(stream.into())
-        .expect("could not parse token stream");
+pub fn handler(
+    _args: proc_macro::TokenStream,
+    stream: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let input: ItemFn = parse2(stream.into()).expect("could not parse token stream");
     let block_statements = &input.block.stmts;
     let name = &input.sig.ident;
     let ret = &input.sig.output;

@@ -3,8 +3,8 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use path_abs::PathInfo;
 use assemblylift_core::wasm;
+use path_abs::PathInfo;
 
 use crate::archive::unzip;
 use crate::projectfs::Project;

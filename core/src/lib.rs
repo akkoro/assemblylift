@@ -11,15 +11,16 @@ pub mod wasm;
 
 #[inline(always)]
 /// Invoke an IOmod call at coordinates `method_path` with input `method_input`
-pub fn invoke_io<S>(
-    env: &ThreaderEnv<S>,
-    method_path: &str,
-    method_input: Vec<u8>,
-) -> i32
+pub fn invoke_io<S>(env: &ThreaderEnv<S>, method_path: &str, method_input: Vec<u8>) -> i32
 where
-    S: Clone + Send + Sized + 'static
+    S: Clone + Send + Sized + 'static,
 {
-    let ioid = env.threader.clone().lock().unwrap().next_ioid()
+    let ioid = env
+        .threader
+        .clone()
+        .lock()
+        .unwrap()
+        .next_ioid()
         .expect("unable to get a new IO ID");
 
     env.threader

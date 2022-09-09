@@ -1,16 +1,21 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use clap::crate_version;
 use handlebars::Handlebars;
+use itertools::Itertools;
+use once_cell::sync::Lazy;
 use serde::Serialize;
 
-use crate::providers::{gloo, Options, Provider, ProviderError};
+use crate::providers::{DNS_PROVIDERS, flatten, gloo, KUBERNETES_PROVIDER_NAME, LockBox, Options, Provider, ProviderError, ProviderMap};
 use crate::tools::glooctl::GlooCtl;
-use crate::transpiler::{Artifact, Bindable, Castable, CastError, ContentType, context, Template};
+use crate::transpiler::{
+    Artifact, Bindable, Bootable, Castable, CastError, ContentType, context, Template,
+};
 use crate::transpiler::context::Context;
 
-fn map_container_registry(r: &context::Registry) -> ContainerRegistry {
+fn to_container_registry(r: &context::Registry) -> ContainerRegistry {
     ContainerRegistry {
         is_dockerhub: r.host.eq_ignore_ascii_case("dockerhub"),
         is_ecr: r.host.eq_ignore_ascii_case("ecr"),
@@ -19,12 +24,20 @@ fn map_container_registry(r: &context::Registry) -> ContainerRegistry {
 }
 
 pub struct KubernetesProvider {
+    api_provider: Arc<gloo::ApiProvider>,
+    service_subprovider: KubernetesService,
     options: Arc<Options>,
 }
 
 impl KubernetesProvider {
     pub fn new() -> Self {
+        let api_provider = Arc::new(gloo::ApiProvider::new());
         Self {
+            api_provider: api_provider.clone(),
+            service_subprovider: KubernetesService {
+                api_provider: api_provider.clone(),
+                options: Arc::new(Options::new()),
+            },
             options: Arc::new(Options::new()),
         }
     }
@@ -32,7 +45,7 @@ impl KubernetesProvider {
 
 impl Provider for KubernetesProvider {
     fn name(&self) -> String {
-        String::from("k8s")
+        String::from(KUBERNETES_PROVIDER_NAME)
     }
 
     fn options(&self) -> Arc<Options> {
@@ -40,7 +53,8 @@ impl Provider for KubernetesProvider {
     }
 
     fn set_options(&mut self, opts: Arc<Options>) -> Result<(), ProviderError> {
-        self.options = opts;
+        self.options = opts.clone();
+        self.service_subprovider.options = opts.clone();
         Ok(())
     }
 }
@@ -48,27 +62,18 @@ impl Provider for KubernetesProvider {
 // TODO kube context name as provider option
 impl Castable for KubernetesProvider {
     fn cast(&self, ctx: Rc<Context>, _selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
-        let service_subprovider = KubernetesService {
-            options: self.options.clone(),
-        };
-
-        let registries = ctx.registries.iter().map(map_container_registry).collect();
+        let registries = ctx.registries.iter().map(to_container_registry).collect();
 
         let mut service_artifacts = ctx
             .services
             .iter()
             .filter(|&s| s.provider.name == self.name())
             .map(|s| {
-                service_subprovider
+                self.service_subprovider
                     .cast(ctx.clone(), Some(&s.name))
                     .unwrap()
             })
-            .reduce(|mut accum, mut v| {
-                let mut out = Vec::new();
-                out.append(&mut accum);
-                out.append(&mut v);
-                out
-            })
+            .reduce(flatten)
             .unwrap();
 
         let base_tmpl = KubernetesBaseTemplate {
@@ -87,19 +92,36 @@ impl Castable for KubernetesProvider {
         };
 
         let mut out = vec![hcl];
+
         out.append(&mut service_artifacts);
         Ok(out)
     }
 }
 
 impl Bindable for KubernetesProvider {
-    fn bind(&self, _ctx: Rc<Context>) -> Result<(), CastError> {
+    fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
         GlooCtl::default().install_gateway();
+        ctx.services
+            .iter()
+            .filter(|&s| s.provider.name == self.name())
+            .map(|s| self.service_subprovider.bind(ctx.clone()))
+            .collect_vec();
         Ok(())
     }
 }
 
+impl Bootable for KubernetesProvider {
+    fn boot(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        self.api_provider.boot(ctx)
+    }
+
+    fn is_booted(&self, ctx: Rc<Context>) -> bool {
+        self.api_provider.is_booted(ctx)
+    }
+}
+
 struct KubernetesService {
+    api_provider: Arc<gloo::ApiProvider>,
     options: Arc<Options>,
 }
 
@@ -109,7 +131,7 @@ impl Castable for KubernetesService {
             .expect("selector must be a service name")
             .to_string();
 
-        let registries = ctx.registries.iter().map(map_container_registry).collect();
+        let registries = ctx.registries.iter().map(to_container_registry).collect();
 
         let hcl_content = ServiceTemplate {
             project_name: ctx.project.name.clone(),
@@ -124,8 +146,7 @@ impl Castable for KubernetesService {
         .render();
 
         // TODO in future we want to support other API Gateway providers -- for now, just Gloo :)
-        let api_provider = gloo::ApiProvider::new();
-        let mut api_artifacts = api_provider.cast(ctx.clone(), Some(&*name)).unwrap();
+        let mut api_artifacts = self.api_provider.cast(ctx.clone(), Some(&*name)).unwrap();
 
         let function_subprovider = KubernetesFunction {
             service_name: name.clone(),
@@ -140,12 +161,7 @@ impl Castable for KubernetesService {
                     .cast(ctx.clone(), Some(&f.name))
                     .unwrap()
             })
-            .reduce(|mut accum, mut v| {
-                let mut out = Vec::new();
-                out.append(&mut accum);
-                out.append(&mut v);
-                out
-            })
+            .reduce(flatten)
             .unwrap();
         let function_hcl = function_artifacts
             .iter()
@@ -172,6 +188,12 @@ impl Castable for KubernetesService {
     }
 }
 
+impl Bindable for KubernetesService {
+    fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        self.api_provider.bind(ctx)
+    }
+}
+
 struct KubernetesFunction {
     service_name: String,
     options: Arc<Options>,
@@ -182,7 +204,12 @@ impl Castable for KubernetesFunction {
         let name = selector
             .expect("selector must be a function name")
             .to_string();
-        match ctx.functions.iter().filter(|&f| f.service_name == self.service_name).find(|&f| f.name == name) {
+        match ctx
+            .functions
+            .iter()
+            .filter(|&f| f.service_name == self.service_name)
+            .find(|&f| f.name == name)
+        {
             Some(function) => {
                 let service = function.service_name.clone();
 
@@ -204,7 +231,7 @@ impl Castable for KubernetesFunction {
                     .collect();
 
                 let registries: Vec<ContainerRegistry> =
-                    ctx.registries.iter().map(map_container_registry).collect();
+                    ctx.registries.iter().map(to_container_registry).collect();
 
                 let hcl_tmpl = FunctionTemplate {
                     base_image_version: crate_version!().to_string(),
@@ -299,9 +326,9 @@ provider kubernetes {
 {{#each registries}}{{#if this.is_ecr}}provider aws {
     alias  = "{{../project_name}}-k8s"
     region = "{{this.options.aws_region}}"
-}{{/if}}
+}
 
-{{#if this.is_ecr}}data aws_ecr_authorization_token token {
+data aws_ecr_authorization_token token {
     provider = aws.{{../project_name}}-k8s
 }{{/if}}{{/each}}
 
@@ -557,10 +584,10 @@ impl Template for DockerfileTemplate {
     fn tmpl() -> &'static str {
         r#"FROM public.ecr.aws/akkoro/assemblylift/hyper-alpine:{{base_image_version}}
 ENV ASML_WASM_MODULE_NAME {{handler_name}}
+{{#if is_ruby}}ENV ASML_FUNCTION_ENV ruby-docker{{/if}}
 ADD ./{{function_name}}/{{handler_name}} /opt/assemblylift/{{handler_name}}
-{{#if is_ruby}}COPY ./{{function_name}}/ruby-wasm32-wasi /usr/bin/ruby-wasm32-wasi
-COPY ./{{function_name}}/rubysrc/* /usr/bin/ruby-wasm32-wasi/src/
-ENV ASML_FUNCTION_ENV ruby-docker{{/if}}
+{{#if is_ruby}}COPY ./ruby-wasm32-wasi /usr/bin/ruby-wasm32-wasi
+COPY ./{{function_name}}/rubysrc/* /usr/bin/ruby-wasm32-wasi/src/{{/if}}
 "#
     }
 }

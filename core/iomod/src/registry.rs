@@ -1,8 +1,8 @@
 //! Not to be confused with the IO Module Public Registry; IOmods register themselves
 //! on the start of their execution with `Registry`.
 //!
-//! The call registry is maintained in-memory. A thread is spawned which handles 
-//! RPC connections from IOmods and handles IOmod registration. This thread also 
+//! The call registry is maintained in-memory. A thread is spawned which handles
+//! RPC connections from IOmods and handles IOmod registration. This thread also
 //! services call invocations to registered IOmods via MPSC receiver (sent from `Threader`).
 
 use std::cell::RefCell;

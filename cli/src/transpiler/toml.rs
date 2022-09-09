@@ -1,3 +1,16 @@
+use std::sync::Arc;
+
+use serde::{Serialize, Deserialize};
+
+use crate::transpiler::StringMap;
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Provider {
+    pub name: String,
+    #[serde(skip_serializing_if = "StringMap::is_empty", default)]
+    pub options: Arc<StringMap<String>>,
+}
+
 pub mod asml {
     use std::io;
     use std::path::PathBuf;
@@ -6,12 +19,14 @@ pub mod asml {
     use serde::{Deserialize, Serialize};
 
     use crate::providers::Options;
+    use crate::transpiler::toml::Provider;
 
     #[derive(Serialize, Deserialize, Clone, Debug)]
     pub struct Manifest {
         pub project: Project,
         #[serde(skip_serializing_if = "Vec::is_empty", default = "Default::default")]
         pub services: Rc<Vec<Rc<ServiceRef>>>,
+        pub domains: Option<Vec<Domain>>,
         pub terraform: Option<Terraform>,
         pub registries: Option<Vec<Registry>>,
     }
@@ -37,6 +52,12 @@ pub mod asml {
     pub struct Registry {
         pub host: String,
         pub options: Options,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug)]
+    pub struct Domain {
+        pub dns_name: String,
+        pub provider: Provider,
     }
 
     impl Manifest {
@@ -117,12 +138,13 @@ pub mod service {
     use serde::{Deserialize, Serialize};
 
     use crate::transpiler::StringMap;
+    use crate::transpiler::toml::Provider;
 
     #[derive(Serialize, Deserialize, Clone)]
     pub struct Manifest {
         service: Rc<Service>,
         #[serde(default)]
-        pub api: Api, // FIXME not pub
+        pub api: Api,
         iomod: Rc<Option<Iomod>>,
     }
 
@@ -239,30 +261,14 @@ pub mod service {
     pub type Authorizers = Vec<HttpAuth>;
 
     #[derive(Serialize, Deserialize, Clone)]
-    pub struct Provider {
-        pub name: String,
-        #[serde(skip_serializing_if = "StringMap::is_empty", default)]
-        pub options: Arc<StringMap<String>>,
-    }
-
-    #[derive(Serialize, Deserialize, Clone)]
     pub struct Service {
         pub name: String,
-        #[serde(default)]
         pub provider: Rc<Provider>,
-    }
-
-    impl Default for Provider {
-        fn default() -> Self {
-            Provider {
-                name: String::from("aws-lambda"),
-                options: Default::default(),
-            }
-        }
     }
 
     #[derive(Serialize, Deserialize, Clone, Default)]
     pub struct Api {
+        pub domain_name: Option<String>,
         pub functions: Rc<Vec<Function>>,
         pub authorizers: Option<Rc<Vec<HttpAuth>>>,
     }

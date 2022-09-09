@@ -12,11 +12,7 @@ pub struct Document {
     pub document: String,
 }
 
-pub fn write_documents(
-    path: &PathBuf,
-    docs: &Vec<Document>,
-    data: &mut SerdeMap<String, Json>,
-) {
+pub fn write_documents(path: &PathBuf, docs: &Vec<Document>, data: &mut SerdeMap<String, Json>) {
     let mut reg = Handlebars::new();
     for doc in docs {
         reg.register_template_string(doc.file_name, doc.document.clone())

@@ -8,8 +8,8 @@ use crate::templates::project::{
     RUBY_FUNCTION_DOCUMENTS, RUST_FUNCTION_DOCUMENTS, SERVICE_DOCUMENTS,
 };
 use crate::templates::write_documents;
-use crate::transpiler::toml::{asml, service};
 use crate::transpiler::toml::asml::ServiceRef;
+use crate::transpiler::toml::{asml, service};
 
 pub fn command(matches: Option<&ArgMatches>) {
     let matches = match matches {
@@ -53,7 +53,9 @@ pub fn command(matches: Option<&ArgMatches>) {
 
             let mut manifest: asml::Manifest = manifest.0.clone();
             manifest.add_service(resource_name.unwrap());
-            manifest.write(manifest_dir.clone()).expect("could not write assemblylift.toml");
+            manifest
+                .write(manifest_dir.clone())
+                .expect("could not write assemblylift.toml");
         }
 
         Some("function") => {

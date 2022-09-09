@@ -1,5 +1,5 @@
-use std::{fs, io};
 use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 use path_abs::{PathAbs, PathDir};
 
@@ -40,7 +40,7 @@ pub struct NetDir {
 impl NetDir {
     pub fn new() -> Self {
         Self {
-            dir: Box::new(PathBuf::from("net/"))
+            dir: Box::new(PathBuf::from("net/")),
         }
     }
 }
@@ -132,7 +132,8 @@ pub fn locate_asml_manifest() -> Option<(toml::asml::Manifest, PathBuf)> {
         Some(path) => {
             let canonical_path = fs::canonicalize(path.clone()).unwrap();
             Some((
-                toml::asml::Manifest::read(&PathBuf::from(canonical_path.clone())).expect("could not read assemblylift.toml"),
+                toml::asml::Manifest::read(&PathBuf::from(canonical_path.clone()))
+                    .expect("could not read assemblylift.toml"),
                 PathBuf::from(canonical_path.clone()),
             ))
         }

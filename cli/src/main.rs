@@ -1,6 +1,6 @@
 extern crate serde_json;
 
-use clap::{App, AppSettings, Arg, crate_version};
+use clap::{crate_version, App, AppSettings, Arg};
 
 use crate::commands::{bind, burn, cast, init, make, pack, push, r#move, user};
 

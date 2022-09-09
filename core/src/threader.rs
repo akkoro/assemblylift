@@ -3,11 +3,11 @@
 
 use std::collections::HashMap;
 use std::future::Future;
-use std::sync::{Arc, Mutex};
 use std::mem::ManuallyDrop;
+use std::sync::{Arc, Mutex};
 
 use tokio::sync::mpsc;
-use wasmer::{Array, LazyInit, Memory, NativeFunc, WasmerEnv, WasmPtr};
+use wasmer::{Array, LazyInit, Memory, NativeFunc, WasmPtr, WasmerEnv};
 
 use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
@@ -19,7 +19,7 @@ pub type IoId = u32;
 /// The `WasmerEnv` environment providing shared data between native WASM functions and the host
 pub struct ThreaderEnv<S>
 where
-    S: Clone + Send + Sized + 'static
+    S: Clone + Send + Sized + 'static,
 {
     pub threader: ManuallyDrop<Arc<Mutex<Threader<S>>>>,
     pub host_input_buffer: Arc<Mutex<FunctionInputBuffer>>,
@@ -91,7 +91,11 @@ where
     /// Load the memory document associated with `ioid` into the guest IO memory
     pub fn document_load(&mut self, env: &ThreaderEnv<S>, ioid: IoId) -> Result<(), ()> {
         let doc = self.get_io_memory_document(ioid).unwrap();
-        self.io_memory.lock().unwrap().buffer.first(env, Some(doc.start));
+        self.io_memory
+            .lock()
+            .unwrap()
+            .buffer
+            .first(env, Some(doc.start));
         Ok(())
     }
 
@@ -100,7 +104,7 @@ where
         self.io_memory.lock().unwrap().buffer.next(env);
         Ok(())
     }
-    
+
     /// Poll the runtime for the completion status of call associated with `ioid`
     pub fn poll(&mut self, ioid: IoId) -> bool {
         match self.io_memory.clone().lock() {
@@ -110,7 +114,7 @@ where
                         // At this point, the document "contents" have already been written to the WASM buffer
                         //    and are read on the guest side immediately after poll() exits.
                         // We can free the host-side memory structure here.
-//                        memory.free(ioid);
+                        //                        memory.free(ioid);
                         true
                     }
                     false => false,
@@ -122,14 +126,9 @@ where
 
     /// Invoke the IOmod call at `method_path` with `method_input`, and assign it id `ioid`.
     /// A task is spawned on the Threader's tokio runtime which runs until the IOmod call responds.
-    pub fn invoke(
-        &mut self,
-        method_path: &str,
-        method_input: Vec<u8>,
-        ioid: IoId,
-    ) {
+    pub fn invoke(&mut self, method_path: &str, method_input: Vec<u8>, ioid: IoId) {
         let io_memory = self.io_memory.clone();
-        
+
         let coords = method_path.split(".").collect::<Vec<&str>>();
         if coords.len() != 4 {
             panic!("Malformed method path @ Threader::invoke") // TODO don't panic

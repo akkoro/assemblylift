@@ -2,12 +2,12 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use clap::crate_version;
-use handlebars::{Handlebars, to_json};
+use handlebars::{to_json, Handlebars};
 use serde::Serialize;
 
-use crate::providers::{Options, Provider, ProviderError, render_string_list};
-use crate::transpiler::{Artifact, Bindable, Castable, CastError, ContentType};
+use crate::providers::{render_string_list, Options, Provider, ProviderError};
 use crate::transpiler::context::Context;
+use crate::transpiler::{Artifact, Bindable, Bootable, CastError, Castable, ContentType};
 
 pub struct ServiceProvider {
     options: Arc<Options>,
@@ -15,7 +15,9 @@ pub struct ServiceProvider {
 
 impl ServiceProvider {
     pub fn new() -> Self {
-        Self { options: Arc::new(Options::new()) }
+        Self {
+            options: Arc::new(Options::new()),
+        }
     }
 }
 
@@ -25,39 +27,46 @@ impl Castable for ServiceProvider {
         reg.register_template_string("service", SERVICE_TEMPLATE)
             .unwrap();
 
-        let layer_name = format!("asml-{}-{}-{}-runtime",
-                                 ctx.project.name.clone(),
-                                 selector.expect("selector must be a service name").to_string(),
-                                 self.name().clone(),
+        let layer_name = format!(
+            "asml-{}-{}-{}-runtime",
+            ctx.project.name.clone(),
+            selector
+                .expect("selector must be a service name")
+                .to_string(),
+            self.name().clone(),
         );
 
         let use_apigw = ctx.functions.iter().find(|f| f.http.is_some()).is_some();
 
-        let authorizers: Vec<ServiceAuthData> = ctx.authorizers.iter()
+        let authorizers: Vec<ServiceAuthData> = ctx
+            .authorizers
+            .iter()
             .filter(|a| a.r#type.to_lowercase() != "aws_iam")
-            .map(|a| {
-                ServiceAuthData {
-                    id: a.id.clone(),
-                    r#type: a.r#type.clone(),
-                    jwt_config: match &a.jwt_config {
-                        Some(jwt) => {
-                            let audience = render_string_list(jwt.audience.clone());
+            .map(|a| ServiceAuthData {
+                id: a.id.clone(),
+                r#type: a.r#type.clone(),
+                jwt_config: match &a.jwt_config {
+                    Some(jwt) => {
+                        let audience = render_string_list(jwt.audience.clone());
 
-                            Some(ServiceAuthDataJwtConfig {
-                                audience,
-                                issuer: jwt.issuer.clone(),
-                            })
-                        }
-                        None => None,
-                    },
-                }
+                        Some(ServiceAuthDataJwtConfig {
+                            audience,
+                            issuer: jwt.issuer.clone(),
+                        })
+                    }
+                    None => None,
+                },
             })
             .collect();
 
-        let aws_account_id = self.options.get("aws_account_id")
+        let aws_account_id = self
+            .options
+            .get("aws_account_id")
             .expect("service provider requires `aws_account_id` option");
         let data = ServiceData {
-            name: selector.expect("selector must be a service name").to_string(),
+            name: selector
+                .expect("selector must be a service name")
+                .to_string(),
             aws_account_id: aws_account_id.clone(),
             aws_region: String::from("us-east-1"),
             hcl_provider: String::from("aws"),
@@ -83,6 +92,16 @@ impl Bindable for ServiceProvider {
     }
 }
 
+impl Bootable for ServiceProvider {
+    fn boot(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        todo!()
+    }
+
+    fn is_booted(&self, ctx: Rc<Context>) -> bool {
+        true
+    }
+}
+
 impl Provider for ServiceProvider {
     fn name(&self) -> String {
         String::from("aws-lambda-alpine")
@@ -104,7 +123,9 @@ pub struct FunctionProvider {
 
 impl FunctionProvider {
     pub fn new() -> Self {
-        Self { options: Arc::new(Options::new()) }
+        Self {
+            options: Arc::new(Options::new()),
+        }
     }
 }
 
@@ -116,7 +137,9 @@ impl Castable for FunctionProvider {
         reg.register_template_string("function", FUNCTION_TEMPLATE)
             .unwrap();
 
-        let name = selector.expect("selector must be a function name").to_string();
+        let name = selector
+            .expect("selector must be a function name")
+            .to_string();
         match ctx.functions.iter().find(|&f| f.name == name) {
             Some(function) => {
                 let service = function.service_name.clone();
@@ -124,42 +147,76 @@ impl Castable for FunctionProvider {
                 // write Dockerfile for function
                 {
                     let version = crate_version!();
-                    let public = &format!("public.ecr.aws/akkoro/assemblylift/asml-lambda-alpine:{}", version);
+                    let public = &format!(
+                        "public.ecr.aws/akkoro/assemblylift/asml-lambda-alpine:{}",
+                        version
+                    );
                     let mut contents: String = format!("FROM {}\n", public);
-                    contents.push_str(&format!("ENV _HANDLER \"{}.handler\"\n", function.name.clone()));
+                    contents.push_str(&format!(
+                        "ENV _HANDLER \"{}.handler\"\n",
+                        function.name.clone()
+                    ));
                     //contents.push_str("ENV LAMBDA_TASK_ROOT /var/task\n");
                     //contents.push_str("ENV RUST_BACKTRACE full\n");
-                    for iomod in ctx.iomods.iter().filter(|i| i.service_name == service.clone()) {
-                        contents.push_str(&format!("ADD ./iomods/{} /opt/iomod/\n", iomod.name.clone()));
+                    for iomod in ctx
+                        .iomods
+                        .iter()
+                        .filter(|i| i.service_name == service.clone())
+                    {
+                        contents.push_str(&format!(
+                            "ADD ./iomods/{} /opt/iomod/\n",
+                            iomod.name.clone()
+                        ));
                     }
-                    contents.push_str(&format!("ADD ./{}/{}.wasm.bin /var/task/{}.wasm.bin\n",
-                                               function.name.clone(), function.name.clone(), function.name.clone()));
+                    contents.push_str(&format!(
+                        "ADD ./{}/{}.wasm.bin /var/task/{}.wasm.bin\n",
+                        function.name.clone(),
+                        function.name.clone(),
+                        function.name.clone()
+                    ));
                     contents.push_str("RUN chmod -R 755 /opt\n");
 
-                    let mut file = std::fs::File::create(format!("./net/services/{}/{}/Dockerfile", service.clone(), function.name.clone()))
-                        .expect("could not create runtime Dockerfile");
-                    file.write_all(contents.as_bytes()).expect("could not write runtime Dockerfile");
+                    let mut file = std::fs::File::create(format!(
+                        "./net/services/{}/{}/Dockerfile",
+                        service.clone(),
+                        function.name.clone()
+                    ))
+                    .expect("could not create runtime Dockerfile");
+                    file.write_all(contents.as_bytes())
+                        .expect("could not write runtime Dockerfile");
                 }
 
                 // find authorizers for service
                 let auth = match &function.authorizer_id {
                     Some(id) => {
-                        let authorizer = ctx.authorizers.iter()
+                        let authorizer = ctx
+                            .authorizers
+                            .iter()
                             .filter(|a| a.service_name == service.clone())
                             .find(|a| a.id == id.clone())
-                            .expect(&format!("could not find authorizer by id \"{}\" in context", id.clone()));
+                            .expect(&format!(
+                                "could not find authorizer by id \"{}\" in context",
+                                id.clone()
+                            ));
                         Some(FunctionAuthData {
                             id: match authorizer.r#type.clone().to_lowercase().as_str() {
                                 "aws_iam" => None,
-                                _ => Some(format!("aws_apigatewayv2_authorizer.{}_{}.id", service.clone(), id)),
+                                _ => Some(format!(
+                                    "aws_apigatewayv2_authorizer.{}_{}.id",
+                                    service.clone(),
+                                    id
+                                )),
                             },
                             r#type: authorizer.r#type.clone(),
                             scopes: match authorizer.r#type.clone().to_lowercase().as_str() {
                                 "aws_iam" => None,
-                                _ => Some(render_string_list(Rc::new(vec!["email".to_string(), "openid".to_string()]))),
+                                _ => Some(render_string_list(Rc::new(vec![
+                                    "email".to_string(),
+                                    "openid".to_string(),
+                                ]))),
                             },
                         })
-                    },
+                    }
                     None => None,
                 };
 
@@ -170,12 +227,10 @@ impl Castable for FunctionProvider {
                     size: function.size,
                     timeout: function.timeout,
                     http: match &function.http {
-                        Some(http) => {
-                            Some(HttpData {
-                                verb: http.verb.clone(),
-                                path: http.path.clone(),
-                            })
-                        }
+                        Some(http) => Some(HttpData {
+                            verb: http.verb.clone(),
+                            path: http.path.clone(),
+                        }),
                         None => None,
                     },
                     auth,
@@ -190,7 +245,10 @@ impl Castable for FunctionProvider {
                 };
                 Ok(vec![hcl])
             }
-            None => Err(CastError(format!("unable to find function {} in context", name.clone()))),
+            None => Err(CastError(format!(
+                "unable to find function {} in context",
+                name.clone()
+            ))),
         }
     }
 }
@@ -198,6 +256,16 @@ impl Castable for FunctionProvider {
 impl Bindable for FunctionProvider {
     fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
         todo!()
+    }
+}
+
+impl Bootable for FunctionProvider {
+    fn boot(&self, ctx: Rc<Context>) -> Result<(), CastError> {
+        todo!()
+    }
+
+    fn is_booted(&self, ctx: Rc<Context>) -> bool {
+        true
     }
 }
 
@@ -264,8 +332,7 @@ pub struct HttpData {
     pub path: String,
 }
 
-static SERVICE_TEMPLATE: &str =
-r#"locals {
+static SERVICE_TEMPLATE: &str = r#"locals {
     ecr = "{{aws_account_id}}.dkr.ecr.{{aws_region}}.amazonaws.com"
 }
 
@@ -318,8 +385,7 @@ resource "aws_apigatewayv2_authorizer" "{{../name}}_{{this.id}}" {
 {{/each}}
 "#;
 
-static FUNCTION_TEMPLATE: &str =
-r#"resource "aws_ecr_repository" "{{service}}_{{name}}" {
+static FUNCTION_TEMPLATE: &str = r#"resource "aws_ecr_repository" "{{service}}_{{name}}" {
     provider = aws.{{service}}
     name = "asml-{{project_name}}-{{service}}-{{name}}"
 }

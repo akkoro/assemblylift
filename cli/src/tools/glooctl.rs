@@ -30,8 +30,7 @@ impl GlooCtl {
 
     pub fn install_gateway(&self) {
         println!("Installing Gloo API Gateway");
-        self.
-            command()
+        self.command()
             .args(vec!["install", "gateway"])
             .output()
             .expect("glooctl could not install gloo gateway");
@@ -39,8 +38,7 @@ impl GlooCtl {
 
     pub fn uninstall_gateway(&self) {
         println!("Uninstalling Gloo API Gateway");
-        self.
-            command()
+        self.command()
             .args(vec!["uninstall", "gateway"])
             .output()
             .expect("glooctl could not uninstall gloo gateway");
@@ -126,5 +124,3 @@ impl Tool for GlooCtl {
         return "https://github.com/solo-io/gloo/releases/download/v1.11.13/glooctl-darwin-amd64";
     }
 }
-
-
