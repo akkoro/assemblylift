@@ -63,7 +63,15 @@ impl ApiProvider {
             .as_ref()
             .unwrap_or(&"local".to_string())
             .clone();
-        format!("{}.{}.{}", name, project_name, domain_name)
+        let domain = ctx
+            .domains
+            .iter()
+            .find(|&d| &d.dns_name == &domain_name)
+            .unwrap();
+        match domain.map_to_root {
+            true => format!("{}.{}", name, domain_name),
+            false => format!("{}.{}.{}", name, project_name, domain_name),
+        }
     }
 }
 

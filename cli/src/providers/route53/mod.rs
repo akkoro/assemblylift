@@ -7,10 +7,10 @@ use itertools::Itertools;
 use jsonpath_lib::Selector;
 use serde::Serialize;
 
-use crate::providers::{Options, Provider, ProviderError, AWS_LAMBDA_PROVIDER_NAME, KUBERNETES_PROVIDER_NAME, ROUTE53_PROVIDER_NAME};
+use crate::providers::{AWS_LAMBDA_PROVIDER_NAME, KUBERNETES_PROVIDER_NAME, Options, Provider, ProviderError, ROUTE53_PROVIDER_NAME};
 use crate::tools::kubectl::KubeCtl;
+use crate::transpiler::{Artifact, Bindable, Bootable, Castable, CastError, ContentType, Template};
 use crate::transpiler::context::Context;
-use crate::transpiler::{Artifact, Bindable, Bootable, CastError, Castable, ContentType, Template};
 
 pub struct DnsProvider {
     /// aws_access_key_id, aws_secret_access_key_secret_name, aws_region
@@ -171,15 +171,15 @@ data aws_route53_zone {{this.name_snaked}} {
 {{#if this.is_apigw_target}}
 resource aws_acm_certificate {{this.name}} {
   provider    = aws.{{../../project_name}}-r53
-  {{#if this.map_to_root}}domain_name = "{{this.name}}.{{../../project_name}}.{{../name}}"
-  {{else}}domain_name = "{{this.name}}.{{../name}}"{{/if}}
+  {{#unless this.map_to_root}}domain_name = "{{this.name}}.{{../../project_name}}.{{../name}}"
+  {{else}}domain_name = "{{this.name}}.{{../name}}"{{/unless}}
   validation_method = "DNS"
 }
 
 resource aws_apigatewayv2_domain_name {{this.name}} {
   provider    = aws.{{../../project_name}}-r53
-  {{#if this.map_to_root}}domain_name = "{{this.name}}.{{../../project_name}}.{{../name}}"
-  {{else}}domain_name = "{{this.name}}.{{../name}}"{{/if}}
+  {{#unless this.map_to_root}}domain_name = "{{this.name}}.{{../../project_name}}.{{../name}}"
+  {{else}}domain_name = "{{this.name}}.{{../name}}"{{/unless}}
 
   domain_name_configuration {
     certificate_arn = aws_acm_certificate.{{this.name}}.arn
@@ -222,7 +222,8 @@ resource aws_apigatewayv2_api_mapping {{this.name}} {
 resource aws_route53_record {{this.name}} {
   provider = aws.{{../../project_name}}-r53
   zone_id  = data.aws_route53_zone.{{../name_snaked}}.zone_id
-  name     = "{{this.name}}.{{../../project_name}}"
+  {{#unless this.map_to_root}}name     = "{{this.name}}.{{../../project_name}}"
+  {{else}}name     = "{{this.name}}"{{/unless}}
   type     = "A"
   {{#unless this.is_apigw_target}}ttl      = "300"
   records  = {{{this.target}}}

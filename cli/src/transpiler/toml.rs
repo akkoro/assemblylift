@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::transpiler::StringMap;
 
@@ -57,6 +57,7 @@ pub mod asml {
     #[derive(Serialize, Deserialize, Clone, Debug)]
     pub struct Domain {
         pub dns_name: String,
+        #[serde(default)]
         pub map_to_root: bool,
         pub provider: Provider,
     }
