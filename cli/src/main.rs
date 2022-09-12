@@ -1,8 +1,8 @@
 extern crate serde_json;
 
-use clap::{crate_version, App, AppSettings, Arg};
+use clap::{App, AppSettings, Arg, crate_version};
 
-use crate::commands::{bind, burn, cast, init, make, pack, push, r#move, user};
+use crate::commands::{bind, burn, cast, init, make, nuke, pack, push, r#move, user};
 
 mod archive;
 mod commands;
@@ -65,13 +65,17 @@ fn main() {
         )
         .subcommand(
             App::new("burn")
-                .about("Destroy a service or function")
+                .about("Delete a service or function")
                 .after_help("RESOURCE SYNTAX:\n    asml burn service <service-name>\n    asml burn function <service-name>.<function-name>")
                 .arg(
                     Arg::with_name("resource")
                         .multiple(true)
                         .required(true)
                 ),
+        )
+        .subcommand(
+            App::new("nuke")
+                .about("Destroy/de-provision ALL deployed infrastructure"),
         )
         .subcommand(
             App::new("pack")
@@ -130,6 +134,7 @@ fn main() {
         ("burn", matches) => burn::command(matches),
         ("make", matches) => make::command(matches),
         ("move", matches) => r#move::command(matches),
+        ("nuke", matches) => nuke::command(matches),
         ("pack", matches) => pack::command(matches),
         ("push", matches) => push::command(matches),
         ("user", matches) => user::command(matches),

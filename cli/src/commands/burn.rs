@@ -3,8 +3,8 @@ use dialoguer::Confirm;
 
 use crate::projectfs::{locate_asml_manifest, Project};
 use crate::terraform;
-use crate::transpiler::toml::asml::ServiceRef;
 use crate::transpiler::toml::{asml, service};
+use crate::transpiler::toml::asml::ServiceRef;
 
 pub fn command(matches: Option<&ArgMatches>) {
     let matches = match matches {
@@ -38,7 +38,6 @@ pub fn command(matches: Option<&ArgMatches>) {
     }
 
     match resource_type {
-        // Some("all") => terraform::commands::destroy(),
         Some("service") => {
             let service_name = resource_name.unwrap();
             if Confirm::new()
@@ -93,8 +92,8 @@ pub fn command(matches: Option<&ArgMatches>) {
         }
 
         Some(_) => {
-            panic!("must specify either 'service', 'function', or 'all' as an argument to burn")
+            panic!("must specify either 'service', or 'function', as an argument to burn")
         }
-        None => panic!("must specify either 'service', 'function' or 'all' as an argument to burn"),
+        None => panic!("must specify either 'service', or 'function' as an argument to burn"),
     }
 }
