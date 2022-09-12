@@ -57,6 +57,7 @@ pub mod asml {
     #[derive(Serialize, Deserialize, Clone, Debug)]
     pub struct Domain {
         pub dns_name: String,
+        pub map_to_root: bool,
         pub provider: Provider,
     }
 

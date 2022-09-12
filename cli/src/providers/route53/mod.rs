@@ -67,6 +67,7 @@ impl Castable for DnsProvider {
                                 _ if { target.eq_ignore_ascii_case(AWS_LAMBDA_PROVIDER_NAME) } => true,
                                 _ => false,
                             },
+                            map_to_root: d.map_to_root,
                         }
                     })
                     .collect_vec();
@@ -137,6 +138,7 @@ struct Record {
     name: String,
     target: String,
     is_apigw_target: bool,
+    map_to_root: bool,
 }
 
 #[derive(Serialize)]
@@ -169,13 +171,15 @@ data aws_route53_zone {{this.name_snaked}} {
 {{#if this.is_apigw_target}}
 resource aws_acm_certificate {{this.name}} {
   provider    = aws.{{../../project_name}}-r53
-  domain_name = "{{this.name}}.{{../../project_name}}.{{../name}}"
+  {{#if this.map_to_root}}domain_name = "{{this.name}}.{{../../project_name}}.{{../name}}"
+  {{else}}domain_name = "{{this.name}}.{{../name}}"{{/if}}
   validation_method = "DNS"
 }
 
 resource aws_apigatewayv2_domain_name {{this.name}} {
   provider    = aws.{{../../project_name}}-r53
-  domain_name = "{{this.name}}.{{../../project_name}}.{{../name}}"
+  {{#if this.map_to_root}}domain_name = "{{this.name}}.{{../../project_name}}.{{../name}}"
+  {{else}}domain_name = "{{this.name}}.{{../name}}"{{/if}}
 
   domain_name_configuration {
     certificate_arn = aws_acm_certificate.{{this.name}}.arn
