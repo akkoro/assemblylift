@@ -49,6 +49,7 @@ impl Context {
             .iter()
             .map(|d| Domain {
                 dns_name: d.dns_name.clone(),
+                map_to_root: d.map_to_root,
                 provider: Rc::new(Provider {
                     name: d.provider.name.clone(),
                     options: d.provider.options.clone(),
@@ -311,6 +312,7 @@ pub struct Registry {
 
 pub struct Domain {
     pub dns_name: String,
+    pub map_to_root: bool,
     pub provider: Rc<Provider>,
 }
 
