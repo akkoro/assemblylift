@@ -1,0 +1,18 @@
+[service]
+name = "hello"
+
+[service.provider]
+name = "aws-lambda"
+
+[service.provider.options]
+aws_region = "us-east-1"
+
+[[api.functions]]
+name = "rust"
+language = "rust"
+http = { verb = "GET", path = "/rust" }
+
+[[api.functions]]
+name = "ruby"
+language = "ruby"
+http = { verb = "GET", path = "/ruby" }
