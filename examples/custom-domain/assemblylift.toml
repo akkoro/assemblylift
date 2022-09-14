@@ -6,6 +6,7 @@ name = "example"
 
 [[domains]]
 dns_name = "example.com"
+# map_to_root = true # Set to omit project name from URL
 [domains.provider]
 name = "route53"
 [domains.provider.options]
