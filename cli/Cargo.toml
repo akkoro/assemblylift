@@ -1,6 +1,6 @@
 [package]
 name = "assemblylift-cli"
-version = "0.4.0-alpha.6"
+version = "0.4.0-alpha.7"
 description = "The AssemblyLift Command Line Interface"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
@@ -32,14 +32,9 @@ walkdir = "2.3"
 z85 = "3"
 zip = "0.6"
 
-#kube = { version = "0.71.0", features = ["runtime", "derive"] }
-#k8s-openapi = { version = "0.14.0", features = ["v1_22"] }
-
 wasmer = "2.1.1"
 wasmer-compiler = "2.1.1"
 wasmer-compiler-cranelift = "2.1.1"
-#wasmer-compiler-llvm = "1.0"
-#wasmer-engine-native = "1.0"
 wasmer-compiler-singlepass = "2.1.1"
 wasmer-engine-universal = "2.1.1"
 
