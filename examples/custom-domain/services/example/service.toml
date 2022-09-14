@@ -1,0 +1,13 @@
+[service]
+name = "example"
+
+[service.provider]
+name = "aws-lambda"
+
+[api]
+domain_name = "example.com"
+
+[[api.functions]]
+name = "echo"
+language = "rust"
+http = { verb = "GET", path = "/hello" }

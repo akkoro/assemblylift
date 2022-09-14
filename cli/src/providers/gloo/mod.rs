@@ -63,6 +63,7 @@ impl ApiProvider {
             .as_ref()
             .unwrap_or(&"local".to_string())
             .clone();
+        // FIXME panics if no domains -- return Option::None instead
         let domain = ctx
             .domains
             .iter()
