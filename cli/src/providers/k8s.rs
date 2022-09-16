@@ -62,6 +62,7 @@ impl Provider for KubernetesProvider {
 // TODO kube context name as provider option
 impl Castable for KubernetesProvider {
     fn cast(&self, ctx: Rc<Context>, _selector: Option<&str>) -> Result<Vec<Artifact>, CastError> {
+        GlooCtl::default().install_gateway();
         let registries = ctx.registries.iter().map(to_container_registry).collect();
 
         let mut service_artifacts = ctx
@@ -100,7 +101,6 @@ impl Castable for KubernetesProvider {
 
 impl Bindable for KubernetesProvider {
     fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError> {
-        GlooCtl::default().install_gateway();
         ctx.services
             .iter()
             .filter(|&s| s.provider.name == self.name())
