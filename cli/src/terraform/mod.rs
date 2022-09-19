@@ -13,8 +13,6 @@ pub fn relative_binary_path() -> &'static str {
 pub fn fetch(project_path: &PathBuf) {
     use std::io::Read;
 
-    fs::create_dir_all("./.asml/runtime").unwrap();
-
     let terraform_path = format!(
         "{}/{}",
         project_path.clone().into_os_string().into_string().unwrap(),
