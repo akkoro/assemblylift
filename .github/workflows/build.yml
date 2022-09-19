@@ -15,14 +15,14 @@ jobs:
     - name: 'Build'
       run: docker build -t assemblylift/asml-lambda-default . --file docker/asml-lambda-default
 
-  build-openfaas-alpine:
-    name: 'OpenFaas Alpine Runtime'
-    runs-on: ubuntu-latest
-    steps:
-    - name: 'Checkout'
-      uses: actions/checkout@v2
-    - name: 'Build'
-      run: docker build -t assemblylift/asml-openfaas-alpine . --file docker/asml-openfaas-alpine
+#  build-openfaas-alpine:
+#    name: 'OpenFaas Alpine Runtime'
+#    runs-on: ubuntu-latest
+#    steps:
+#    - name: 'Checkout'
+#      uses: actions/checkout@v2
+#    - name: 'Build'
+#      run: docker build -t assemblylift/asml-openfaas-alpine . --file docker/asml-openfaas-alpine
 
   build-hyper-alpine:
     name: 'Hyper Alpine Runtime'
