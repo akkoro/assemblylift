@@ -34,6 +34,9 @@ pub static ROOT_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| {
 
 static SERVICE_TOML: &str = r#"[service]
 name = "{{service_name}}"
+[service.provider]
+name = "aws-lambda" # or "k8s" for kubernetes
+options = { aws_region = "us-east-1" }
 "#;
 
 pub static SERVICE_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| {
@@ -49,12 +52,12 @@ version = "0.0.0"
 edition = "2021"
 
 [dependencies]
+base64 = "0.13"
 direct-executor = "0.3.0"
 serde = "1"
 serde_json = "1"
 asml_core = { version = "0.4.0-alpha", package = "assemblylift-core-guest" }
 assemblylift_core_io_guest = { version = "0.4.0-alpha", package = "assemblylift-core-io-guest" }
-z85 = "3"
 "#;
 
 static FUNCTION_MAIN_RS: &str = r#"use asml_core::*;
@@ -65,7 +68,7 @@ async fn main() {
     let event: serde_json::Value = serde_json::from_str(&ctx.input)
         .expect("could not parse function input as JSON");
 
-    FunctionContext::success("Function returned OK!".to_string());
+    FunctionContext::success("\"Function returned OK!\"".to_string());
 }
 "#;
 
@@ -75,7 +78,7 @@ require 'json'
 
 def main(input)
     # TODO implement your function code here!
-    Asml.success(input.to_s)
+    Asml.success(JSON.generate(input.to_s))
 end
 
 main(JSON.parse(Asml.get_function_input()))
