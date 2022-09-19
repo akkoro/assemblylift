@@ -54,32 +54,32 @@ jobs:
 #    - name: 'Upload image to S3 @ akkoro-public'
 #      run: aws s3 cp $HOME/aws-lambda-alpine.tar s3://public.assemblylift.akkoro.io/runtime/$ASML_VERSION/aws-lambda-alpine/image.tar --acl public-read
 
-  build-openfaas-alpine:
-    name: 'OpenFaas Alpine Image'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-      - name: 'Checkout'
-        uses: actions/checkout@v2
-      - name: 'Get Version'
-        run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
-      - name: 'Build Image'
-        run: docker build -t assemblylift/openfaas-alpine . --file docker/asml-openfaas-alpine
-      - name: 'Add ECR Tag'
-        run: docker tag assemblylift/openfaas-alpine public.ecr.aws/akkoro/assemblylift/openfaas-alpine:latest && docker tag public.ecr.aws/akkoro/assemblylift/openfaas-alpine:latest public.ecr.aws/akkoro/assemblylift/openfaas-alpine:$ASML_VERSION
-      - name: 'ECR Login'
-        run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/akkoro
-      - name: 'Push to ECR @ akkoro-public'
-        run: docker push --all-tags public.ecr.aws/akkoro/assemblylift/openfaas-alpine
-#      - name: 'Export Image'
-#        run: docker save assemblylift/openfaas-alpine:latest > $HOME/aws-openfaas-alpine.tar
-#      - name: 'Upload image to S3 @ akkoro-public'
-#        run: aws s3 cp $HOME/aws-openfaas-alpine.tar s3://public.assemblylift.akkoro.io/runtime/$ASML_VERSION/aws-openfaas-alpine/image.tar --acl public-read
+#  build-openfaas-alpine:
+#    name: 'OpenFaas Alpine Image'
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Configure AWS Credentials
+#        uses: aws-actions/configure-aws-credentials@v1
+#        with:
+#          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#          aws-region: us-east-1
+#      - name: 'Checkout'
+#        uses: actions/checkout@v2
+#      - name: 'Get Version'
+#        run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
+#      - name: 'Build Image'
+#        run: docker build -t assemblylift/openfaas-alpine . --file docker/asml-openfaas-alpine
+#      - name: 'Add ECR Tag'
+#        run: docker tag assemblylift/openfaas-alpine public.ecr.aws/akkoro/assemblylift/openfaas-alpine:latest && docker tag public.ecr.aws/akkoro/assemblylift/openfaas-alpine:latest public.ecr.aws/akkoro/assemblylift/openfaas-alpine:$ASML_VERSION
+#      - name: 'ECR Login'
+#        run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/akkoro
+#      - name: 'Push to ECR @ akkoro-public'
+#        run: docker push --all-tags public.ecr.aws/akkoro/assemblylift/openfaas-alpine
+##      - name: 'Export Image'
+##        run: docker save assemblylift/openfaas-alpine:latest > $HOME/aws-openfaas-alpine.tar
+##      - name: 'Upload image to S3 @ akkoro-public'
+##        run: aws s3 cp $HOME/aws-openfaas-alpine.tar s3://public.assemblylift.akkoro.io/runtime/$ASML_VERSION/aws-openfaas-alpine/image.tar --acl public-read
 
   build-hyper-alpine:
     name: 'Hyper Alpine Image'
