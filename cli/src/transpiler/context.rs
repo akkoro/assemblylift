@@ -75,6 +75,7 @@ impl Context {
                     name: service_provider.name.clone(),
                     options: service_provider.options.clone(),
                 }),
+                is_root: service_manifest.api.is_root,
                 domain_name: service_manifest.api.domain_name,
                 project_name: project.name.clone(),
             });
@@ -320,6 +321,7 @@ pub struct Domain {
 pub struct Service {
     pub name: String,
     pub provider: Rc<Provider>,
+    pub is_root: Option<bool>,
     pub domain_name: Option<String>,
     pub project_name: String,
 }

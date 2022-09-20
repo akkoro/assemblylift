@@ -271,6 +271,7 @@ pub mod service {
     #[derive(Serialize, Deserialize, Clone, Default)]
     pub struct Api {
         pub domain_name: Option<String>,
+        pub is_root: Option<bool>,
         pub functions: Rc<Vec<Function>>,
         pub authorizers: Option<Rc<Vec<HttpAuth>>>,
     }
