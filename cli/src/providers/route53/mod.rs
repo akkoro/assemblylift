@@ -68,6 +68,7 @@ impl Castable for DnsProvider {
                                 _ => false,
                             },
                             map_to_root: d.map_to_root,
+                            root_service: s.is_root.unwrap_or(false),
                         }
                     })
                     .collect_vec();
@@ -139,6 +140,7 @@ struct Record {
     target: String,
     is_apigw_target: bool,
     map_to_root: bool,
+    root_service: bool,
 }
 
 #[derive(Serialize)]
@@ -172,14 +174,16 @@ data aws_route53_zone {{this.name_snaked}} {
 resource aws_acm_certificate {{this.name}} {
   provider    = aws.{{../../project_name}}-r53
   {{#unless this.map_to_root}}domain_name = "{{this.name}}.{{../../project_name}}.{{../name}}"
-  {{else}}domain_name = "{{this.name}}.{{../name}}"{{/unless}}
+  {{else}}{{#unless this.root_service}}domain_name = "{{this.name}}.{{../name}}"
+  {{else}}domain_name = "{{../name}}"{{/unless}}{{/unless}}
   validation_method = "DNS"
 }
 
 resource aws_apigatewayv2_domain_name {{this.name}} {
   provider    = aws.{{../../project_name}}-r53
   {{#unless this.map_to_root}}domain_name = "{{this.name}}.{{../../project_name}}.{{../name}}"
-  {{else}}domain_name = "{{this.name}}.{{../name}}"{{/unless}}
+  {{else}}{{#unless this.root_service}}domain_name = "{{this.name}}.{{../name}}"
+  {{else}}domain_name = "{{../name}}"{{/unless}}{{/unless}}
 
   domain_name_configuration {
     certificate_arn = aws_acm_certificate.{{this.name}}.arn
@@ -223,7 +227,8 @@ resource aws_route53_record {{this.name}} {
   provider = aws.{{../../project_name}}-r53
   zone_id  = data.aws_route53_zone.{{../name_snaked}}.zone_id
   {{#unless this.map_to_root}}name     = "{{this.name}}.{{../../project_name}}"
-  {{else}}name     = "{{this.name}}"{{/unless}}
+  {{else}}{{#unless this.root_service}}name     = "{{this.name}}"
+  {{else}}name     = "{{../name}}"{{/unless}}{{/unless}}
   type     = "A"
   {{#unless this.is_apigw_target}}ttl      = "300"
   records  = {{{this.target}}}
