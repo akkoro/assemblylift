@@ -272,6 +272,7 @@ pub mod service {
     pub struct Api {
         pub domain_name: Option<String>,
         pub is_root: Option<bool>,
+        #[serde(skip_serializing_if = "Vec::is_empty", default = "Default::default")]
         pub functions: Rc<Vec<Function>>,
         pub authorizers: Option<Rc<Vec<HttpAuth>>>,
     }
@@ -280,9 +281,9 @@ pub mod service {
     pub struct HttpAuth {
         pub id: String,
         pub auth_type: String,
+        pub issuer: Rc<Option<String>>,
         pub audience: Rc<Option<Rc<Vec<String>>>>,
         pub scopes: Rc<Option<Rc<Vec<String>>>>,
-        pub issuer: Rc<Option<String>>,
     }
 
     #[derive(Serialize, Deserialize, Clone)]
@@ -296,12 +297,10 @@ pub mod service {
         pub name: String,
         pub registry: Option<String>,
         pub language: Option<String>,
-
-        pub http: Rc<Option<HttpFunction>>,
         pub authorizer_id: Option<String>,
-
         pub timeout_seconds: Option<u16>,
         pub size_mb: Option<u16>,
+        pub http: Rc<Option<HttpFunction>>,
     }
 
     #[derive(Serialize, Deserialize, Clone)]
