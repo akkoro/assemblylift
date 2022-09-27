@@ -96,7 +96,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-awslambda-host"
-version = "0.4.0-alpha.5"
+version = "0.4.0-alpha.8"
 dependencies = [
  "assemblylift-core",
  "assemblylift-core-io-common 0.3.0",
@@ -108,7 +108,7 @@ dependencies = [
  "tokio 1.21.0",
  "toml",
  "wasmer",
- "zip 0.5.13",
+ "zip",
 ]
 
 [[package]]
@@ -140,7 +140,7 @@ dependencies = [
  "wasmer-compiler-singlepass",
  "wasmer-engine-universal",
  "z85",
- "zip 0.6.2",
+ "zip",
 ]
 
 [[package]]
@@ -271,7 +271,7 @@ dependencies = [
  "tracing-subscriber",
  "wasmer",
  "z85",
- "zip 0.6.2",
+ "zip",
 ]
 
 [[package]]
@@ -4930,20 +4930,6 @@ name = "zeroize"
 version = "1.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c394b5bd0c6f669e7275d9c20aa90ae064cb22e75a1cad54e1b34088034b149f"
-
-[[package]]
-name = "zip"
-version = "0.5.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93ab48844d61251bb3835145c521d88aa4031d7139e8485990f60ca911fa0815"
-dependencies = [
- "byteorder",
- "bzip2",
- "crc32fast",
- "flate2",
- "thiserror",
- "time 0.1.44",
-]
 
 [[package]]
 name = "zip"

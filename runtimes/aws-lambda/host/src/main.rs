@@ -50,7 +50,7 @@ async fn main() {
                 match entry.path().extension() {
                     Some(os_str) => match os_str.to_str() {
                         Some("iomod") => {
-                            let file = fs::File::open(&entry.path()).unwrap();
+                            let file = File::open(&entry.path()).unwrap();
                             let reader = BufReader::new(file);
                             let archive = RefCell::new(zip::ZipArchive::new(reader).unwrap());
                             let mut manifest_str: String = Default::default();
@@ -76,7 +76,7 @@ async fn main() {
                                     iomod_manifest.iomod.version,
                                     entrypoint
                                 );
-                                let path = std::path::Path::new(path);
+                                let path = Path::new(path);
                                 {
                                     let path_prefix = path.parent().unwrap();
                                     fs::create_dir_all(path_prefix).expect(&*format!(
@@ -87,7 +87,7 @@ async fn main() {
                                         .expect(&*format!("unable to create file at {:?}", path));
                                     std::io::copy(&mut entrypoint_binary, &mut entrypoint_file)
                                         .expect("unable to copy entrypoint");
-                                    let mut perms: std::fs::Permissions =
+                                    let mut perms: fs::Permissions =
                                         fs::metadata(&path).unwrap().permissions();
                                     perms.set_mode(0o755);
                                     entrypoint_file.set_permissions(perms)
@@ -104,6 +104,8 @@ async fn main() {
                 }
             }
         }
+    } else {
+        println!("WARN Could not find dir /opt/iomod");
     }
 
     let module_path = env::var("LAMBDA_TASK_ROOT").unwrap();
