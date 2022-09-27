@@ -41,9 +41,10 @@ async fn main() {
     registry::spawn_registry(rx).unwrap();
 
     // load plugins from runtime dir, which should contain merged contents of Lambda layers
-    if let Ok(rd) = fs::read_dir("/opt/iomod") {
+    if let Ok(rd) = fs::read_dir("/opt") {
         for entry in rd {
             let entry = entry.unwrap();
+            println!("DEBUG entry={:?}", entry);
             if entry.file_type().unwrap().is_file() {
                 // this makes the assumption that the
                 // IOmod entrypoint is always an executable binary
