@@ -48,9 +48,9 @@ async fn main() {
             if entry.file_type().unwrap().is_file() {
                 // this makes the assumption that the
                 // IOmod entrypoint is always an executable binary
-                match entry.path().extension() {
-                    Some(os_str) => match os_str.to_str() {
-                        Some("iomod") => {
+                if let Some(os_path) = entry.path().extension() {
+                    if let Some(ext) = os_path.to_str() {
+                        if ext == "iomod" {
                             let file = File::open(&entry.path()).unwrap();
                             let reader = BufReader::new(file);
                             let archive = RefCell::new(zip::ZipArchive::new(reader).unwrap());
@@ -99,10 +99,6 @@ async fn main() {
                                 }
                             }
                         }
-                        _ => {}
-                    },
-                    None => {
-                        process::Command::new(entry.path()).spawn().unwrap();
                     }
                 }
             }
