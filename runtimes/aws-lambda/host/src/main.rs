@@ -79,20 +79,22 @@ async fn main() {
                                 );
                                 let path = Path::new(path);
                                 if !path.exists() {
-                                    let path_prefix = path.parent().unwrap();
-                                    fs::create_dir_all(path_prefix).expect(&*format!(
-                                        "unable to create directory {:?}",
-                                        path_prefix
-                                    ));
-                                    let mut entrypoint_file = File::create(path)
-                                        .expect(&*format!("unable to create file at {:?}", path));
-                                    std::io::copy(&mut entrypoint_binary, &mut entrypoint_file)
-                                        .expect("unable to copy entrypoint");
-                                    let mut perms: fs::Permissions =
-                                        fs::metadata(&path).unwrap().permissions();
-                                    perms.set_mode(0o755);
-                                    entrypoint_file.set_permissions(perms)
+                                    {
+                                        let path_prefix = path.parent().unwrap();
+                                        fs::create_dir_all(path_prefix).expect(&*format!(
+                                            "unable to create directory {:?}",
+                                            path_prefix
+                                        ));
+                                        let mut entrypoint_file = File::create(path)
+                                            .expect(&*format!("unable to create file at {:?}", path));
+                                        std::io::copy(&mut entrypoint_binary, &mut entrypoint_file)
+                                            .expect("unable to copy entrypoint");
+                                        let mut perms: fs::Permissions =
+                                            fs::metadata(&path).unwrap().permissions();
+                                        perms.set_mode(0o755);
+                                        entrypoint_file.set_permissions(perms)
                                             .expect("could not set IOmod binary executable (octal 755) permissions");
+                                    }
                                     process::Command::new(path).spawn().unwrap();
                                 }
                             }
