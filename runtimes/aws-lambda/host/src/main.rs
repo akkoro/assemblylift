@@ -78,7 +78,7 @@ async fn main() {
                                     entrypoint
                                 );
                                 let path = Path::new(path);
-                                {
+                                if !path.exists() {
                                     let path_prefix = path.parent().unwrap();
                                     fs::create_dir_all(path_prefix).expect(&*format!(
                                         "unable to create directory {:?}",
@@ -93,8 +93,8 @@ async fn main() {
                                     perms.set_mode(0o755);
                                     entrypoint_file.set_permissions(perms)
                                             .expect("could not set IOmod binary executable (octal 755) permissions");
+                                    process::Command::new(path).spawn().unwrap();
                                 }
-                                process::Command::new(path).spawn().unwrap();
                             }
                         }
                         _ => {}
