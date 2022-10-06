@@ -318,10 +318,10 @@ impl Template for KubernetesBaseTemplate {
     fn tmpl() -> &'static str {
         r#"# AssemblyLift K8S Provider Begin
 
-provider kubernetes {
-    alias       = "{{project_name}}-k8s"
-    config_path = pathexpand("~/.kube/config")
-}
+// provider kubernetes {
+//     alias       = "{{project_name}}-k8s"
+//     config_path = pathexpand("~/.kube/config")
+// }
 
 {{#each registries}}{{#if this.is_ecr}}provider aws {
     alias  = "{{../project_name}}-k8s"
