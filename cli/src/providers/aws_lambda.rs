@@ -453,10 +453,10 @@ impl Template for LambdaBaseTemplate {
     fn tmpl() -> &'static str {
         r#"# AssemblyLift AWS Lambda Provider Begin
 
-provider aws {
-    alias  = "{{project_name}}-aws-lambda"
-    region = "{{options.aws_region}}"
-}
+// provider aws {
+//     alias  = "{{project_name}}-aws-lambda"
+//     region = "{{options.aws_region}}"
+// }
 
 "#
     }
@@ -584,10 +584,11 @@ impl Template for FunctionTemplate {
         r#"# Begin function `{{function_name}}` (in `{{service_name}}`)
 
 {{#if large_payload}}resource aws_s3_object asml_{{service_name}}_{{function_name}} {
-    key    = "{{function_name}}.zip"
-    bucket = aws_s3_bucket.asml_{{service_name}}_functions.id
-    source = "${local.project_path}/net/services/{{service_name}}/{{function_name}}/{{function_name}}.zip"
-    etag   = filemd5("${local.project_path}/net/services/{{service_name}}/{{function_name}}/{{function_name}}.zip")
+    provider = aws.{{project_name}}-aws-lambda
+    key      = "{{function_name}}.zip"
+    bucket   = aws_s3_bucket.asml_{{service_name}}_functions.id
+    source   = "${local.project_path}/net/services/{{service_name}}/{{function_name}}/{{function_name}}.zip"
+    etag     = filemd5("${local.project_path}/net/services/{{service_name}}/{{function_name}}/{{function_name}}.zip")
 }{{/if}}
 
 resource aws_lambda_function asml_{{service_name}}_{{function_name}} {
