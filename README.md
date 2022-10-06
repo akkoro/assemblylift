@@ -10,6 +10,7 @@
 secure, and portable runtime &mdash; from the edge to the cloud &mdash; powered by WebAssembly.
   <br/>
   <br/>
+  <a href="/examples"><b>EXAMPLES</b></a> | <a href="https://dev.to/akkoro"><b>BLOG</b></a>
 </p>
 
 -----
@@ -52,7 +53,7 @@ Download the latest `asml` CLI for your system.
 curl -O public.assemblylift.akkoro.io/cli/<version>/<triple>/asml
 chmod +x asml
 ```
-Where `<version>` is the latest version (e.g. `0.4.0-alpha.2`) and `<triple>` is one of:
+Where `<version>` is the latest version (e.g. `0.4.0-alpha.8`) and `<triple>` is one of:
  - `x86_64-linux-gnu`
  - `x86_64-apple-darwin`
 
