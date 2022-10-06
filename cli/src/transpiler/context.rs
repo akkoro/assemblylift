@@ -204,7 +204,6 @@ impl Castable for Context {
             ctx.services.iter().map(|s| s.provider.clone()).collect();
         providers.dedup_by(|a, b| a.name.eq_ignore_ascii_case(&*b.name));
 
-        // TODO get providers here instead & pass to user_tf module
         let tmpl = ContextTemplate {
             project_name: self.project.name.clone(),
             project_path: self.project.path.clone(),
