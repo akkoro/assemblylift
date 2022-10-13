@@ -15,16 +15,20 @@ pub enum ContentType {
     KubeYaml(&'static str),
 }
 
+/// A `Castable` implements the `cast` step, transforming some part of `Context` into an `Artifact`
 pub trait Castable {
     /// Generate Artifacts from the project Context for this implementor
     fn cast(&self, ctx: Rc<Context>, selector: Option<&str>) -> Result<Vec<Artifact>, CastError>;
 }
 
+/// A `Bindable` implements the `bind` step, performing an action which updates the state of infrastructure
 pub trait Bindable {
     /// Bind the implementor to the backend provider
     fn bind(&self, ctx: Rc<Context>) -> Result<(), CastError>;
 }
 
+/// A `Bootable` implements the `boot` step; `boot` is intended to be a run-once operation to prepare
+/// any infrastructure that must exist prior to `bind`.
 pub trait Bootable {
     /// Provides an opportunity deploy prerequisite infra if not already present
     fn boot(&self, ctx: Rc<Context>) -> Result<(), CastError>;
@@ -41,6 +45,8 @@ pub trait Template {
 #[derive(Debug)]
 pub struct CastError(pub String);
 
+/// An `Artifact` is the output of a `cast` operation. Its contents may be part of, or the entirety of,
+/// some document which will be output at `write_path`.
 #[derive(Debug, Clone)]
 pub struct Artifact {
     pub content_type: ContentType,

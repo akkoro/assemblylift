@@ -1,0 +1,28 @@
+The Transpiler and Providers
+-----------------------------
+
+The AssemblyLift CLI is at its core a wrapper around a TOML-to-HCL pipeline, contained in the [`transpiler`](../cli/src/transpiler) 
+and [`providers`](../cli/src/providers) modules. It looks like a transpiler in the loosest sense so that's what it 
+got named, but _generator_ might be a better word.
+
+When the `cast` command is invoked, a new [`Context`](../cli/src/transpiler/context.rs) is constructed from the project's 
+manifests. The Context is analogous to an immutable state of the project. 
+[The `Context` object itself is `Castable`](../cli/src/transpiler/context.rs#L183), and serves as the entrypoint 
+for casting each `Provider`. The cast proceeds for each _unique_ service provider (or DNS provider), each provider 
+operating on the entire context. The results (i.e. the `Artifact`s) from the provider `cast` are concatenated and written 
+to their respective locations in the `net/` directory.
+
+It's up to each provider to correctly/fully implement the functionality implied by each definition in the `Context`; there's 
+no mechanism to verify the output (if one is even possible). It _is_ required that a `Provider` implements `Castable`, 
+`Bindable`, and `Bootable`.
+
+The providers that are currently implemented generate HCL and YAML using embedded moustache templates 
+(for which there is a trait, [`Template`](../cli/src/transpiler/mod.rs#L40)).
+
+### The boot step
+The `boot` step is currently used only by the `k8s` provider, but exists in general to provide a means to configure the 
+target environment in some way that is prerequisite to deployment during `bind`. The `gloo` API provider for example uses 
+`boot` to install `certificate-manager` on the target cluster. 
+
+> It should be noted that the Gloo _Gateway_ is actually installed on `cast` for the `k8s` provider, so that the 
+> CRD's are available to Terraform when planning the K8s manifests.

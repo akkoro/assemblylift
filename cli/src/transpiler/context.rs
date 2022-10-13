@@ -11,9 +11,14 @@ use serde::Serialize;
 use crate::projectfs::Project as ProjectFs;
 use crate::providers::{DNS_PROVIDERS, PROVIDERS};
 use crate::transpiler::{
-    toml, Artifact, Bindable, CastError, Castable, ContentType, StringMap, Template,
+    Artifact, Bindable, Castable, CastError, ContentType, StringMap, Template, toml,
 };
 
+/// `Context` is a state object, containing the configuration of a project as deserialized from the
+/// project and service manifests (TOML). `Context` is `Castable` and is the entrypoint of the `cast`
+/// operation.
+///
+/// See docs/cli-transpiler.md
 pub struct Context {
     pub project: Project,
     pub terraform: Option<Terraform>,
@@ -215,7 +220,7 @@ impl Castable for Context {
         };
         hcl_content.push_str(&*tmpl.render());
 
-        // FIXME dedupe by name
+        // FIXME dedupe by name (there's only one provider possible rn)
         let mut dns_providers = ctx.domains.iter().map(|d| d.provider.clone()).collect_vec();
         for dns in dns_providers {
             let provider = DNS_PROVIDERS
