@@ -27,9 +27,9 @@ target environment in some way that is prerequisite to deployment during `bind`.
 The `boot` step is invoked for each provider prior to the provider's `bind` step.
 
 > It should be noted that the Gloo _Gateway_ is actually installed on `cast` for the `k8s` provider, so that the 
-> CRD's are available to Terraform when planning the K8s manifests.
+> CRD's are available to Terraform when planning the K8s manifests. There's probably a cleaner way to do that :)
 
 ### The bind step
-Each `Provider` implements `bind` -- however at the moment the only binding operation is the `terraform apply`, which is 
-executed as the last step of the `bind` command since there is only a singular plan file. It may be advantagous to refactor this 
-to a unique plan-per-provider!
+Each `Provider` implements `bind` -- however at the moment the only binding operation is the `terraform apply`. _Apply_
+is executed independent of `Context` as the last step of the `bind` command, since there is only a singular plan file. 
+It may be worth it (or necessary) to refactor this to a unique plan-per-provider!
