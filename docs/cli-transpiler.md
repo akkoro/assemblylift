@@ -30,6 +30,6 @@ The `boot` step is invoked for each provider prior to the provider's `bind` step
 > CRD's are available to Terraform when planning the K8s manifests.
 
 ### The bind step
-Each `Provider` implements `bind`, however at the moment the only binding operation is the `terraform apply` which is 
-executed as the last step of the `bind` command as there is a singular plan file. It may be advantagous to refactor this 
+Each `Provider` implements `bind` -- however at the moment the only binding operation is the `terraform apply`, which is 
+executed as the last step of the `bind` command since there is only a singular plan file. It may be advantagous to refactor this 
 to a unique plan-per-provider!
