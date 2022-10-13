@@ -8,8 +8,8 @@ got named, but _generator_ might be a better word.
 When the `cast` command is invoked, a new [`Context`](../cli/src/transpiler/context.rs) is constructed from the project's 
 manifests. Context is analogous to an immutable state of the project. 
 [The `Context` object itself is `Castable`](../cli/src/transpiler/context.rs#L183), and serves as the entrypoint 
-for casting each [`Provider`](../cli/src/providers/mod.rs#L57). The cast proceeds for each _unique_ service provider (or DNS provider), each provider 
-operating on the entire context. The results (i.e. the [`Artifact`s](../cli/src/transpiler/mod.rs#L51) from the provider `cast` are concatenated and written 
+for casting each [`Provider`](../cli/src/providers/mod.rs#L57). The cast proceeds for each _unique_ service provider (or DNS provider), where each provider 
+may operate on the entire context or require a "selector". The results (i.e. the [`Artifact`s](../cli/src/transpiler/mod.rs#L51)) from the provider `cast` are concatenated and written 
 to their respective locations in the `net/` directory (e.g. `net/plan.tf`).
 
 It's up to each provider to correctly/fully implement the functionality implied by each definition in the `Context`; there's 
