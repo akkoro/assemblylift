@@ -2,7 +2,7 @@ The Transpiler and Providers
 -----------------------------
 
 The AssemblyLift CLI is at its core a wrapper around a TOML-to-HCL pipeline, contained in the [`transpiler`](../cli/src/transpiler) 
-and [`providers`](../cli/src/providers) modules. It looks like a transpiler in the loosest sense so that's what it 
+and [`providers`](../cli/src/providers) modules. It looks like a transpiler in the loosest sense of the word so that's what it 
 got named, but _generator_ might be a better word.
 
 When the `cast` command is invoked, a new [`Context`](../cli/src/transpiler/context.rs) is constructed from the project's 
@@ -20,8 +20,8 @@ The providers that are currently implemented generate HCL and YAML using embedde
 (for which there is a trait, [`Template`](../cli/src/transpiler/mod.rs#L40)).
 
 ### The boot step
-The `boot` step is currently used only by the `k8s` provider, but exists in general to provide a means to configure the 
-target environment in some way that is prerequisite to deployment during `bind`. The `gloo` API provider for example uses 
+The `boot` step is currently used only by the [`k8s`](../cli/src/providers/k8s.rs) provider, but exists in general to provide a means to configure the 
+target environment in some way that is prerequisite to deployment during `bind`. The [`gloo`](../cli/src/providers/gloo/mod.rs) API provider for example uses 
 `boot` to install `certificate-manager` on the target cluster. 
 
 The `boot` step is invoked for each provider prior to the provider's `bind` step.
