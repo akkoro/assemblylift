@@ -6,17 +6,17 @@ and [`providers`](../cli/src/providers) modules. It looks like a transpiler in t
 got named, but _generator_ might be a better word.
 
 When the `cast` command is invoked, a new [`Context`](../cli/src/transpiler/context.rs) is constructed from the project's 
-manifests. The Context is analogous to an immutable state of the project. 
+manifests. Context is analogous to an immutable state of the project. 
 [The `Context` object itself is `Castable`](../cli/src/transpiler/context.rs#L183), and serves as the entrypoint 
 for casting each `Provider`. The cast proceeds for each _unique_ service provider (or DNS provider), each provider 
 operating on the entire context. The results (i.e. the `Artifact`s) from the provider `cast` are concatenated and written 
-to their respective locations in the `net/` directory.
+to their respective locations in the `net/` directory (e.g. `net/plan.tf`).
 
 It's up to each provider to correctly/fully implement the functionality implied by each definition in the `Context`; there's 
 no mechanism to verify the output (if one is even possible). It _is_ required that a `Provider` implements `Castable`, 
 `Bindable`, and `Bootable`.
 
-The providers that are currently implemented generate HCL and YAML using embedded moustache templates 
+The providers that are currently implemented generate HCL and YAML using embedded moustache/handlebars templates 
 (for which there is a trait, [`Template`](../cli/src/transpiler/mod.rs#L40)).
 
 ### The boot step
@@ -24,5 +24,12 @@ The `boot` step is currently used only by the `k8s` provider, but exists in gene
 target environment in some way that is prerequisite to deployment during `bind`. The `gloo` API provider for example uses 
 `boot` to install `certificate-manager` on the target cluster. 
 
+The `boot` step is invoked for each provider prior to the provider's `bind` step.
+
 > It should be noted that the Gloo _Gateway_ is actually installed on `cast` for the `k8s` provider, so that the 
 > CRD's are available to Terraform when planning the K8s manifests.
+
+### The bind step
+Each `Provider` implements `bind`, however at the moment the only binding operation is the `terraform apply` which is 
+executed as the last step of the `bind` command as there is a singular plan file. It may be advantagous to refactor this 
+to a unique plan-per-provider!
