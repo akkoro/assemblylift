@@ -18,13 +18,13 @@ The Design Docs are intended to capture details and explanations of various conc
 
 ## Providers
  * API
-   * [Amazon API Gateway]()
-   * [Gloo API Gateway]()
+   * [Amazon API Gateway](provider-apigw-gloo.md)
+   * [Gloo API Gateway](provider-apigw-amz.md)
  * DNS
-   * [Amazon Route53]()
+   * [Amazon Route53](provider-dns-route53.md)
  * Service
-   * [AWS Lambda]()
-   * [Kubernetes]()
+   * [AWS Lambda](provider-service-aws.md)
+   * [Kubernetes](provider-service-k8s.md)
 
 ## WebAssembly Core
  * [AssemblyLift ABI](core-abi.md)
