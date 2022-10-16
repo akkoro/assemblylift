@@ -5,11 +5,12 @@ AssemblyLift provides its own ABI to WebAssembly modules to complement standard 
 specific functions for interacting with the Function runtime (e.g. responding with a 'success' message to Lambda), as 
 well as functions for interacting with IOmods. 
 
-AssemblyLift Function modules also use the ABI to receive function input, 
-rather than relying on _stdin_ from WASI. This was originally because _stdin_ wasn't available, but remains in favour of 
-Asml's static buffers (see [core-buffers](core-buffers.md)).
+AssemblyLift Function modules also use the ABI to receive function input, rather than relying on _stdin_ from WASI. 
+This was originally because _stdin_ wasn't available, but remains in favour of Asml's static buffers 
+(see [core-buffers](core-buffers.md)).
 
-AssemblyLift's WASI implementation does **not** include sockets (`accept`/`read`/`send` etc). 
+AssemblyLift's WASI implementation does **not** include sockets (`accept`/`read`/`send` etc). AssemblyLift's policy for 
+the time being is to keep net access restricted to higher-level APIs via IOmods.
 
 ```rust
 // IO

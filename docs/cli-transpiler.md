@@ -13,7 +13,7 @@ may operate on the entire context or require a "selector". The results (i.e. the
 to their respective locations in the `net/` directory (e.g. `net/plan.tf`).
 
 It's up to each provider to correctly/fully implement the functionality implied by each definition in the `Context`; there's 
-no mechanism to verify the output (if one is even possible). It _is_ required that a `Provider` implements `Castable`, 
+currently no mechanism to verify the output (if one is even possible). It _is_ required that a `Provider` implements `Castable`, 
 `Bindable`, and `Bootable`.
 
 The providers that are currently implemented generate HCL and YAML using embedded moustache/handlebars templates 
