@@ -1,3 +1,6 @@
+//! AssemblyLift WASM Buffers
+//! See [core-buffers doc](../../docs/core-buffers.md) for more details
+
 use std::collections::HashMap;
 
 use assemblylift_core_io_common::constants::{FUNCTION_INPUT_BUFFER_SIZE, IO_BUFFER_SIZE_BYTES};
