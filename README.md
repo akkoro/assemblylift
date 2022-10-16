@@ -10,7 +10,7 @@
 secure, and portable runtime &mdash; from the edge to the cloud &mdash; powered by WebAssembly.
   <br/>
   <br/>
-  <a href="/examples"><b>EXAMPLES</b></a> | <a href="https://dev.to/akkoro"><b>BLOG</b></a>
+  <a href="/examples"><b>EXAMPLES</b></a> | <a href="https://dev.to/akkoro"><b>BLOG</b></a> | <a href="/docs"><b>DESIGN DOCS</b></a>
 </p>
 
 -----
