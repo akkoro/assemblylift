@@ -71,6 +71,8 @@ where
             .expect("could not preopen `src` directory")
             .map_dir("/usr", "/usr/bin/ruby-wasm32-wasi/usr")
             .expect("could not map ruby fs")
+            // .map_dir("/tmp", "/tmp/asmltmp")
+            // .expect("could not map tmpfs")
             .finalize()
             .expect("could not init WASI env"),
         "ruby-lambda" => WasiState::new(module_name.clone())
@@ -80,9 +82,13 @@ where
             .expect("could not preopen `src` directory")
             .map_dir("/usr", "/tmp/rubyusr")
             .expect("could not map ruby fs")
+            .map_dir("/tmp", "/tmp/asmltmp")
+            .expect("could not map tmpfs")
             .finalize()
             .expect("could not init WASI env"),
         _ => WasiState::new(module_name.clone())
+            .map_dir("/tmp", "/tmp/asmltmp")
+            .expect("could not map tmpfs")
             .finalize()
             .expect("could not init WASI env"),
     };
