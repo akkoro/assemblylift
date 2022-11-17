@@ -6,6 +6,7 @@ use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use assemblylift_core::wasm;
+use assemblylift_core::wasm::Wasmtime;
 use assemblylift_core_iomod::registry;
 
 use crate::abi::GenericDockerAbi;
@@ -42,19 +43,29 @@ fn main() {
     let (registry_tx, registry_rx) = mpsc::channel(32);
     registry::spawn_registry(registry_rx).unwrap();
 
-    let (module, store) = wasm::deserialize_module_from_path::<GenericDockerAbi, Status>(
-        "/opt/assemblylift",
-        &std::env::var("ASML_WASM_MODULE_NAME").unwrap_or("handler.wasm.bin".into()),
-    )
-    .expect("could not deserialize WASM module");
+    // let (module, store) = wasm::deserialize_module_from_path::<GenericDockerAbi, Status>(
+    //     "/opt/assemblylift",
+    //     &std::env::var("ASML_WASM_MODULE_NAME").unwrap_or("handler.wasm.bin".into()),
+    // )
+    // .expect("could not deserialize WASM module");
+    let wasmtime = Arc::new(Mutex::new(
+        Wasmtime::<Status>::new_from_path(
+            format!(
+                "/opt/assemblylift/{}",
+                std::env::var("ASML_WASM_MODULE_NAME").unwrap_or("handler.wasm.bin".into())
+            )
+            .as_ref(),
+        )
+        .expect("could not create WASM runtime from module path"),
+    ));
 
     crossbeam_utils::thread::scope(|s| {
-        let runner = Arc::new(Mutex::new(Runner::new(registry_tx)));
+        let runner = Arc::new(Mutex::new(Runner::new(registry_tx, wasmtime)));
         let tx = { runner.clone().lock().unwrap().sender() };
 
         let r = runner.clone();
         s.spawn(move |_| {
-            r.lock().unwrap().spawn(Arc::new(module), Arc::new(store));
+            r.lock().unwrap().spawn();
         });
 
         s.spawn(move |_| {

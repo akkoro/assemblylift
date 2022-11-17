@@ -8,46 +8,49 @@ use std::mem::ManuallyDrop;
 use std::sync::{Arc, Mutex};
 
 use tokio::sync::mpsc;
-use wasmer::{Array, LazyInit, Memory, NativeFunc, WasmPtr, WasmerEnv};
+use wasmtime::Caller;
 
 use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
 use crate::buffers::{FunctionInputBuffer, IoBuffer, PagedWasmBuffer};
+use crate::wasm::State;
+
+// use wasmer::{Array, LazyInit, Memory, NativeFunc, WasmPtr, WasmerEnv};
 
 pub type IoId = u32;
 
-#[derive(WasmerEnv, Clone)]
-/// The `WasmerEnv` environment providing shared data between native WASM functions and the host
-pub struct ThreaderEnv<S>
-where
-    S: Clone + Send + Sized + 'static,
-{
-    pub threader: ManuallyDrop<Arc<Mutex<Threader<S>>>>,
-    pub host_input_buffer: Arc<Mutex<FunctionInputBuffer>>,
-    #[wasmer(export)]
-    pub memory: LazyInit<Memory>,
-    #[wasmer(export(name = "__asml_guest_get_function_input_buffer_pointer"))]
-    pub get_function_input_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
-    #[wasmer(export(name = "__asml_guest_get_io_buffer_pointer"))]
-    pub get_io_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
-    pub status_sender: crossbeam_channel::Sender<S>,
-}
-
-impl<S> ThreaderEnv<S>
-where
-    S: Clone + Send + Sized + 'static,
-{
-    pub fn new(tx: RegistryTx, status_sender: crossbeam_channel::Sender<S>) -> Self {
-        ThreaderEnv {
-            threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx)))),
-            memory: Default::default(),
-            get_function_input_buffer: Default::default(),
-            get_io_buffer: Default::default(),
-            host_input_buffer: Arc::new(Mutex::new(FunctionInputBuffer::new())),
-            status_sender,
-        }
-    }
-}
+// #[derive(WasmerEnv, Clone)]
+// /// The `WasmerEnv` environment providing shared data between native WASM functions and the host
+// pub struct ThreaderEnv<S>
+// where
+//     S: Clone + Send + Sized + 'static,
+// {
+//     pub threader: ManuallyDrop<Arc<Mutex<Threader<S>>>>,
+//     pub host_input_buffer: Arc<Mutex<FunctionInputBuffer>>,
+//     #[wasmer(export)]
+//     pub memory: LazyInit<Memory>,
+//     #[wasmer(export(name = "__asml_guest_get_function_input_buffer_pointer"))]
+//     pub get_function_input_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
+//     #[wasmer(export(name = "__asml_guest_get_io_buffer_pointer"))]
+//     pub get_io_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
+//     pub status_sender: crossbeam_channel::Sender<S>,
+// }
+//
+// impl<S> ThreaderEnv<S>
+// where
+//     S: Clone + Send + Sized + 'static,
+// {
+//     pub fn new(tx: RegistryTx, status_sender: crossbeam_channel::Sender<S>) -> Self {
+//         ThreaderEnv {
+//             threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx)))),
+//             memory: Default::default(),
+//             get_function_input_buffer: Default::default(),
+//             get_io_buffer: Default::default(),
+//             host_input_buffer: Arc::new(Mutex::new(FunctionInputBuffer::new())),
+//             status_sender,
+//         }
+//     }
+// }
 
 pub struct Threader<S> {
     io_memory: Arc<Mutex<IoMemory>>,
@@ -90,19 +93,19 @@ where
     }
 
     /// Load the memory document associated with `ioid` into the guest IO memory
-    pub fn document_load(&mut self, env: &ThreaderEnv<S>, ioid: IoId) -> Result<(), ()> {
+    pub fn document_load(&mut self, caller: Caller<'_, State<S>>, ioid: IoId) -> Result<(), ()> {
         let doc = self.get_io_memory_document(ioid).unwrap();
         self.io_memory
             .lock()
             .unwrap()
             .buffer
-            .first(env, Some(doc.start));
+            .first(caller, Some(doc.start));
         Ok(())
     }
 
     /// Advance the guest IO memory to the next page
-    pub fn document_next(&mut self, env: &ThreaderEnv<S>) -> Result<(), ()> {
-        self.io_memory.lock().unwrap().buffer.next(env);
+    pub fn document_next(&mut self, caller: Caller<'_, State<S>>) -> Result<(), ()> {
+        self.io_memory.lock().unwrap().buffer.next(caller);
         Ok(())
     }
 
