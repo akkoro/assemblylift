@@ -3,40 +3,31 @@ use std::error::Error;
 use std::io;
 use std::io::ErrorKind;
 use std::time::{SystemTime, UNIX_EPOCH};
+
 use wasmtime::Caller;
 
-// use wasmer::{Array, MemoryView, WasmPtr};
-
 use crate::buffers::{LinearBuffer, PagedWasmBuffer};
-// use crate::threader::ThreaderEnv;
-// use crate::{invoke_io, WasmBufferPtr};
 use crate::wasm::{State, Wasmtime};
-
-// pub type AsmlAbiFn<S> = fn(&ThreaderEnv<S>, WasmBufferPtr, WasmBufferPtr, u32) -> i32;
 
 pub trait RuntimeAbi<S: Clone + Send + Sized + 'static> {
     fn log(caller: Caller<'_, State<S>>, ptr: u32, len: u32);
     fn success(caller: Caller<'_, State<S>>, ptr: u32, len: u32);
 }
 
-fn to_io_error<E: Error>(err: E) -> io::Error {
-    io::Error::new(ErrorKind::Other, err.to_string())
-}
-
-pub fn asml_abi_io_invoke<S>(
-    // env: &ThreaderEnv<S>,
+pub fn asml_abi_io_invoke<R, S>(
     mut caller: Caller<'_, State<S>>,
     name_ptr: u32,
     name_len: u32,
-    input: u32,
+    input_ptr: u32,
     input_len: u32,
 ) -> i32
 where
+    R: RuntimeAbi<S> + 'static,
     S: Clone + Send + Sized + 'static,
 {
-    if let Ok(method_path) = Wasmtime::ptr_to_string(&mut caller, name_ptr, name_len) {
-        if let Ok(input) = Wasmtime::ptr_to_bytes(&mut caller, input, input_len) {
-            // return invoke_io(env, &*method_path, input);
+    if let Ok(method_path) = Wasmtime::<R, S>::ptr_to_string(&mut caller, name_ptr, name_len) {
+        if let Ok(input) = Wasmtime::<R, S>::ptr_to_bytes(&mut caller, input_ptr, input_len) {
+            return invoke_io(caller, &*method_path, input);
         }
     }
 
@@ -211,3 +202,29 @@ where
 //
 //     Ok(bytes)
 // }
+
+#[inline(always)]
+/// Invoke an IOmod call at coordinates `method_path` with input `method_input`
+fn invoke_io<S>(caller: Caller<'_, State<S>>, method_path: &str, method_input: Vec<u8>) -> i32
+where
+    S: Clone + Send + Sized + 'static,
+{
+    let ioid = caller
+        .data()
+        .threader
+        .clone()
+        .lock()
+        .unwrap()
+        .next_ioid()
+        .expect("unable to get a new IO ID");
+
+    caller
+        .data()
+        .threader
+        .clone()
+        .lock()
+        .unwrap()
+        .invoke(method_path, method_input, ioid);
+
+    ioid as i32
+}

@@ -43,13 +43,8 @@ fn main() {
     let (registry_tx, registry_rx) = mpsc::channel(32);
     registry::spawn_registry(registry_rx).unwrap();
 
-    // let (module, store) = wasm::deserialize_module_from_path::<GenericDockerAbi, Status>(
-    //     "/opt/assemblylift",
-    //     &std::env::var("ASML_WASM_MODULE_NAME").unwrap_or("handler.wasm.bin".into()),
-    // )
-    // .expect("could not deserialize WASM module");
     let wasmtime = Arc::new(Mutex::new(
-        Wasmtime::<Status>::new_from_path(
+        Wasmtime::<GenericDockerAbi, Status>::new_from_path(
             format!(
                 "/opt/assemblylift/{}",
                 std::env::var("ASML_WASM_MODULE_NAME").unwrap_or("handler.wasm.bin".into())

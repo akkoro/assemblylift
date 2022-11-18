@@ -1,31 +1,35 @@
 use std::io::Write;
-use std::path::Path;
+use std::mem::ManuallyDrop;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use wasmtime::{AsContext, Caller, Engine, Linker, Module, Store};
+use wasmtime::{AsContext, Caller, Config, Engine, Linker, Module, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
 use assemblylift_core_iomod::registry::RegistryTx;
 
 use crate::abi::*;
 use crate::buffers::{FunctionInputBuffer, LinearBuffer};
-// use crate::threader::ThreaderEnv;
+use crate::threader::Threader;
 
 pub type State<S> = AsmlFunctionState<S>;
 
-pub struct Wasmtime<S>
+pub struct Wasmtime<R, S>
 where
+    R: RuntimeAbi<S> + 'static,
     S: Clone + Send + Sized + 'static,
 {
     engine: Engine,
     module: Module,
     linker: Option<Linker<State<S>>>,
     store: Option<Store<State<S>>>,
+    _phantom: std::marker::PhantomData<R>,
 }
 
-impl<S> Wasmtime<S>
+impl<R, S> Wasmtime<R, S>
 where
+    R: RuntimeAbi<S> + 'static,
     S: Clone + Send + Sized + 'static,
 {
     pub fn new_from_path(module_path: &Path) -> anyhow::Result<Self> {
@@ -36,6 +40,7 @@ where
             module,
             linker: None,
             store: None,
+            _phantom: Default::default(),
         })
     }
 
@@ -47,26 +52,36 @@ where
             module,
             linker: None,
             store: None,
+            _phantom: Default::default(),
         })
     }
 
     pub fn link_module(
         &mut self,
+        registry_tx: RegistryTx,
         status_sender: crossbeam_channel::Sender<S>,
     ) -> anyhow::Result<()> {
+        let threader = ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(registry_tx))));
         let mut linker: Linker<State<S>> = Linker::new(&self.engine);
         wasmtime_wasi::add_to_linker(&mut linker, |s| &mut s.wasi).expect("");
         let wasi = WasiCtxBuilder::new().build();
         let state = State {
             function_input_buffer: FunctionInputBuffer::new(),
             status_sender,
+            threader,
             wasi,
         };
         let mut store = Store::new(&self.engine, state);
 
         linker.module(&mut store, "", &self.module).expect("");
         linker
-            .func_wrap("", "__asml_abi_io_invoke", asml_abi_io_invoke::<S>)
+            .func_wrap("", "__asml_abi_runtime_log", R::log)
+            .expect("");
+        linker
+            .func_wrap("", "__asml_abi_runtime_success", R::success)
+            .expect("");
+        linker
+            .func_wrap("", "__asml_abi_io_invoke", asml_abi_io_invoke::<R, S>)
             .expect("");
 
         self.store = Some(store);
@@ -96,18 +111,22 @@ where
         Ok(())
     }
 
-    pub fn ptr_to_string(mut caller: &mut Caller<'_, State<S>>, ptr: u32, len: u32) -> anyhow::Result<String> {
+    pub fn ptr_to_string(
+        mut caller: &mut Caller<'_, State<S>>,
+        ptr: u32,
+        len: u32,
+    ) -> anyhow::Result<String> {
         let bytes = Self::ptr_to_bytes(caller, ptr, len).unwrap();
         let s = std::str::from_utf8(&bytes).unwrap();
         Ok(s.into())
     }
 
-    pub fn ptr_to_bytes(mut caller: &mut Caller<'_, State<S>>, ptr: u32, len: u32) -> anyhow::Result<Vec<u8>> {
-        let memory = caller
-            .get_export("memory")
-            .unwrap()
-            .into_memory()
-            .unwrap();
+    pub fn ptr_to_bytes(
+        mut caller: &mut Caller<'_, State<S>>,
+        ptr: u32,
+        len: u32,
+    ) -> anyhow::Result<Vec<u8>> {
+        let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
         let mut buffer: Vec<u8> = vec![0; len as usize];
         memory.read(&caller, ptr as usize, &mut buffer).unwrap();
         Ok(buffer)
@@ -120,6 +139,7 @@ where
 {
     pub function_input_buffer: FunctionInputBuffer,
     pub status_sender: crossbeam_channel::Sender<S>,
+    pub threader: ManuallyDrop<Arc<Mutex<Threader<S>>>>,
     wasi: WasiCtx,
 }
 
@@ -190,44 +210,26 @@ where
 //
 //     Ok((import_object, threader_env))
 // }
-//
-// pub fn precompile(module_path: PathBuf) -> Result<PathBuf, &'static str> {
-//     // TODO compiler configuration
-//     let is_wasmu = module_path
-//         .extension()
-//         .unwrap_or("wasm".as_ref())
-//         .eq("wasmu");
-//     match is_wasmu {
-//         false => {
-//             let file_path = format!("{}u", module_path.as_path().display().to_string());
-//             println!("Precompiling WASM to {}...", file_path.clone());
-//
-//             let compiler = Cranelift::default();
-//             let triple = Triple::from_str("x86_64-unknown-unknown").unwrap();
-//             let mut cpuid = CpuFeature::set();
-//             cpuid.insert(CpuFeature::SSE2); // required for x86
-//             let store = Store::new(
-//                 &/*Native*/Universal::new(compiler)
-//                 .target(Target::new(triple, cpuid))
-//                 .engine(),
-//             );
-//
-//             let wasm_bytes = match std::fs::read(module_path.clone()) {
-//                 Ok(bytes) => bytes,
-//                 Err(err) => panic!("{}", err.to_string()),
-//             };
-//             let module = Module::new(&store, wasm_bytes).unwrap();
-//             let module_bytes = module.serialize().unwrap();
-//             let mut module_file = match std::fs::File::create(file_path.clone()) {
-//                 Ok(file) => file,
-//                 Err(err) => panic!("{}", err.to_string()),
-//             };
-//             println!("📄 > Wrote {}", &file_path);
-//             module_file.write_all(&module_bytes).unwrap();
-//
-//             Ok(PathBuf::from(file_path))
-//         }
-//
-//         true => Ok(module_path),
-//     }
-// }
+
+pub fn precompile(module_path: &Path, target: &str) -> anyhow::Result<PathBuf> {
+    // TODO compiler configuration
+    let file_path = format!("{}.bin", module_path.display().to_string());
+    println!("Precompiling WASM to {}...", file_path.clone());
+
+    let wasm_bytes = match std::fs::read(module_path.clone()) {
+        Ok(bytes) => bytes,
+        Err(err) => panic!("{}", err.to_string()),
+    };
+    let engine = Engine::new(Config::new().target(target).unwrap()).unwrap();
+    let compiled_bytes = engine
+        .precompile_module(&*wasm_bytes)
+        .expect("TODO: panic message");
+    let mut module_file = match std::fs::File::create(file_path.clone()) {
+        Ok(file) => file,
+        Err(err) => panic!("{}", err.to_string()),
+    };
+    module_file.write_all(&compiled_bytes).unwrap();
+    println!("📄 > Wrote {}", &file_path);
+
+    Ok(PathBuf::from(file_path))
+}

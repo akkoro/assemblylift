@@ -32,13 +32,14 @@ walkdir = "2.3"
 z85 = "3"
 zip = "0.6"
 
-wasmer = "2.1.1"
-wasmer-compiler = "2.1.1"
-wasmer-compiler-cranelift = "2.1.1"
-wasmer-compiler-singlepass = "2.1.1"
-wasmer-engine-universal = "2.1.1"
+#wasmer = "2.1.1"
+#wasmer-compiler = "2.1.1"
+#wasmer-compiler-cranelift = "2.1.1"
+#wasmer-compiler-singlepass = "2.1.1"
+#wasmer-engine-universal = "2.1.1"
+wasmtime = "2.0"
 
-assemblylift-core = { version = "0.4.0-alpha.3", path = "../core" }
+assemblylift-core = { version = "0.4.0-alpha.10", path = "../core" }
 assemblylift-core-iomod = { version = "0.4.0-alpha.0", path = "../core/iomod" }
 
 registry_common = { version = "0.1", package = "asml-iomod-registry-common" }
