@@ -55,6 +55,21 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
         mode,
         function_name,
     );
+    let copy_from = match std::fs::metadata(&copy_from) {
+        Ok(_) => copy_from,
+        Err(_) => format!(
+            "{}/target/{}/{}/{}.wasm",
+            project
+                .clone()
+                .dir()
+                .into_os_string()
+                .into_string()
+                .unwrap(),
+            target,
+            mode,
+            function_name,
+        ),
+    };
     let copy_to = format!("{}/{}.wasm", function_artifact_path.clone(), &function_name);
     let copy_result = std::fs::copy(copy_from.clone(), copy_to.clone());
     if copy_result.is_err() {
