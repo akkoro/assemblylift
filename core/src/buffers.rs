@@ -3,13 +3,16 @@
 
 use std::collections::HashMap;
 use std::ops::Deref;
+
+use tokio::sync::mpsc;
 use wasmtime::{AsContext, Caller, Store, Val};
 
 use assemblylift_core_io_common::constants::{FUNCTION_INPUT_BUFFER_SIZE, IO_BUFFER_SIZE_BYTES};
-// use wasmer::WasmCell;
 
 // use crate::threader::ThreaderEnv;
-use crate::wasm::State;
+use crate::wasm::{MemoryMessage, State};
+
+// use wasmer::WasmCell;
 
 /// A trait representing a linear byte buffer, such as Vec<u8>
 pub trait LinearBuffer {
@@ -26,20 +29,19 @@ pub trait LinearBuffer {
 }
 
 /// A trait representing a buffer in WASM guest memory
-pub trait WasmBuffer<S: Clone + Send + Sized + 'static> {
+pub trait WasmBuffer {
     fn copy_to_wasm(
         &self,
-        // env: &ThreaderEnv<S>,
-        caller: Caller<'_, State<S>>,
+        memory_writer: mpsc::Sender<MemoryMessage>,
         src: (usize, usize),
         dst: (usize, usize),
     ) -> Result<(), ()>;
 }
 
 /// Implement paging data into a `WasmBuffer`
-pub trait PagedWasmBuffer<S: Clone + Send + Sized + 'static>: WasmBuffer<S> {
-    fn first(&mut self, caller: Caller<'_, State<S>>, offset: Option<usize>) -> i32;
-    fn next(&mut self, caller: Caller<'_, State<S>>) -> i32;
+pub trait PagedWasmBuffer: WasmBuffer {
+    fn first(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<usize>) -> i32;
+    fn next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>) -> i32;
 }
 
 pub struct FunctionInputBuffer {
@@ -88,27 +90,24 @@ impl LinearBuffer for FunctionInputBuffer {
     }
 }
 
-impl<S> PagedWasmBuffer<S> for FunctionInputBuffer
-where
-    S: Clone + Send + Sized + 'static,
-{
-    fn first(&mut self, caller: Caller<'_, State<S>>, _offset: Option<usize>) -> i32 {
+impl PagedWasmBuffer for FunctionInputBuffer {
+    fn first(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, _offset: Option<usize>) -> i32 {
         let end: usize = match self.buffer.len() < FUNCTION_INPUT_BUFFER_SIZE {
             true => self.buffer.len(),
             false => FUNCTION_INPUT_BUFFER_SIZE,
         };
-        self.copy_to_wasm(caller, (0usize, end), (0usize, FUNCTION_INPUT_BUFFER_SIZE))
+        self.copy_to_wasm(memory_writer, (0usize, end), (0usize, FUNCTION_INPUT_BUFFER_SIZE))
             .unwrap();
         self.page_idx = 0usize;
         0
     }
 
-    fn next(&mut self, caller: Caller<'_, State<S>>) -> i32 {
+    fn next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>) -> i32 {
         use std::cmp::min;
         if self.buffer.len() > FUNCTION_INPUT_BUFFER_SIZE {
             self.page_idx += 1;
             self.copy_to_wasm(
-                caller,
+                memory_writer,
                 (
                     FUNCTION_INPUT_BUFFER_SIZE * self.page_idx,
                     min(
@@ -124,26 +123,23 @@ where
     }
 }
 
-impl<S> WasmBuffer<S> for FunctionInputBuffer
-where
-    S: Clone + Send + Sized + 'static,
-{
+impl WasmBuffer for FunctionInputBuffer {
     fn copy_to_wasm(
         &self,
-        mut caller: Caller<'_, State<S>>,
+        memory_writer: mpsc::Sender<MemoryMessage>,
         src: (usize, usize),
         dst: (usize, usize),
     ) -> Result<(), ()> {
-        let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-        let fib_fn = caller.get_export("__asml_guest_get_function_input_buffer_pointer").unwrap().into_func().unwrap();
-
-        let offset: i32 = fib_fn
-            .typed::<(), i32, _>(&caller)
-            .expect("invalid FIB func typedef")
-            .call(&mut caller, ())
-            .expect("TODO: panic message");
-        memory.write(&mut caller, offset as usize, &self.buffer[src.0..src.1])
-            .expect("TODO: panic message");
+        // let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+        // let fib_fn = caller.get_export("__asml_guest_get_function_input_buffer_pointer").unwrap().into_func().unwrap();
+        //
+        // let offset: i32 = fib_fn
+        //     .typed::<(), i32, _>(&caller)
+        //     .expect("invalid FIB func typedef")
+        //     .call(&mut caller, ())
+        //     .expect("TODO: panic message");
+        // memory.write(&mut caller, offset as usize, &self.buffer[src.0..src.1])
+        //     .expect("TODO: panic message");
         // let wasm_memory = env.memory_ref().unwrap();
         // let input_buffer = env
         //     .get_function_input_buffer
@@ -155,10 +151,11 @@ where
         //     .deref(&wasm_memory, dst.0 as u32, dst.1 as u32)
         //     .unwrap();
         //
-        // for (i, b) in self.buffer[src.0..src.1].iter().enumerate() {
-        //     let idx = i + dst.0;
-        //     memory_writer[idx].set(*b);
-        // }
+        for (i, b) in self.buffer[src.0..src.1].iter().enumerate() {
+            let idx = i + dst.0;
+            memory_writer.blocking_send((idx, *b)).unwrap();
+            // memory_writer[idx].set(*b);
+        }
 
         Ok(())
     }
@@ -215,16 +212,13 @@ impl IoBuffer {
     }
 }
 
-impl<S> PagedWasmBuffer<S> for IoBuffer
-where
-    S: Clone + Send + Sized + 'static,
-{
-    fn first(&mut self,  caller: Caller<'_, State<S>>, offset: Option<usize>) -> i32 {
+impl PagedWasmBuffer for IoBuffer {
+    fn first(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<usize>) -> i32 {
         self.active_buffer = offset.unwrap_or(0);
         self.page_indices.insert(self.active_buffer, 0usize);
 
         self.copy_to_wasm(
-            caller,
+            memory_writer,
             (self.active_buffer, 0usize),
             (0usize, IO_BUFFER_SIZE_BYTES),
         )
@@ -232,11 +226,11 @@ where
         0
     }
 
-    fn next(&mut self, caller: Caller<'_, State<S>>) -> i32 {
+    fn next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>) -> i32 {
         let page_idx = self.page_indices.get(&self.active_buffer).unwrap() + 1;
         let page_offset = page_idx * IO_BUFFER_SIZE_BYTES;
         self.copy_to_wasm(
-            caller,
+            memory_writer,
             (self.active_buffer, page_offset),
             (0usize, IO_BUFFER_SIZE_BYTES),
         )
@@ -246,41 +240,39 @@ where
     }
 }
 
-impl<S> WasmBuffer<S> for IoBuffer
-where
-    S: Clone + Send + Sized + 'static,
-{
+impl WasmBuffer for IoBuffer {
     fn copy_to_wasm(
         &self,
-        mut caller: Caller<'_, State<S>>,
+        memory_writer: mpsc::Sender<MemoryMessage>,
         src: (usize, usize),
         dst: (usize, usize),
     ) -> Result<(), ()> {
         use std::cmp::min;
-        let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-        let io_buffer_fn = caller.get_export("__asml_guest_get_io_buffer_pointer").unwrap().into_func().unwrap();
+        // let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+        // let io_buffer_fn = caller.get_export("__asml_guest_get_io_buffer_pointer").unwrap().into_func().unwrap();
 
-        let offset: i32 = io_buffer_fn
-            .typed::<(), i32, _>(&caller)
-            .expect("invalid iobuffer func typedef")
-            .call(&mut caller, ())
-            .expect("TODO: panic message");
-        let buffer = self.buffers.get(&src.0).unwrap();
-        memory.write(&mut caller, offset as usize, &buffer[src.1..min(src.1 + IO_BUFFER_SIZE_BYTES, buffer.len())])
-            .expect("TODO: panic message");
+        // let offset: i32 = io_buffer_fn
+        //     .typed::<(), i32, _>(&caller)
+        //     .expect("invalid iobuffer func typedef")
+        //     .call(&mut caller, ())
+        //     .expect("TODO: panic message");
+        // let buffer = self.buffers.get(&src.0).unwrap();
+        // memory.write(&mut caller, offset as usize, &buffer[src.1..min(src.1 + IO_BUFFER_SIZE_BYTES, buffer.len())])
+        //     .expect("TODO: panic message");
         // let wasm_memory = env.memory_ref().unwrap();
         // let io_buffer = env.get_io_buffer.get_ref().unwrap().call().unwrap();
         // let memory_writer: Vec<WasmCell<u8>> = io_buffer
         //     .deref(&wasm_memory, dst.0 as u32, dst.1 as u32)
         //     .unwrap();
 
-        // let buffer = self.buffers.get(&src.0).unwrap();
-        // for (i, b) in buffer[src.1..min(src.1 + IO_BUFFER_SIZE_BYTES, buffer.len())]
-        //     .iter()
-        //     .enumerate()
-        // {
-        //     memory_writer[i].set(*b);
-        // }
+        let buffer = self.buffers.get(&src.0).unwrap();
+        for (i, b) in buffer[src.1..min(src.1 + IO_BUFFER_SIZE_BYTES, buffer.len())]
+            .iter()
+            .enumerate()
+        {
+            memory_writer.blocking_send((i, *b)).unwrap();
+            // memory_writer[i].set(*b);
+        }
 
         Ok(())
     }

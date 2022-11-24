@@ -13,7 +13,7 @@ use wasmtime::Caller;
 use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
 use crate::buffers::{FunctionInputBuffer, IoBuffer, PagedWasmBuffer};
-use crate::wasm::State;
+use crate::wasm::{MemoryMessage, State};
 
 // use wasmer::{Array, LazyInit, Memory, NativeFunc, WasmPtr, WasmerEnv};
 
@@ -93,19 +93,19 @@ where
     }
 
     /// Load the memory document associated with `ioid` into the guest IO memory
-    pub fn document_load(&mut self, caller: Caller<'_, State<S>>, ioid: IoId) -> Result<(), ()> {
+    pub fn document_load(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, ioid: IoId) -> Result<(), ()> {
         let doc = self.get_io_memory_document(ioid).unwrap();
         self.io_memory
             .lock()
             .unwrap()
             .buffer
-            .first(caller, Some(doc.start));
+            .first(memory_writer, Some(doc.start));
         Ok(())
     }
 
     /// Advance the guest IO memory to the next page
-    pub fn document_next(&mut self, caller: Caller<'_, State<S>>) -> Result<(), ()> {
-        self.io_memory.lock().unwrap().buffer.next(caller);
+    pub fn document_next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>) -> Result<(), ()> {
+        self.io_memory.lock().unwrap().buffer.next(memory_writer);
         Ok(())
     }
 

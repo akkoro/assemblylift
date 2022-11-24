@@ -83,16 +83,18 @@ where
 //     unix_time.as_secs() * 1000u64
 // }
 //
-// pub fn asml_abi_input_start<S>(env: &ThreaderEnv<S>) -> i32
-// where
-//     S: Clone + Send + Sized + 'static,
-// {
-//     env.host_input_buffer
-//         .clone()
-//         .lock()
-//         .unwrap()
-//         .first(env, None)
-// }
+pub fn asml_abi_input_start<S>(mut caller: Caller<'_, State<S>>) -> i32
+where
+    S: Clone + Send + Sized + 'static,
+{
+    // env.host_input_buffer
+    //     .clone()
+    //     .lock()
+    //     .unwrap()
+    //     .first(env, None)
+    let state = caller.data_mut();
+    state.function_input_buffer.first(state.memory_writer.clone(), None)
+}
 //
 // pub fn asml_abi_input_next<S>(env: &ThreaderEnv<S>) -> i32
 // where

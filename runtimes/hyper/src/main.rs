@@ -63,6 +63,8 @@ fn main() {
             r.lock().unwrap().spawn();
         });
 
+        // TODO spawn a scoped thread somewhere which handles memory channels
+
         s.spawn(move |_| {
             let mut launcher = Launcher::new();
             launcher.spawn(tx);

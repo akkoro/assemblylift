@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
-use wasmtime::{AsContext, Caller, Config, Engine, Linker, Module, Store};
+use tokio::sync::mpsc;
+use wasmtime::{AsContext, AsContextMut, Caller, Config, Engine, Linker, Module, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
 use assemblylift_core_iomod::registry::RegistryTx;
@@ -14,6 +15,11 @@ use crate::buffers::{FunctionInputBuffer, LinearBuffer};
 use crate::threader::Threader;
 
 pub type State<S> = AsmlFunctionState<S>;
+
+pub type MemoryMessage = (usize, u8);
+pub type MemoryTx = mpsc::Sender<MemoryMessage>;
+pub type MemoryRx = mpsc::Receiver<MemoryMessage>;
+pub type MemoryChannel = (MemoryTx, MemoryRx);
 
 pub struct Wasmtime<R, S>
 where
@@ -63,13 +69,19 @@ where
     ) -> anyhow::Result<()> {
         let threader = ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(registry_tx))));
         let mut linker: Linker<State<S>> = Linker::new(&self.engine);
+
         wasmtime_wasi::add_to_linker(&mut linker, |s| &mut s.wasi).expect("");
         let wasi = WasiCtxBuilder::new().build();
-        let state = State {
+
+        let writer: MemoryChannel = mpsc::channel(512);
+
+        let mut state = State {
             function_input_buffer: FunctionInputBuffer::new(),
             status_sender,
             threader,
             wasi,
+            memory_reader: mpsc::channel(512),
+            memory_writer: writer.0,
         };
         let mut store = Store::new(&self.engine, state);
 
@@ -86,6 +98,16 @@ where
 
         self.store = Some(store);
         self.linker = Some(linker);
+
+        // let mut ctx = self.store.as_mut().unwrap().as_context_mut();
+        // let mut rx = writer.1;
+        // let memory = self.linker.as_ref().unwrap().get(&mut ctx, "", "memory").unwrap().into_memory().unwrap();
+        // tokio::task::spawn_local(async move {
+        //     while let Some((i, b)) = rx.recv().await {
+        //         memory.write(&mut ctx, i, &[b]).unwrap()
+        //     }
+        // });
+
         Ok(())
     }
 
@@ -141,6 +163,9 @@ where
     pub status_sender: crossbeam_channel::Sender<S>,
     pub threader: ManuallyDrop<Arc<Mutex<Threader<S>>>>,
     wasi: WasiCtx,
+
+    pub(crate) memory_reader: MemoryChannel,
+    pub(crate) memory_writer: MemoryTx,
 }
 
 // pub fn build_module<R, S>(
