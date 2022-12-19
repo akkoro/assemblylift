@@ -15,39 +15,6 @@ use crate::wasm::MemoryMessage;
 
 pub type IoId = u32;
 
-// #[derive(WasmerEnv, Clone)]
-// /// The `WasmerEnv` environment providing shared data between native WASM functions and the host
-// pub struct ThreaderEnv<S>
-// where
-//     S: Clone + Send + Sized + 'static,
-// {
-//     pub threader: ManuallyDrop<Arc<Mutex<Threader<S>>>>,
-//     pub host_input_buffer: Arc<Mutex<FunctionInputBuffer>>,
-//     #[wasmer(export)]
-//     pub memory: LazyInit<Memory>,
-//     #[wasmer(export(name = "__asml_guest_get_function_input_buffer_pointer"))]
-//     pub get_function_input_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
-//     #[wasmer(export(name = "__asml_guest_get_io_buffer_pointer"))]
-//     pub get_io_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
-//     pub status_sender: crossbeam_channel::Sender<S>,
-// }
-//
-// impl<S> ThreaderEnv<S>
-// where
-//     S: Clone + Send + Sized + 'static,
-// {
-//     pub fn new(tx: RegistryTx, status_sender: crossbeam_channel::Sender<S>) -> Self {
-//         ThreaderEnv {
-//             threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx)))),
-//             memory: Default::default(),
-//             get_function_input_buffer: Default::default(),
-//             get_io_buffer: Default::default(),
-//             host_input_buffer: Arc::new(Mutex::new(FunctionInputBuffer::new())),
-//             status_sender,
-//         }
-//     }
-// }
-
 pub struct Threader<S> {
     io_memory: Arc<Mutex<IoMemory>>,
     registry_tx: RegistryTx,

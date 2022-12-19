@@ -125,31 +125,9 @@ impl WasmBuffer for FunctionInputBuffer {
         src: (usize, usize),
         dst: (usize, usize),
     ) -> Result<(), ()> {
-        // let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-        // let fib_fn = caller.get_export("__asml_guest_get_function_input_buffer_pointer").unwrap().into_func().unwrap();
-        //
-        // let offset: i32 = fib_fn
-        //     .typed::<(), i32, _>(&caller)
-        //     .expect("invalid FIB func typedef")
-        //     .call(&mut caller, ())
-        //     .expect("TODO: panic message");
-        // memory.write(&mut caller, offset as usize, &self.buffer[src.0..src.1])
-        //     .expect("TODO: panic message");
-        // let wasm_memory = env.memory_ref().unwrap();
-        // let input_buffer = env
-        //     .get_function_input_buffer
-        //     .get_ref()
-        //     .unwrap()
-        //     .call()
-        //     .unwrap();
-        // let memory_writer: Vec<WasmCell<u8>> = input_buffer
-        //     .deref(&wasm_memory, dst.0 as u32, dst.1 as u32)
-        //     .unwrap();
-        //
         for (i, b) in self.buffer[src.0..src.1].iter().enumerate() {
             let idx = i + dst.0;
             memory_writer.blocking_send((idx, *b)).unwrap();
-            // memory_writer[idx].set(*b);
         }
 
         Ok(())
@@ -248,23 +226,6 @@ impl WasmBuffer for IoBuffer {
         dst: (usize, usize),
     ) -> Result<(), ()> {
         use std::cmp::min;
-        // let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-        // let io_buffer_fn = caller.get_export("__asml_guest_get_io_buffer_pointer").unwrap().into_func().unwrap();
-
-        // let offset: i32 = io_buffer_fn
-        //     .typed::<(), i32, _>(&caller)
-        //     .expect("invalid iobuffer func typedef")
-        //     .call(&mut caller, ())
-        //     .expect("TODO: panic message");
-        // let buffer = self.buffers.get(&src.0).unwrap();
-        // memory.write(&mut caller, offset as usize, &buffer[src.1..min(src.1 + IO_BUFFER_SIZE_BYTES, buffer.len())])
-        //     .expect("TODO: panic message");
-        // let wasm_memory = env.memory_ref().unwrap();
-        // let io_buffer = env.get_io_buffer.get_ref().unwrap().call().unwrap();
-        // let memory_writer: Vec<WasmCell<u8>> = io_buffer
-        //     .deref(&wasm_memory, dst.0 as u32, dst.1 as u32)
-        //     .unwrap();
-
         let buffer = self.buffers.get(&src.0).unwrap();
         for (i, b) in buffer[src.1..min(src.1 + IO_BUFFER_SIZE_BYTES, buffer.len())]
             .iter()
@@ -272,7 +233,6 @@ impl WasmBuffer for IoBuffer {
         {
             let idx = i + dst.0;
             memory_writer.blocking_send((idx, *b)).unwrap();
-            // memory_writer[i].set(*b);
         }
 
         Ok(())
