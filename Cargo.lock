@@ -100,7 +100,7 @@ name = "assemblylift-awslambda-guest"
 version = "0.4.0-alpha.0"
 dependencies = [
  "assemblylift-core-guest",
- "assemblylift-core-io-guest 0.4.0-alpha.0",
+ "assemblylift-core-io-guest 0.4.0-alpha.10",
  "direct-executor",
  "serde",
  "serde_json",
@@ -220,7 +220,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-io-guest"
-version = "0.4.0-alpha.0"
+version = "0.4.0-alpha.10"
 dependencies = [
  "assemblylift-core-io-common 0.3.0",
  "futures",
@@ -262,7 +262,7 @@ version = "0.4.0-alpha.0"
 
 [[package]]
 name = "assemblylift-hyper-runtime"
-version = "0.4.0-alpha.2"
+version = "0.4.0-alpha.10"
 dependencies = [
  "anyhow",
  "assemblylift-core",

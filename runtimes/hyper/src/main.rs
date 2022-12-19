@@ -5,7 +5,6 @@ use tokio::sync::mpsc;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
-use assemblylift_core::wasm;
 use assemblylift_core::wasm::Wasmtime;
 use assemblylift_core_iomod::registry;
 
@@ -60,10 +59,8 @@ fn main() {
 
         let r = runner.clone();
         s.spawn(move |_| {
-            r.lock().unwrap().spawn();
+            r.lock().unwrap().spawn()
         });
-
-        // TODO spawn a scoped thread somewhere which handles memory channels
 
         s.spawn(move |_| {
             let mut launcher = Launcher::new();

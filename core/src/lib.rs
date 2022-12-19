@@ -1,4 +1,4 @@
-pub use wasmtime::Caller;
+pub use wasmtime::{AsContextMut, Caller};
 
 pub mod abi;
 pub mod buffers;

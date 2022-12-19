@@ -2,17 +2,12 @@
 //! See [core-buffers doc](../../docs/core-buffers.md) for more details
 
 use std::collections::HashMap;
-use std::ops::Deref;
 
 use tokio::sync::mpsc;
-use wasmtime::{AsContext, Caller, Store, Val};
 
 use assemblylift_core_io_common::constants::{FUNCTION_INPUT_BUFFER_SIZE, IO_BUFFER_SIZE_BYTES};
 
-// use crate::threader::ThreaderEnv;
-use crate::wasm::{MemoryMessage, State};
-
-// use wasmer::WasmCell;
+use crate::wasm::MemoryMessage;
 
 /// A trait representing a linear byte buffer, such as Vec<u8>
 pub trait LinearBuffer {
@@ -40,8 +35,8 @@ pub trait WasmBuffer {
 
 /// Implement paging data into a `WasmBuffer`
 pub trait PagedWasmBuffer: WasmBuffer {
-    fn first(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<usize>) -> i32;
-    fn next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>) -> i32;
+    fn first(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<Vec<usize>>) -> i32;
+    fn next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<Vec<usize>>) -> i32;
 }
 
 pub struct FunctionInputBuffer {
@@ -91,18 +86,18 @@ impl LinearBuffer for FunctionInputBuffer {
 }
 
 impl PagedWasmBuffer for FunctionInputBuffer {
-    fn first(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, _offset: Option<usize>) -> i32 {
+    fn first(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<Vec<usize>>) -> i32 {
         let end: usize = match self.buffer.len() < FUNCTION_INPUT_BUFFER_SIZE {
             true => self.buffer.len(),
             false => FUNCTION_INPUT_BUFFER_SIZE,
         };
-        self.copy_to_wasm(memory_writer, (0usize, end), (0usize, FUNCTION_INPUT_BUFFER_SIZE))
+        self.copy_to_wasm(memory_writer, (0usize, end), (offset.unwrap()[0], FUNCTION_INPUT_BUFFER_SIZE))
             .unwrap();
         self.page_idx = 0usize;
         0
     }
 
-    fn next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>) -> i32 {
+    fn next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<Vec<usize>>) -> i32 {
         use std::cmp::min;
         if self.buffer.len() > FUNCTION_INPUT_BUFFER_SIZE {
             self.page_idx += 1;
@@ -115,7 +110,7 @@ impl PagedWasmBuffer for FunctionInputBuffer {
                         self.buffer.len(),
                     ),
                 ),
-                (0usize, FUNCTION_INPUT_BUFFER_SIZE),
+                (offset.unwrap()[0], FUNCTION_INPUT_BUFFER_SIZE),
             )
             .unwrap();
         }
@@ -213,26 +208,31 @@ impl IoBuffer {
 }
 
 impl PagedWasmBuffer for IoBuffer {
-    fn first(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<usize>) -> i32 {
-        self.active_buffer = offset.unwrap_or(0);
-        self.page_indices.insert(self.active_buffer, 0usize);
+    fn first(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<Vec<usize>>) -> i32 {
+        match offset {
+            Some(offset) => {
+                self.active_buffer = offset[0];
+                self.page_indices.insert(self.active_buffer, 0usize);
 
-        self.copy_to_wasm(
-            memory_writer,
-            (self.active_buffer, 0usize),
-            (0usize, IO_BUFFER_SIZE_BYTES),
-        )
-        .unwrap();
-        0
+                self.copy_to_wasm(
+                    memory_writer,
+                    (self.active_buffer, 0usize),
+                    (offset[1], IO_BUFFER_SIZE_BYTES),
+                )
+                    .unwrap();
+                0
+            }
+            None => -1,
+        }
     }
 
-    fn next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>) -> i32 {
+    fn next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<Vec<usize>>) -> i32 {
         let page_idx = self.page_indices.get(&self.active_buffer).unwrap() + 1;
         let page_offset = page_idx * IO_BUFFER_SIZE_BYTES;
         self.copy_to_wasm(
             memory_writer,
             (self.active_buffer, page_offset),
-            (0usize, IO_BUFFER_SIZE_BYTES),
+            (offset.unwrap()[0], IO_BUFFER_SIZE_BYTES),
         )
         .unwrap();
         *self.page_indices.get_mut(&self.active_buffer).unwrap() = page_idx;
@@ -270,7 +270,8 @@ impl WasmBuffer for IoBuffer {
             .iter()
             .enumerate()
         {
-            memory_writer.blocking_send((i, *b)).unwrap();
+            let idx = i + dst.0;
+            memory_writer.blocking_send((idx, *b)).unwrap();
             // memory_writer[i].set(*b);
         }
 

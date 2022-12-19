@@ -4,18 +4,14 @@
 
 use std::collections::HashMap;
 use std::future::Future;
-use std::mem::ManuallyDrop;
 use std::sync::{Arc, Mutex};
 
 use tokio::sync::mpsc;
-use wasmtime::Caller;
 
 use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
-use crate::buffers::{FunctionInputBuffer, IoBuffer, PagedWasmBuffer};
-use crate::wasm::{MemoryMessage, State};
-
-// use wasmer::{Array, LazyInit, Memory, NativeFunc, WasmPtr, WasmerEnv};
+use crate::buffers::{IoBuffer, PagedWasmBuffer};
+use crate::wasm::MemoryMessage;
 
 pub type IoId = u32;
 
@@ -93,19 +89,28 @@ where
     }
 
     /// Load the memory document associated with `ioid` into the guest IO memory
-    pub fn document_load(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, ioid: IoId) -> Result<(), ()> {
+    pub fn document_load(
+        &mut self,
+        memory_writer: mpsc::Sender<MemoryMessage>,
+        memory_offset: usize,
+        ioid: IoId,
+    ) -> Result<(), ()> {
         let doc = self.get_io_memory_document(ioid).unwrap();
         self.io_memory
             .lock()
             .unwrap()
             .buffer
-            .first(memory_writer, Some(doc.start));
+            .first(memory_writer, Some(vec![doc.start, memory_offset]));
         Ok(())
     }
 
     /// Advance the guest IO memory to the next page
-    pub fn document_next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>) -> Result<(), ()> {
-        self.io_memory.lock().unwrap().buffer.next(memory_writer);
+    pub fn document_next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, memory_offset: usize) -> Result<(), ()> {
+        self.io_memory
+            .lock()
+            .unwrap()
+            .buffer
+            .next(memory_writer, Some(vec![memory_offset]));
         Ok(())
     }
 

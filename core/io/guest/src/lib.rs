@@ -26,10 +26,6 @@ extern "C" {
     fn __asml_abi_input_start() -> i32;
     fn __asml_abi_input_next() -> i32;
     fn __asml_abi_input_length_get() -> u64;
-
-    // Z85
-    fn __asml_expabi_z85_encode(ptr: *const u8, len: usize, out_ptr: *const u8) -> i32;
-    fn __asml_expabi_z85_decode(ptr: *const u8, len: usize, out_ptr: *const u8) -> i32;
 }
 
 #[doc(hidden)]
@@ -83,7 +79,7 @@ impl std::io::Read for IoDocument {
         let mut bytes_read = 0usize;
         if self.bytes_read < self.length {
             for idx in 0..std::cmp::min(self.length, buf.len()) {
-                // unsafe: bytes_read is always positive, mod IO_BUFFER_SIZE_BYTES
+                // unsafe: bytes_read is always positive modulo IO_BUFFER_SIZE_BYTES
                 //         is always less than IO_BUFFER_SIZE_BYTES
                 buf[idx] = unsafe { IO_BUFFER[self.bytes_read % IO_BUFFER_SIZE_BYTES] };
                 bytes_read += 1;

@@ -3,9 +3,8 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tracing::{debug, info};
 
-use assemblylift_core::buffers::LinearBuffer;
-use assemblylift_core::wasm;
 use assemblylift_core::wasm::Wasmtime;
+use assemblylift_core::AsContextMut;
 use assemblylift_core_iomod::registry::RegistryTx;
 
 use crate::{GenericDockerAbi, Status, StatusTx};
@@ -28,7 +27,10 @@ pub struct Runner {
 }
 
 impl Runner {
-    pub fn new(registry_tx: RegistryTx, wasmtime: Arc<Mutex<Wasmtime<GenericDockerAbi, Status>>>) -> Self {
+    pub fn new(
+        registry_tx: RegistryTx,
+        wasmtime: Arc<Mutex<Wasmtime<GenericDockerAbi, Status>>>,
+    ) -> Self {
         Runner {
             channel: mpsc::channel(32),
             registry_tx,
@@ -43,10 +45,11 @@ impl Runner {
             while let Some(msg) = self.channel.1.recv().await {
                 debug!("received runner message");
 
-                self.wasmtime
+                let (memory, mut rx) = self
+                    .wasmtime
                     .lock()
                     .unwrap()
-                    .link_module(self.registry_tx.clone() , msg.status_sender.clone())
+                    .link_module(self.registry_tx.clone(), msg.status_sender.clone())
                     .expect("could not link wasm module");
 
                 self.wasmtime
@@ -54,6 +57,16 @@ impl Runner {
                     .unwrap()
                     .initialize_function_input_buffer(&msg.input)
                     .expect("could not initialize input buffer");
+
+                let wasmtime = self.wasmtime.clone();
+                tokio::task::spawn_local(async move {
+                    let mut lock = wasmtime.lock().unwrap();
+                    let mut ctx = lock.store.as_mut().unwrap().as_context_mut();
+
+                    while let Some((i, b)) = rx.recv().await {
+                        memory.write(&mut ctx, i, &[b]).unwrap()
+                    }
+                });
 
                 let wasmtime = self.wasmtime.clone();
                 tokio::task::spawn_local(async move {

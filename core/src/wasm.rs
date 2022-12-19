@@ -1,11 +1,10 @@
 use std::io::Write;
 use std::mem::ManuallyDrop;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use tokio::sync::mpsc;
-use wasmtime::{AsContext, AsContextMut, Caller, Config, Engine, Linker, Module, Store};
+use wasmtime::{Caller, Config, Engine, Func, Linker, Memory, Module, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
 use assemblylift_core_iomod::registry::RegistryTx;
@@ -29,7 +28,7 @@ where
     engine: Engine,
     module: Module,
     linker: Option<Linker<State<S>>>,
-    store: Option<Store<State<S>>>,
+    pub store: Option<Store<State<S>>>,
     _phantom: std::marker::PhantomData<R>,
 }
 
@@ -66,7 +65,7 @@ where
         &mut self,
         registry_tx: RegistryTx,
         status_sender: crossbeam_channel::Sender<S>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<(Memory, MemoryRx)> {
         let threader = ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(registry_tx))));
         let mut linker: Linker<State<S>> = Linker::new(&self.engine);
 
@@ -75,40 +74,82 @@ where
 
         let writer: MemoryChannel = mpsc::channel(512);
 
-        let mut state = State {
+        let state = State {
             function_input_buffer: FunctionInputBuffer::new(),
             status_sender,
             threader,
             wasi,
-            memory_reader: mpsc::channel(512),
             memory_writer: writer.0,
+            io_buffer_ptr: None,
+            function_input_buffer_ptr: None,
         };
         let mut store = Store::new(&self.engine, state);
 
+        linker
+            .func_wrap("env", "__asml_abi_runtime_log", R::log)
+            .expect("");
+        linker
+            .func_wrap("env", "__asml_abi_runtime_success", R::success)
+            .expect("");
+        linker
+            .func_wrap("env", "__asml_abi_invoke", asml_abi_io_invoke::<R, S>)
+            .expect("");
+        linker
+            .func_wrap("env", "__asml_abi_io_invoke", asml_abi_io_invoke::<R, S>)
+            .expect("");
+        linker
+            .func_wrap("env", "__asml_abi_io_poll", asml_abi_io_poll::<S>)
+            .expect("");
+        linker
+            .func_wrap("env", "__asml_abi_io_len", asml_abi_io_len::<S>)
+            .expect("");
+        linker
+            .func_wrap("env", "__asml_abi_io_load", asml_abi_io_load::<S>)
+            .expect("");
+        linker
+            .func_wrap("env", "__asml_abi_io_next", asml_abi_io_next::<S>)
+            .expect("");
+        linker
+            .func_wrap("env", "__asml_abi_clock_time_get", asml_abi_clock_time_get)
+            .expect("");
+        linker
+            .func_wrap("env", "__asml_abi_input_start", asml_abi_input_start)
+            .expect("");
+        linker
+            .func_wrap("env", "__asml_abi_input_next", asml_abi_input_next)
+            .expect("");
+        linker
+            .func_wrap("env", "__asml_abi_input_length_get", asml_abi_input_length_get)
+            .expect("");
         linker.module(&mut store, "", &self.module).expect("");
-        linker
-            .func_wrap("", "__asml_abi_runtime_log", R::log)
-            .expect("");
-        linker
-            .func_wrap("", "__asml_abi_runtime_success", R::success)
-            .expect("");
-        linker
-            .func_wrap("", "__asml_abi_io_invoke", asml_abi_io_invoke::<R, S>)
-            .expect("");
+
+        let memory = self
+            .linker
+            .as_ref()
+            .unwrap()
+            .get(&mut store, "env", "memory")
+            .unwrap()
+            .into_memory()
+            .unwrap();
+
+        let get_ptr = linker
+            .get(&mut store, "env", "__asml_guest_get_io_buffer_pointer")
+            .unwrap()
+            .into_func()
+            .unwrap();
+        store.data_mut().io_buffer_ptr = Some(get_ptr);
+
+        let get_ptr = linker
+            .get(&mut store, "env", "__asml_guest_get_function_input_buffer_pointer")
+            .unwrap()
+            .into_func()
+            .unwrap();
+        store.data_mut().function_input_buffer_ptr = Some(get_ptr);
 
         self.store = Some(store);
         self.linker = Some(linker);
 
-        // let mut ctx = self.store.as_mut().unwrap().as_context_mut();
-        // let mut rx = writer.1;
-        // let memory = self.linker.as_ref().unwrap().get(&mut ctx, "", "memory").unwrap().into_memory().unwrap();
-        // tokio::task::spawn_local(async move {
-        //     while let Some((i, b)) = rx.recv().await {
-        //         memory.write(&mut ctx, i, &[b]).unwrap()
-        //     }
-        // });
-
-        Ok(())
+        Ok((memory, writer.1))
     }
 
     pub fn initialize_function_input_buffer(&mut self, input: &[u8]) -> anyhow::Result<()> {
@@ -134,7 +175,7 @@ where
     }
 
     pub fn ptr_to_string(
-        mut caller: &mut Caller<'_, State<S>>,
+        caller: &mut Caller<'_, State<S>>,
         ptr: u32,
         len: u32,
     ) -> anyhow::Result<String> {
@@ -144,7 +185,7 @@ where
     }
 
     pub fn ptr_to_bytes(
-        mut caller: &mut Caller<'_, State<S>>,
+        caller: &mut Caller<'_, State<S>>,
         ptr: u32,
         len: u32,
     ) -> anyhow::Result<Vec<u8>> {
@@ -162,9 +203,10 @@ where
     pub function_input_buffer: FunctionInputBuffer,
     pub status_sender: crossbeam_channel::Sender<S>,
     pub threader: ManuallyDrop<Arc<Mutex<Threader<S>>>>,
+    pub io_buffer_ptr: Option<Func>,
+    pub function_input_buffer_ptr: Option<Func>,
     wasi: WasiCtx,
 
-    pub(crate) memory_reader: MemoryChannel,
     pub(crate) memory_writer: MemoryTx,
 }
 
