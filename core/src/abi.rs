@@ -66,40 +66,40 @@ where
     let ptr = *&ptr[0].i32().unwrap();
 
     let memory_offset = ptr as usize;
-    let state = caller.data_mut();
-    match state
-        .threader
-        .lock()
-        .unwrap()
-        .document_load(state.memory_writer.clone(), memory_offset, id)
-    {
-        Ok(_) => 0,
-        Err(_) => -1,
+    let data = {
+        let state = caller.data_mut();
+        state.threader.lock().unwrap().document_load(memory_offset, id).unwrap()
+    };
+    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+    for e in data {
+        memory.write(&mut caller, e.0, &[e.1]).expect("");
     }
+    0
 }
 
 pub fn asml_abi_io_next<S>(mut caller: Caller<'_, State<S>>) -> i32
 where
     S: Clone + Send + Sized + 'static,
 {
-    let state = caller.data_mut();
-    let io_buffer_ptr = state.io_buffer_ptr.unwrap();
+    let ptr = {
+        let state = caller.data_mut();
+        let io_buffer_ptr = state.io_buffer_ptr.unwrap();
 
-    let mut ptr: Vec<Val> = vec![Val::I32(0)];
-    io_buffer_ptr.call(&mut caller, &[], &mut ptr).expect("");
-    let ptr = *&ptr[0].i32().unwrap();
+        let mut ptr: Vec<Val> = vec![Val::I32(0)];
+        io_buffer_ptr.call(&mut caller, &[], &mut ptr).expect("");
+        *&ptr[0].i32().unwrap()
+    };
 
     let memory_offset = ptr as usize;
-    let state = caller.data_mut();
-    match state
-        .threader
-        .lock()
-        .unwrap()
-        .document_next(state.memory_writer.clone(), memory_offset)
-    {
-        Ok(_) => 0,
-        Err(_) => -1,
+    let data = {
+        let state = caller.data_mut();
+        state.threader.lock().unwrap().document_next(memory_offset).unwrap()
+    };
+    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+    for e in data {
+        memory.write(&mut caller, e.0, &[e.1]).expect("");
     }
+    0
 }
 
 pub fn asml_abi_clock_time_get<S>(_caller: Caller<'_, State<S>>) -> u64
@@ -118,14 +118,23 @@ where
     let state = caller.data_mut();
 
     let mut ptr: Vec<Val> = vec![Val::I32(0)];
-    state.function_input_buffer_ptr.unwrap().call(&mut caller, &[], &mut ptr).expect("");
+    state
+        .function_input_buffer_ptr
+        .unwrap()
+        .call(&mut caller, &[], &mut ptr)
+        .expect("");
     let ptr = *&ptr[0].i32().unwrap();
 
     let offset = ptr as usize;
-    let state = caller.data_mut();
-    state
-        .function_input_buffer
-        .first(state.memory_writer.clone(), Some(vec![offset]))
+    let data = {
+        let state = caller.data_mut();
+        state.function_input_buffer.first(Some(vec![offset]))
+    };
+    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+    for e in data {
+        memory.write(&mut caller, e.0, &[e.1]).expect("");
+    }
+    0
 }
 
 pub fn asml_abi_input_next<S>(mut caller: Caller<'_, State<S>>) -> i32
@@ -135,14 +144,23 @@ where
     let state = caller.data_mut();
 
     let mut ptr: Vec<Val> = vec![Val::I32(0)];
-    state.function_input_buffer_ptr.unwrap().call(&mut caller, &[], &mut ptr).expect("");
+    state
+        .function_input_buffer_ptr
+        .unwrap()
+        .call(&mut caller, &[], &mut ptr)
+        .expect("");
     let ptr = *&ptr[0].i32().unwrap();
 
     let offset = ptr as usize;
-    let state = caller.data_mut();
-    state
-        .function_input_buffer
-        .next(state.memory_writer.clone(), Some(vec![offset]))
+    let data = {
+        let state = caller.data_mut();
+        state.function_input_buffer.next(Some(vec![offset]))
+    };
+    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+    for e in data {
+        memory.write(&mut caller, e.0, &[e.1]).expect("");
+    }
+    0
 }
 
 pub fn asml_abi_input_length_get<S>(mut caller: Caller<'_, State<S>>) -> u64

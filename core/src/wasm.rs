@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use tokio::sync::mpsc;
-use wasmtime::{Caller, Config, Engine, Func, Linker, Memory, Module, Store};
+use wasmtime::{Caller, Config, Engine, Func, Instance, Linker, Module, Store};
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 
 use assemblylift_core_iomod::registry::RegistryTx;
@@ -15,9 +15,9 @@ use crate::threader::Threader;
 
 pub type State<S> = AsmlFunctionState<S>;
 
-pub type MemoryMessage = (usize, u8);
-pub type MemoryTx = mpsc::Sender<MemoryMessage>;
-pub type MemoryRx = mpsc::Receiver<MemoryMessage>;
+pub type BufferElement = (usize, u8);
+pub type MemoryTx = mpsc::Sender<BufferElement>;
+pub type MemoryRx = mpsc::Receiver<BufferElement>;
 pub type MemoryChannel = (MemoryTx, MemoryRx);
 
 pub struct Wasmtime<R, S>
@@ -28,7 +28,6 @@ where
     engine: Engine,
     module: Module,
     linker: Option<Linker<State<S>>>,
-    pub store: Option<Store<State<S>>>,
     _phantom: std::marker::PhantomData<R>,
 }
 
@@ -44,7 +43,6 @@ where
             engine,
             module,
             linker: None,
-            store: None,
             _phantom: Default::default(),
         })
     }
@@ -56,7 +54,6 @@ where
             engine,
             module,
             linker: None,
-            store: None,
             _phantom: Default::default(),
         })
     }
@@ -65,21 +62,18 @@ where
         &mut self,
         registry_tx: RegistryTx,
         status_sender: crossbeam_channel::Sender<S>,
-    ) -> anyhow::Result<(Memory, MemoryRx)> {
+    ) -> anyhow::Result<(Instance, Store<State<S>>)> {
         let threader = ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(registry_tx))));
         let mut linker: Linker<State<S>> = Linker::new(&self.engine);
 
         wasmtime_wasi::add_to_linker(&mut linker, |s| &mut s.wasi).expect("");
         let wasi = WasiCtxBuilder::new().build();
 
-        let writer: MemoryChannel = mpsc::channel(512);
-
         let state = State {
             function_input_buffer: FunctionInputBuffer::new(),
             status_sender,
             threader,
             wasi,
-            memory_writer: writer.0,
             io_buffer_ptr: None,
             function_input_buffer_ptr: None,
         };
@@ -121,39 +115,28 @@ where
         linker
             .func_wrap("env", "__asml_abi_input_length_get", asml_abi_input_length_get)
             .expect("");
-        linker.module(&mut store, "", &self.module).expect("");
+        let instance = linker.instantiate(&mut store, &self.module).expect("");
 
-        let memory = self
-            .linker
-            .as_ref()
-            .unwrap()
-            .get(&mut store, "env", "memory")
-            .unwrap()
-            .into_memory()
-            .unwrap();
-
-        let get_ptr = linker
-            .get(&mut store, "env", "__asml_guest_get_io_buffer_pointer")
+        let get_ptr = instance
+            .get_export(&mut store, "__asml_guest_get_io_buffer_pointer")
             .unwrap()
             .into_func()
             .unwrap();
         store.data_mut().io_buffer_ptr = Some(get_ptr);
 
-        let get_ptr = linker
-            .get(&mut store, "env", "__asml_guest_get_function_input_buffer_pointer")
+        let get_ptr = instance
+            .get_export(&mut store, "__asml_guest_get_function_input_buffer_pointer")
             .unwrap()
             .into_func()
             .unwrap();
         store.data_mut().function_input_buffer_ptr = Some(get_ptr);
 
-        self.store = Some(store);
         self.linker = Some(linker);
 
-        Ok((memory, writer.1))
+        Ok((instance, store))
     }
 
-    pub fn initialize_function_input_buffer(&mut self, input: &[u8]) -> anyhow::Result<()> {
-        let store = self.store.as_mut().unwrap();
+    pub fn initialize_function_input_buffer(&mut self, store: &mut Store<AsmlFunctionState<S>>, input: &[u8]) -> anyhow::Result<()> {
         store
             .data_mut()
             .function_input_buffer
@@ -161,15 +144,13 @@ where
         Ok(())
     }
 
-    pub fn start(&mut self) -> anyhow::Result<()> {
-        self.linker
-            .as_ref()
-            .expect("module not linked yet")
-            .get_default(self.store.as_mut().unwrap(), "")
+    pub fn start(&mut self, mut store: &mut Store<AsmlFunctionState<S>>, instance: Instance) -> anyhow::Result<()> {
+        instance
+            .get_func(&mut store, "_start")
             .expect("could not find default function")
-            .typed::<(), (), _>(self.store.as_mut().unwrap())
+            .typed::<(), (), _>(&mut store)
             .expect("invalid default function signature")
-            .call(self.store.as_mut().unwrap(), ())
+            .call(&mut store, ())
             .expect("could not call default function");
         Ok(())
     }
@@ -206,8 +187,6 @@ where
     pub io_buffer_ptr: Option<Func>,
     pub function_input_buffer_ptr: Option<Func>,
     wasi: WasiCtx,
-
-    pub(crate) memory_writer: MemoryTx,
 }
 
 // pub fn build_module<R, S>(

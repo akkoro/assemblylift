@@ -4,7 +4,6 @@ use tokio::sync::mpsc;
 use tracing::{debug, info};
 
 use assemblylift_core::wasm::Wasmtime;
-use assemblylift_core::AsContextMut;
 use assemblylift_core_iomod::registry::RegistryTx;
 
 use crate::{GenericDockerAbi, Status, StatusTx};
@@ -45,7 +44,7 @@ impl Runner {
             while let Some(msg) = self.channel.1.recv().await {
                 debug!("received runner message");
 
-                let (memory, mut rx) = self
+                let (instance, mut store) = self
                     .wasmtime
                     .lock()
                     .unwrap()
@@ -55,22 +54,12 @@ impl Runner {
                 self.wasmtime
                     .lock()
                     .unwrap()
-                    .initialize_function_input_buffer(&msg.input)
+                    .initialize_function_input_buffer(&mut store, &msg.input)
                     .expect("could not initialize input buffer");
 
                 let wasmtime = self.wasmtime.clone();
                 tokio::task::spawn_local(async move {
-                    let mut lock = wasmtime.lock().unwrap();
-                    let mut ctx = lock.store.as_mut().unwrap().as_context_mut();
-
-                    while let Some((i, b)) = rx.recv().await {
-                        memory.write(&mut ctx, i, &[b]).unwrap()
-                    }
-                });
-
-                let wasmtime = self.wasmtime.clone();
-                tokio::task::spawn_local(async move {
-                    match wasmtime.lock().unwrap().start() {
+                    match wasmtime.lock().unwrap().start(&mut store, instance) {
                         Ok(_) => msg.status_sender.send(Status::Exited(0)),
                         Err(_) => msg
                             .status_sender

@@ -3,11 +3,9 @@
 
 use std::collections::HashMap;
 
-use tokio::sync::mpsc;
-
 use assemblylift_core_io_common::constants::{FUNCTION_INPUT_BUFFER_SIZE, IO_BUFFER_SIZE_BYTES};
 
-use crate::wasm::MemoryMessage;
+use crate::wasm::BufferElement;
 
 /// A trait representing a linear byte buffer, such as Vec<u8>
 pub trait LinearBuffer {
@@ -23,20 +21,10 @@ pub trait LinearBuffer {
     fn capacity(&self) -> usize;
 }
 
-/// A trait representing a buffer in WASM guest memory
-pub trait WasmBuffer {
-    fn copy_to_wasm(
-        &self,
-        memory_writer: mpsc::Sender<MemoryMessage>,
-        src: (usize, usize),
-        dst: (usize, usize),
-    ) -> Result<(), ()>;
-}
-
 /// Implement paging data into a `WasmBuffer`
-pub trait PagedWasmBuffer: WasmBuffer {
-    fn first(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<Vec<usize>>) -> i32;
-    fn next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<Vec<usize>>) -> i32;
+pub trait PagedWasmBuffer {
+    fn first(&mut self, offset: Option<Vec<usize>>) -> Vec<BufferElement>;
+    fn next(&mut self, offset: Option<Vec<usize>>) -> Vec<BufferElement>;
 }
 
 pub struct FunctionInputBuffer {
@@ -86,51 +74,37 @@ impl LinearBuffer for FunctionInputBuffer {
 }
 
 impl PagedWasmBuffer for FunctionInputBuffer {
-    fn first(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<Vec<usize>>) -> i32 {
+    fn first(&mut self, offset: Option<Vec<usize>>) -> Vec<BufferElement> {
+        let offset = offset.unwrap();
         let end: usize = match self.buffer.len() < FUNCTION_INPUT_BUFFER_SIZE {
             true => self.buffer.len(),
             false => FUNCTION_INPUT_BUFFER_SIZE,
         };
-        self.copy_to_wasm(memory_writer, (0usize, end), (offset.unwrap()[0], FUNCTION_INPUT_BUFFER_SIZE))
-            .unwrap();
         self.page_idx = 0usize;
-        0
+
+        let mut out: Vec<BufferElement> = Vec::with_capacity(end);
+        for (i, b) in self.buffer[0..end].iter().enumerate() {
+            let idx = i + offset[0];
+            out.push((idx, *b));
+        }
+        out
     }
 
-    fn next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<Vec<usize>>) -> i32 {
+    fn next(&mut self, offset: Option<Vec<usize>>) -> Vec<BufferElement> {
         use std::cmp::min;
+
+        let offset = offset.unwrap();
+        let start = FUNCTION_INPUT_BUFFER_SIZE * self.page_idx;
+        let end = min(FUNCTION_INPUT_BUFFER_SIZE * (self.page_idx + 1), self.buffer.len());
+        let mut out: Vec<BufferElement> = Vec::with_capacity(end);
         if self.buffer.len() > FUNCTION_INPUT_BUFFER_SIZE {
             self.page_idx += 1;
-            self.copy_to_wasm(
-                memory_writer,
-                (
-                    FUNCTION_INPUT_BUFFER_SIZE * self.page_idx,
-                    min(
-                        FUNCTION_INPUT_BUFFER_SIZE * (self.page_idx + 1),
-                        self.buffer.len(),
-                    ),
-                ),
-                (offset.unwrap()[0], FUNCTION_INPUT_BUFFER_SIZE),
-            )
-            .unwrap();
+            for (i, b) in self.buffer[start..end].iter().enumerate() {
+                let idx = i + offset[0];
+                out.push((idx, *b));
+            }
         }
-        0
-    }
-}
-
-impl WasmBuffer for FunctionInputBuffer {
-    fn copy_to_wasm(
-        &self,
-        memory_writer: mpsc::Sender<MemoryMessage>,
-        src: (usize, usize),
-        dst: (usize, usize),
-    ) -> Result<(), ()> {
-        for (i, b) in self.buffer[src.0..src.1].iter().enumerate() {
-            let idx = i + dst.0;
-            memory_writer.blocking_send((idx, *b)).unwrap();
-        }
-
-        Ok(())
+        out
     }
 }
 
@@ -186,55 +160,48 @@ impl IoBuffer {
 }
 
 impl PagedWasmBuffer for IoBuffer {
-    fn first(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<Vec<usize>>) -> i32 {
+    fn first(&mut self, offset: Option<Vec<usize>>) -> Vec<BufferElement> {
+        use std::cmp::min;
+
         match offset {
             Some(offset) => {
                 self.active_buffer = offset[0];
                 self.page_indices.insert(self.active_buffer, 0usize);
+                let buffer = self.buffers.get(&self.active_buffer).unwrap();
+                let end = min(IO_BUFFER_SIZE_BYTES, buffer.len());
+                let mut out: Vec<BufferElement> = Vec::with_capacity(end);
 
-                self.copy_to_wasm(
-                    memory_writer,
-                    (self.active_buffer, 0usize),
-                    (offset[1], IO_BUFFER_SIZE_BYTES),
-                )
-                    .unwrap();
-                0
+                for (i, b) in buffer[0..end]
+                    .iter()
+                    .enumerate()
+                {
+                    let idx = i + offset[1];
+                    out.push((idx, *b));
+                }
+                out
             }
-            None => -1,
+            None => Vec::default(),
         }
     }
 
-    fn next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, offset: Option<Vec<usize>>) -> i32 {
+    fn next(&mut self, offset: Option<Vec<usize>>) -> Vec<BufferElement> {
+        use std::cmp::min;
+
+        let offset = offset.unwrap();
+        let buffer = self.buffers.get(&self.active_buffer).unwrap();
         let page_idx = self.page_indices.get(&self.active_buffer).unwrap() + 1;
         let page_offset = page_idx * IO_BUFFER_SIZE_BYTES;
-        self.copy_to_wasm(
-            memory_writer,
-            (self.active_buffer, page_offset),
-            (offset.unwrap()[0], IO_BUFFER_SIZE_BYTES),
-        )
-        .unwrap();
-        *self.page_indices.get_mut(&self.active_buffer).unwrap() = page_idx;
-        0
-    }
-}
+        let end = min(page_offset + IO_BUFFER_SIZE_BYTES, buffer.len());
+        let mut out: Vec<BufferElement> = Vec::with_capacity(end);
 
-impl WasmBuffer for IoBuffer {
-    fn copy_to_wasm(
-        &self,
-        memory_writer: mpsc::Sender<MemoryMessage>,
-        src: (usize, usize),
-        dst: (usize, usize),
-    ) -> Result<(), ()> {
-        use std::cmp::min;
-        let buffer = self.buffers.get(&src.0).unwrap();
-        for (i, b) in buffer[src.1..min(src.1 + IO_BUFFER_SIZE_BYTES, buffer.len())]
+        for (i, b) in buffer[page_offset..end]
             .iter()
             .enumerate()
         {
-            let idx = i + dst.0;
-            memory_writer.blocking_send((idx, *b)).unwrap();
+            let idx = i + offset[0];
+            out.push((idx, *b));
         }
-
-        Ok(())
+        *self.page_indices.get_mut(&self.active_buffer).unwrap() = page_idx;
+        out
     }
 }

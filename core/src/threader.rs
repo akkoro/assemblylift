@@ -11,7 +11,7 @@ use tokio::sync::mpsc;
 use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
 use crate::buffers::{IoBuffer, PagedWasmBuffer};
-use crate::wasm::MemoryMessage;
+use crate::wasm::BufferElement;
 
 pub type IoId = u32;
 
@@ -58,27 +58,26 @@ where
     /// Load the memory document associated with `ioid` into the guest IO memory
     pub fn document_load(
         &mut self,
-        memory_writer: mpsc::Sender<MemoryMessage>,
         memory_offset: usize,
         ioid: IoId,
-    ) -> Result<(), ()> {
+    ) -> Result<Vec<BufferElement>, ()> {
         let doc = self.get_io_memory_document(ioid).unwrap();
-        self.io_memory
+        let data = self.io_memory
             .lock()
             .unwrap()
             .buffer
-            .first(memory_writer, Some(vec![doc.start, memory_offset]));
-        Ok(())
+            .first(Some(vec![doc.start, memory_offset]));
+        Ok(data)
     }
 
     /// Advance the guest IO memory to the next page
-    pub fn document_next(&mut self, memory_writer: mpsc::Sender<MemoryMessage>, memory_offset: usize) -> Result<(), ()> {
-        self.io_memory
+    pub fn document_next(&mut self, memory_offset: usize) -> Result<Vec<BufferElement>, ()> {
+        let data = self.io_memory
             .lock()
             .unwrap()
             .buffer
-            .next(memory_writer, Some(vec![memory_offset]));
-        Ok(())
+            .next(Some(vec![memory_offset]));
+        Ok(data)
     }
 
     /// Poll the runtime for the completion status of call associated with `ioid`
