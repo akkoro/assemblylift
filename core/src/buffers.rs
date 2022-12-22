@@ -85,24 +85,6 @@ impl IoBuffer {
         }
     }
 
-    pub fn len(&self, ioid: usize) -> usize {
-        self.buffers.get(&ioid).unwrap().len()
-    }
-
-    pub fn with_capacity(num_buffers: usize, buffer_capacity: usize) -> Self {
-        let mut buffers: HashMap<usize, Vec<u8>> = HashMap::new();
-        let mut indices: HashMap<usize, usize> = HashMap::new();
-        for idx in 0..num_buffers {
-            buffers.insert(idx, Vec::with_capacity(buffer_capacity));
-            indices.insert(idx, 0);
-        }
-        Self {
-            active_buffer: 0usize,
-            buffers,
-            page_indices: indices,
-        }
-    }
-
     pub fn write(&mut self, ioid: usize, bytes: &[u8]) -> usize {
         let mut bytes_written = 0usize;
         match self.buffers.get_mut(&ioid) {
