@@ -2,7 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use wasmtime::{Caller, Val};
 
-use crate::buffers::{LinearBuffer, PagedWasmBuffer};
+use crate::buffers::PagedWasmBuffer;
 use crate::wasm::{State, Wasmtime};
 
 pub trait RuntimeAbi<S: Clone + Send + Sized + 'static> {

@@ -7,20 +7,6 @@ use assemblylift_core_io_common::constants::{FUNCTION_INPUT_BUFFER_SIZE, IO_BUFF
 
 use crate::wasm::BufferElement;
 
-/// A trait representing a linear byte buffer, such as Vec<u8>
-pub trait LinearBuffer {
-    /// Initialize the buffer with the contents of `buffer`
-    fn initialize(&mut self, buffer: Vec<u8>);
-    /// Write bytes to the buffer at an offset
-    fn write(&mut self, bytes: &[u8], at_offset: usize) -> usize;
-    /// Erase `len` bytes starting from `offset`
-    fn erase(&mut self, offset: usize, len: usize) -> usize;
-    /// The length of the buffer in bytes
-    fn len(&self) -> usize;
-    /// The capacity of the buffer in bytes
-    fn capacity(&self) -> usize;
-}
-
 /// Implement paging data into a `WasmBuffer`
 pub trait PagedWasmBuffer {
     fn first(&mut self, offset: Option<Vec<usize>>) -> Vec<BufferElement>;
@@ -39,37 +25,13 @@ impl FunctionInputBuffer {
             page_idx: 0usize,
         }
     }
-}
 
-impl LinearBuffer for FunctionInputBuffer {
-    fn initialize(&mut self, buffer: Vec<u8>) {
+    pub fn initialize(&mut self, buffer: Vec<u8>) {
         self.buffer = buffer;
     }
 
-    fn write(&mut self, bytes: &[u8], at_offset: usize) -> usize {
-        let mut bytes_written = 0usize;
-        for idx in at_offset..bytes.len() {
-            self.buffer[idx] = bytes[idx - at_offset];
-            bytes_written += 1;
-        }
-        bytes_written
-    }
-
-    fn erase(&mut self, offset: usize, len: usize) -> usize {
-        let mut bytes_erased = 0usize;
-        for idx in offset..len {
-            self.buffer[idx] = 0;
-            bytes_erased += 1;
-        }
-        bytes_erased
-    }
-
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.buffer.len()
-    }
-
-    fn capacity(&self) -> usize {
-        self.buffer.capacity()
     }
 }
 

@@ -10,7 +10,7 @@ use wasmtime_wasi::{WasiCtx, WasiCtxBuilder};
 use assemblylift_core_iomod::registry::RegistryTx;
 
 use crate::abi::*;
-use crate::buffers::{FunctionInputBuffer, LinearBuffer};
+use crate::buffers::FunctionInputBuffer;
 use crate::threader::Threader;
 
 pub type State<S> = AsmlFunctionState<S>;
