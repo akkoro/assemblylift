@@ -27,8 +27,8 @@ where
 {
     engine: Engine,
     module: Module,
-    linker: Option<Linker<State<S>>>,
-    _phantom: std::marker::PhantomData<R>,
+    _phantom_r: std::marker::PhantomData<R>,
+    _phantom_s: std::marker::PhantomData<S>,
 }
 
 impl<R, S> Wasmtime<R, S>
@@ -42,8 +42,8 @@ where
         Ok(Self {
             engine,
             module,
-            linker: None,
-            _phantom: Default::default(),
+            _phantom_r: Default::default(),
+            _phantom_s: Default::default(),
         })
     }
 
@@ -53,8 +53,8 @@ where
         Ok(Self {
             engine,
             module,
-            linker: None,
-            _phantom: Default::default(),
+            _phantom_r: Default::default(),
+            _phantom_s: Default::default(),
         })
     }
 
@@ -113,8 +113,13 @@ where
             .func_wrap("env", "__asml_abi_input_next", asml_abi_input_next)
             .expect("");
         linker
-            .func_wrap("env", "__asml_abi_input_length_get", asml_abi_input_length_get)
+            .func_wrap(
+                "env",
+                "__asml_abi_input_length_get",
+                asml_abi_input_length_get,
+            )
             .expect("");
+
         let instance = linker.instantiate(&mut store, &self.module).expect("");
 
         let get_ptr = instance
@@ -131,12 +136,14 @@ where
             .unwrap();
         store.data_mut().function_input_buffer_ptr = Some(get_ptr);
 
-        self.linker = Some(linker);
-
         Ok((instance, store))
     }
 
-    pub fn initialize_function_input_buffer(&mut self, store: &mut Store<AsmlFunctionState<S>>, input: &[u8]) -> anyhow::Result<()> {
+    pub fn initialize_function_input_buffer(
+        &mut self,
+        store: &mut Store<State<S>>,
+        input: &[u8],
+    ) -> anyhow::Result<()> {
         store
             .data_mut()
             .function_input_buffer
@@ -144,14 +151,18 @@ where
         Ok(())
     }
 
-    pub fn start(&mut self, mut store: &mut Store<AsmlFunctionState<S>>, instance: Instance) -> anyhow::Result<()> {
+    pub fn start(
+        &mut self,
+        mut store: &mut Store<State<S>>,
+        instance: Instance,
+    ) -> anyhow::Result<()> {
         instance
             .get_func(&mut store, "_start")
             .expect("could not find default function")
             .typed::<(), (), _>(&mut store)
             .expect("invalid default function signature")
             .call(&mut store, ())
-            .expect("could not call default function");
+            .expect("Trap while executing module");
         Ok(())
     }
 
