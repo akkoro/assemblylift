@@ -2,6 +2,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use wasmtime::{Caller, Val};
 
+use itertools::Itertools;
+
 use crate::buffers::PagedWasmBuffer;
 use crate::wasm::{State, Wasmtime};
 
@@ -71,10 +73,15 @@ where
         state.threader.lock().unwrap().document_load(memory_offset, id).unwrap()
     };
     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-    for e in data {
-        memory.write(&mut caller, e.0, &[e.1]).expect("");
+    match data.len() > 0 {
+        true => {
+            let offset = data[0].0;
+            let buffer = data.iter().map(|e| e.1).collect_vec();
+            memory.write(&mut caller, offset, &buffer).expect("");
+            0
+        }
+        false => -1,
     }
-    0
 }
 
 pub fn asml_abi_io_next<S>(mut caller: Caller<'_, State<S>>) -> i32
@@ -96,10 +103,15 @@ where
         state.threader.lock().unwrap().document_next(memory_offset).unwrap()
     };
     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-    for e in data {
-        memory.write(&mut caller, e.0, &[e.1]).expect("");
+    match data.len() > 0 {
+        true => {
+            let offset = data[0].0;
+            let buffer = data.iter().map(|e| e.1).collect_vec();
+            memory.write(&mut caller, offset, &buffer).expect("");
+            0
+        }
+        false => -1,
     }
-    0
 }
 
 pub fn asml_abi_clock_time_get<S>(_caller: Caller<'_, State<S>>) -> u64
@@ -128,13 +140,19 @@ where
     let offset = ptr as usize;
     let data = {
         let state = caller.data_mut();
-        state.function_input_buffer.first(Some(vec![offset]))
+        state.function_input_buffer.first(0, offset)
     };
     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-    for e in data {
-        memory.write(&mut caller, e.0, &[e.1]).expect("");
+    match data.len() > 0 {
+        true => {
+            let offset = data[0].0;
+            let buffer = data.iter().map(|e| e.1).collect_vec();
+            memory.write(&mut caller, offset, &buffer).expect("");
+            0
+        }
+        false => -1,
     }
-    0
+
 }
 
 pub fn asml_abi_input_next<S>(mut caller: Caller<'_, State<S>>) -> i32
@@ -154,13 +172,18 @@ where
     let offset = ptr as usize;
     let data = {
         let state = caller.data_mut();
-        state.function_input_buffer.next(Some(vec![offset]))
+        state.function_input_buffer.next(offset)
     };
     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-    for e in data {
-        memory.write(&mut caller, e.0, &[e.1]).expect("");
+    match data.len() > 0 {
+        true => {
+            let offset = data[0].0;
+            let buffer = data.iter().map(|e| e.1).collect_vec();
+            memory.write(&mut caller, offset, &buffer).expect("");
+            0
+        }
+        false => -1,
     }
-    0
 }
 
 pub fn asml_abi_input_length_get<S>(mut caller: Caller<'_, State<S>>) -> u64

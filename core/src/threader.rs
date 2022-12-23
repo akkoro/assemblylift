@@ -66,7 +66,7 @@ where
             .lock()
             .unwrap()
             .buffer
-            .first(Some(vec![doc.start, memory_offset]));
+            .first(doc.start, memory_offset);
         Ok(data)
     }
 
@@ -76,7 +76,7 @@ where
             .lock()
             .unwrap()
             .buffer
-            .next(Some(vec![memory_offset]));
+            .next(memory_offset);
         Ok(data)
     }
 
@@ -205,7 +205,7 @@ impl IoMemory {
     }
 
     fn handle_response(&mut self, response: Vec<u8>, ioid: IoId) {
-        self.buffer.write(ioid as usize, response.as_slice());
+        self.buffer.set(ioid as usize, response.clone());
         self.io_status.insert(ioid, true);
         self.document_map.insert(
             ioid,

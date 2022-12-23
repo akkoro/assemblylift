@@ -9,8 +9,8 @@ use crate::wasm::BufferElement;
 
 /// Implement paging data into a `WasmBuffer`
 pub trait PagedWasmBuffer {
-    fn first(&mut self, offset: Option<Vec<usize>>) -> Vec<BufferElement>;
-    fn next(&mut self, offset: Option<Vec<usize>>) -> Vec<BufferElement>;
+    fn first(&mut self, buffer_id: usize, offset: usize) -> Vec<BufferElement>;
+    fn next(&mut self, offset: usize) -> Vec<BufferElement>;
 }
 
 pub struct FunctionInputBuffer {
@@ -36,8 +36,7 @@ impl FunctionInputBuffer {
 }
 
 impl PagedWasmBuffer for FunctionInputBuffer {
-    fn first(&mut self, offset: Option<Vec<usize>>) -> Vec<BufferElement> {
-        let offset = offset.unwrap();
+    fn first(&mut self, _buffer_id: usize, offset: usize) -> Vec<BufferElement> {
         let end: usize = match self.buffer.len() < FUNCTION_INPUT_BUFFER_SIZE {
             true => self.buffer.len(),
             false => FUNCTION_INPUT_BUFFER_SIZE,
@@ -46,23 +45,22 @@ impl PagedWasmBuffer for FunctionInputBuffer {
 
         let mut out: Vec<BufferElement> = Vec::with_capacity(end);
         for (i, b) in self.buffer[0..end].iter().enumerate() {
-            let idx = i + offset[0];
+            let idx = i + offset;
             out.push((idx, *b));
         }
         out
     }
 
-    fn next(&mut self, offset: Option<Vec<usize>>) -> Vec<BufferElement> {
+    fn next(&mut self, offset: usize) -> Vec<BufferElement> {
         use std::cmp::min;
 
-        let offset = offset.unwrap();
         let start = FUNCTION_INPUT_BUFFER_SIZE * self.page_idx;
         let end = min(FUNCTION_INPUT_BUFFER_SIZE * (self.page_idx + 1), self.buffer.len());
         let mut out: Vec<BufferElement> = Vec::with_capacity(end);
         if self.buffer.len() > FUNCTION_INPUT_BUFFER_SIZE {
             self.page_idx += 1;
             for (i, b) in self.buffer[start..end].iter().enumerate() {
-                let idx = i + offset[0];
+                let idx = i + offset;
                 out.push((idx, *b));
             }
         }
@@ -85,53 +83,35 @@ impl IoBuffer {
         }
     }
 
-    pub fn write(&mut self, ioid: usize, bytes: &[u8]) -> usize {
-        let mut bytes_written = 0usize;
-        match self.buffers.get_mut(&ioid) {
-            Some(buffer) => {
-                for idx in 0..bytes.len() {
-                    buffer.push(bytes[idx]);
-                    bytes_written += 1;
-                }
-            }
-            None => {
-                self.buffers.insert(ioid, Vec::new());
-                return self.write(ioid, bytes);
-            }
-        }
-        bytes_written
+    pub fn set(&mut self, ioid: usize, bytes: Vec<u8>) -> usize {
+        self.buffers.insert(ioid, bytes.clone());
+        bytes.len()
     }
 }
 
 impl PagedWasmBuffer for IoBuffer {
-    fn first(&mut self, offset: Option<Vec<usize>>) -> Vec<BufferElement> {
+    fn first(&mut self, buffer_id: usize, offset: usize) -> Vec<BufferElement> {
         use std::cmp::min;
 
-        match offset {
-            Some(offset) => {
-                self.active_buffer = offset[0];
-                self.page_indices.insert(self.active_buffer, 0usize);
-                let buffer = self.buffers.get(&self.active_buffer).unwrap();
-                let end = min(IO_BUFFER_SIZE_BYTES, buffer.len());
-                let mut out: Vec<BufferElement> = Vec::with_capacity(end);
+        self.active_buffer = buffer_id;
+        self.page_indices.insert(self.active_buffer, 0usize);
+        let buffer = self.buffers.get(&self.active_buffer).unwrap();
+        let end = min(IO_BUFFER_SIZE_BYTES, buffer.len());
+        let mut out: Vec<BufferElement> = Vec::with_capacity(end);
 
-                for (i, b) in buffer[0..end]
-                    .iter()
-                    .enumerate()
-                {
-                    let idx = i + offset[1];
-                    out.push((idx, *b));
-                }
-                out
-            }
-            None => Vec::default(),
+        for (i, b) in buffer[0..end]
+            .iter()
+            .enumerate()
+        {
+            let idx = i + offset;
+            out.push((idx, *b));
         }
+        out
     }
 
-    fn next(&mut self, offset: Option<Vec<usize>>) -> Vec<BufferElement> {
+    fn next(&mut self, offset: usize) -> Vec<BufferElement> {
         use std::cmp::min;
 
-        let offset = offset.unwrap();
         let buffer = self.buffers.get(&self.active_buffer).unwrap();
         let page_idx = self.page_indices.get(&self.active_buffer).unwrap() + 1;
         let page_offset = page_idx * IO_BUFFER_SIZE_BYTES;
@@ -142,7 +122,7 @@ impl PagedWasmBuffer for IoBuffer {
             .iter()
             .enumerate()
         {
-            let idx = i + offset[0];
+            let idx = i + offset;
             out.push((idx, *b));
         }
         *self.page_indices.get_mut(&self.active_buffer).unwrap() = page_idx;
