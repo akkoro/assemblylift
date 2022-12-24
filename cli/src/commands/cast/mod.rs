@@ -7,12 +7,6 @@ use clap::ArgMatches;
 use path_abs::PathInfo;
 use registry_common::models::GetIomodAtResponse;
 use reqwest;
-use wasmer::{Module, Store};
-use wasmer_compiler::{CpuFeature, Target, Triple};
-use wasmer_compiler_cranelift::Cranelift;
-//use wasmer_compiler_llvm::LLVM;
-//use wasmer_engine_native::Native;
-use wasmer_engine_universal::Universal;
 
 use crate::archive;
 use crate::projectfs::Project;

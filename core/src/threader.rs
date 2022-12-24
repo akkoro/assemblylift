@@ -4,50 +4,16 @@
 
 use std::collections::HashMap;
 use std::future::Future;
-use std::mem::ManuallyDrop;
 use std::sync::{Arc, Mutex};
 
 use tokio::sync::mpsc;
-use wasmer::{Array, LazyInit, Memory, NativeFunc, WasmPtr, WasmerEnv};
 
 use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
-use crate::buffers::{FunctionInputBuffer, IoBuffer, PagedWasmBuffer};
+use crate::buffers::{IoBuffer, PagedWasmBuffer};
+use crate::wasm::BufferElement;
 
 pub type IoId = u32;
-
-#[derive(WasmerEnv, Clone)]
-/// The `WasmerEnv` environment providing shared data between native WASM functions and the host
-pub struct ThreaderEnv<S>
-where
-    S: Clone + Send + Sized + 'static,
-{
-    pub threader: ManuallyDrop<Arc<Mutex<Threader<S>>>>,
-    pub host_input_buffer: Arc<Mutex<FunctionInputBuffer>>,
-    #[wasmer(export)]
-    pub memory: LazyInit<Memory>,
-    #[wasmer(export(name = "__asml_guest_get_function_input_buffer_pointer"))]
-    pub get_function_input_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
-    #[wasmer(export(name = "__asml_guest_get_io_buffer_pointer"))]
-    pub get_io_buffer: LazyInit<NativeFunc<(), WasmPtr<u8, Array>>>,
-    pub status_sender: crossbeam_channel::Sender<S>,
-}
-
-impl<S> ThreaderEnv<S>
-where
-    S: Clone + Send + Sized + 'static,
-{
-    pub fn new(tx: RegistryTx, status_sender: crossbeam_channel::Sender<S>) -> Self {
-        ThreaderEnv {
-            threader: ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(tx)))),
-            memory: Default::default(),
-            get_function_input_buffer: Default::default(),
-            get_io_buffer: Default::default(),
-            host_input_buffer: Arc::new(Mutex::new(FunctionInputBuffer::new())),
-            status_sender,
-        }
-    }
-}
 
 pub struct Threader<S> {
     io_memory: Arc<Mutex<IoMemory>>,
@@ -90,20 +56,28 @@ where
     }
 
     /// Load the memory document associated with `ioid` into the guest IO memory
-    pub fn document_load(&mut self, env: &ThreaderEnv<S>, ioid: IoId) -> Result<(), ()> {
+    pub fn document_load(
+        &mut self,
+        memory_offset: usize,
+        ioid: IoId,
+    ) -> anyhow::Result<Vec<BufferElement>> {
         let doc = self.get_io_memory_document(ioid).unwrap();
-        self.io_memory
+        let data = self.io_memory
             .lock()
             .unwrap()
             .buffer
-            .first(env, Some(doc.start));
-        Ok(())
+            .first(doc.start, memory_offset);
+        Ok(data)
     }
 
     /// Advance the guest IO memory to the next page
-    pub fn document_next(&mut self, env: &ThreaderEnv<S>) -> Result<(), ()> {
-        self.io_memory.lock().unwrap().buffer.next(env);
-        Ok(())
+    pub fn document_next(&mut self, memory_offset: usize) -> anyhow::Result<Vec<BufferElement>> {
+        let data = self.io_memory
+            .lock()
+            .unwrap()
+            .buffer
+            .next(memory_offset);
+        Ok(data)
     }
 
     /// Poll the runtime for the completion status of call associated with `ioid`
@@ -115,6 +89,7 @@ where
                         // At this point, the document "contents" have already been written to the WASM buffer
                         //    and are read on the guest side immediately after poll() exits.
                         // We can free the host-side memory structure here.
+
                         //                        memory.free(ioid);
                         true
                     }
@@ -231,7 +206,7 @@ impl IoMemory {
     }
 
     fn handle_response(&mut self, response: Vec<u8>, ioid: IoId) {
-        self.buffer.write(ioid as usize, response.as_slice());
+        self.buffer.set(ioid as usize, response.clone());
         self.io_status.insert(ioid, true);
         self.document_map.insert(
             ioid,

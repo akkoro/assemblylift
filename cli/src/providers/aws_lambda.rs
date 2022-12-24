@@ -386,9 +386,9 @@ impl Castable for LambdaFunction {
                     service_name: service.clone(),
                     function_name: function.name.clone(),
                     handler_name: match function.language.as_str() {
-                        "rust" => format!("{}.wasmu", function.name.clone()),
-                        "ruby" => "ruby.wasmu".into(),
-                        _ => "handler".into(),
+                        "rust" => format!("{}.wasm.bin", function.name.clone()),
+                        "ruby" => "ruby.wasm.bin".into(),
+                        _ => "handler.wasm.bin".into(),
                     },
                     runtime_layer: format!(
                         "aws_lambda_layer_version.asml_{}_runtime.arn",
