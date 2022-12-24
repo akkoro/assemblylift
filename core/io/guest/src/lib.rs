@@ -8,7 +8,6 @@ use serde::{de::DeserializeOwned, Deserialize};
 
 use assemblylift_core_io_common::constants::{FUNCTION_INPUT_BUFFER_SIZE, IO_BUFFER_SIZE_BYTES};
 
-/// The ABI exported by the AssemblyLift runtime host
 extern "C" {
     // IO
     fn __asml_abi_io_poll(id: u32) -> i32;

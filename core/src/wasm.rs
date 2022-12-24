@@ -4,6 +4,7 @@ use std::mem::ManuallyDrop;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use anyhow::anyhow;
 use tokio::sync::mpsc;
 use wasmtime::{Caller, Config, Engine, Func, Instance, Linker, Module, Store};
 use wasmtime_wasi::{Dir, WasiCtx, WasiCtxBuilder};
@@ -39,24 +40,28 @@ where
 {
     pub fn new_from_path(module_path: &Path) -> anyhow::Result<Self> {
         let engine = Engine::default();
-        let module = unsafe { Module::deserialize_file(&engine, module_path) }.expect("");
-        Ok(Self {
-            engine,
-            module,
-            _phantom_r: Default::default(),
-            _phantom_s: Default::default(),
-        })
+        match unsafe { Module::deserialize_file(&engine, module_path) } {
+            Ok(module) => Ok(Self {
+                engine,
+                module,
+                _phantom_r: Default::default(),
+                _phantom_s: Default::default(),
+            }),
+            Err(err) => Err(anyhow!(err)),
+        }
     }
 
     pub fn new_from_bytes(module_bytes: &[u8]) -> anyhow::Result<Self> {
         let engine = Engine::default();
-        let module = unsafe { Module::deserialize(&engine, module_bytes) }.expect("");
-        Ok(Self {
-            engine,
-            module,
-            _phantom_r: Default::default(),
-            _phantom_s: Default::default(),
-        })
+        match unsafe { Module::deserialize(&engine, module_bytes) } {
+            Ok(module) => Ok(Self {
+                engine,
+                module,
+                _phantom_r: Default::default(),
+                _phantom_s: Default::default(),
+            }),
+            Err(err) => Err(anyhow!(err)),
+        }
     }
 
     pub fn link_module(
@@ -69,36 +74,59 @@ where
 
         let function_env = std::env::var("ASML_FUNCTION_ENV").unwrap_or("default".into());
 
-        wasmtime_wasi::add_to_linker(&mut linker, |s| &mut s.wasi).expect("");
+        if let Err(err) = wasmtime_wasi::add_to_linker(&mut linker, |s| &mut s.wasi) {
+            return Err(anyhow!(err));
+        }
         let wasi = match function_env.as_str() {
             "ruby-docker" => WasiCtxBuilder::new()
                 .arg("/src/handler.rb")
                 .unwrap()
                 .env("RUBY_PLATFORM", "wasm32-wasi")
                 .unwrap()
-                .preopened_dir(Dir::from_std_file(File::open("/usr/bin/ruby-wasm32-wasi/src").unwrap()), "/src")
-                .unwrap()
-                .preopened_dir(Dir::from_std_file(File::open("/usr/bin/ruby-wasm32-wasi/usr").unwrap()), "/usr")
-                .unwrap()
-                .preopened_dir(Dir::from_std_file(File::open("/tmp/asmltmp").unwrap()), "/tmp")
-                .unwrap()
+                .preopened_dir(
+                    Dir::from_std_file(File::open("/usr/bin/ruby-wasm32-wasi/src").unwrap()),
+                    "/src",
+                )
+                .expect("could not map guest dir -- is the image built correctly?")
+                .preopened_dir(
+                    Dir::from_std_file(File::open("/usr/bin/ruby-wasm32-wasi/usr").unwrap()),
+                    "/usr",
+                )
+                .expect("could not map guest dir -- is the image built correctly?")
+                .preopened_dir(
+                    Dir::from_std_file(File::open("/tmp/asmltmp").unwrap()),
+                    "/tmp",
+                )
+                .expect("could not map guest dir -- is the image built correctly?")
                 .build(),
             "ruby-lambda" => WasiCtxBuilder::new()
                 .arg("/src/handler.rb")
                 .unwrap()
                 .env("RUBY_PLATFORM", "wasm32-wasi")
                 .unwrap()
-                .preopened_dir(Dir::from_std_file(File::open("/tmp/rubysrc").unwrap()), "/src")
-                .unwrap()
-                .preopened_dir(Dir::from_std_file(File::open("/tmp/rubyusr").unwrap()), "/usr")
-                .unwrap()
-                .preopened_dir(Dir::from_std_file(File::open("/tmp/asmltmp").unwrap()), "/tmp")
-                .unwrap()
+                .preopened_dir(
+                    Dir::from_std_file(File::open("/tmp/rubysrc").unwrap()),
+                    "/src",
+                )
+                .expect("could not map guest dir -- is the image built correctly?")
+                .preopened_dir(
+                    Dir::from_std_file(File::open("/tmp/rubyusr").unwrap()),
+                    "/usr",
+                )
+                .expect("could not map guest dir -- is the image built correctly?")
+                .preopened_dir(
+                    Dir::from_std_file(File::open("/tmp/asmltmp").unwrap()),
+                    "/tmp",
+                )
+                .expect("could not map guest tmpfs -- is /tmp accessible?")
                 .build(),
             _ => WasiCtxBuilder::new()
-                .preopened_dir(Dir::from_std_file(File::open("/tmp/asmltmp").unwrap()), "/tmp")
-                .unwrap()
-                .build()
+                .preopened_dir(
+                    Dir::from_std_file(File::open("/tmp/asmltmp").unwrap()),
+                    "/tmp",
+                )
+                .expect("could not map guest tmpfs -- is /tmp accessible?")
+                .build(),
         };
 
         let state = State {
@@ -113,62 +141,65 @@ where
 
         linker
             .func_wrap("env", "__asml_abi_runtime_log", R::log)
-            .expect("");
+            .unwrap();
         linker
             .func_wrap("env", "__asml_abi_runtime_success", R::success)
-            .expect("");
+            .unwrap();
         linker
             .func_wrap("env", "__asml_abi_invoke", asml_abi_io_invoke::<R, S>)
-            .expect("");
+            .unwrap();
         linker
             .func_wrap("env", "__asml_abi_io_invoke", asml_abi_io_invoke::<R, S>)
-            .expect("");
+            .unwrap();
         linker
             .func_wrap("env", "__asml_abi_io_poll", asml_abi_io_poll::<S>)
-            .expect("");
+            .unwrap();
         linker
             .func_wrap("env", "__asml_abi_io_len", asml_abi_io_len::<S>)
-            .expect("");
+            .unwrap();
         linker
             .func_wrap("env", "__asml_abi_io_load", asml_abi_io_load::<S>)
-            .expect("");
+            .unwrap();
         linker
             .func_wrap("env", "__asml_abi_io_next", asml_abi_io_next::<S>)
-            .expect("");
+            .unwrap();
         linker
             .func_wrap("env", "__asml_abi_clock_time_get", asml_abi_clock_time_get)
-            .expect("");
+            .unwrap();
         linker
             .func_wrap("env", "__asml_abi_input_start", asml_abi_input_start)
-            .expect("");
+            .unwrap();
         linker
             .func_wrap("env", "__asml_abi_input_next", asml_abi_input_next)
-            .expect("");
+            .unwrap();
         linker
             .func_wrap(
                 "env",
                 "__asml_abi_input_length_get",
                 asml_abi_input_length_get,
             )
-            .expect("");
-
-        let instance = linker.instantiate(&mut store, &self.module).expect("");
-
-        let get_ptr = instance
-            .get_export(&mut store, "__asml_guest_get_io_buffer_pointer")
-            .unwrap()
-            .into_func()
             .unwrap();
-        store.data_mut().io_buffer_ptr = Some(get_ptr);
 
-        let get_ptr = instance
-            .get_export(&mut store, "__asml_guest_get_function_input_buffer_pointer")
-            .unwrap()
-            .into_func()
-            .unwrap();
-        store.data_mut().function_input_buffer_ptr = Some(get_ptr);
+        match linker.instantiate(&mut store, &self.module) {
+            Ok(instance) => {
+                let get_ptr = instance
+                    .get_export(&mut store, "__asml_guest_get_io_buffer_pointer")
+                    .unwrap()
+                    .into_func()
+                    .unwrap();
+                store.data_mut().io_buffer_ptr = Some(get_ptr);
 
-        Ok((instance, store))
+                let get_ptr = instance
+                    .get_export(&mut store, "__asml_guest_get_function_input_buffer_pointer")
+                    .unwrap()
+                    .into_func()
+                    .unwrap();
+                store.data_mut().function_input_buffer_ptr = Some(get_ptr);
+
+                Ok((instance, store))
+            }
+            Err(err) => Err(anyhow!(err)),
+        }
     }
 
     pub fn initialize_function_input_buffer(
@@ -176,10 +207,7 @@ where
         store: &mut Store<State<S>>,
         input: &[u8],
     ) -> anyhow::Result<()> {
-        store
-            .data_mut()
-            .function_input_buffer
-            .set(input.to_vec());
+        store.data_mut().function_input_buffer.set(input.to_vec());
         Ok(())
     }
 
@@ -188,14 +216,16 @@ where
         mut store: &mut Store<State<S>>,
         instance: Instance,
     ) -> anyhow::Result<()> {
-        instance
+        match instance
             .get_func(&mut store, "_start")
             .expect("could not find default function")
             .typed::<(), (), _>(&mut store)
             .expect("invalid default function signature")
             .call(&mut store, ())
-            .expect("Trap while executing module");
-        Ok(())
+        {
+            Ok(_) => Ok(()),
+            Err(trap) => Err(trap.into()),
+        }
     }
 
     pub fn ptr_to_string(
@@ -213,10 +243,16 @@ where
         ptr: u32,
         len: u32,
     ) -> anyhow::Result<Vec<u8>> {
-        let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+        let memory = caller
+            .get_export("memory")
+            .expect("could not find the default memory export named \"memory\"")
+            .into_memory()
+            .unwrap();
         let mut buffer: Vec<u8> = vec![0; len as usize];
-        memory.read(&caller, ptr as usize, &mut buffer).unwrap();
-        Ok(buffer)
+        match memory.read(&caller, ptr as usize, &mut buffer) {
+            Ok(_) => Ok(buffer),
+            Err(err) => Err(err.into()),
+        }
     }
 }
 
@@ -239,7 +275,7 @@ pub fn precompile(module_path: &Path, target: &str) -> anyhow::Result<PathBuf> {
 
     let wasm_bytes = match std::fs::read(module_path.clone()) {
         Ok(bytes) => bytes,
-        Err(err) => panic!("{}", err.to_string()),
+        Err(err) => return Err(err.into()),
     };
     let engine = Engine::new(Config::new().target(target).unwrap()).unwrap();
     let compiled_bytes = engine
@@ -247,7 +283,7 @@ pub fn precompile(module_path: &Path, target: &str) -> anyhow::Result<PathBuf> {
         .expect("TODO: panic message");
     let mut module_file = match File::create(file_path.clone()) {
         Ok(file) => file,
-        Err(err) => panic!("{}", err.to_string()),
+        Err(err) => return Err(err.into()),
     };
     module_file.write_all(&compiled_bytes).unwrap();
     println!("📄 > Wrote {}", &file_path);

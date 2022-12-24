@@ -60,7 +60,7 @@ where
         &mut self,
         memory_offset: usize,
         ioid: IoId,
-    ) -> Result<Vec<BufferElement>, ()> {
+    ) -> anyhow::Result<Vec<BufferElement>> {
         let doc = self.get_io_memory_document(ioid).unwrap();
         let data = self.io_memory
             .lock()
@@ -71,7 +71,7 @@ where
     }
 
     /// Advance the guest IO memory to the next page
-    pub fn document_next(&mut self, memory_offset: usize) -> Result<Vec<BufferElement>, ()> {
+    pub fn document_next(&mut self, memory_offset: usize) -> anyhow::Result<Vec<BufferElement>> {
         let data = self.io_memory
             .lock()
             .unwrap()
@@ -89,6 +89,7 @@ where
                         // At this point, the document "contents" have already been written to the WASM buffer
                         //    and are read on the guest side immediately after poll() exits.
                         // We can free the host-side memory structure here.
+
                         //                        memory.free(ioid);
                         true
                     }

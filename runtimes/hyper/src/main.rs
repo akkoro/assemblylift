@@ -1,3 +1,4 @@
+use std::fs;
 use std::sync::{Arc, Mutex};
 
 use clap::crate_version;
@@ -38,6 +39,9 @@ fn main() {
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     info!("Starting AssemblyLift hyper runtime v{}", crate_version!());
+
+    // Mapped to /tmp inside the WASM module
+    fs::create_dir_all("/tmp/asmltmp").expect("could not create /tmp/asmltmp");
 
     let (registry_tx, registry_rx) = mpsc::channel(32);
     registry::spawn_registry(registry_rx).unwrap();

@@ -46,14 +46,16 @@ where
     S: Clone + Send + Sized + 'static,
 {
     let state = caller.data_mut();
-    state
+    match state
         .threader
         .clone()
         .lock()
         .unwrap()
         .get_io_memory_document(id)
-        .unwrap()
-        .length as u32
+    {
+        Some(doc) => doc.length as u32,
+        None => 0,
+    }
 }
 
 pub fn asml_abi_io_load<S>(mut caller: Caller<'_, State<S>>, id: u32) -> i32
@@ -64,21 +66,31 @@ where
     let io_buffer_ptr = state.io_buffer_ptr.unwrap();
 
     let mut ptr: Vec<Val> = vec![Val::I32(0)];
-    io_buffer_ptr.call(&mut caller, &[], &mut ptr).expect("");
+    if let Err(_err) = io_buffer_ptr.call(&mut caller, &[], &mut ptr) {
+        // TODO log with info! when tracing is added
+        return -1;
+    }
     let ptr = *&ptr[0].i32().unwrap();
 
     let memory_offset = ptr as usize;
     let data = {
         let state = caller.data_mut();
-        state.threader.lock().unwrap().document_load(memory_offset, id).unwrap()
+        state
+            .threader
+            .lock()
+            .unwrap()
+            .document_load(memory_offset, id)
+            .unwrap()
     };
     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
     match data.len() > 0 {
         true => {
             let offset = data[0].0;
             let buffer = data.iter().map(|e| e.1).collect_vec();
-            memory.write(&mut caller, offset, &buffer).expect("");
-            0
+            match memory.write(&mut caller, offset, &buffer) {
+                Ok(_) => 0,
+                Err(_err) => -1,
+            }
         }
         false => -1,
     }
@@ -93,22 +105,32 @@ where
         let io_buffer_ptr = state.io_buffer_ptr.unwrap();
 
         let mut ptr: Vec<Val> = vec![Val::I32(0)];
-        io_buffer_ptr.call(&mut caller, &[], &mut ptr).expect("");
+        if let Err(_err) = io_buffer_ptr.call(&mut caller, &[], &mut ptr) {
+            // TODO log with info! when tracing is added
+            return -1;
+        }
         *&ptr[0].i32().unwrap()
     };
 
     let memory_offset = ptr as usize;
     let data = {
         let state = caller.data_mut();
-        state.threader.lock().unwrap().document_next(memory_offset).unwrap()
+        state
+            .threader
+            .lock()
+            .unwrap()
+            .document_next(memory_offset)
+            .unwrap()
     };
     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
     match data.len() > 0 {
         true => {
             let offset = data[0].0;
             let buffer = data.iter().map(|e| e.1).collect_vec();
-            memory.write(&mut caller, offset, &buffer).expect("");
-            0
+            match memory.write(&mut caller, offset, &buffer) {
+                Ok(_) => 0,
+                Err(_err) => -1,
+            }
         }
         false => -1,
     }
@@ -130,11 +152,14 @@ where
     let state = caller.data_mut();
 
     let mut ptr: Vec<Val> = vec![Val::I32(0)];
-    state
+    if let Err(_err) = state
         .function_input_buffer_ptr
         .unwrap()
         .call(&mut caller, &[], &mut ptr)
-        .expect("");
+    {
+        // TODO log with info! when tracing is added
+        return -1;
+    }
     let ptr = *&ptr[0].i32().unwrap();
 
     let offset = ptr as usize;
@@ -152,7 +177,6 @@ where
         }
         false => -1,
     }
-
 }
 
 pub fn asml_abi_input_next<S>(mut caller: Caller<'_, State<S>>) -> i32
@@ -162,11 +186,14 @@ where
     let state = caller.data_mut();
 
     let mut ptr: Vec<Val> = vec![Val::I32(0)];
-    state
+    if let Err(_err) = state
         .function_input_buffer_ptr
         .unwrap()
         .call(&mut caller, &[], &mut ptr)
-        .expect("");
+    {
+        // TODO log with info! when tracing is added
+        return -1;
+    }
     let ptr = *&ptr[0].i32().unwrap();
 
     let offset = ptr as usize;
