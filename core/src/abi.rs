@@ -82,7 +82,11 @@ where
             .document_load(memory_offset, id)
             .unwrap()
     };
-    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+    let memory = caller
+        .get_export("memory")
+        .expect("could not find the default memory export named \"memory\"")
+        .into_memory()
+        .unwrap();
     match data.len() > 0 {
         true => {
             let offset = data[0].0;
@@ -122,7 +126,11 @@ where
             .document_next(memory_offset)
             .unwrap()
     };
-    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+    let memory = caller
+        .get_export("memory")
+        .expect("could not find the default memory export named \"memory\"")
+        .into_memory()
+        .unwrap();
     match data.len() > 0 {
         true => {
             let offset = data[0].0;
@@ -167,7 +175,11 @@ where
         let state = caller.data_mut();
         state.function_input_buffer.first(0, offset)
     };
-    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+    let memory = caller
+        .get_export("memory")
+        .expect("could not find the default memory export named \"memory\"")
+        .into_memory()
+        .unwrap();
     match data.len() > 0 {
         true => {
             let offset = data[0].0;
@@ -201,7 +213,11 @@ where
         let state = caller.data_mut();
         state.function_input_buffer.next(offset)
     };
-    let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
+    let memory = caller
+        .get_export("memory")
+        .expect("could not find the default memory export named \"memory\"")
+        .into_memory()
+        .unwrap();
     match data.len() > 0 {
         true => {
             let offset = data[0].0;
