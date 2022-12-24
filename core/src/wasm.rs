@@ -179,7 +179,7 @@ where
         store
             .data_mut()
             .function_input_buffer
-            .initialize(input.to_vec());
+            .set(input.to_vec());
         Ok(())
     }
 

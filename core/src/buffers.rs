@@ -26,7 +26,7 @@ impl FunctionInputBuffer {
         }
     }
 
-    pub fn initialize(&mut self, buffer: Vec<u8>) {
+    pub fn set(&mut self, buffer: Vec<u8>) {
         self.buffer = buffer;
     }
 
