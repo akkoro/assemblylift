@@ -40,7 +40,7 @@ automates the process of compiling and/or packaging functions, generating Terraf
 your manifests, and deploying images and code to the selected provider(s).
 
 AssemblyLift leverages Wasm's deny-by-default, sandboxed environment to provide capability-based access to external services.
-The AssemblyLift runtime augments the [Wasmer](https://wasmer.io) runtime used internally with an ABI controlling access to 
+The AssemblyLift runtime augments the [Wasmtime](https://wasmtime.dev) runtime used internally with an ABI controlling access to 
 [IO Modules](https://docs.assemblylift.akkoro.io/learn-assemblylift/io-modules), which are accessed using an RPC protocol.
 
 # Quick Start
