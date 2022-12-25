@@ -231,7 +231,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-iomod"
-version = "0.4.0-alpha.0"
+version = "0.4.0-alpha.10"
 dependencies = [
  "assemblylift-core-io-common 0.3.0",
  "capnp",
