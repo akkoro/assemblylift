@@ -9,7 +9,7 @@ AssemblyLift Function modules also use the ABI to receive function input, rather
 This was originally because _stdin_ wasn't available, but remains in favour of Asml's static buffers 
 (see [core-buffers](core-buffers.md)).
 
-AssemblyLift's WASI implementation does **not** include sockets (`accept`/`read`/`send` etc). AssemblyLift's policy for 
+AssemblyLift does not currently support mapping socket access using WASI. AssemblyLift's policy for 
 the time being is to keep net access restricted to higher-level APIs via IOmods.
 
 ```rust
