@@ -179,7 +179,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          targets: wasm32-wasi
+          target: wasm32-wasi
           override: true
       - name: Run cargo build
         uses: actions-rs/cargo@v1
