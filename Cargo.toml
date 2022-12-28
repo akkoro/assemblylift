@@ -5,6 +5,7 @@ members = [
     "runtimes/hyper",
 #    "runtimes/kubelet",
 #    "runtimes/openfaas",
+    "builtin/functions/verify-macaroon",
     "core",
     "core/guest",
     "core/guest/macros",

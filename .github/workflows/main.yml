@@ -153,7 +153,6 @@ jobs:
         uses: daaku/gh-action-apt-install@v4
         with:
           packages: capnproto
-#        run: curl -O https://capnproto.org/capnproto-c++-0.10.3.tar.gz && tar zxf capnproto-c++-0.10.3.tar.gz && cd capnproto-c++-0.10.3 && ./configure && make -j6 check && sudo make install
       - name: Run cargo build
         uses: actions-rs/cargo@v1
         with:
@@ -164,3 +163,31 @@ jobs:
         run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
       - name: 'Upload to S3 @ akkoro-public'
         run: aws s3 cp ./target/release/asml s3://public.assemblylift.akkoro.io/cli/$ASML_VERSION/x86_64-linux-gnu/asml --acl public-read
+
+  build-builtin-function-verify-macaroon:
+    name: Builtin Function verify-macaroon
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - uses: actions/checkout@v2
+      - name: Install latest stable Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          targets: wasm32-wasi
+          override: true
+      - name: Run cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          use-cross: false
+          args: --release --manifest-path ./builtin/functions/verify-macaroon/Cargo.toml
+      - name: 'Get Version'
+        run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
+      - name: 'Upload to S3 @ akkoro-public'
+        run: aws s3 cp ./target/wasm32-wasi/release/assemblylift-builtins-verify-macaroon.wasm s3://public.assemblylift.akkoro.io/builtins/$ASML_VERSION/functions/assemblylift-builtins-verify-macaroon.wasm --acl public-read

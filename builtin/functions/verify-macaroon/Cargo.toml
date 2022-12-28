@@ -1,0 +1,14 @@
+[package]
+name = "assemblylift-builtins-verify-macaroon"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+base64 = "0.20"
+direct-executor = "0.3.0"
+serde = "1"
+serde_json = "1"
+asml_core = { version = "0.4.0-alpha", package = "assemblylift-core-guest" }
+assemblylift_core_io_guest = { version = "0.4.0-alpha", package = "assemblylift-core-io-guest" }
+macaroon = { version = "0.1", package = "macaroon-asml-fork" }
+secretsmanager = { version = "0.1", package = "assemblylift-iomod-secretsmanager-guest" }
