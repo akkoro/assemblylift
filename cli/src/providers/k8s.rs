@@ -10,9 +10,7 @@ use serde::Serialize;
 
 use crate::providers::{DNS_PROVIDERS, flatten, gloo, KUBERNETES_PROVIDER_NAME, LockBox, Options, Provider, ProviderError, ProviderMap};
 use crate::tools::glooctl::GlooCtl;
-use crate::transpiler::{
-    Artifact, Bindable, Bootable, Castable, CastError, ContentType, context, Template,
-};
+use crate::transpiler::{Artifact, Bindable, Bootable, Castable, CastError, ContentType, context, StringMap, Template};
 use crate::transpiler::context::Context;
 
 fn to_container_registry(r: &context::Registry) -> ContainerRegistry {
@@ -233,6 +231,17 @@ impl Castable for KubernetesFunction {
                 let registries: Vec<ContainerRegistry> =
                     ctx.registries.iter().map(to_container_registry).collect();
 
+                let environment: Vec<ContainerEnv> = function
+                    .environment
+                    .clone()
+                    .unwrap_or(Rc::new(StringMap::<String>::new()))
+                    .iter()
+                    .map(|e| ContainerEnv {
+                        name: format!("__ASML_{}", e.0.clone()),
+                        value: e.1.clone()
+                    })
+                    .collect();
+
                 let hcl_tmpl = FunctionTemplate {
                     base_image_version: crate_version!().to_string(),
                     project_name: ctx.project.name.clone(),
@@ -263,6 +272,7 @@ impl Castable for KubernetesFunction {
                             .clone(),
                     },
                     is_ruby: function.language == "ruby".to_string(),
+                    environment,
                 };
                 let hcl_content = hcl_tmpl.render();
 
@@ -431,7 +441,7 @@ pub struct FunctionTemplate {
     pub has_iomods: bool,
     pub iomods: Vec<IomodContainer>,
     pub registry: ContainerRegistry,
-
+    pub environment: Vec<ContainerEnv>,
     pub is_ruby: bool,
 }
 
@@ -526,6 +536,12 @@ resource kubernetes_deployment {{function_name}} {
                     port {
                         container_port = 13555
                     }
+                    {{#each environment}}
+                    env {
+                        name  = "{{this.name}}"
+                        value = "{{this.value}}"
+                    }
+                    {{/each}}
                 }
                 {{#each iomods}}
                 container {
@@ -603,4 +619,10 @@ pub struct ContainerRegistry {
 pub struct IomodContainer {
     pub image: String,
     pub name: String,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct ContainerEnv {
+    pub name: String,
+    pub value: String,
 }

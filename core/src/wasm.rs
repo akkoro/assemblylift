@@ -79,7 +79,7 @@ where
         if let Err(err) = wasmtime_wasi::add_to_linker(&mut linker, |s| &mut s.wasi) {
             return Err(anyhow!(err));
         }
-        // env vars prefixed with __ASML_ are defined in the function definition
+        // env vars prefixed with __ASML_ are defined in the function definition;
         // the prefix indicates that they are to be mapped to the module environment
         let envs: Vec<(String, String)> = Vec::from_iter(
             std::env::vars()
