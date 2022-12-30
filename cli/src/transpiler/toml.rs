@@ -207,6 +207,7 @@ pub mod service {
                 authorizer_id: None,
                 timeout_seconds: None,
                 size_mb: None,
+                environment: None,
             };
             functions.push(fun);
             self.api.functions = Rc::new(functions);
@@ -301,6 +302,7 @@ pub mod service {
         pub timeout_seconds: Option<u16>,
         pub size_mb: Option<u16>,
         pub http: Rc<Option<HttpFunction>>,
+        pub environment: Option<Rc<StringMap<String>>>,
     }
 
     #[derive(Serialize, Deserialize, Clone)]

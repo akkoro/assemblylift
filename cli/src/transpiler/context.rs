@@ -107,6 +107,7 @@ impl Context {
                         None => None,
                     },
                     authorizer_id: function.authorizer_id.clone(),
+                    environment: function.environment.clone(),
                 });
             }
 
@@ -357,7 +358,7 @@ pub struct Function {
     pub registry: String,
     pub language: String,
     pub service_name: String,
-
+    pub environment: Option<Rc<StringMap<String>>>,
     pub http: Option<Http>,
     pub authorizer_id: Option<String>,
 

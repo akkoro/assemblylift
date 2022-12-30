@@ -77,6 +77,18 @@ fn render_string_list(list: Rc<Vec<String>>) -> String {
     out
 }
 
+fn render_string_map(map: StringMap<String>) -> String {
+    let mut out = String::from("{");
+    for (i, p) in map.iter().enumerate() {
+        out.push_str(&format!("\"{}\"=\"{}\"", p.0, p.1));
+        if i < map.len() - 1 {
+            out.push_str(",");
+        }
+    }
+    out.push_str("}");
+    out
+}
+
 fn flatten(mut accum: Vec<Artifact>, mut v: Vec<Artifact>) -> Vec<Artifact> {
     let mut out = Vec::new();
     out.append(&mut accum);

@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::Write;
+use std::iter::FromIterator;
 use std::mem::ManuallyDrop;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -72,16 +73,28 @@ where
         let threader = ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(registry_tx))));
         let mut linker: Linker<State<S>> = Linker::new(&self.engine);
 
+        // FIXME this might be confusingly named (confused with the function env vars)
         let function_env = std::env::var("ASML_FUNCTION_ENV").unwrap_or("default".into());
 
         if let Err(err) = wasmtime_wasi::add_to_linker(&mut linker, |s| &mut s.wasi) {
             return Err(anyhow!(err));
         }
+        // env vars prefixed with __ASML_ are defined in the function definition
+        // the prefix indicates that they are to be mapped to the module environment
+        let envs: Vec<(String, String)> = Vec::from_iter(
+            std::env::vars()
+                .into_iter()
+                .filter(|e| e.0.starts_with("__ASML_"))
+                .map(|e| (e.0.replace("__ASML_", ""), e.1))
+                .into_iter(),
+        );
         let wasi = match function_env.as_str() {
             "ruby-docker" => WasiCtxBuilder::new()
                 .arg("/src/handler.rb")
                 .unwrap()
                 .env("RUBY_PLATFORM", "wasm32-wasi")
+                .unwrap()
+                .envs(&*envs)
                 .unwrap()
                 .preopened_dir(
                     Dir::from_std_file(File::open("/usr/bin/ruby-wasm32-wasi/src").unwrap()),
@@ -104,6 +117,8 @@ where
                 .unwrap()
                 .env("RUBY_PLATFORM", "wasm32-wasi")
                 .unwrap()
+                .envs(&*envs)
+                .unwrap()
                 .preopened_dir(
                     Dir::from_std_file(File::open("/tmp/rubysrc").unwrap()),
                     "/src",
@@ -121,6 +136,8 @@ where
                 .expect("could not map guest tmpfs -- is /tmp accessible?")
                 .build(),
             _ => WasiCtxBuilder::new()
+                .envs(&*envs)
+                .unwrap()
                 .preopened_dir(
                     Dir::from_std_file(File::open("/tmp/asmltmp").unwrap()),
                     "/tmp",
