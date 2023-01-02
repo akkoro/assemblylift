@@ -67,7 +67,12 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
     let mut ruby_wasmu = ruby_bin.clone();
     ruby_wasmu.set_extension("wasm.bin");
     if !Path::new(&ruby_wasmu).exists() {
-        wasm::precompile(Path::new(&ruby_wasm), "x86_64-linux-gnu").unwrap();
+        wasm::precompile(
+            Path::new(&ruby_wasm),
+            "x86_64-linux-gnu",
+            &function.cpu_compat_mode.clone().unwrap_or("default".to_string()),
+        )
+        .unwrap();
     }
     let copy_to = format!("{}/ruby.wasm.bin", function_artifact_path.clone());
     let copy_result = std::fs::copy(ruby_wasmu.clone(), copy_to.clone());

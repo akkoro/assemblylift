@@ -44,7 +44,7 @@ where
     S: Clone + Send + Sized + 'static,
 {
     pub fn new_from_path(module_path: &Path) -> anyhow::Result<Self> {
-        let engine = new_engine("x86_64-linux-gnu")?;
+        let engine = new_engine("x86_64-linux-gnu", None)?;
         match unsafe { Module::deserialize_file(&engine, module_path) } {
             Ok(module) => Ok(Self {
                 engine,
@@ -57,7 +57,7 @@ where
     }
 
     pub fn new_from_bytes(module_bytes: &[u8]) -> anyhow::Result<Self> {
-        let engine = new_engine("x86_64-linux-gnu")?;
+        let engine = new_engine("x86_64-linux-gnu", None)?;
         match unsafe { Module::deserialize(&engine, module_bytes) } {
             Ok(module) => Ok(Self {
                 engine,
@@ -289,7 +289,7 @@ where
     wasi: WasiCtx,
 }
 
-pub fn precompile(module_path: &Path, target: &str) -> anyhow::Result<PathBuf> {
+pub fn precompile(module_path: &Path, target: &str, mode: &str) -> anyhow::Result<PathBuf> {
     let file_path = format!("{}.bin", module_path.display().to_string());
     println!("Precompiling WASM to {}...", file_path.clone());
 
@@ -297,7 +297,7 @@ pub fn precompile(module_path: &Path, target: &str) -> anyhow::Result<PathBuf> {
         Ok(bytes) => bytes,
         Err(err) => return Err(err.into()),
     };
-    let engine = new_engine(target)?;
+    let engine = new_engine(target, Some(mode))?;
     let compiled_bytes = engine
         .precompile_module(&*wasm_bytes)
         .expect("TODO: panic message");
@@ -311,9 +311,13 @@ pub fn precompile(module_path: &Path, target: &str) -> anyhow::Result<PathBuf> {
     Ok(PathBuf::from(file_path))
 }
 
-fn new_engine(target: &str) -> anyhow::Result<Engine> {
-    let config = match CPU_COMPAT_MODE.as_str() {
-        "default" => Config::default(),
+fn new_engine(target: &str, cpu_compat_mode: Option<&str>) -> anyhow::Result<Engine> {
+    let mode = match cpu_compat_mode {
+        Some(mode) => mode,
+        None => CPU_COMPAT_MODE.as_str(),
+    };
+    let config = match mode {
+        "default" => Config::new().target(target).unwrap().clone(),
         "high" => unsafe {
             Config::new()
                 .target(target)
@@ -325,7 +329,7 @@ fn new_engine(target: &str) -> anyhow::Result<Engine> {
                 .cranelift_flag_set("has_sse42", "false")
                 .clone()
         },
-        _ => Config::default(),
+        _ => Config::new().target(target).unwrap().clone(),
     };
     match Engine::new(&config) {
         Ok(engine) => Ok(engine),
