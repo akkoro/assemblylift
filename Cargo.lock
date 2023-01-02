@@ -328,7 +328,7 @@ checksum = "63abddec0a59344aafeb4c3ac80c5e86b76b1d6eb92b7ecbf9551b34ef27bff5"
 
 [[package]]
 name = "assemblylift-hyper-runtime"
-version = "0.4.0-alpha.10"
+version = "0.4.0-alpha.11"
 dependencies = [
  "anyhow",
  "assemblylift-core",
@@ -343,7 +343,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "z85",
  "zip",
 ]
 
