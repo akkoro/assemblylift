@@ -1,11 +1,11 @@
 use std::fs::File;
 use std::io::Write;
+use std::iter::FromIterator;
 use std::mem::ManuallyDrop;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
-use tokio::sync::mpsc;
 use wasmtime::{Caller, Config, Engine, Func, Instance, Linker, Module, Store};
 use wasmtime_wasi::{Dir, WasiCtx, WasiCtxBuilder};
 
@@ -15,12 +15,9 @@ use crate::abi::*;
 use crate::buffers::FunctionInputBuffer;
 use crate::threader::Threader;
 
-pub type State<S> = AsmlFunctionState<S>;
-
 pub type BufferElement = (usize, u8);
-pub type MemoryTx = mpsc::Sender<BufferElement>;
-pub type MemoryRx = mpsc::Receiver<BufferElement>;
-pub type MemoryChannel = (MemoryTx, MemoryRx);
+
+pub type State<S> = AsmlFunctionState<S>;
 
 pub struct Wasmtime<R, S>
 where
@@ -39,7 +36,18 @@ where
     S: Clone + Send + Sized + 'static,
 {
     pub fn new_from_path(module_path: &Path) -> anyhow::Result<Self> {
-        let engine = Engine::default();
+        let enable_simd = match std::env::var("ASML_FUNCTION_ENABLE_SIMD")
+            .unwrap_or("1".to_string())
+            .as_str()
+        {
+            "0" | "false" => false,
+            "1" | "true" => true,
+            _ => true,
+        };
+        let engine = match Engine::new(Config::new().wasm_simd(enable_simd)) {
+            Ok(engine) => engine,
+            Err(err) => return Err(anyhow!(err)),
+        };
         match unsafe { Module::deserialize_file(&engine, module_path) } {
             Ok(module) => Ok(Self {
                 engine,
@@ -52,7 +60,18 @@ where
     }
 
     pub fn new_from_bytes(module_bytes: &[u8]) -> anyhow::Result<Self> {
-        let engine = Engine::default();
+        let enable_simd = match std::env::var("ASML_FUNCTION_ENABLE_SIMD")
+            .unwrap_or("1".to_string())
+            .as_str()
+        {
+            "0" | "false" => false,
+            "1" | "true" => true,
+            _ => true,
+        };
+        let engine = match Engine::new(Config::new().wasm_simd(enable_simd)) {
+            Ok(engine) => engine,
+            Err(err) => return Err(anyhow!(err)),
+        };
         match unsafe { Module::deserialize(&engine, module_bytes) } {
             Ok(module) => Ok(Self {
                 engine,
@@ -72,16 +91,28 @@ where
         let threader = ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(registry_tx))));
         let mut linker: Linker<State<S>> = Linker::new(&self.engine);
 
+        // FIXME this might be confusingly named (confused with the function env vars)
         let function_env = std::env::var("ASML_FUNCTION_ENV").unwrap_or("default".into());
 
         if let Err(err) = wasmtime_wasi::add_to_linker(&mut linker, |s| &mut s.wasi) {
             return Err(anyhow!(err));
         }
+        // env vars prefixed with __ASML_ are defined in the function definition;
+        // the prefix indicates that they are to be mapped to the module environment
+        let envs: Vec<(String, String)> = Vec::from_iter(
+            std::env::vars()
+                .into_iter()
+                .filter(|e| e.0.starts_with("__ASML_"))
+                .map(|e| (e.0.replace("__ASML_", ""), e.1))
+                .into_iter(),
+        );
         let wasi = match function_env.as_str() {
             "ruby-docker" => WasiCtxBuilder::new()
                 .arg("/src/handler.rb")
                 .unwrap()
                 .env("RUBY_PLATFORM", "wasm32-wasi")
+                .unwrap()
+                .envs(&*envs)
                 .unwrap()
                 .preopened_dir(
                     Dir::from_std_file(File::open("/usr/bin/ruby-wasm32-wasi/src").unwrap()),
@@ -104,6 +135,8 @@ where
                 .unwrap()
                 .env("RUBY_PLATFORM", "wasm32-wasi")
                 .unwrap()
+                .envs(&*envs)
+                .unwrap()
                 .preopened_dir(
                     Dir::from_std_file(File::open("/tmp/rubysrc").unwrap()),
                     "/src",
@@ -121,6 +154,8 @@ where
                 .expect("could not map guest tmpfs -- is /tmp accessible?")
                 .build(),
             _ => WasiCtxBuilder::new()
+                .envs(&*envs)
+                .unwrap()
                 .preopened_dir(
                     Dir::from_std_file(File::open("/tmp/asmltmp").unwrap()),
                     "/tmp",
@@ -268,7 +303,7 @@ where
     wasi: WasiCtx,
 }
 
-pub fn precompile(module_path: &Path, target: &str) -> anyhow::Result<PathBuf> {
+pub fn precompile(module_path: &Path, target: &str, enable_simd: bool) -> anyhow::Result<PathBuf> {
     // TODO compiler configuration
     let file_path = format!("{}.bin", module_path.display().to_string());
     println!("Precompiling WASM to {}...", file_path.clone());
@@ -277,7 +312,7 @@ pub fn precompile(module_path: &Path, target: &str) -> anyhow::Result<PathBuf> {
         Ok(bytes) => bytes,
         Err(err) => return Err(err.into()),
     };
-    let engine = Engine::new(Config::new().target(target).unwrap()).unwrap();
+    let engine = Engine::new(Config::new().target(target).unwrap().wasm_simd(enable_simd)).unwrap();
     let compiled_bytes = engine
         .precompile_module(&*wasm_bytes)
         .expect("TODO: panic message");

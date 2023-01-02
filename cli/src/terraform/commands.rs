@@ -39,7 +39,7 @@ pub fn apply() {
     let mut terraform_result = process::Command::new(relative_binary_path())
         .arg("-chdir=./net")
         .arg("apply")
-        .arg("-state=../terraform.tfstate")
+        .arg("-state=../terraform.tfstate") // FIXME does this work with remote state?
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()
@@ -53,8 +53,8 @@ pub fn apply() {
 
 pub fn destroy() {
     let mut terraform_result = process::Command::new(relative_binary_path())
+        .arg("-chdir=./net")
         .arg("destroy")
-        .arg("./net")
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()
