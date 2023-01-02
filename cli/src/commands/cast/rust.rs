@@ -81,5 +81,5 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
         panic!("{:?}", copy_result.err());
     }
 
-    wasm::precompile(Path::new(&copy_to), "x86_64-linux-gnu", function.enable_simd.unwrap_or(true)).unwrap()
+    wasm::precompile(Path::new(&copy_to), "x86_64-linux-gnu").unwrap()
 }
