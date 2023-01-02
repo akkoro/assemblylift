@@ -2,10 +2,13 @@ use std::fs::File;
 use std::io::Write;
 use std::iter::FromIterator;
 use std::mem::ManuallyDrop;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::string::ToString;
 use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
+use once_cell::sync::Lazy;
 use wasmtime::{Caller, Config, Engine, Func, Instance, Linker, Module, Store};
 use wasmtime_wasi::{Dir, WasiCtx, WasiCtxBuilder};
 
@@ -18,6 +21,11 @@ use crate::threader::Threader;
 pub type BufferElement = (usize, u8);
 
 pub type State<S> = AsmlFunctionState<S>;
+
+pub static CPU_COMPAT_MODE: Lazy<String> = Lazy::new(|| {
+    std::env::var("ASML_CPU_COMPAT_MODE")
+        .unwrap_or("default".to_string())
+});
 
 pub struct Wasmtime<R, S>
 where
@@ -36,18 +44,7 @@ where
     S: Clone + Send + Sized + 'static,
 {
     pub fn new_from_path(module_path: &Path) -> anyhow::Result<Self> {
-        let enable_simd = match std::env::var("ASML_FUNCTION_ENABLE_SIMD")
-            .unwrap_or("1".to_string())
-            .as_str()
-        {
-            "0" | "false" => false,
-            "1" | "true" => true,
-            _ => true,
-        };
-        let engine = match Engine::new(Config::new().wasm_simd(enable_simd)) {
-            Ok(engine) => engine,
-            Err(err) => return Err(anyhow!(err)),
-        };
+        let engine = new_engine("x86_64-linux-gnu")?;
         match unsafe { Module::deserialize_file(&engine, module_path) } {
             Ok(module) => Ok(Self {
                 engine,
@@ -60,18 +57,7 @@ where
     }
 
     pub fn new_from_bytes(module_bytes: &[u8]) -> anyhow::Result<Self> {
-        let enable_simd = match std::env::var("ASML_FUNCTION_ENABLE_SIMD")
-            .unwrap_or("1".to_string())
-            .as_str()
-        {
-            "0" | "false" => false,
-            "1" | "true" => true,
-            _ => true,
-        };
-        let engine = match Engine::new(Config::new().wasm_simd(enable_simd)) {
-            Ok(engine) => engine,
-            Err(err) => return Err(anyhow!(err)),
-        };
+        let engine = new_engine("x86_64-linux-gnu")?;
         match unsafe { Module::deserialize(&engine, module_bytes) } {
             Ok(module) => Ok(Self {
                 engine,
@@ -303,8 +289,7 @@ where
     wasi: WasiCtx,
 }
 
-pub fn precompile(module_path: &Path, target: &str, enable_simd: bool) -> anyhow::Result<PathBuf> {
-    // TODO compiler configuration
+pub fn precompile(module_path: &Path, target: &str) -> anyhow::Result<PathBuf> {
     let file_path = format!("{}.bin", module_path.display().to_string());
     println!("Precompiling WASM to {}...", file_path.clone());
 
@@ -312,7 +297,7 @@ pub fn precompile(module_path: &Path, target: &str, enable_simd: bool) -> anyhow
         Ok(bytes) => bytes,
         Err(err) => return Err(err.into()),
     };
-    let engine = Engine::new(Config::new().target(target).unwrap().wasm_simd(enable_simd)).unwrap();
+    let engine = new_engine(target)?;
     let compiled_bytes = engine
         .precompile_module(&*wasm_bytes)
         .expect("TODO: panic message");
@@ -324,4 +309,26 @@ pub fn precompile(module_path: &Path, target: &str, enable_simd: bool) -> anyhow
     println!("📄 > Wrote {}", &file_path);
 
     Ok(PathBuf::from(file_path))
+}
+
+fn new_engine(target: &str) -> anyhow::Result<Engine> {
+    let config = match CPU_COMPAT_MODE.as_str() {
+        "default" => Config::default(),
+        "high" => unsafe {
+            Config::new()
+                .target(target)
+                .unwrap()
+                .wasm_simd(false)
+                .cranelift_flag_set("has_sse3", "false")
+                .cranelift_flag_set("has_ssse3", "false")
+                .cranelift_flag_set("has_sse41", "false")
+                .cranelift_flag_set("has_sse42", "false")
+                .clone()
+        },
+        _ => Config::default(),
+    };
+    match Engine::new(&config) {
+        Ok(engine) => Ok(engine),
+        Err(err) => Err(anyhow!(err)),
+    }
 }
