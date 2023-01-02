@@ -207,6 +207,7 @@ pub mod service {
                 authorizer_id: None,
                 timeout_seconds: None,
                 size_mb: None,
+                enable_simd: None,
                 environment: None,
             };
             functions.push(fun);
@@ -301,6 +302,7 @@ pub mod service {
         pub authorizer_id: Option<String>,
         pub timeout_seconds: Option<u16>,
         pub size_mb: Option<u16>,
+        pub enable_simd: Option<bool>,
         pub http: Rc<Option<HttpFunction>>,
         pub environment: Option<Rc<StringMap<String>>>,
     }

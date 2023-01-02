@@ -248,8 +248,8 @@ impl Castable for KubernetesFunction {
                     function_name: function.name.clone(),
                     service_name: service.clone(),
                     handler_name: match function.language.as_str() {
-                        "rust" => format!("{}.wasmu", function.name.clone()),
-                        "ruby" => "ruby.wasmu".into(),
+                        "rust" => format!("{}.wasm.bin", function.name.clone()),
+                        "ruby" => "ruby.wasm.bin".into(),
                         _ => "handler".into(),
                     },
                     iomods: iomods.clone(),

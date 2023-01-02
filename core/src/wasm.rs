@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
-use tokio::sync::mpsc;
 use wasmtime::{Caller, Config, Engine, Func, Instance, Linker, Module, Store};
 use wasmtime_wasi::{Dir, WasiCtx, WasiCtxBuilder};
 
@@ -16,12 +15,9 @@ use crate::abi::*;
 use crate::buffers::FunctionInputBuffer;
 use crate::threader::Threader;
 
-pub type State<S> = AsmlFunctionState<S>;
-
 pub type BufferElement = (usize, u8);
-pub type MemoryTx = mpsc::Sender<BufferElement>;
-pub type MemoryRx = mpsc::Receiver<BufferElement>;
-pub type MemoryChannel = (MemoryTx, MemoryRx);
+
+pub type State<S> = AsmlFunctionState<S>;
 
 pub struct Wasmtime<R, S>
 where
@@ -40,7 +36,18 @@ where
     S: Clone + Send + Sized + 'static,
 {
     pub fn new_from_path(module_path: &Path) -> anyhow::Result<Self> {
-        let engine = Engine::default();
+        let enable_simd = match std::env::var("ASML_FUNCTION_ENABLE_SIMD")
+            .unwrap_or("1".to_string())
+            .as_str()
+        {
+            "0" | "false" => false,
+            "1" | "true" => true,
+            _ => true,
+        };
+        let engine = match Engine::new(Config::new().wasm_simd(enable_simd)) {
+            Ok(engine) => engine,
+            Err(err) => return Err(anyhow!(err)),
+        };
         match unsafe { Module::deserialize_file(&engine, module_path) } {
             Ok(module) => Ok(Self {
                 engine,
@@ -53,7 +60,18 @@ where
     }
 
     pub fn new_from_bytes(module_bytes: &[u8]) -> anyhow::Result<Self> {
-        let engine = Engine::default();
+        let enable_simd = match std::env::var("ASML_FUNCTION_ENABLE_SIMD")
+            .unwrap_or("1".to_string())
+            .as_str()
+        {
+            "0" | "false" => false,
+            "1" | "true" => true,
+            _ => true,
+        };
+        let engine = match Engine::new(Config::new().wasm_simd(enable_simd)) {
+            Ok(engine) => engine,
+            Err(err) => return Err(anyhow!(err)),
+        };
         match unsafe { Module::deserialize(&engine, module_bytes) } {
             Ok(module) => Ok(Self {
                 engine,
@@ -285,7 +303,7 @@ where
     wasi: WasiCtx,
 }
 
-pub fn precompile(module_path: &Path, target: &str) -> anyhow::Result<PathBuf> {
+pub fn precompile(module_path: &Path, target: &str, enable_simd: bool) -> anyhow::Result<PathBuf> {
     // TODO compiler configuration
     let file_path = format!("{}.bin", module_path.display().to_string());
     println!("Precompiling WASM to {}...", file_path.clone());
@@ -294,7 +312,7 @@ pub fn precompile(module_path: &Path, target: &str) -> anyhow::Result<PathBuf> {
         Ok(bytes) => bytes,
         Err(err) => return Err(err.into()),
     };
-    let engine = Engine::new(Config::new().target(target).unwrap()).unwrap();
+    let engine = Engine::new(Config::new().target(target).unwrap().wasm_simd(enable_simd)).unwrap();
     let compiled_bytes = engine
         .precompile_module(&*wasm_bytes)
         .expect("TODO: panic message");

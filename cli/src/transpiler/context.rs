@@ -432,7 +432,8 @@ locals {
 {{#each providers}}
 provider {{tf_name}} {
     alias  = "{{../project_name}}-{{name}}"
-    region = "{{options.aws_region}}"
+    {{#if (eq tf_name "aws")}}region = "{{options.aws_region}}"{{/if}}
+    {{#if (eq tf_name "kubernetes")}}config_path = pathexpand("~/.kube/config"){{/if}}
 }
 {{/each}}
 {{#if user_inject}}module "usermod" {

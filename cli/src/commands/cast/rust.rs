@@ -25,7 +25,7 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
     let mode = "release";
     let target = "wasm32-wasi";
 
-    println!("Compiling function {}...", function_name.clone());
+    println!("Compiling function `{}`...", function_name.clone());
     let cargo_build = std::process::Command::new("cargo")
         .arg("build")
         .arg(format!("--{}", mode))
@@ -81,5 +81,5 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
         panic!("{:?}", copy_result.err());
     }
 
-    wasm::precompile(Path::new(&copy_to), "x86_64-linux-gnu").unwrap()
+    wasm::precompile(Path::new(&copy_to), "x86_64-linux-gnu", function.enable_simd.unwrap_or(true)).unwrap()
 }
