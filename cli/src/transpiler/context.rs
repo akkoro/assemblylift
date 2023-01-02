@@ -99,6 +99,7 @@ impl Context {
                     language: function.language.clone().unwrap_or("rust".to_string()),
                     size: function.size_mb.unwrap_or(1024u16),
                     timeout: function.timeout_seconds.unwrap_or(5u16),
+                    enable_simd: function.enable_simd.unwrap_or(true),
                     http: match &function.clone().http.as_ref() {
                         Some(http) => Some(Http {
                             verb: http.verb.clone(),
@@ -364,6 +365,7 @@ pub struct Function {
 
     pub size: u16,
     pub timeout: u16,
+    pub enable_simd: bool,
 }
 
 pub struct Http {

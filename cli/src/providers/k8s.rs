@@ -272,6 +272,7 @@ impl Castable for KubernetesFunction {
                             .clone(),
                     },
                     is_ruby: function.language == "ruby".to_string(),
+                    enable_simd: function.enable_simd,
                     environment,
                 };
                 let hcl_content = hcl_tmpl.render();
@@ -443,6 +444,7 @@ pub struct FunctionTemplate {
     pub registry: ContainerRegistry,
     pub environment: Vec<ContainerEnv>,
     pub is_ruby: bool,
+    pub enable_simd: bool,
 }
 
 impl Template for FunctionTemplate {
@@ -542,6 +544,10 @@ resource kubernetes_deployment {{function_name}} {
                         value = "{{this.value}}"
                     }
                     {{/each}}
+                    env {
+                        name  = "ASML_FUNCTION_ENABLE_SIMD"
+                        value = "{{this.enable_simd}}"
+                    }
                 }
                 {{#each iomods}}
                 container {
