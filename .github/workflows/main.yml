@@ -81,8 +81,8 @@ jobs:
 ##      - name: 'Upload image to S3 @ akkoro-public'
 ##        run: aws s3 cp $HOME/aws-openfaas-alpine.tar s3://public.assemblylift.akkoro.io/runtime/$ASML_VERSION/aws-openfaas-alpine/image.tar --acl public-read
 
-  build-hyper-alpine:
-    name: 'Hyper Alpine Image'
+  build-hyper:
+    name: 'Hyper Image'
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS Credentials
@@ -133,9 +133,9 @@ jobs:
       - name: 'Upload to S3 @ akkoro-public'
         run: aws s3 cp ./target/release/asml s3://public.assemblylift.akkoro.io/cli/$ASML_VERSION/x86_64-apple-darwin/asml --acl public-read
 
-  build-asml-linux-gnu:
+  build-asml-linux-gnu-ubuntu20:
     name: asml - Linux GNU
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -162,7 +162,38 @@ jobs:
       - name: 'Get Version'
         run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
       - name: 'Upload to S3 @ akkoro-public'
-        run: aws s3 cp ./target/release/asml s3://public.assemblylift.akkoro.io/cli/$ASML_VERSION/x86_64-linux-gnu/asml --acl public-read
+        run: aws s3 cp ./target/release/asml s3://public.assemblylift.akkoro.io/cli/$ASML_VERSION/x86_64-linux-gnu/ubuntu-20.04/asml --acl public-read
+
+  build-asml-linux-gnu-ubuntu22:
+    name: asml - Linux GNU
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - uses: actions/checkout@v2
+      - name: Install latest stable Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Build & install capnp
+        uses: daaku/gh-action-apt-install@v4
+        with:
+          packages: capnproto
+      - name: Run cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          use-cross: false
+          args: --release --manifest-path ./cli/Cargo.toml
+      - name: 'Get Version'
+        run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
+      - name: 'Upload to S3 @ akkoro-public'
+        run: aws s3 cp ./target/release/asml s3://public.assemblylift.akkoro.io/cli/$ASML_VERSION/x86_64-linux-gnu/ubuntu-22.04/asml --acl public-read
 
   build-builtin-function-verify-macaroon:
     name: Builtin Function verify-macaroon
