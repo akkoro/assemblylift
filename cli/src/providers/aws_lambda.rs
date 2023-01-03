@@ -388,8 +388,8 @@ impl Castable for LambdaFunction {
                     .collect();
 
                 let ext = match function.precompile {
-                    true => ".wasm.bin",
-                    false => ".wasm",
+                    true => "wasm.bin",
+                    false => "wasm",
                 };
 
                 let tmpl = FunctionTemplate {

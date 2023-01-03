@@ -243,8 +243,8 @@ impl Castable for KubernetesFunction {
                     .collect();
 
                 let ext = match function.precompile {
-                    true => ".wasm.bin",
-                    false => ".wasm",
+                    true => "wasm.bin",
+                    false => "wasm",
                 };
 
                 let hcl_tmpl = FunctionTemplate {
