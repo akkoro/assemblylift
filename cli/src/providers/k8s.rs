@@ -242,14 +242,19 @@ impl Castable for KubernetesFunction {
                     })
                     .collect();
 
+                let ext = match function.precompile {
+                    true => ".wasm.bin",
+                    false => ".wasm",
+                };
+
                 let hcl_tmpl = FunctionTemplate {
                     base_image_version: crate_version!().to_string(),
                     project_name: ctx.project.name.clone(),
                     function_name: function.name.clone(),
                     service_name: service.clone(),
                     handler_name: match function.language.as_str() {
-                        "rust" => format!("{}.wasm.bin", function.name.clone()),
-                        "ruby" => "ruby.wasm.bin".into(),
+                        "rust" => format!("{}.{}", function.name.clone(), ext),
+                        "ruby" => format!("ruby.{}", ext),
                         _ => "handler".into(),
                     },
                     iomods: iomods.clone(),

@@ -387,13 +387,18 @@ impl Castable for LambdaFunction {
                     .map(|e| (format!("__ASML_{}", e.0.clone()), e.1.clone()))
                     .collect();
 
+                let ext = match function.precompile {
+                    true => ".wasm.bin",
+                    false => ".wasm",
+                };
+
                 let tmpl = FunctionTemplate {
                     project_name: ctx.project.name.clone(),
                     service_name: service.clone(),
                     function_name: function.name.clone(),
                     handler_name: match function.language.as_str() {
-                        "rust" => format!("{}.wasm.bin", function.name.clone()),
-                        "ruby" => "ruby.wasm.bin".into(),
+                        "rust" => format!("{}.{}", function.name.clone(), ext),
+                        "ruby" => format!("ruby.{}", ext),
                         _ => "handler.wasm.bin".into(),
                     },
                     runtime_layer: format!(

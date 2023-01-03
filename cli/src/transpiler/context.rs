@@ -100,6 +100,7 @@ impl Context {
                     size: function.size_mb.unwrap_or(1024u16),
                     timeout: function.timeout_seconds.unwrap_or(5u16),
                     cpu_compat_mode: function.cpu_compat_mode.clone().unwrap_or("default".to_string()),
+                    precompile: function.precompile.unwrap_or(true),
                     http: match &function.clone().http.as_ref() {
                         Some(http) => Some(Http {
                             verb: http.verb.clone(),
@@ -366,6 +367,7 @@ pub struct Function {
     pub size: u16,
     pub timeout: u16,
     pub cpu_compat_mode: String,
+    pub precompile: bool,
 }
 
 pub struct Http {

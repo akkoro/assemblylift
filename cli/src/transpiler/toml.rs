@@ -208,6 +208,7 @@ pub mod service {
                 timeout_seconds: None,
                 size_mb: None,
                 cpu_compat_mode: None,
+                precompile: None,
                 environment: None,
             };
             functions.push(fun);
@@ -303,6 +304,7 @@ pub mod service {
         pub timeout_seconds: Option<u16>,
         pub size_mb: Option<u16>,
         pub cpu_compat_mode: Option<String>,
+        pub precompile: Option<bool>,
         pub http: Rc<Option<HttpFunction>>,
         pub environment: Option<Rc<StringMap<String>>>,
     }
