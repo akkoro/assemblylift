@@ -34,7 +34,7 @@ zip = "0.6"
 
 wasmtime = "2.0"
 
-assemblylift-core = { version = "0.4.0-alpha.10", path = "../core" }
+assemblylift-core = { version = "0.4.0-alpha.11", path = "../core" }
 assemblylift-core-iomod = { version = "0.4.0-alpha.0", path = "../core/iomod" }
 
 registry_common = { version = "0.1", package = "asml-iomod-registry-common" }
