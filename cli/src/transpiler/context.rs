@@ -441,7 +441,8 @@ provider {{tf_name}} {
 {{#if user_inject}}module "usermod" {
   source = "../user_tf"
   providers = {
-  {{#each providers}}  {{this.tf_name}}.{{../project_name}}-{{this.name}} = {{this.tf_name}}.{{../project_name}}-{{this.name}}{{/each}}
+  {{#each providers}}  {{this.tf_name}}.{{../project_name}}-{{this.name}} = {{this.tf_name}}.{{../project_name}}-{{this.name}}
+  {{/each}}
   }
 }{{/if}}
 {{#if remote_state}}terraform {
