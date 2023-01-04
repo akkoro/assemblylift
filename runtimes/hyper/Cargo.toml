@@ -1,6 +1,6 @@
 [package]
 name = "assemblylift-hyper-runtime"
-version = "0.4.0-alpha.11"
+version = "0.4.0-alpha.12"
 edition = "2021"
 
 [dependencies]
@@ -17,5 +17,5 @@ tracing = "0.1"
 tracing-subscriber = "0.2.0"
 zip = "0.6"
 
-assemblylift-core = { version = "0.4.0-alpha.11", path = "../../core" }
+assemblylift-core = { version = "0.4.0-alpha.12", path = "../../core" }
 assemblylift-core-iomod = { version = "0.4.0-alpha.0", path = "../../core/iomod" }

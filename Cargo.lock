@@ -176,7 +176,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core"
-version = "0.4.0-alpha.11"
+version = "0.4.0-alpha.12"
 dependencies = [
  "anyhow",
  "assemblylift-core-io-common 0.3.0",
@@ -328,7 +328,7 @@ checksum = "63abddec0a59344aafeb4c3ac80c5e86b76b1d6eb92b7ecbf9551b34ef27bff5"
 
 [[package]]
 name = "assemblylift-hyper-runtime"
-version = "0.4.0-alpha.11"
+version = "0.4.0-alpha.12"
 dependencies = [
  "anyhow",
  "assemblylift-core",

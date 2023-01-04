@@ -2,7 +2,6 @@ use std::fs::File;
 use std::io::Write;
 use std::iter::FromIterator;
 use std::mem::ManuallyDrop;
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::string::ToString;
 use std::sync::{Arc, Mutex};
@@ -22,10 +21,8 @@ pub type BufferElement = (usize, u8);
 
 pub type State<S> = AsmlFunctionState<S>;
 
-pub static CPU_COMPAT_MODE: Lazy<String> = Lazy::new(|| {
-    std::env::var("ASML_CPU_COMPAT_MODE")
-        .unwrap_or("default".to_string())
-});
+pub static CPU_COMPAT_MODE: Lazy<String> =
+    Lazy::new(|| std::env::var("ASML_CPU_COMPAT_MODE").unwrap_or("default".to_string()));
 
 pub struct Wasmtime<R, S>
 where
@@ -44,10 +41,24 @@ where
     S: Clone + Send + Sized + 'static,
 {
     pub fn new_from_path(module_path: &Path) -> anyhow::Result<Self> {
-        let engine = new_engine("x86_64-linux-gnu", None)?;
-        match unsafe { Module::deserialize_file(&engine, module_path) } {
+        let m = match module_path.extension().unwrap().to_str().unwrap() {
+            ".bin" => {
+                let engine = new_engine(Some("x86_64-linux-gnu"), None)?;
+                let module = unsafe { Module::deserialize_file(&engine, module_path) };
+                (engine, module)
+            },
+            ".wasm" => {
+                let engine = new_engine(None, None)?;
+                let module = Module::from_file(&engine, module_path);
+                (engine, module)
+            },
+            _ => return Err(anyhow!(
+                "invalid module extension; must be .wasm or .wasm.bin"
+            )),
+        };
+        match m.1 {
             Ok(module) => Ok(Self {
-                engine,
+                engine: m.0,
                 module,
                 _phantom_r: Default::default(),
                 _phantom_s: Default::default(),
@@ -57,7 +68,7 @@ where
     }
 
     pub fn new_from_bytes(module_bytes: &[u8]) -> anyhow::Result<Self> {
-        let engine = new_engine("x86_64-linux-gnu", None)?;
+        let engine = new_engine(Some("x86_64-linux-gnu"), None)?;
         match unsafe { Module::deserialize(&engine, module_bytes) } {
             Ok(module) => Ok(Self {
                 engine,
@@ -297,7 +308,7 @@ pub fn precompile(module_path: &Path, target: &str, mode: &str) -> anyhow::Resul
         Ok(bytes) => bytes,
         Err(err) => return Err(err.into()),
     };
-    let engine = new_engine(target, Some(mode))?;
+    let engine = new_engine(Some(target), Some(mode))?;
     let compiled_bytes = engine
         .precompile_module(&*wasm_bytes)
         .expect("TODO: panic message");
@@ -311,25 +322,28 @@ pub fn precompile(module_path: &Path, target: &str, mode: &str) -> anyhow::Resul
     Ok(PathBuf::from(file_path))
 }
 
-fn new_engine(target: &str, cpu_compat_mode: Option<&str>) -> anyhow::Result<Engine> {
+fn new_engine(target: Option<&str>, cpu_compat_mode: Option<&str>) -> anyhow::Result<Engine> {
     let mode = match cpu_compat_mode {
         Some(mode) => mode,
         None => CPU_COMPAT_MODE.as_str(),
     };
-    let config = match mode {
-        "default" => Config::new().target(target).unwrap().clone(),
-        "high" => unsafe {
-            Config::new()
-                .target(target)
-                .unwrap()
-                .wasm_simd(false)
-                .cranelift_flag_set("has_sse3", "false")
-                .cranelift_flag_set("has_ssse3", "false")
-                .cranelift_flag_set("has_sse41", "false")
-                .cranelift_flag_set("has_sse42", "false")
-                .clone()
+    let config = match target {
+        Some(target) => match mode {
+            "default" => Config::new().target(target).unwrap().clone(),
+            "high" => unsafe {
+                Config::new()
+                    .target(target)
+                    .unwrap()
+                    .wasm_simd(false)
+                    .cranelift_flag_set("has_sse3", "false")
+                    .cranelift_flag_set("has_ssse3", "false")
+                    .cranelift_flag_set("has_sse41", "false")
+                    .cranelift_flag_set("has_sse42", "false")
+                    .clone()
+            },
+            _ => Config::new().target(target).unwrap().clone(),
         },
-        _ => Config::new().target(target).unwrap().clone(),
+        None => Config::new(),
     };
     match Engine::new(&config) {
         Ok(engine) => Ok(engine),
