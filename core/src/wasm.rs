@@ -343,7 +343,19 @@ fn new_engine(target: Option<&str>, cpu_compat_mode: Option<&str>) -> anyhow::Re
             },
             _ => Config::new().target(target).unwrap().clone(),
         },
-        None => Config::new(),
+        None => match mode {
+            "default" => Config::new().clone(),
+            "high" => unsafe {
+                Config::new()
+                    .wasm_simd(false)
+                    .cranelift_flag_set("has_sse3", "false")
+                    .cranelift_flag_set("has_ssse3", "false")
+                    .cranelift_flag_set("has_sse41", "false")
+                    .cranelift_flag_set("has_sse42", "false")
+                    .clone()
+            },
+            _ => Config::new().clone(),
+        }
     };
     match Engine::new(&config) {
         Ok(engine) => Ok(engine),
