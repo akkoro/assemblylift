@@ -327,35 +327,22 @@ fn new_engine(target: Option<&str>, cpu_compat_mode: Option<&str>) -> anyhow::Re
         Some(mode) => mode,
         None => CPU_COMPAT_MODE.as_str(),
     };
-    let config = match target {
-        Some(target) => match mode {
-            "default" => Config::new().target(target).unwrap().clone(),
-            "high" => unsafe {
-                Config::new()
-                    .target(target)
-                    .unwrap()
-                    .wasm_simd(false)
-                    .cranelift_flag_set("has_sse3", "false")
-                    .cranelift_flag_set("has_ssse3", "false")
-                    .cranelift_flag_set("has_sse41", "false")
-                    .cranelift_flag_set("has_sse42", "false")
-                    .clone()
-            },
-            _ => Config::new().target(target).unwrap().clone(),
+    let mut config = match mode {
+        "default" => Config::new().clone(),
+        "high" => unsafe {
+            Config::new()
+                .wasm_simd(false)
+                .cranelift_flag_set("has_sse3", "false")
+                .cranelift_flag_set("has_ssse3", "false")
+                .cranelift_flag_set("has_sse41", "false")
+                .cranelift_flag_set("has_sse42", "false")
+                .clone()
         },
-        None => match mode {
-            "default" => Config::new().clone(),
-            "high" => unsafe {
-                Config::new()
-                    .wasm_simd(false)
-                    .cranelift_flag_set("has_sse3", "false")
-                    .cranelift_flag_set("has_ssse3", "false")
-                    .cranelift_flag_set("has_sse41", "false")
-                    .cranelift_flag_set("has_sse42", "false")
-                    .clone()
-            },
-            _ => Config::new().clone(),
-        }
+        _ => Config::new().clone(),
+    };
+    let config = match target {
+        Some(target) => config.target(target).unwrap().clone(),
+        None => config,
     };
     match Engine::new(&config) {
         Ok(engine) => Ok(engine),
