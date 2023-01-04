@@ -251,7 +251,7 @@ where
         match instance
             .get_func(&mut store, "_start")
             .expect("could not find default function")
-            .typed::<(), (), _>(&mut store)
+            .typed::<(), ()>(&mut store)
             .expect("invalid default function signature")
             .call(&mut store, ())
         {
