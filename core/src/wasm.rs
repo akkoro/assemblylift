@@ -42,12 +42,12 @@ where
 {
     pub fn new_from_path(module_path: &Path) -> anyhow::Result<Self> {
         let m = match module_path.extension().unwrap().to_str().unwrap() {
-            ".bin" => {
+            "bin" => {
                 let engine = new_engine(Some("x86_64-linux-gnu"), None)?;
                 let module = unsafe { Module::deserialize_file(&engine, module_path) };
                 (engine, module)
             },
-            ".wasm" => {
+            "wasm" => {
                 let engine = new_engine(None, None)?;
                 let module = Module::from_file(&engine, module_path);
                 (engine, module)
