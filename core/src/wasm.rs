@@ -338,6 +338,16 @@ fn new_engine(target: Option<&str>, cpu_compat_mode: Option<&str>) -> anyhow::Re
                 .cranelift_flag_set("has_sse42", "false")
                 .clone()
         },
+        "cpu:core2quad" => unsafe {
+            Config::new()
+                .wasm_simd(false)
+                .cranelift_flag_set("has_sse2", "true")
+                .cranelift_flag_set("has_sse3", "false")
+                .cranelift_flag_set("has_ssse3", "true")
+                .cranelift_flag_set("has_sse41", "true")
+                .cranelift_flag_set("has_sse42", "false")
+                .clone()
+        },
         _ => Config::new().clone(),
     };
     let config = match target {
