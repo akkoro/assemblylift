@@ -631,7 +631,11 @@ resource aws_lambda_function asml_{{service_name}}_{{function_name}} {
     }{{else}}environment {
       variables = {{{this.environment}}}
     }{{/if}}
-    {{/if}}
+    {{else}}{{#if ruby_layer}}environment {
+      variables = {
+        ASML_FUNCTION_ENV = "ruby-lambda"
+      }
+    }{{/if}}{{/if}}
     layers = [{{runtime_layer}}{{#if iomods_layer}}, {{iomods_layer}}{{/if}}{{#if ruby_layer}}, {{ruby_layer}}{{/if}}]
 
     source_code_hash = filebase64sha256("${local.project_path}/net/services/{{service_name}}/{{function_name}}/{{function_name}}.zip")
