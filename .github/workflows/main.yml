@@ -2,7 +2,7 @@ name: Release Build
 
 on:
   push:
-    branches: [ mainline, v0.4.0 ]
+    branches: [ mainline, v0.4.0-beta ]
 
 jobs:
 
