@@ -1,0 +1,32 @@
+[package]
+name = "assemblylift-wasi-cap-std-sync"
+version = "0.0.0"
+description = "WASI implementation in Rust"
+license = "Apache-2.0 WITH LLVM-exception"
+categories = ["wasm"]
+keywords = ["webassembly", "wasm"]
+repository = "https://github.com/bytecodealliance/wasmtime"
+readme = "README.md"
+edition = "2021"
+include = ["src/**/*", "README.md", "LICENSE" ]
+
+[dependencies]
+wasi-common = { package = "assemblylift-wasi-common", path = ".." }
+async-trait = "0.1.59"
+anyhow = "1.0.22"
+cap-std = "1.0.3"
+cap-fs-ext = "1.0.3"
+cap-time-ext = "1.0.0"
+cap-rand = "1.0.3"
+fs-set-times = "0.18.0"
+system-interface = { version = "0.25.1", features = ["cap_std_impls"] }
+tracing = "0.1.26"
+io-lifetimes = { version = "1.0.0", default-features = false }
+is-terminal = "0.4.0"
+io-extras = "0.17.1"
+
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "0.36.0", features = ["fs"] }
+
+[dev-dependencies]
+tempfile = "3.1.0"

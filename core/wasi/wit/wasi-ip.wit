@@ -1,0 +1,35 @@
+/// This interface defines IP-address-related data structures. Note that I chose to represent addresses as fixed tuples rather than other representations. This avoids allocations and makes it trivial to convert the addresses to strings.
+default interface wasi-ip {
+  type ipv4-address = tuple<u8, u8, u8, u8>
+  type ipv6-address = tuple<u16, u16, u16, u16, u16, u16, u16, u16>
+
+  enum ip-address-family {
+      /// Similar to `AF_INET` in POSIX.
+      ipv4,
+
+      /// Similar to `AF_INET6` in POSIX.
+      ipv6,
+  }
+
+  variant ip-address {
+      ipv4(ipv4-address),
+      ipv6(ipv6-address),
+  }
+
+  record ipv4-socket-address {
+      address: ipv4-address,
+      port: u16,
+  }
+
+  record ipv6-socket-address {
+      address: ipv6-address,
+      port: u16,
+      flow-info: u32,
+      scope-id: u32,
+  }
+
+  variant ip-socket-address {
+      ipv4(ipv4-socket-address),
+      ipv6(ipv6-socket-address),
+  }
+}

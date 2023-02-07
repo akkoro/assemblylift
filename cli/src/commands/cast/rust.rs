@@ -39,6 +39,7 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
     let build_log = std::str::from_utf8(&cargo_build.stderr).unwrap();
     std::io::stderr().write_all(&cargo_build.stderr).unwrap();
     if build_log.contains("error") {
+        // TODO https://github.com/akkoro/assemblylift/issues/new?title=Detect%20build%20output
         std::process::exit(-1);
     }
 

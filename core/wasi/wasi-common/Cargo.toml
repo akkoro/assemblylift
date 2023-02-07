@@ -1,0 +1,39 @@
+[package]
+name = "assemblylift-wasi-common"
+version = "0.0.0"
+description = "WASI implementation in Rust"
+license = "Apache-2.0 WITH LLVM-exception"
+categories = ["wasm"]
+keywords = ["webassembly", "wasm"]
+repository = "https://github.com/bytecodealliance/wasmtime"
+readme = "README.md"
+edition = "2021"
+include = ["src/**/*", "WASI/phases/**/*", "README.md", "LICENSE", "build.rs"]
+build = "build.rs"
+publish = false
+
+# This doesn't actually link to a native library, but it allows us to set env
+# vars like `DEP_WASI_COMMON_19_*` for crates that have build scripts and depend
+# on this crate, allowing other crates to use the same witx files.
+#links = "wasi-common-19"
+
+[dependencies]
+anyhow = "1.0.22"
+thiserror = "1.0.15"
+tracing = "0.1.26"
+cap-std = "1.0.3"
+cap-rand = "1.0.3"
+cap-fs-ext = "1.0.3"
+bitflags = "1.2"
+async-trait = "0.1.59"
+system-interface = { version = "0.25.1", features = ["cap_std_impls"] }
+
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "0.36.0", features = ["fs"] }
+
+[features]
+default = ["trace_log"]
+# This feature enables the `tracing` logs in the calls to target the `log`
+# ecosystem of backends (e.g. `env_logger`. Disable this if you want to use
+# `tracing-subscriber`.
+trace_log = [ "tracing/log" ]

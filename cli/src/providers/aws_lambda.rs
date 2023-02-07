@@ -15,6 +15,7 @@ use serde::Serialize;
 
 use crate::archive;
 use crate::providers::{AWS_LAMBDA_PROVIDER_NAME, DNS_PROVIDERS, flatten, LockBox, Options, Provider, ProviderError, ProviderMap, render_string_list, render_string_map};
+use crate::tools;
 use crate::transpiler::{Artifact, Bindable, Bootable, Castable, CastError, ContentType, context, StringMap, Template};
 use crate::transpiler::context::{Context, Function};
 
@@ -28,16 +29,18 @@ impl AwsLambdaProvider {
             "http://public.assemblylift.akkoro.io/runtime/{}/aws-lambda/bootstrap.zip",
             clap::crate_version!(),
         );
-        let mut response =
-            reqwest::blocking::get(runtime_url).expect("could not download bootstrap.zip");
-        if !response.status().is_success() {
-            panic!("unable to fetch asml runtime from {}", runtime_url);
-        }
-        let mut response_buffer = Vec::new();
-        response.read_to_end(&mut response_buffer).unwrap();
+        // let mut response =
+        //     reqwest::blocking::get(runtime_url).expect("could not download bootstrap.zip");
+        // if !response.status().is_success() {
+        //     panic!("unable to fetch asml runtime from {}", runtime_url);
+        // }
+        // let mut response_buffer = Vec::new();
+        // response.read_to_end(&mut response_buffer).unwrap();
 
         fs::create_dir_all("./.asml/runtime").unwrap();
-        fs::write("./.asml/runtime/bootstrap.zip", response_buffer).unwrap();
+        // fs::write("./.asml/runtime/bootstrap.zip", response_buffer).unwrap();
+        tools::download_to_path(runtime_url, "./.asml/runtime/bootstrap.zip")
+            .expect("could not download bootstrap.zip");
 
         Self {
             options: Arc::new(Options::new()),

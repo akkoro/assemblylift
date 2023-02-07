@@ -1,0 +1,14 @@
+default world wasi {
+  import wasi-clocks: pkg.wasi-clocks
+  import wasi-default-clocks: pkg.wasi-clocks.wasi-default-clocks
+  import wasi-logging: pkg.wasi-logging
+  import wasi-stderr: pkg.wasi-stderr
+  import wasi-filesystem: pkg.wasi-filesystem
+  import wasi-random: pkg.wasi-random
+  import wasi-poll: pkg.wasi-poll
+  import wasi-io: pkg.wasi-io
+  import wasi-tcp: pkg.wasi-tcp
+  import wasi-ip: pkg.wasi-ip
+  import wasi-dns: pkg.wasi-dns
+  import wasi-exit: pkg.wasi-exit
+}

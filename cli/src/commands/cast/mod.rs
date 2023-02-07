@@ -8,11 +8,14 @@ use path_abs::PathInfo;
 use registry_common::models::GetIomodAtResponse;
 use reqwest;
 
+use assemblylift_core::wasm;
+
 use crate::archive;
 use crate::projectfs::Project;
 use crate::terraform;
+use crate::tools;
+use crate::transpiler::{Castable, toml};
 use crate::transpiler::context::Context;
-use crate::transpiler::{toml, Castable};
 
 mod ruby;
 mod rust;
@@ -58,6 +61,11 @@ pub fn command(matches: Option<&ArgMatches>) {
         toml::asml::Manifest::read(&manifest_path).expect("could not read assemblylift.toml");
     let project = Rc::new(Project::new(asml_manifest.project.name.clone(), Some(cwd)));
 
+    // Fetch WASI adapter
+    let wasi_snapshot_preview1 = tools::download_to_bytes(
+        "https://github.com/bytecodealliance/preview2-prototyping/releases/download/latest/wasi_snapshot_preview1.command.wasm",
+    ).unwrap();
+
     // Fetch the latest terraform binary to the project directory
     terraform::fetch(&*project.dir());
 
@@ -74,6 +82,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             let function_artifact_path =
                 format!("./net/services/{}/{}", service_name, function_name);
 
+            let component_bytes = wasm::make_wasi_component(module, &*wasi_snapshot_preview1).unwrap();
             let wasm_path = lang::compile(project.clone(), &service_name, function);
 
             // TODO zip not needed w/ container functions

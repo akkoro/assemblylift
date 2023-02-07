@@ -1,0 +1,24 @@
+interface assemblylift-io {
+  type id = u32
+
+  enum io-error {
+    coords-not-found,
+    invalid-coords,
+    invalid-ioid,
+  }
+
+  enum poll-error {
+    not-ready,
+    invalid-ioid,
+  }
+
+  invoke: func(path: string, input: string) -> result<id, io-error>
+  poll: func(ioid: id) -> result<string, poll-error>
+  //load: func(ioid: id) -> u32
+  //next: func() -> u32
+  //len: func() -> u32
+}
+
+default world assemblylift {
+  import asml-io: self.assemblylift-io
+}

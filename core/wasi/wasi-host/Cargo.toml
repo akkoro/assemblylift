@@ -1,0 +1,23 @@
+[package]
+name = "assemblylift-wasi-host"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.22"
+thiserror = "1.0.15"
+async-trait = "0.1.59"
+cap-std = "1.0.3"
+cap-rand = "1.0.3"
+tokio = { version = "1.22.0", features = [ "rt", "macros" ] }
+tracing = "0.1.26"
+wasmtime = { git = "https://github.com/bytecodealliance/wasmtime", features = ["component-model"] }
+wasi-common = { package = "assemblylift-wasi-common", path = "../wasi-common" }
+wasi-cap-std-sync = { package = "assemblylift-wasi-cap-std-sync", path = "../wasi-common/cap-std-sync" }
+is-terminal = "0.4.1"
+terminal_size = "0.2.3"
+
+[dev-dependencies]
+tracing-subscriber = { version = "0.3", default-features = false, features = ["env-filter", "fmt" ]}
+test-log = { version = "0.2", default-features = false, features = ["trace"] }
+tempfile = "3.3.0"
