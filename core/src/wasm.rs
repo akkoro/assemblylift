@@ -262,7 +262,7 @@ where
         Ok(())
     }
 
-    pub async fn start(
+    pub async fn run(
         &mut self,
         mut store: &mut Store<State<S>>,
         wasi: assemblylift_wasi_host::WasiCommand,
@@ -375,7 +375,7 @@ where
     // }
 }
 
-pub fn precompile(module_path: &Path, target: &str, mode: &str) -> anyhow::Result<PathBuf> {
+pub fn precompile(module_path: &Path, target: &str, mode: &str) -> anyhow::Result<Vec<u8>> {
     let file_path = format!("{}.bin", module_path.display().to_string());
     println!("Precompiling WASM to {}...", file_path.clone());
 
@@ -384,17 +384,16 @@ pub fn precompile(module_path: &Path, target: &str, mode: &str) -> anyhow::Resul
         Err(err) => return Err(err.into()),
     };
     let engine = new_engine(Some(target), Some(mode))?;
-    let compiled_bytes = engine
-        .precompile_module(&*wasm_bytes)
-        .expect("TODO: panic message");
-    let mut module_file = match File::create(file_path.clone()) {
-        Ok(file) => file,
-        Err(err) => return Err(err.into()),
-    };
-    module_file.write_all(&compiled_bytes).unwrap();
-    println!("📄 > Wrote {}", &file_path);
-
-    Ok(PathBuf::from(file_path))
+    engine
+        .precompile_component(&*wasm_bytes)
+    // let mut module_file = match File::create(file_path.clone()) {
+    //     Ok(file) => file,
+    //     Err(err) => return Err(err.into()),
+    // };
+    // module_file.write_all(&compiled_bytes).unwrap();
+    // println!("📄 > Wrote {}", &file_path);
+    //
+    // Ok(PathBuf::from(file_path))
 }
 
 fn new_engine(target: Option<&str>, cpu_compat_mode: Option<&str>) -> anyhow::Result<Engine> {

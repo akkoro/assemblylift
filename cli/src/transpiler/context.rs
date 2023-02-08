@@ -89,6 +89,7 @@ impl Context {
                 is_root: service_manifest.api.is_root,
                 domain_name: service_manifest.api.domain_name,
                 project_name: project.name.clone(),
+                project: project.clone(),
             });
 
             for function in functions.as_ref() {
@@ -110,6 +111,7 @@ impl Context {
                     },
                     authorizer_id: function.authorizer_id.clone(),
                     environment: function.environment.clone(),
+                    project: project.clone(),
                 });
             }
 
@@ -340,6 +342,8 @@ pub struct Service {
     pub is_root: Option<bool>,
     pub domain_name: Option<String>,
     pub project_name: String,
+
+    pub project: Rc<ProjectFs>,
 }
 
 impl Service {
@@ -368,6 +372,8 @@ pub struct Function {
     pub timeout: u16,
     pub cpu_compat_mode: String,
     pub precompile: bool,
+
+    pub project: Rc<ProjectFs>,
 }
 
 pub struct Http {

@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
 use std::{fs, io};
+use std::path::{Path, PathBuf};
 
 use path_abs::{PathAbs, PathDir};
 
@@ -38,10 +38,21 @@ pub struct NetDir {
 }
 
 impl NetDir {
-    pub fn new() -> Self {
+    pub fn new(project_path: Box<PathBuf>) -> Self {
+        let mut net_path = project_path;
+        net_path.push("net/");
         Self {
-            dir: Box::new(PathBuf::from("net/")),
+            dir: net_path,
         }
+    }
+
+    pub fn service_dir(&self, name: &str) -> ServiceDir {
+        let path = PathBuf::from(&*format!(
+            "{}/services/{}",
+            self.dir.clone().into_os_string().into_string().unwrap(),
+            name
+        ));
+        ServiceDir::new(Box::new(path))
     }
 }
 
@@ -107,8 +118,8 @@ impl Project {
         ServiceDir::new(Box::new(path))
     }
 
-    pub fn net_dir(&self) -> PathBuf {
-        PathBuf::from("net/")
+    pub fn net_dir(&self) -> NetDir {
+        NetDir::new(self.project_path.clone())
     }
 
     pub fn dir(&self) -> Box<PathBuf> {
