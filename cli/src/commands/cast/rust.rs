@@ -92,7 +92,7 @@ impl CastableFunction for RustFunction {
                 .unwrap()
         ));
 
-        println!("Compiling function `{}`...", self.function_name.clone());
+        println!("🛠️  > Compiling function `{}`...", self.function_name.clone());
         let cargo_build = std::process::Command::new("cargo")
             .arg("build")
             .arg(format!("--{}", self.mode.clone()))
@@ -136,7 +136,7 @@ impl CastableFunction for RustFunction {
 
     // TODO don't love the use of format! everywhere to make the artifact path
     fn precompile(&self) {
-        println!("Precompiling function `{}`...", &self.function_name);
+        println!("⚡️ > Precompiling function `{}`...", &self.function_name);
         let path = format!("{}/{}.wasm", &self.net_path, &self.function_name);
         let bytes = wasm::precompile(
             Path::new(&path),

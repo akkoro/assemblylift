@@ -40,7 +40,7 @@ pub struct NetDir {
 impl NetDir {
     pub fn new(project_path: Box<PathBuf>) -> Self {
         let mut net_path = project_path;
-        net_path.push("net/");
+        net_path.push("net");
         Self {
             dir: net_path,
         }

@@ -24,7 +24,7 @@ where
     T: Tool + Sized,
 {
     if !tool.command_path().exists() {
-        println!("🛠 Fetching tool {}", tool.command_name());
+        println!("🛠> Fetching tool {}", tool.command_name());
         // let mut response = reqwest::blocking::get(tool.fetch_url())
         //     .expect(&*format!("could not download {}", tool.command_name()));
         // if !response.status().is_success() {
@@ -71,7 +71,7 @@ where
 }
 
 pub fn download_to_bytes<T: reqwest::IntoUrl + Clone>(url: T) -> anyhow::Result<Vec<u8>> {
-    println!("⏬ Downloading object from {}...", url.as_str());
+    println!("⏬ > Downloading object from {}...", url.as_str());
     match reqwest::blocking::get(url.clone()) {
         Ok(mut response) => {
             if !response.status().is_success() {

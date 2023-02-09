@@ -377,7 +377,7 @@ where
 
 pub fn precompile(module_path: &Path, target: &str, mode: &str) -> anyhow::Result<Vec<u8>> {
     let file_path = format!("{}.bin", module_path.display().to_string());
-    println!("Precompiling WASM to {}...", file_path.clone());
+    println!("      --> precompiling WASM to {}...", file_path.clone());
 
     let wasm_bytes = match std::fs::read(module_path.clone()) {
         Ok(bytes) => bytes,
@@ -437,6 +437,7 @@ fn new_engine(target: Option<&str>, cpu_compat_mode: Option<&str>) -> anyhow::Re
 }
 
 pub fn make_wasi_component(module: Vec<u8>, preview1: &[u8]) -> anyhow::Result<Vec<u8>> {
+    println!("      --> encoding WASM Module as Component...");
     let mut encoder = ComponentEncoder::default()
         .validate(true)
         .module(&module)?;

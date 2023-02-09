@@ -124,7 +124,7 @@ dependencies = [
 name = "assemblylift-awslambda-guest"
 version = "0.4.0-alpha.0"
 dependencies = [
- "assemblylift-core-guest 0.4.0-alpha.0",
+ "assemblylift-core-guest 0.4.0-beta.0",
  "assemblylift-core-io-guest 0.4.0-beta.0",
  "direct-executor",
  "serde",
@@ -151,7 +151,7 @@ dependencies = [
 name = "assemblylift-builtins-verify-macaroon"
 version = "0.0.0"
 dependencies = [
- "assemblylift-core-guest 0.4.0-alpha.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "assemblylift-core-guest 0.4.0-alpha.0",
  "assemblylift-core-io-guest 0.4.0-alpha.10",
  "assemblylift-iomod-secretsmanager-guest",
  "base64 0.20.0",
@@ -212,6 +212,8 @@ dependencies = [
 [[package]]
 name = "assemblylift-core-guest"
 version = "0.4.0-alpha.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d26fc4531abc0d7c0a12968b9bdeb74abdf2fa03211c670c5df1418d59ed3b9"
 dependencies = [
  "assemblylift-core-guest-macros 0.4.0-alpha.0",
  "paste 0.1.18",
@@ -221,11 +223,9 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-guest"
-version = "0.4.0-alpha.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d26fc4531abc0d7c0a12968b9bdeb74abdf2fa03211c670c5df1418d59ed3b9"
+version = "0.4.0-beta.0"
 dependencies = [
- "assemblylift-core-guest-macros 0.4.0-alpha.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "assemblylift-core-guest-macros 0.4.0-beta.0",
  "paste 0.1.18",
  "serde",
  "serde_json",
@@ -234,6 +234,8 @@ dependencies = [
 [[package]]
 name = "assemblylift-core-guest-macros"
 version = "0.4.0-alpha.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "653da30439799b7ddd8c989100f9dd79dcfff48f47b960de03c61339af38bce8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -242,9 +244,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-guest-macros"
-version = "0.4.0-alpha.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "653da30439799b7ddd8c989100f9dd79dcfff48f47b960de03c61339af38bce8"
+version = "0.4.0-beta.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -306,6 +306,7 @@ dependencies = [
  "lazy_static",
  "serde",
  "serde_json",
+ "wit-bindgen-guest-rust",
 ]
 
 [[package]]
@@ -1552,6 +1553,9 @@ name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
+dependencies = [
+ "unicode-segmentation",
+]
 
 [[package]]
 name = "hermit-abi"
@@ -3204,6 +3208,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "unicode-segmentation"
+version = "1.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1dd624098567895118886609431a7c3b8f516e41d30e0643f03d94592a147e36"
+
+[[package]]
 name = "unicode-width"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3889,6 +3899,58 @@ dependencies = [
  "bitflags",
  "io-lifetimes",
  "windows-sys 0.45.0",
+]
+
+[[package]]
+name = "wit-bindgen-core"
+version = "0.3.0"
+source = "git+https://github.com/bytecodealliance/wit-bindgen#5ed959e9a2f664f1dcba3fea2e0f5154ddbfbca4"
+dependencies = [
+ "anyhow",
+ "wit-component",
+ "wit-parser",
+]
+
+[[package]]
+name = "wit-bindgen-gen-guest-rust"
+version = "0.3.0"
+source = "git+https://github.com/bytecodealliance/wit-bindgen#5ed959e9a2f664f1dcba3fea2e0f5154ddbfbca4"
+dependencies = [
+ "heck",
+ "wit-bindgen-core",
+ "wit-bindgen-gen-rust-lib",
+ "wit-component",
+]
+
+[[package]]
+name = "wit-bindgen-gen-rust-lib"
+version = "0.3.0"
+source = "git+https://github.com/bytecodealliance/wit-bindgen#5ed959e9a2f664f1dcba3fea2e0f5154ddbfbca4"
+dependencies = [
+ "heck",
+ "wit-bindgen-core",
+]
+
+[[package]]
+name = "wit-bindgen-guest-rust"
+version = "0.3.0"
+source = "git+https://github.com/bytecodealliance/wit-bindgen#5ed959e9a2f664f1dcba3fea2e0f5154ddbfbca4"
+dependencies = [
+ "bitflags",
+ "wit-bindgen-guest-rust-macro",
+]
+
+[[package]]
+name = "wit-bindgen-guest-rust-macro"
+version = "0.3.0"
+source = "git+https://github.com/bytecodealliance/wit-bindgen#5ed959e9a2f664f1dcba3fea2e0f5154ddbfbca4"
+dependencies = [
+ "anyhow",
+ "proc-macro2",
+ "syn",
+ "wit-bindgen-core",
+ "wit-bindgen-gen-guest-rust",
+ "wit-component",
 ]
 
 [[package]]

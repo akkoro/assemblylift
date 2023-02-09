@@ -1,5 +1,5 @@
 use quote::{quote, quote_spanned};
-use syn::{parse2, ItemFn};
+use syn::{ItemFn, parse2};
 
 #[proc_macro_attribute]
 pub fn handler(
@@ -22,11 +22,12 @@ pub fn handler(
         use direct_executor;
         use serde_json;
         pub fn main() #ret {
-            use std::io::Read;
-            let mut fib = std::io::BufReader::new(assemblylift_core_io_guest::FunctionInputBuffer::new());
-            let mut input = String::new();
-            fib.read_to_string(&mut input).expect("could not read FIB to String");
-            let ctx = FunctionContext { input: input.trim_matches(char::from(0)).to_string() };
+            // use std::io::Read;
+            // let mut fib = std::io::BufReader::new(assemblylift_core_io_guest::FunctionInputBuffer::new());
+            // let mut input = String::new();
+            // fib.read_to_string(&mut input).expect("could not read FIB to String");
+            // let ctx = FunctionContext { input: input.trim_matches(char::from(0)).to_string() };
+            let ctx = FunctionContext { input: "TODO".to_string() };
             direct_executor::run_spinning(async {
                 #(#block_statements)*
             });
