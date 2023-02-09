@@ -14,9 +14,14 @@ use registry_common::models::GetIomodAtResponse;
 use serde::Serialize;
 
 use crate::archive;
-use crate::providers::{AWS_LAMBDA_PROVIDER_NAME, DNS_PROVIDERS, flatten, LockBox, Options, Provider, ProviderError, ProviderMap, render_string_list, render_string_map};
+use crate::providers::{
+    AWS_LAMBDA_PROVIDER_NAME, DNS_PROVIDERS, flatten, LockBox, Options, Provider, ProviderError,
+    ProviderMap, render_string_list, render_string_map,
+};
 use crate::tools;
-use crate::transpiler::{Artifact, Bindable, Bootable, Castable, CastError, ContentType, context, StringMap, Template};
+use crate::transpiler::{
+    Artifact, Bindable, Bootable, Castable, CastError, ContentType, context, StringMap, Template,
+};
 use crate::transpiler::context::{Context, Function};
 
 pub struct AwsLambdaProvider {
@@ -436,7 +441,7 @@ impl Castable for LambdaFunction {
                     environment: match environment.keys().len() {
                         0 => None,
                         _ => Some(render_string_map(environment)),
-                    }
+                    },
                 };
 
                 let hcl = Artifact {

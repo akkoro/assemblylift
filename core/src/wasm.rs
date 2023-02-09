@@ -52,15 +52,17 @@ where
                 let engine = new_engine(Some("x86_64-linux-gnu"), None)?;
                 let module = unsafe { Component::deserialize_file(&engine, module_path) };
                 (engine, module)
-            },
+            }
             "wasm" => {
                 let engine = new_engine(None, None)?;
                 let module = Component::from_file(&engine, module_path);
                 (engine, module)
-            },
-            _ => return Err(anyhow!(
-                "invalid module extension; must be .wasm or .wasm.bin"
-            )),
+            }
+            _ => {
+                return Err(anyhow!(
+                    "invalid module extension; must be .wasm or .wasm.bin"
+                ))
+            }
         };
         match m.1 {
             Ok(component) => Ok(Self {
@@ -100,7 +102,8 @@ where
         // if let Err(err) = wasmtime_wasi::add_to_linker(&mut linker, |s| &mut s.wasi) {
         //     return Err(anyhow!(err));
         // }
-        assemblylift_wasi_host::add_to_linker(&mut linker, |s| &mut s.wasi).expect("TODO: panic message");
+        assemblylift_wasi_host::add_to_linker(&mut linker, |s| &mut s.wasi)
+            .expect("TODO: panic message");
         // env vars prefixed with __ASML_ are defined in the function definition;
         // the prefix indicates that they are to be mapped to the module environment
         let envs: Vec<(String, String)> = Vec::from_iter(
@@ -247,7 +250,13 @@ where
         //     }
         //     Err(err) => Err(anyhow!(err)),
         // }
-        match assemblylift_wasi_host::WasiCommand::instantiate_async(&mut store, &self.component, &linker).await {
+        match assemblylift_wasi_host::WasiCommand::instantiate_async(
+            &mut store,
+            &self.component,
+            &linker,
+        )
+        .await
+        {
             Ok((wasi, _instance)) => Ok((wasi, store)),
             Err(err) => Err(anyhow!(err)),
         }
@@ -285,8 +294,8 @@ where
             &[],
             &[],
         )
-            .await?
-            .map_err(|()| anyhow::anyhow!("command returned with failing exit status"))
+        .await?
+        .map_err(|()| anyhow::anyhow!("command returned with failing exit status"))
     }
 
     pub fn ptr_to_string(
@@ -333,7 +342,11 @@ impl<S> asml_io::AsmlIo for AsmlFunctionState<S>
 where
     S: Clone + Send + Sized + 'static,
 {
-    fn invoke(&mut self, path: String, input: String) -> anyhow::Result<Result<asml_io::Id, asml_io::IoError>> {
+    fn invoke(
+        &mut self,
+        path: String,
+        input: String,
+    ) -> anyhow::Result<Result<asml_io::Id, asml_io::IoError>> {
         let ioid = self
             .threader
             .clone()
@@ -342,8 +355,7 @@ where
             .next_ioid()
             .expect("unable to get a new IO ID");
 
-        self
-            .threader
+        self.threader
             .clone()
             .lock()
             .unwrap()
@@ -384,8 +396,7 @@ pub fn precompile(module_path: &Path, target: &str, mode: &str) -> anyhow::Resul
         Err(err) => return Err(err.into()),
     };
     let engine = new_engine(Some(target), Some(mode))?;
-    engine
-        .precompile_component(&*wasm_bytes)
+    engine.precompile_component(&*wasm_bytes)
     // let mut module_file = match File::create(file_path.clone()) {
     //     Ok(file) => file,
     //     Err(err) => return Err(err.into()),
@@ -438,9 +449,7 @@ fn new_engine(target: Option<&str>, cpu_compat_mode: Option<&str>) -> anyhow::Re
 
 pub fn make_wasi_component(module: Vec<u8>, preview1: &[u8]) -> anyhow::Result<Vec<u8>> {
     println!("      --> encoding WASM Module as Component...");
-    let mut encoder = ComponentEncoder::default()
-        .validate(true)
-        .module(&module)?;
+    let mut encoder = ComponentEncoder::default().validate(true).module(&module)?;
 
     encoder = encoder.adapter("wasi_snapshot_preview1", preview1)?;
 

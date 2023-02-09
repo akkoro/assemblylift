@@ -41,9 +41,7 @@ impl NetDir {
     pub fn new(project_path: Box<PathBuf>) -> Self {
         let mut net_path = project_path;
         net_path.push("net");
-        Self {
-            dir: net_path,
-        }
+        Self { dir: net_path }
     }
 
     pub fn service_dir(&self, name: &str) -> ServiceDir {

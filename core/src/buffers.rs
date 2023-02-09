@@ -55,7 +55,10 @@ impl PagedWasmBuffer for FunctionInputBuffer {
         use std::cmp::min;
 
         let start = FUNCTION_INPUT_BUFFER_SIZE * self.page_idx;
-        let end = min(FUNCTION_INPUT_BUFFER_SIZE * (self.page_idx + 1), self.buffer.len());
+        let end = min(
+            FUNCTION_INPUT_BUFFER_SIZE * (self.page_idx + 1),
+            self.buffer.len(),
+        );
         let mut out: Vec<BufferElement> = Vec::with_capacity(end);
         if self.buffer.len() > FUNCTION_INPUT_BUFFER_SIZE {
             self.page_idx += 1;
@@ -99,10 +102,7 @@ impl PagedWasmBuffer for IoBuffer {
         let end = min(IO_BUFFER_SIZE_BYTES, buffer.len());
         let mut out: Vec<BufferElement> = Vec::with_capacity(end);
 
-        for (i, b) in buffer[0..end]
-            .iter()
-            .enumerate()
-        {
+        for (i, b) in buffer[0..end].iter().enumerate() {
             let idx = i + offset;
             out.push((idx, *b));
         }
@@ -118,10 +118,7 @@ impl PagedWasmBuffer for IoBuffer {
         let end = min(page_offset + IO_BUFFER_SIZE_BYTES, buffer.len());
         let mut out: Vec<BufferElement> = Vec::with_capacity(end);
 
-        for (i, b) in buffer[page_offset..end]
-            .iter()
-            .enumerate()
-        {
+        for (i, b) in buffer[page_offset..end].iter().enumerate() {
             let idx = i + offset;
             out.push((idx, *b));
         }

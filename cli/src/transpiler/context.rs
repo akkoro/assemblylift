@@ -83,8 +83,9 @@ impl Context {
                     tf_name: match &*service_provider.name {
                         "aws-lambda" => "aws",
                         "k8s" => "kubernetes",
-                        _ => "nil"
-                    }.to_string(),
+                        _ => "nil",
+                    }
+                    .to_string(),
                 }),
                 is_root: service_manifest.api.is_root,
                 domain_name: service_manifest.api.domain_name,
@@ -100,7 +101,10 @@ impl Context {
                     language: function.language.clone().unwrap_or("rust".to_string()),
                     size: function.size_mb.unwrap_or(1024u16),
                     timeout: function.timeout_seconds.unwrap_or(5u16),
-                    cpu_compat_mode: function.cpu_compat_mode.clone().unwrap_or("default".to_string()),
+                    cpu_compat_mode: function
+                        .cpu_compat_mode
+                        .clone()
+                        .unwrap_or("default".to_string()),
                     precompile: function.precompile.unwrap_or(true),
                     http: match &function.clone().http.as_ref() {
                         Some(http) => Some(Http {
@@ -236,11 +240,7 @@ impl Castable for Context {
                 .unwrap()
                 .set_options(dns.options.clone())
                 .expect("could not set dns provider options");
-            let artifacts = provider
-                .lock()
-                .unwrap()
-                .cast(ctx.clone(), None)
-                .unwrap();
+            let artifacts = provider.lock().unwrap().cast(ctx.clone(), None).unwrap();
             for a in artifacts {
                 if let ContentType::HCL(_) = a.content_type {
                     hcl_content.push_str(&*a.content.clone());

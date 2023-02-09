@@ -3,8 +3,9 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use assemblylift_core::wasm;
 use path_abs::PathInfo;
+
+use assemblylift_core::wasm;
 
 use crate::archive::unzip;
 use crate::projectfs::Project;
@@ -70,7 +71,10 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
         wasm::precompile(
             Path::new(&ruby_wasm),
             "x86_64-linux-gnu",
-            &function.cpu_compat_mode.clone().unwrap_or("default".to_string()),
+            &function
+                .cpu_compat_mode
+                .clone()
+                .unwrap_or("default".to_string()),
         )
         .unwrap();
     }

@@ -7,7 +7,10 @@ use itertools::Itertools;
 use jsonpath_lib::Selector;
 use serde::Serialize;
 
-use crate::providers::{AWS_LAMBDA_PROVIDER_NAME, KUBERNETES_PROVIDER_NAME, Options, Provider, ProviderError, ROUTE53_PROVIDER_NAME};
+use crate::providers::{
+    AWS_LAMBDA_PROVIDER_NAME, KUBERNETES_PROVIDER_NAME, Options, Provider, ProviderError,
+    ROUTE53_PROVIDER_NAME,
+};
 use crate::tools::kubectl::KubeCtl;
 use crate::transpiler::{Artifact, Bindable, Bootable, Castable, CastError, ContentType, Template};
 use crate::transpiler::context::Context;
@@ -64,7 +67,9 @@ impl Castable for DnsProvider {
                                 _ => "".to_string(),
                             },
                             is_apigw_target: match target {
-                                _ if { target.eq_ignore_ascii_case(AWS_LAMBDA_PROVIDER_NAME) } => true,
+                                _ if { target.eq_ignore_ascii_case(AWS_LAMBDA_PROVIDER_NAME) } => {
+                                    true
+                                }
                                 _ => false,
                             },
                             map_to_root: d.map_to_root,

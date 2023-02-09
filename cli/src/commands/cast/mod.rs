@@ -103,7 +103,8 @@ pub fn command(matches: Option<&ArgMatches>) {
             .into_string()
             .unwrap();
 
-        let castable_function: Box<dyn CastableFunction> = match function.language.clone().as_str() {
+        let castable_function: Box<dyn CastableFunction> = match function.language.clone().as_str()
+        {
             "rust" => Box::new(RustFunction::new(&function)),
             // "ruby" => ruby::compile(project, service_name, function),
             _ => panic!("unsupported function language"),
@@ -126,7 +127,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             format!("{}/{}.zip", function_artifact_path.clone(), &function.name),
             Vec::new(),
         )
-            .expect("unable to zip function artifacts");
+        .expect("unable to zip function artifacts");
     }
 
     // Cast Context to artifacts

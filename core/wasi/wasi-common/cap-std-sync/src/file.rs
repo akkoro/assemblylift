@@ -6,10 +6,10 @@ use cap_fs_ext::MetadataExt;
 use fs_set_times::{SetTimes, SystemTimeSpec};
 #[cfg(windows)]
 use io_extras::os::windows::{AsHandleOrSocket, BorrowedHandleOrSocket};
-#[cfg(windows)]
-use io_lifetimes::{AsHandle, BorrowedHandle};
 #[cfg(unix)]
 use io_lifetimes::{AsFd, BorrowedFd};
+#[cfg(windows)]
+use io_lifetimes::{AsHandle, BorrowedHandle};
 use io_lifetimes::AsFilelike;
 use is_terminal::IsTerminal;
 use system_interface::fs::{FileIoExt, GetSetFdFlags};

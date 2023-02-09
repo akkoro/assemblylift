@@ -88,7 +88,10 @@ pub fn download_to_bytes<T: reqwest::IntoUrl + Clone>(url: T) -> anyhow::Result<
     }
 }
 
-pub fn download_to_path<T: reqwest::IntoUrl + Clone, P: AsRef<Path>>(url: T, to: P) -> anyhow::Result<()> {
+pub fn download_to_path<T: reqwest::IntoUrl + Clone, P: AsRef<Path>>(
+    url: T,
+    to: P,
+) -> anyhow::Result<()> {
     match download_to_bytes(url) {
         Ok(bytes) => {
             if let Err(err) = std::fs::write(to, bytes) {

@@ -30,10 +30,8 @@ impl RustFunction {
             .into_os_string()
             .into_string()
             .unwrap();
-        std::fs::create_dir_all(PathBuf::from(&net_path)).expect(&*format!(
-            "unable to create path {}",
-            &net_path
-        ));
+        std::fs::create_dir_all(PathBuf::from(&net_path))
+            .expect(&*format!("unable to create path {}", &net_path));
         Self {
             project: function.project.clone(),
             service_name,
@@ -92,7 +90,10 @@ impl CastableFunction for RustFunction {
                 .unwrap()
         ));
 
-        println!("🛠️  > Compiling function `{}`...", self.function_name.clone());
+        println!(
+            "🛠️  > Compiling function `{}`...",
+            self.function_name.clone()
+        );
         let cargo_build = std::process::Command::new("cargo")
             .arg("build")
             .arg(format!("--{}", self.mode.clone()))
@@ -143,7 +144,7 @@ impl CastableFunction for RustFunction {
             "x86_64-linux-gnu",
             &self.cpu_compat_mode.clone(),
         )
-            .unwrap();
+        .unwrap();
         let out_path = format!("{}.bin", path);
         std::fs::write(&out_path, bytes).unwrap();
         println!("📄 > Wrote {}", &out_path);
@@ -151,8 +152,16 @@ impl CastableFunction for RustFunction {
 
     fn artifact_path(&self) -> PathBuf {
         match self.enable_precompile {
-            true => PathBuf::from(format!("{}/{}.wasm.bin", self.net_path.clone(), &self.function_name)),
-            false => PathBuf::from(format!("{}/{}.wasm", self.net_path.clone(), &self.function_name)),
+            true => PathBuf::from(format!(
+                "{}/{}.wasm.bin",
+                self.net_path.clone(),
+                &self.function_name
+            )),
+            false => PathBuf::from(format!(
+                "{}/{}.wasm",
+                self.net_path.clone(),
+                &self.function_name
+            )),
         }
     }
 }

@@ -62,7 +62,8 @@ where
         ioid: IoId,
     ) -> anyhow::Result<Vec<BufferElement>> {
         let doc = self.get_io_memory_document(ioid).unwrap();
-        let data = self.io_memory
+        let data = self
+            .io_memory
             .lock()
             .unwrap()
             .buffer
@@ -72,11 +73,7 @@ where
 
     /// Advance the guest IO memory to the next page
     pub fn document_next(&mut self, memory_offset: usize) -> anyhow::Result<Vec<BufferElement>> {
-        let data = self.io_memory
-            .lock()
-            .unwrap()
-            .buffer
-            .next(memory_offset);
+        let data = self.io_memory.lock().unwrap().buffer.next(memory_offset);
         Ok(data)
     }
 

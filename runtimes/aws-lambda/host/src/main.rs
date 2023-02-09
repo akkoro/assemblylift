@@ -84,8 +84,9 @@ async fn main() {
                                             "unable to create directory {:?}",
                                             path_prefix
                                         ));
-                                        let mut entrypoint_file = File::create(path)
-                                            .expect(&*format!("unable to create file at {:?}", path));
+                                        let mut entrypoint_file = File::create(path).expect(
+                                            &*format!("unable to create file at {:?}", path),
+                                        );
                                         std::io::copy(&mut entrypoint_binary, &mut entrypoint_file)
                                             .expect("unable to copy entrypoint");
                                         let mut perms: fs::Permissions =
@@ -154,48 +155,49 @@ async fn main() {
 
     let (status_sender, _status_receiver) = bounded::<()>(1);
 
-    tokio::task::LocalSet::new().run_until(async move {
-        let mut full_path = PathBuf::from(&module_path);
-        full_path.push(&handler_name);
-        let wasmtime = Arc::new(Mutex::new(
-            Wasmtime::<LambdaAbi, ()>::new_from_path(Path::new(full_path.as_path()))
-                .expect("could not create WASM runtime from module path")
-        ));
+    tokio::task::LocalSet::new()
+        .run_until(async move {
+            let mut full_path = PathBuf::from(&module_path);
+            full_path.push(&handler_name);
+            let wasmtime = Arc::new(Mutex::new(
+                Wasmtime::<LambdaAbi, ()>::new_from_path(Path::new(full_path.as_path()))
+                    .expect("could not create WASM runtime from module path"),
+            ));
 
-        while let Ok(event) = LAMBDA_RUNTIME.get_next_event().await {
-            {
-                let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
-                if ref_cell.borrow().clone() == event.request_id.clone() {
-                    continue;
+            while let Ok(event) = LAMBDA_RUNTIME.get_next_event().await {
+                {
+                    let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
+                    if ref_cell.borrow().clone() == event.request_id.clone() {
+                        continue;
+                    }
+                    ref_cell.replace(event.request_id.clone());
                 }
-                ref_cell.replace(event.request_id.clone());
+
+                let (instance, mut store) = wasmtime
+                    .lock()
+                    .unwrap()
+                    .link_module(tx.clone(), status_sender.clone())
+                    .expect("could not link wasm module");
+
+                wasmtime
+                    .lock()
+                    .unwrap()
+                    .initialize_function_input_buffer(&mut store, &event.event_body.into_bytes())
+                    .expect("could not initialize input buffer");
+
+                let wasmtime = wasmtime.clone();
+                tokio::task::spawn_local(async move {
+                    // env.clone().threader.lock().unwrap().__reset_memory();
+
+                    match wasmtime.lock().unwrap().start(&mut store, instance) {
+                        Ok(result) => println!("SUCCESS: handler returned {:?}", result),
+                        Err(error) => println!("ERROR: {}", error.to_string()),
+                    }
+                })
+                .await
+                .unwrap();
+                // std::mem::drop(env.clone().threader);
             }
-
-            let (instance, mut store) = wasmtime
-                .lock()
-                .unwrap()
-                .link_module(tx.clone(), status_sender.clone())
-                .expect("could not link wasm module");
-
-            wasmtime
-                .lock()
-                .unwrap()
-                .initialize_function_input_buffer(&mut store, &event.event_body.into_bytes())
-                .expect("could not initialize input buffer");
-
-            let wasmtime = wasmtime.clone();
-            tokio::task::spawn_local(async move {
-                // env.clone().threader.lock().unwrap().__reset_memory();
-
-                match wasmtime.lock().unwrap().start(&mut store, instance) {
-                    Ok(result) => println!("SUCCESS: handler returned {:?}", result),
-                    Err(error) => println!("ERROR: {}", error.to_string()),
-                }
-            })
-            .await
-            .unwrap();
-            // std::mem::drop(env.clone().threader);
-        }
-    })
-    .await;
+        })
+        .await;
 }

@@ -62,9 +62,7 @@ fn main() {
         let tx = { runner.clone().lock().unwrap().sender() };
 
         let r = runner.clone();
-        s.spawn(move |_| {
-            r.lock().unwrap().spawn()
-        });
+        s.spawn(move |_| r.lock().unwrap().spawn());
 
         s.spawn(move |_| {
             let mut launcher = Launcher::new();
