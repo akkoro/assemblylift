@@ -25,7 +25,7 @@ mod lang {
     use crate::projectfs::Project;
     use crate::transpiler::toml::service::Function;
 
-    pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> PathBuf {
+    pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> Option<PathBuf> {
         let function_name = function.name.clone();
         let function_artifact_path = format!("./net/services/{}/{}", service_name, function_name);
         std::fs::create_dir_all(PathBuf::from(function_artifact_path.clone())).expect(&*format!(
@@ -36,7 +36,7 @@ mod lang {
         match function.language.clone().unwrap_or("rust".into()).as_str() {
             "rust" => rust::compile(project, service_name, function),
             "ruby" => ruby::compile(project, service_name, function),
-            _ => panic!("unsupported function language"),
+            _ => panic!("unsupported language"),
         }
     }
 }
@@ -74,46 +74,56 @@ pub fn command(matches: Option<&ArgMatches>) {
             let function_artifact_path =
                 format!("./net/services/{}/{}", service_name, function_name);
 
-            let wasm_path = lang::compile(project.clone(), &service_name, function);
+            match lang::compile(project.clone(), &service_name, function).unwrap() {
+                wasm_path => {
+                    let mut function_dirs = vec![wasm_path.clone()];
+                    if let Some("ruby") = function.language.clone().as_deref() {
+                        function_dirs.push(PathBuf::from(format!(
+                            "{}/rubysrc",
+                            &function_artifact_path
+                        )));
+                    }
 
-            // TODO zip not needed w/ container functions
-            let mut function_dirs = vec![wasm_path];
-            if let Some("ruby") = function.language.clone().as_deref() {
-                function_dirs.push(PathBuf::from(format!(
-                    "{}/rubysrc",
-                    &function_artifact_path
-                )));
-            }
-            archive::zip_dirs(
-                function_dirs,
-                format!("{}/{}.zip", function_artifact_path.clone(), &function_name),
-                Vec::new(),
-            )
-            .expect("unable to zip function artifacts");
-        }
-    }
+                    // TODO zip not needed w/ container functions
+                    archive::zip_dirs(
+                        function_dirs,
+                        format!("{}/{}.zip", function_artifact_path.clone(), &function_name),
+                        Vec::new(),
+                    )
+                        .expect("unable to zip function artifacts");
 
-    {
-        let ctx = Rc::new(
-            Context::from_project(project.clone(), asml_manifest)
-                .expect("could not make context from manifest"),
-        );
-        let artifacts = ctx
-            .cast(ctx.clone(), None)
-            .expect("could not cast assemblylift context");
-        for artifact in artifacts {
-            let path = artifact.write_path;
-            let mut file = match fs::File::create(path.clone()) {
-                Err(why) => panic!("couldn't create file {}: {}", path.clone(), why.to_string()),
-                Ok(file) => file,
+                    {
+                        let ctx = Rc::new(
+                            Context::from_project(project.clone(), asml_manifest.clone())
+                                .expect("could not make context from manifest"),
+                        );
+                        let artifacts = ctx
+                            .cast(ctx.clone(), None)
+                            .expect("could not cast assemblylift context");
+
+                        // todo: serialize to string only if the file is not out of date
+                        for artifact in artifacts {
+                            let path = artifact.write_path;
+                            let mut file = match fs::File::create(path.clone()) {
+                                Err(why) => panic!("couldn't create file {}: {}", path.clone(), why.to_string()),
+                                Ok(file) => file,
+                            };
+
+                            file.write_all(artifact.content.as_bytes())
+                                .expect("could not write artifact");
+                            println!("📄 > Wrote {}", path.clone());
+                        }
+
+
+                        terraform::commands::init();
+                        terraform::commands::plan();
+                        wasm_path
+                    }
+                },
+                _ => {
+                    panic!("unable to compile function {} in service {}", function_name, service_name)
+                }
             };
-
-            file.write_all(artifact.content.as_bytes())
-                .expect("could not write artifact");
-            println!("📄 > Wrote {}", path.clone());
         }
     }
-
-    terraform::commands::init();
-    terraform::commands::plan();
 }

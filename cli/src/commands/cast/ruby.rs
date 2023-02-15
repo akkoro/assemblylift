@@ -10,7 +10,7 @@ use crate::archive::unzip;
 use crate::projectfs::Project;
 use crate::transpiler::toml::service::Function;
 
-pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> PathBuf {
+pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> Option<PathBuf> {
     let function_name = function.name.clone();
     let service_artifact_path = format!("./net/services/{}", service_name);
     let function_artifact_path = format!("./net/services/{}/{}", service_name, function_name);
@@ -88,5 +88,5 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
         panic!("{:?}", copy_result.err());
     }
 
-    PathBuf::from(copy_to)
+    Some(PathBuf::from(copy_to))
 }
