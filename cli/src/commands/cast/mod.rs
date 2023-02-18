@@ -85,9 +85,11 @@ pub fn command(matches: Option<&ArgMatches>) {
     );
 
     // Fetch WASI adapter
-    let wasi_snapshot_preview1 = tools::download_to_bytes(
-        "https://github.com/bytecodealliance/preview2-prototyping/releases/download/latest/wasi_snapshot_preview1.command.wasm",
-    ).unwrap();
+    // let wasi_snapshot_preview1 = tools::download_to_bytes(
+    //     "https://github.com/bytecodealliance/preview2-prototyping/releases/download/latest/wasi_snapshot_preview1.command.wasm",
+    // ).unwrap();
+
+    let wasi_snapshot_preview1 = include_bytes!("wasm/wasi_snapshot_preview1.wasm");
 
     // Fetch the latest terraform binary to the project directory
     terraform::fetch(&*project.dir());
@@ -109,7 +111,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             // "ruby" => ruby::compile(project, service_name, function),
             _ => panic!("unsupported function language"),
         };
-        castable_function.compile(wasi_snapshot_preview1.clone());
+        castable_function.compile(wasi_snapshot_preview1.clone().to_vec());
         if function.precompile {
             castable_function.precompile();
         }

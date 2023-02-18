@@ -13,5 +13,3 @@ serde = "1"
 serde_json = "1"
 futures = "0.3"
 lazy_static = "1.4"
-assemblylift-core-io-common = { version = "0.3", path = "../common" }
-wit-bindgen-guest-rust = { git = "https://github.com/bytecodealliance/wit-bindgen", version = "0.3.0" }

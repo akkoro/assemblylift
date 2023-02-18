@@ -4,8 +4,6 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use flate2::read::GzDecoder;
-use wasmtime::component::__internal::anyhow;
-use wasmtime::component::__internal::anyhow::anyhow;
 
 pub mod cmctl;
 pub mod glooctl;
@@ -24,16 +22,7 @@ where
     T: Tool + Sized,
 {
     if !tool.command_path().exists() {
-        println!("🛠> Fetching tool {}", tool.command_name());
-        // let mut response = reqwest::blocking::get(tool.fetch_url())
-        //     .expect(&*format!("could not download {}", tool.command_name()));
-        // if !response.status().is_success() {
-        //     panic!(
-        //         "unable to fetch {} from {}",
-        //         tool.command_name(),
-        //         tool.fetch_url()
-        //     );
-        // }
+        println!("🔧  > Fetching tool {}", tool.command_name());
 
         std::fs::create_dir_all(tool.path().clone()).unwrap();
         let bytes = download_to_bytes(tool.fetch_url())
@@ -50,8 +39,6 @@ where
                 .unpack(tool.command_path())
                 .expect("could not unpack cmctl");
         } else {
-            // let mut response_buffer = Vec::new();
-            // response.read_to_end(&mut response_buffer).unwrap();
             std::fs::write(tool.command_path(), bytes).unwrap();
         }
 

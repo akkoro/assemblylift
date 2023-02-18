@@ -49,7 +49,7 @@ where
     pub fn new_from_path(module_path: &Path) -> anyhow::Result<Self> {
         let m = match module_path.extension().unwrap().to_str().unwrap() {
             "bin" => {
-                let engine = new_engine(Some("x86_64-linux-gnu"), None)?;
+                let engine = new_engine(Some("x86_64-apple-darwin"), None)?;
                 let module = unsafe { Component::deserialize_file(&engine, module_path) };
                 (engine, module)
             }
@@ -273,8 +273,8 @@ where
 
     pub async fn run(
         &mut self,
-        mut store: &mut Store<State<S>>,
         wasi: assemblylift_wasi_host::WasiCommand,
+        mut store: &mut Store<State<S>>,
     ) -> anyhow::Result<()> {
         // match instance
         //     .get_func(&mut store, "_start")
@@ -290,9 +290,9 @@ where
             &mut store,
             0 as assemblylift_wasi_host::wasi_io::InputStream,
             1 as assemblylift_wasi_host::wasi_io::OutputStream,
-            &[],
-            &[],
-            &[],
+            &["test", "arg"], // args
+            &[("PATH", ".")], // env
+            &[], // file descriptors
         )
         .await?
         .map_err(|()| anyhow::anyhow!("command returned with failing exit status"))
@@ -438,6 +438,7 @@ fn new_engine(target: Option<&str>, cpu_compat_mode: Option<&str>) -> anyhow::Re
         Some(target) => config.target(target).unwrap().clone(),
         None => config,
     };
+    config.wasm_backtrace_details(wasmtime::WasmBacktraceDetails::Enable);
     config.wasm_component_model(true);
     config.wasm_multi_memory(true);
     config.async_support(true);

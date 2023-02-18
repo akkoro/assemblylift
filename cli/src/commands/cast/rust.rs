@@ -141,7 +141,8 @@ impl CastableFunction for RustFunction {
         let path = format!("{}/{}.wasm", &self.net_path, &self.function_name);
         let bytes = wasm::precompile(
             Path::new(&path),
-            "x86_64-linux-gnu",
+            // "x86_64-linux-gnu",
+            "x86_64-apple-darwin",
             &self.cpu_compat_mode.clone(),
         )
         .unwrap();

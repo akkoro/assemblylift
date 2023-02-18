@@ -3,14 +3,18 @@ extern crate assemblylift_core_guest_macros;
 use std::collections::HashMap;
 use std::fmt;
 
+pub use direct_executor;
 use serde::{Deserialize, Serialize};
+pub use wit_bindgen_guest_rust;
 
+pub use assemblylift::asml_io;
 pub use assemblylift_core_guest_macros::handler;
+pub use wasi_command::wasi_logging;
 
-// extern "C" {
-//     fn __asml_abi_runtime_log(ptr: *const u8, len: usize);
-//     fn __asml_abi_runtime_success(ptr: *const u8, len: usize);
-// }
+pub mod assemblylift;
+#[allow(dead_code)]
+#[macro_use]
+pub mod wasi_command;
 
 pub struct FunctionContext {
     pub input: String,

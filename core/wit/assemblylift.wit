@@ -14,11 +14,15 @@ interface assemblylift-io {
 
   invoke: func(path: string, input: string) -> result<id, io-error>
   poll: func(ioid: id) -> result<string, poll-error>
-  //load: func(ioid: id) -> u32
-  //next: func() -> u32
-  //len: func() -> u32
+}
+
+interface assemblylift-function-runtime {
+  type bytes = list<u8>
+  success: func(response: bytes)
+  failure: func(response: bytes)
 }
 
 default world assemblylift {
   import asml-io: self.assemblylift-io
+  import asml-rt: self.assemblylift-function-runtime
 }

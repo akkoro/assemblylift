@@ -14,6 +14,7 @@ name = "asml"
 path = "src/main.rs"
 
 [dependencies]
+anyhow = "1"
 base64 = "0.13"
 bytes = "1.1"
 clap = "2.33"
@@ -32,10 +33,10 @@ walkdir = "2.3"
 z85 = "3"
 zip = "0.6"
 
-wasmtime = { version = "6.0", git = "https://github.com/bytecodealliance/wasmtime.git" }
+wasmtime = { version = "7.0", git = "https://github.com/bytecodealliance/wasmtime.git", rev = "49613be3" }
 
-assemblylift-core = { version = "0.4.0-alpha.12", path = "../core" }
-assemblylift-core-iomod = { version = "0.4.0-alpha.0", path = "../core/iomod" }
+assemblylift-core = { version = "0.4.0-beta.0", path = "../core" }
+assemblylift-core-iomod = { version = "0.4.0-beta.0", path = "../core/iomod" }
 
 registry_common = { version = "0.1", package = "asml-iomod-registry-common" }
 
