@@ -28,7 +28,7 @@ bindgen!("assemblylift");
 
 pub struct Wasmtime<R, S>
 where
-    R: RuntimeAbi + Send + 'static,
+    R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
 {
     engine: Engine,
@@ -40,7 +40,7 @@ where
 
 impl<R, S> Wasmtime<R, S>
 where
-    R: RuntimeAbi + Send + 'static,
+    R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
 {
     pub fn new_from_path(module_path: &Path) -> anyhow::Result<Self> {
@@ -239,13 +239,7 @@ where
         //     }
         //     Err(err) => Err(anyhow!(err)),
         // }
-        // match linker.instantiate_async(&mut store, &self.component).await {
-        //     Ok(instance) => {
-        //         instance.
-        //         Ok((instance, store))
-        //     }
-        //     Err(err) => Err(anyhow!(err)),
-        // }
+
         match assemblylift_wasi_host::WasiCommand::instantiate_async(
             &mut store,
             &self.component,
@@ -326,7 +320,7 @@ where
 
 pub struct AsmlFunctionState<R, S>
 where
-    R: RuntimeAbi + Send + 'static,
+    R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
 {
     pub status_sender: StatusTx<S>,
@@ -338,7 +332,7 @@ where
 
 impl<R, S> asml_io::AsmlIo for AsmlFunctionState<R, S>
 where
-    R: RuntimeAbi + Send + 'static,
+    R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
 {
     fn invoke(
@@ -373,15 +367,15 @@ where
 
 impl<R, S> asml_rt::AsmlRt for AsmlFunctionState<R, S>
 where
-    R: RuntimeAbi + Send + 'static,
+    R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
 {
     fn success(&mut self, response: Vec<u8>) -> anyhow::Result<()> {
-        Ok(R::success(response))
+        Ok(R::success(self.status_sender.clone(), response))
     }
 
     fn failure(&mut self, response: Vec<u8>) -> anyhow::Result<()> {
-        Ok(R::failure(response))
+        Ok(R::failure(self.status_sender.clone(), response))
     }
 
     fn get_input(&mut self) -> anyhow::Result<Vec<u8>> {
