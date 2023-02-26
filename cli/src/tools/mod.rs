@@ -3,6 +3,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use anyhow::anyhow;
 use flate2::read::GzDecoder;
 
 pub mod cmctl;

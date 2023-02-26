@@ -18,9 +18,10 @@ pub fn handler(
     }
 
     proc_macro::TokenStream::from(quote! {
+        use assemblylift_core_guest::asml_rt;
         use assemblylift_core_guest::direct_executor;
-        use assemblylift_core_guest::FunctionContext;
         use assemblylift_core_guest::export_wasi_command;
+        use assemblylift_core_guest::FunctionContext;
         use assemblylift_core_guest::wasi_command::*;
         use assemblylift_core_guest::wit_bindgen_guest_rust;
         struct Cmd;
@@ -38,7 +39,7 @@ pub fn handler(
                     wit_bindgen_guest_rust::rt::string::String,
                 )>,
             ) -> Result<(), ()> {
-                Ok(__handler(FunctionContext { input: "TODO".to_string() }))
+                Ok(__handler(FunctionContext { input: asml_rt::get_input() }))
             }
         }
         export_wasi_command!(Cmd);
@@ -48,7 +49,7 @@ pub fn handler(
             });
         }
         fn main() {
-            __handler(FunctionContext { input: "TODO".to_string() })
+            __handler(FunctionContext { input: asml_rt::get_input() })
         }
     })
 }

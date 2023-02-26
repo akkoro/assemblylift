@@ -1,6 +1,6 @@
 interface assemblylift-io {
-  type id = u32
-
+  type ioid = u32
+  
   enum io-error {
     coords-not-found,
     invalid-coords,
@@ -12,14 +12,16 @@ interface assemblylift-io {
     invalid-ioid,
   }
 
-  invoke: func(path: string, input: string) -> result<id, io-error>
-  poll: func(ioid: id) -> result<string, poll-error>
+  invoke: func(path: string, input: string) -> result<ioid, io-error>
+  poll: func(ioid: ioid) -> result<string, poll-error>
 }
 
 interface assemblylift-function-runtime {
   type bytes = list<u8>
   success: func(response: bytes)
   failure: func(response: bytes)
+
+  get-input: func() -> list<u8>
 }
 
 default world assemblylift {

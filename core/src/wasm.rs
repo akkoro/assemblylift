@@ -1,15 +1,13 @@
-use std::fs::File;
-use std::io::Write;
 use std::iter::FromIterator;
 use std::mem::ManuallyDrop;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::string::ToString;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
 use once_cell::sync::Lazy;
-use wasmtime::{Caller, Config, Engine, Func, Store};
-use wasmtime::component::{bindgen, Component, Instance, Linker};
+use wasmtime::{Caller, Config, Engine, Store};
+use wasmtime::component::{bindgen, Component, Linker};
 use wit_component::ComponentEncoder;
 
 use assemblylift_core_iomod::registry::RegistryTx;
@@ -17,12 +15,11 @@ use assemblylift_wasi_cap_std_sync::WasiCtxBuilder;
 use assemblylift_wasi_common::WasiCtx;
 
 use crate::abi::*;
-use crate::buffers::FunctionInputBuffer;
 use crate::threader::Threader;
 
 pub type BufferElement = (usize, u8);
-
-pub type State<S> = AsmlFunctionState<S>;
+pub type State<R, S> = AsmlFunctionState<R, S>;
+pub type StatusTx<S> = crossbeam_channel::Sender<S>;
 
 pub static CPU_COMPAT_MODE: Lazy<String> =
     Lazy::new(|| std::env::var("ASML_CPU_COMPAT_MODE").unwrap_or("default".to_string()));
@@ -31,7 +28,7 @@ bindgen!("assemblylift");
 
 pub struct Wasmtime<R, S>
 where
-    R: RuntimeAbi<S> + 'static,
+    R: RuntimeAbi + Send + 'static,
     S: Clone + Send + Sized + 'static,
 {
     engine: Engine,
@@ -43,7 +40,7 @@ where
 
 impl<R, S> Wasmtime<R, S>
 where
-    R: RuntimeAbi<S> + 'static,
+    R: RuntimeAbi + Send + 'static,
     S: Clone + Send + Sized + 'static,
 {
     pub fn new_from_path(module_path: &Path) -> anyhow::Result<Self> {
@@ -92,9 +89,9 @@ where
         &mut self,
         registry_tx: RegistryTx,
         status_sender: crossbeam_channel::Sender<S>,
-    ) -> anyhow::Result<(assemblylift_wasi_host::WasiCommand, Store<State<S>>)> {
+    ) -> anyhow::Result<(assemblylift_wasi_host::WasiCommand, Store<State<R, S>>)> {
         let threader = ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(registry_tx))));
-        let mut linker: Linker<State<S>> = Linker::new(&self.engine);
+        let mut linker: Linker<State<R, S>> = Linker::new(&self.engine);
 
         // FIXME this might be confusingly named (confused with the function env vars)
         let function_env = std::env::var("ASML_FUNCTION_ENV").unwrap_or("default".into());
@@ -173,12 +170,11 @@ where
         // };
 
         let state = State {
-            function_input_buffer: FunctionInputBuffer::new(),
+            function_input: Vec::with_capacity(512usize),
             status_sender,
             threader,
             wasi,
-            io_buffer_ptr: None,
-            function_input_buffer_ptr: None,
+            _phantom: Default::default(),
         };
         let mut store = Store::new(&self.engine, state);
 
@@ -264,17 +260,19 @@ where
 
     pub fn initialize_function_input_buffer(
         &mut self,
-        store: &mut Store<State<S>>,
+        store: &mut Store<State<R, S>>,
         input: &[u8],
     ) -> anyhow::Result<()> {
         // store.data_mut().function_input_buffer.set(input.to_vec());
+        store.data_mut().function_input.clear();
+        store.data_mut().function_input.append(&mut Vec::from(input));
         Ok(())
     }
 
     pub async fn run(
         &mut self,
         wasi: assemblylift_wasi_host::WasiCommand,
-        mut store: &mut Store<State<S>>,
+        mut store: &mut Store<State<R, S>>,
     ) -> anyhow::Result<()> {
         // match instance
         //     .get_func(&mut store, "_start")
@@ -290,8 +288,8 @@ where
             &mut store,
             0 as assemblylift_wasi_host::wasi_io::InputStream,
             1 as assemblylift_wasi_host::wasi_io::OutputStream,
-            &["test", "arg"], // args
-            &[("PATH", ".")], // env
+            &[], // args
+            &[], // env
             &[], // file descriptors
         )
         .await?
@@ -299,7 +297,7 @@ where
     }
 
     pub fn ptr_to_string(
-        caller: &mut Caller<'_, State<S>>,
+        caller: &mut Caller<'_, State<R, S>>,
         ptr: u32,
         len: u32,
     ) -> anyhow::Result<String> {
@@ -309,7 +307,7 @@ where
     }
 
     pub fn ptr_to_bytes(
-        caller: &mut Caller<'_, State<S>>,
+        caller: &mut Caller<'_, State<R, S>>,
         ptr: u32,
         len: u32,
     ) -> anyhow::Result<Vec<u8>> {
@@ -326,27 +324,28 @@ where
     }
 }
 
-pub struct AsmlFunctionState<S>
+pub struct AsmlFunctionState<R, S>
 where
+    R: RuntimeAbi + Send + 'static,
     S: Clone + Send + Sized + 'static,
 {
-    pub function_input_buffer: FunctionInputBuffer,
-    pub status_sender: crossbeam_channel::Sender<S>,
+    pub status_sender: StatusTx<S>,
     pub threader: ManuallyDrop<Arc<Mutex<Threader<S>>>>,
-    pub io_buffer_ptr: Option<Func>,
-    pub function_input_buffer_ptr: Option<Func>,
+    pub function_input: Vec<u8>,
     wasi: WasiCtx,
+    _phantom: std::marker::PhantomData<R>,
 }
 
-impl<S> asml_io::AsmlIo for AsmlFunctionState<S>
+impl<R, S> asml_io::AsmlIo for AsmlFunctionState<R, S>
 where
+    R: RuntimeAbi + Send + 'static,
     S: Clone + Send + Sized + 'static,
 {
     fn invoke(
         &mut self,
         path: String,
         input: String,
-    ) -> anyhow::Result<Result<asml_io::Id, asml_io::IoError>> {
+    ) -> anyhow::Result<Result<asml_io::Ioid, asml_io::IoError>> {
         let ioid = self
             .threader
             .clone()
@@ -361,30 +360,33 @@ where
             .unwrap()
             .invoke(&path, input.into_bytes(), ioid);
 
-        Ok(Ok(ioid as asml_io::Id))
+        Ok(Ok(ioid as asml_io::Ioid))
     }
 
-    fn poll(&mut self, ioid: asml_io::Id) -> anyhow::Result<Result<String, asml_io::PollError>> {
+    fn poll(&mut self, ioid: asml_io::Ioid) -> anyhow::Result<Result<String, asml_io::PollError>> {
         match self.threader.clone().lock().unwrap().poll(ioid) {
             true => Ok(Ok("document".into())),
             false => Ok(Err(asml_io::PollError::NotReady)),
         }
     }
-    // fn poll(&mut self, ioid: asml_io::Id) -> anyhow::Result<u32> {
-    //     todo!()
-    // }
-    //
-    // fn load(&mut self, ioid: asml_io::Id) -> anyhow::Result<u32> {
-    //     todo!();
-    // }
-    //
-    // fn next(&mut self) -> anyhow::Result<u32> {
-    //     todo!();
-    // }
-    //
-    // fn len(&mut self) -> anyhow::Result<u32> {
-    //     todo!();
-    // }
+}
+
+impl<R, S> asml_rt::AsmlRt for AsmlFunctionState<R, S>
+where
+    R: RuntimeAbi + Send + 'static,
+    S: Clone + Send + Sized + 'static,
+{
+    fn success(&mut self, response: Vec<u8>) -> anyhow::Result<()> {
+        Ok(R::success(response))
+    }
+
+    fn failure(&mut self, response: Vec<u8>) -> anyhow::Result<()> {
+        Ok(R::failure(response))
+    }
+
+    fn get_input(&mut self) -> anyhow::Result<Vec<u8>> {
+        Ok(self.function_input.clone())
+    }
 }
 
 pub fn precompile(module_path: &Path, target: &str, mode: &str) -> anyhow::Result<Vec<u8>> {
@@ -397,14 +399,6 @@ pub fn precompile(module_path: &Path, target: &str, mode: &str) -> anyhow::Resul
     };
     let engine = new_engine(Some(target), Some(mode))?;
     engine.precompile_component(&*wasm_bytes)
-    // let mut module_file = match File::create(file_path.clone()) {
-    //     Ok(file) => file,
-    //     Err(err) => return Err(err.into()),
-    // };
-    // module_file.write_all(&compiled_bytes).unwrap();
-    // println!("📄 > Wrote {}", &file_path);
-    //
-    // Ok(PathBuf::from(file_path))
 }
 
 fn new_engine(target: Option<&str>, cpu_compat_mode: Option<&str>) -> anyhow::Result<Engine> {

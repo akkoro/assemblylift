@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub use wit_bindgen_guest_rust;
 
 pub use assemblylift::asml_io;
+pub use assemblylift::asml_rt;
 pub use assemblylift_core_guest_macros::handler;
 pub use wasi_command::wasi_logging;
 
@@ -22,11 +23,15 @@ pub struct FunctionContext {
 
 impl FunctionContext {
     pub fn log(message: String) {
-        // unsafe { __asml_abi_runtime_log(message.as_ptr(), message.len()) }
+        wasi_logging::log(wasi_logging::Level::Info, "Function", &message)
     }
 
     pub fn success(response: String) {
-        // unsafe { __asml_abi_runtime_success(response.as_ptr(), response.len()) }
+        assemblylift::asml_rt::success(response.as_bytes())
+    }
+
+    pub fn failure(response: String) {
+        assemblylift::asml_rt::failure(response.as_bytes())
     }
 }
 
