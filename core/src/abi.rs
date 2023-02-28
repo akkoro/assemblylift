@@ -1,4 +1,4 @@
-pub trait RuntimeAbi<S> 
+pub trait RuntimeAbi<S>
 where
     S: Clone + Send + Sized + 'static,
 {

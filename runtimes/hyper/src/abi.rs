@@ -1,8 +1,8 @@
 use tracing::{debug, error, info};
 
 use assemblylift_core::abi::RuntimeAbi;
-use assemblylift_core::Caller;
 use assemblylift_core::wasm::{State, Wasmtime};
+use assemblylift_core::Caller;
 
 use crate::Status;
 

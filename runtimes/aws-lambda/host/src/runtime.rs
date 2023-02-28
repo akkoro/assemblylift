@@ -44,7 +44,7 @@ impl AwsLambdaRuntime {
                 };
                 if let Some(last_request_id) = self.last_request_id.as_ref() {
                     if last_request_id.eq_ignore_ascii_case(&request_id) {
-                        return Err(anyhow!("already processed"))
+                        return Err(anyhow!("already processed"));
                     }
                     self.last_request_id = Some(request_id.clone());
                 }

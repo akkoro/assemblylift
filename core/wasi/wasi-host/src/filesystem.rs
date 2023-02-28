@@ -13,8 +13,8 @@ use wasi_common::{
     WasiDir, WasiFile,
 };
 
-use crate::{HostResult, wasi_filesystem, WasiCtx};
 use crate::wasi_poll::{InputStream, OutputStream};
+use crate::{wasi_filesystem, HostResult, WasiCtx};
 
 /// TODO: Remove once wasmtime #5589 lands.
 fn contains<T: BitAnd<Output = T> + Eq + Copy>(flags: T, flag: T) -> bool {

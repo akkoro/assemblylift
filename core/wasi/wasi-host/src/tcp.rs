@@ -7,12 +7,12 @@ use wasi_common::listener::TableListenerExt;
 use wasi_common::tcp_listener::TableTcpListenerExt;
 
 use crate::{
-    HostResult,
     wasi_poll::{InputStream, OutputStream},
     wasi_tcp::{
         Connection, ConnectionFlags, Errno, IoSize, IpSocketAddress, Ipv4SocketAddress,
         Ipv6SocketAddress, Listener, ListenerFlags, Network, TcpListener, WasiTcp,
-    }, WasiCtx,
+    },
+    HostResult, WasiCtx,
 };
 
 /// TODO: Remove once wasmtime #5589 lands.

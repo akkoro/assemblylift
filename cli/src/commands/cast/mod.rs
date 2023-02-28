@@ -16,9 +16,9 @@ use crate::commands::cast::rust::RustFunction;
 use crate::projectfs::Project;
 use crate::terraform;
 use crate::tools;
-use crate::transpiler::{Castable, context, toml};
 use crate::transpiler::context::Context;
 use crate::transpiler::toml::service::Function;
+use crate::transpiler::{context, toml, Castable};
 
 mod ruby;
 mod rust;
@@ -28,12 +28,12 @@ mod lang {
     use std::rc::Rc;
 
     use crate::cast::{ruby, rust};
-    use crate::commands::cast::CastableFunction;
     use crate::commands::cast::rust::RustFunction;
+    use crate::commands::cast::CastableFunction;
     use crate::projectfs::Project;
     use crate::transpiler::toml::service::Function;
 
-// pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> PathBuf {
+    // pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> PathBuf {
     //     let function_name = function.name.clone();
     //     let function_artifact_path = project
     //         .net_dir()

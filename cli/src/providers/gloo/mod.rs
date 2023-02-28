@@ -1,22 +1,22 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
-use handlebars::{Handlebars, to_json};
+use handlebars::{to_json, Handlebars};
 use itertools::Itertools;
 use jsonpath_lib::Selector;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::providers::{
-    KUBERNETES_PROVIDER_NAME, Options, Provider, ProviderError, ROUTE53_PROVIDER_NAME,
+    Options, Provider, ProviderError, KUBERNETES_PROVIDER_NAME, ROUTE53_PROVIDER_NAME,
 };
 use crate::tools::cmctl::CmCtl;
 use crate::tools::glooctl::GlooCtl;
 use crate::tools::kubectl::KubeCtl;
-use crate::transpiler::{
-    Artifact, Bindable, Bootable, Castable, CastError, ContentType, StringMap, Template,
-};
 use crate::transpiler::context::{Context, Domain, Function};
+use crate::transpiler::{
+    Artifact, Bindable, Bootable, CastError, Castable, ContentType, StringMap, Template,
+};
 
 pub struct ApiProvider {
     options: Arc<Options>,

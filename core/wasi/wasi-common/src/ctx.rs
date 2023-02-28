@@ -2,12 +2,12 @@ use cap_rand::RngCore;
 
 use crate::clocks::WasiClocks;
 use crate::dir::WasiDir;
-use crate::Error;
 use crate::file::WasiFile;
 use crate::listener::WasiListener;
 use crate::sched::WasiSched;
 use crate::stream::{InputStream, OutputStream};
 use crate::table::Table;
+use crate::Error;
 
 pub struct WasiCtx {
     pub random: Box<dyn RngCore + Send + Sync>,

@@ -10,13 +10,13 @@ use std::sync::{Arc, Mutex};
 
 use clap::crate_version;
 use once_cell::sync::Lazy;
-use tracing::{error, info, Level, warn};
+use tracing::{error, info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 use zip;
 
 use assemblylift_core::wasm::{status_channel, Wasmtime};
-use assemblylift_core_iomod::{package::IomodManifest, registry};
 use assemblylift_core_iomod::registry::registry_channel;
+use assemblylift_core_iomod::{package::IomodManifest, registry};
 use runtime::AwsLambdaRuntime;
 
 use crate::abi::{LambdaAbi, Status};
@@ -189,7 +189,11 @@ async fn main() {
 
                 let (instance, mut store) = wasmtime
                     .borrow_mut()
-                    .link_wasi_component(registry_tx.clone(), status_tx.clone(), Some(event.request_id.clone()))
+                    .link_wasi_component(
+                        registry_tx.clone(),
+                        status_tx.clone(),
+                        Some(event.request_id.clone()),
+                    )
                     .await
                     .expect("could not link wasm module");
 

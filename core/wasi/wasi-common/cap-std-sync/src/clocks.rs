@@ -1,5 +1,5 @@
-use cap_std::{ambient_authority, AmbientAuthority};
 use cap_std::time::{Duration, Instant, SystemClock};
+use cap_std::{ambient_authority, AmbientAuthority};
 use cap_time_ext::{MonotonicClockExt, SystemClockExt};
 
 use wasi_common::clocks::{WasiClocks, WasiMonotonicClock, WasiWallClock};

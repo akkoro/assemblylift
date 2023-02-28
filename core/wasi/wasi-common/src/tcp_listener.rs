@@ -3,10 +3,10 @@
 use std::any::Any;
 use std::net::SocketAddr;
 
-use crate::{InputStream, OutputStream};
 use crate::connection::WasiConnection;
 use crate::Error;
 use crate::WasiListener;
+use crate::{InputStream, OutputStream};
 
 /// A TCP socket listener.
 #[async_trait::async_trait]

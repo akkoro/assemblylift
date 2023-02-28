@@ -14,8 +14,8 @@ use std::sync::{Arc, RwLock};
 
 use system_interface::io::ReadReady;
 
-use crate::Error;
 use crate::stream::{InputStream, OutputStream};
+use crate::Error;
 
 /// A virtual pipe read end.
 ///

@@ -1,5 +1,5 @@
 use quote::{quote, quote_spanned};
-use syn::{ItemFn, parse2};
+use syn::{parse2, ItemFn};
 
 #[proc_macro_attribute]
 pub fn handler(

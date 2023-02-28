@@ -11,7 +11,7 @@ use serde::Serialize;
 use crate::projectfs::Project as ProjectFs;
 use crate::providers::{DNS_PROVIDERS, PROVIDERS};
 use crate::transpiler::{
-    Artifact, Bindable, Castable, CastError, ContentType, StringMap, Template, toml,
+    toml, Artifact, Bindable, CastError, Castable, ContentType, StringMap, Template,
 };
 
 /// `Context` is a state object, containing the configuration of a project as deserialized from the

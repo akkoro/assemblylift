@@ -1,8 +1,8 @@
 use std::any::Any;
 use std::path::PathBuf;
 
+use crate::file::{FdFlags, FileType, Filestat, OFlags, WasiFile};
 use crate::{Error, ErrorExt, SystemTimeSpec};
-use crate::file::{FdFlags, Filestat, FileType, OFlags, WasiFile};
 
 #[async_trait::async_trait]
 pub trait WasiDir: Send + Sync {

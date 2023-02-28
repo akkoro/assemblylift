@@ -7,8 +7,8 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, Context};
 pub use crossbeam_channel::bounded as status_channel;
 use once_cell::sync::Lazy;
-use wasmtime::{Caller, Config, Engine, Store};
 use wasmtime::component::{bindgen, Component, Linker};
+use wasmtime::{Caller, Config, Engine, Store};
 use wit_component::ComponentEncoder;
 
 use assemblylift_core_iomod::registry::RegistryTx;
@@ -262,7 +262,10 @@ where
     ) -> anyhow::Result<()> {
         // store.data_mut().function_input_buffer.set(input.to_vec());
         store.data_mut().function_input.clear();
-        store.data_mut().function_input.append(&mut Vec::from(input));
+        store
+            .data_mut()
+            .function_input
+            .append(&mut Vec::from(input));
         Ok(())
     }
 
@@ -326,9 +329,9 @@ where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
 {
-    pub status_sender: StatusTx<S>,
-    pub threader: ManuallyDrop<Arc<Mutex<Threader<S>>>>,
-    pub function_input: Vec<u8>,
+    status_sender: StatusTx<S>,
+    threader: ManuallyDrop<Arc<Mutex<Threader<S>>>>,
+    function_input: Vec<u8>,
     request_id: Option<String>,
     wasi: WasiCtx,
     _phantom: std::marker::PhantomData<R>,
@@ -375,11 +378,19 @@ where
     S: Clone + Send + Sized + 'static,
 {
     fn success(&mut self, response: Vec<u8>) -> anyhow::Result<()> {
-        Ok(R::success(self.status_sender.clone(), response, self.request_id.clone()))
+        Ok(R::success(
+            self.status_sender.clone(),
+            response,
+            self.request_id.clone(),
+        ))
     }
 
     fn failure(&mut self, response: Vec<u8>) -> anyhow::Result<()> {
-        Ok(R::failure(self.status_sender.clone(), response, self.request_id.clone()))
+        Ok(R::failure(
+            self.status_sender.clone(),
+            response,
+            self.request_id.clone(),
+        ))
     }
 
     fn get_input(&mut self) -> anyhow::Result<Vec<u8>> {

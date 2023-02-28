@@ -5,8 +5,8 @@ pub use subscription::{
 };
 
 use crate::clocks::WasiMonotonicClock;
-use crate::Error;
 use crate::stream::{InputStream, OutputStream};
+use crate::Error;
 
 pub mod subscription;
 

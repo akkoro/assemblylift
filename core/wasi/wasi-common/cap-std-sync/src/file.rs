@@ -6,18 +6,18 @@ use cap_fs_ext::MetadataExt;
 use fs_set_times::{SetTimes, SystemTimeSpec};
 #[cfg(windows)]
 use io_extras::os::windows::{AsHandleOrSocket, BorrowedHandleOrSocket};
+use io_lifetimes::AsFilelike;
 #[cfg(unix)]
 use io_lifetimes::{AsFd, BorrowedFd};
 #[cfg(windows)]
 use io_lifetimes::{AsHandle, BorrowedHandle};
-use io_lifetimes::AsFilelike;
 use is_terminal::IsTerminal;
 use system_interface::fs::{FileIoExt, GetSetFdFlags};
 use system_interface::io::IsReadWrite;
 
 use wasi_common::{
-    Error,
-    ErrorExt, file::{Advice, FdFlags, Filestat, FileType, WasiFile},
+    file::{Advice, FdFlags, FileType, Filestat, WasiFile},
+    Error, ErrorExt,
 };
 #[cfg(windows)]
 use windows_sys::Win32::Foundation::ERROR_ACCESS_DENIED;

@@ -12,8 +12,8 @@ use io_lifetimes::{AsHandle, BorrowedHandle};
 use system_interface::io::ReadReady;
 
 use wasi_common::{
-    Error,
-    ErrorExt, stream::{InputStream, OutputStream},
+    stream::{InputStream, OutputStream},
+    Error, ErrorExt,
 };
 
 pub struct Stdin(std::io::Stdin);

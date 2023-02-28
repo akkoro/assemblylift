@@ -139,8 +139,8 @@ pub mod service {
 
     use serde::{Deserialize, Serialize};
 
-    use crate::transpiler::StringMap;
     use crate::transpiler::toml::Provider;
+    use crate::transpiler::StringMap;
 
     #[derive(Serialize, Deserialize, Clone)]
     pub struct Manifest {

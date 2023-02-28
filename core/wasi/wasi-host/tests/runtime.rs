@@ -11,9 +11,9 @@ use wasmtime::{
     Config, Engine, Store,
 };
 
-use host::{add_to_linker, WasiCommand, WasiCtx};
 use host::wasi_filesystem::Descriptor;
 use host::wasi_poll::WasiStream;
+use host::{add_to_linker, WasiCommand, WasiCtx};
 use wasi_cap_std_sync::WasiCtxBuilder;
 use wasi_common::{
     clocks::{WasiMonotonicClock, WasiWallClock},

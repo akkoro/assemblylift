@@ -3,11 +3,11 @@ use std::time::Duration;
 
 use rustix::io::{PollFd, PollFlags};
 
-use wasi_common::{
-    Error,
-    ErrorExt, sched::{Poll, WasiSched},
-};
 use wasi_common::sched::subscription::{RwEventFlags, RwStream};
+use wasi_common::{
+    sched::{Poll, WasiSched},
+    Error, ErrorExt,
+};
 
 pub async fn poll_oneoff<'a>(poll: &mut Poll<'a>) -> Result<(), Error> {
     // Collect all stream I/O subscriptions. Clock subscriptions are handled

@@ -2,9 +2,9 @@
 
 use std::any::Any;
 
-use crate::{InputStream, OutputStream};
 use crate::connection::WasiConnection;
 use crate::Error;
+use crate::{InputStream, OutputStream};
 
 /// A socket listener.
 #[async_trait::async_trait]

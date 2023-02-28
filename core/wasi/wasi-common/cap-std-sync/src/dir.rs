@@ -6,11 +6,11 @@ use system_interface::fs::GetSetFdFlags;
 
 use wasi_common::{
     dir::{ReaddirCursor, ReaddirEntity, WasiDir},
-    Error,
-    ErrorExt, file::{FdFlags, Filestat, FileType, OFlags, WasiFile},
+    file::{FdFlags, FileType, Filestat, OFlags, WasiFile},
+    Error, ErrorExt,
 };
 
-use crate::file::{File, filetype_from, get_fd_flags};
+use crate::file::{filetype_from, get_fd_flags, File};
 
 pub struct Dir(cap_std::fs::Dir);
 

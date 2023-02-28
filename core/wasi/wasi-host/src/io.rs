@@ -1,8 +1,8 @@
 use wasi_common::stream::TableStreamExt;
 
 use crate::{
-    HostResult,
-    wasi_io::{InputStream, OutputStream, StreamError, WasiIo}, WasiCtx,
+    wasi_io::{InputStream, OutputStream, StreamError, WasiIo},
+    HostResult, WasiCtx,
 };
 
 fn convert(error: wasi_common::Error) -> anyhow::Error {

@@ -7,21 +7,21 @@ use std::sync::Arc;
 use io_extras::borrowed::BorrowedReadable;
 #[cfg(windows)]
 use io_extras::os::windows::{AsHandleOrSocket, BorrowedHandleOrSocket};
+use io_lifetimes::AsSocketlike;
 #[cfg(unix)]
 use io_lifetimes::{AsFd, BorrowedFd};
 #[cfg(windows)]
 use io_lifetimes::{AsSocket, BorrowedSocket};
-use io_lifetimes::AsSocketlike;
 use system_interface::io::IoExt;
 use system_interface::io::IsReadWrite;
 use system_interface::io::ReadReady;
 
 use wasi_common::{
     connection::{RiFlags, RoFlags, SdFlags, SiFlags, WasiConnection},
-    Error,
-    ErrorExt,
     listener::WasiListener,
-    stream::{InputStream, OutputStream}, tcp_listener::WasiTcpListener,
+    stream::{InputStream, OutputStream},
+    tcp_listener::WasiTcpListener,
+    Error, ErrorExt,
 };
 
 pub enum Listener {
