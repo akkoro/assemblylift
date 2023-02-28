@@ -1,23 +1,23 @@
 use assemblylift_core::abi::RuntimeAbi;
 use assemblylift_core::Caller;
-use assemblylift_core::wasm::{State, Wasmtime};
+use assemblylift_core::wasm::{State, StatusTx, Wasmtime};
 
-pub type Status = ();
+#[derive(Clone)]
+pub enum Status {
+    Success(String),
+    Failure(String),
+}
 
 pub struct LambdaAbi;
 
 impl RuntimeAbi<Status> for LambdaAbi {
-    fn log(mut caller: Caller<'_, State<Status>>, ptr: u32, len: u32) {
-        let s = Wasmtime::<Self, Status>::ptr_to_string(&mut caller, ptr, len).unwrap();
-        println!("LOG: {}", s);
+    fn success(status_tx: StatusTx<Status>, response: Vec<u8>) {
+        let response = std::str::from_utf8(response.as_slice()).unwrap().to_string();
+        status_tx.send(Status::Success(response)).unwrap();
     }
 
-    fn success(mut caller: Caller<'_, State<Status>>, ptr: u32, len: u32) {
-        let lambda_runtime = &crate::LAMBDA_RUNTIME;
-        let response = Wasmtime::<Self, Status>::ptr_to_string(&mut caller, ptr, len).unwrap();
-
-        let respond = lambda_runtime.respond(response);
-        let state = caller.data_mut();
-        state.threader.clone().lock().unwrap().spawn(respond);
+    fn failure(status_tx: StatusTx<Status>, response: Vec<u8>) {
+        let response = std::str::from_utf8(response.as_slice()).unwrap().to_string();
+        status_tx.send(Status::Failure(response)).unwrap();
     }
 }

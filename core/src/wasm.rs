@@ -5,6 +5,7 @@ use std::string::ToString;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
+pub use crossbeam_channel::bounded as status_channel;
 use once_cell::sync::Lazy;
 use wasmtime::{Caller, Config, Engine, Store};
 use wasmtime::component::{bindgen, Component, Linker};
@@ -88,7 +89,7 @@ where
     pub async fn link_wasi_component(
         &mut self,
         registry_tx: RegistryTx,
-        status_sender: crossbeam_channel::Sender<S>,
+        status_tx: StatusTx<S>,
     ) -> anyhow::Result<(assemblylift_wasi_host::WasiCommand, Store<State<R, S>>)> {
         let threader = ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(registry_tx))));
         let mut linker: Linker<State<R, S>> = Linker::new(&self.engine);
@@ -171,7 +172,7 @@ where
 
         let state = State {
             function_input: Vec::with_capacity(512usize),
-            status_sender,
+            status_sender: status_tx,
             threader,
             wasi,
             _phantom: Default::default(),

@@ -1,6 +1,6 @@
 use std::env;
-use std::io::{Error, ErrorKind};
 
+use anyhow::anyhow;
 use reqwest::Client;
 
 use crate::LAMBDA_REQUEST_ID;
@@ -16,6 +16,7 @@ pub struct AwsLambdaEvent {
 pub struct AwsLambdaRuntime {
     client: Client,
     api_endpoint: String,
+    last_request_id: Option<String>,
 }
 
 impl AwsLambdaRuntime {
@@ -23,10 +24,11 @@ impl AwsLambdaRuntime {
         AwsLambdaRuntime {
             client: Client::new(),
             api_endpoint: env::var("AWS_LAMBDA_RUNTIME_API").unwrap(),
+            last_request_id: None,
         }
     }
 
-    pub async fn get_next_event(&self) -> Result<AwsLambdaEvent, Error> {
+    pub async fn get_next_event(&self) -> anyhow::Result<AwsLambdaEvent> {
         let url = &format!(
             "http://{}/2018-06-01/runtime/invocation/next",
             self.api_endpoint
@@ -38,12 +40,14 @@ impl AwsLambdaRuntime {
                 let request_id = match res.headers().get("Lambda-Runtime-Aws-Request-Id") {
                     Some(request_id) => request_id.to_str().unwrap().to_string(),
                     None => {
-                        return Err(Error::new(
-                            ErrorKind::InvalidData,
-                            "missing header \"Lambda-Runtime-Aws-Request-Id\"",
-                        ))
+                        return Err(anyhow!("missing header \"Lambda-Runtime-Aws-Request-Id\""))
                     }
                 };
+                if let Some(last_request_id) = self.last_request_id.as_ref() {
+                    if last_request_id.eq_ignore_ascii_case(&request_id) {
+                        return Err(anyhow!("already processed"))
+                    }
+                }
 
                 let event_body = res.text().await.unwrap();
 
@@ -53,16 +57,11 @@ impl AwsLambdaRuntime {
                 })
             }
 
-            Err(why) => Err(Error::new(ErrorKind::Other, why.to_string())),
+            Err(why) => Err(anyhow!(why.to_string())),
         }
     }
 
-    pub async fn respond(&self, response: String) -> Result<(), Error> {
-        let request_id: String;
-        {
-            let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
-            request_id = ref_cell.borrow().clone();
-        }
+    pub async fn respond(&self, response: String, request_id: String) -> anyhow::Result<()> {
         let url = &format!(
             "http://{}/2018-06-01/runtime/invocation/{}/response",
             self.api_endpoint, request_id
@@ -71,7 +70,7 @@ impl AwsLambdaRuntime {
 
         match self.client.post(url).body(response).send().await {
             Ok(_) => Ok(()),
-            Err(why) => Err(Error::new(ErrorKind::Other, why.to_string())),
+            Err(why) => Err(anyhow!(why.to_string())),
         }
     }
 }
