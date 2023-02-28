@@ -37,7 +37,7 @@ async fn main() {
         crate_version!()
     );
 
-    let (registry_tx, mut registry_rx) = registry_channel(32);
+    let (registry_tx, registry_rx) = registry_channel(32);
     registry::spawn_registry(registry_rx).unwrap();
 
     // load IOmod packages from /opt, which should contain merged contents of Lambda layers
@@ -154,9 +154,21 @@ async fn main() {
 
     let (status_tx, status_rx) = status_channel::<Status>(1);
 
-    // TODO spawn status_rx processor
-    //      !! status needs to carry the request_id it corresponds to
+    let lambda_runtime = AwsLambdaRuntime::new();
 
+    let lrt = lambda_runtime.clone();
+    tokio::spawn(async move {
+        loop {
+            if let Ok(status) = status_rx.recv() {
+                match status {
+                    Status::Success(s) => lrt.respond(s.1, s.0.unwrap()).await.unwrap(),
+                    Status::Failure(s) => todo!(),
+                }
+            }
+        }
+    });
+
+    let mut lrt = lambda_runtime.clone();
     tokio::task::LocalSet::new()
         .run_until(async move {
             let mut full_path = PathBuf::from(&module_path);
@@ -166,10 +178,8 @@ async fn main() {
                     .expect("could not create WASM runtime from module path"),
             ));
 
-            let lambda_runtime = AwsLambdaRuntime::new();
-
             loop {
-                let event = match lambda_runtime.get_next_event().await {
+                let event = match lrt.get_next_event().await {
                     Ok(event) => event,
                     Err(err) => {
                         error!("{}", err.to_string());
@@ -179,7 +189,7 @@ async fn main() {
 
                 let (instance, mut store) = wasmtime
                     .borrow_mut()
-                    .link_wasi_component(registry_tx.clone(), status_tx.clone())
+                    .link_wasi_component(registry_tx.clone(), status_tx.clone(), Some(event.request_id.clone()))
                     .await
                     .expect("could not link wasm module");
 

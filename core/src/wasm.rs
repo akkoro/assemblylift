@@ -90,6 +90,7 @@ where
         &mut self,
         registry_tx: RegistryTx,
         status_tx: StatusTx<S>,
+        request_id: Option<String>,
     ) -> anyhow::Result<(assemblylift_wasi_host::WasiCommand, Store<State<R, S>>)> {
         let threader = ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(registry_tx))));
         let mut linker: Linker<State<R, S>> = Linker::new(&self.engine);
@@ -174,6 +175,7 @@ where
             function_input: Vec::with_capacity(512usize),
             status_sender: status_tx,
             threader,
+            request_id,
             wasi,
             _phantom: Default::default(),
         };
@@ -327,6 +329,7 @@ where
     pub status_sender: StatusTx<S>,
     pub threader: ManuallyDrop<Arc<Mutex<Threader<S>>>>,
     pub function_input: Vec<u8>,
+    request_id: Option<String>,
     wasi: WasiCtx,
     _phantom: std::marker::PhantomData<R>,
 }
@@ -372,11 +375,11 @@ where
     S: Clone + Send + Sized + 'static,
 {
     fn success(&mut self, response: Vec<u8>) -> anyhow::Result<()> {
-        Ok(R::success(self.status_sender.clone(), response))
+        Ok(R::success(self.status_sender.clone(), response, self.request_id.clone()))
     }
 
     fn failure(&mut self, response: Vec<u8>) -> anyhow::Result<()> {
-        Ok(R::failure(self.status_sender.clone(), response))
+        Ok(R::failure(self.status_sender.clone(), response, self.request_id.clone()))
     }
 
     fn get_input(&mut self) -> anyhow::Result<Vec<u8>> {

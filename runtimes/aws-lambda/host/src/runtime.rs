@@ -3,8 +3,6 @@ use std::env;
 use anyhow::anyhow;
 use reqwest::Client;
 
-use crate::LAMBDA_REQUEST_ID;
-
 // https://docs.aws.amazon.com/lambda/latest/dg/runtimes-api.html
 
 #[derive(Debug)]
@@ -13,6 +11,7 @@ pub struct AwsLambdaEvent {
     pub event_body: String,
 }
 
+#[derive(Clone)]
 pub struct AwsLambdaRuntime {
     client: Client,
     api_endpoint: String,
@@ -28,7 +27,7 @@ impl AwsLambdaRuntime {
         }
     }
 
-    pub async fn get_next_event(&self) -> anyhow::Result<AwsLambdaEvent> {
+    pub async fn get_next_event(&mut self) -> anyhow::Result<AwsLambdaEvent> {
         let url = &format!(
             "http://{}/2018-06-01/runtime/invocation/next",
             self.api_endpoint
@@ -47,6 +46,7 @@ impl AwsLambdaRuntime {
                     if last_request_id.eq_ignore_ascii_case(&request_id) {
                         return Err(anyhow!("already processed"))
                     }
+                    self.last_request_id = Some(request_id.clone());
                 }
 
                 let event_body = res.text().await.unwrap();
