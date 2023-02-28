@@ -1,6 +1,5 @@
 use assemblylift_core::abi::RuntimeAbi;
-use assemblylift_core::wasm::{State, StatusTx, Wasmtime};
-use assemblylift_core::Caller;
+use assemblylift_core::wasm::StatusTx;
 
 #[derive(Clone)]
 pub enum Status {

@@ -46,8 +46,8 @@ impl AwsLambdaRuntime {
                     if last_request_id.eq_ignore_ascii_case(&request_id) {
                         return Err(anyhow!("already processed"));
                     }
-                    self.last_request_id = Some(request_id.clone());
                 }
+                self.last_request_id = Some(request_id.clone());
 
                 let event_body = res.text().await.unwrap();
 
@@ -81,7 +81,7 @@ impl AwsLambdaRuntime {
         )
         .to_string();
 
-        match self.client.post(url).body(format!("{{\"errorMessage\":{}, \"errorType\":\"Unknown\"}}", &message)).send().await {
+        match self.client.post(url).body(format!("{{\"errorMessage\":\"{}\", \"errorType\":\"Unknown\"}}", &message)).send().await {
             Ok(_) => Ok(()),
             Err(why) => Err(anyhow!(why.to_string())),
         }
