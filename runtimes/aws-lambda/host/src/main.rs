@@ -37,10 +37,17 @@ async fn main() {
         crate_version!()
     );
 
+    let module_path = env::var("LAMBDA_TASK_ROOT").unwrap();
+    let handler_name = env::var("_HANDLER").unwrap();
+    let lambda_runtime = AwsLambdaRuntime::new();
+    let (status_tx, status_rx) = status_channel::<Status>(1);
     let (registry_tx, registry_rx) = registry_channel(32);
     registry::spawn_registry(registry_rx).unwrap();
 
-    // load IOmod packages from /opt, which should contain merged contents of Lambda layers
+    // Mapped to /tmp inside the WASM module
+    fs::create_dir_all("/tmp/asmltmp").expect("could not create /tmp/asmltmp");
+
+    // Load IOmod packages from /opt, which should contain merged contents of Lambda layers
     if let Ok(rd) = fs::read_dir("/opt") {
         for entry in rd {
             let entry = entry.unwrap();
@@ -106,12 +113,7 @@ async fn main() {
         }
     }
 
-    let module_path = env::var("LAMBDA_TASK_ROOT").unwrap();
-    let handler_name = env::var("_HANDLER").unwrap();
-
-    // Mapped to /tmp inside the WASM module
-    fs::create_dir_all("/tmp/asmltmp").expect("could not create /tmp/asmltmp");
-
+    // Copy Ruby env to /tmp
     if let Ok("ruby-lambda") = env::var("ASML_FUNCTION_ENV").as_deref() {
         let rubysrc_path = "/tmp/rubysrc";
         if !Path::new(&rubysrc_path).exists() {
@@ -152,17 +154,13 @@ async fn main() {
         );
     }
 
-    let (status_tx, status_rx) = status_channel::<Status>(1);
-
-    let lambda_runtime = AwsLambdaRuntime::new();
-
     let lrt = lambda_runtime.clone();
     tokio::spawn(async move {
         loop {
             if let Ok(status) = status_rx.recv() {
                 match status {
                     Status::Success(s) => lrt.respond(s.1, s.0.unwrap()).await.unwrap(),
-                    Status::Failure(s) => todo!(),
+                    Status::Failure(s) => lrt.error(s.1, s.0.unwrap()).await.unwrap(),
                 }
             }
         }

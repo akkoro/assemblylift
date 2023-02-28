@@ -73,4 +73,17 @@ impl AwsLambdaRuntime {
             Err(why) => Err(anyhow!(why.to_string())),
         }
     }
+
+    pub async fn error(&self, message: String, request_id: String) -> anyhow::Result<()> {
+        let url = &format!(
+            "http://{}/2018-06-01/runtime/invocation/{}/error",
+            self.api_endpoint, request_id
+        )
+        .to_string();
+
+        match self.client.post(url).body(format!("{{\"errorMessage\":{}, \"errorType\":\"Unknown\"}}", &message)).send().await {
+            Ok(_) => Ok(()),
+            Err(why) => Err(anyhow!(why.to_string())),
+        }
+    }
 }
