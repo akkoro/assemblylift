@@ -13,64 +13,6 @@ pub trait PagedWasmBuffer {
     fn next(&mut self, offset: usize) -> Vec<BufferElement>;
 }
 
-pub struct FunctionInputBuffer {
-    buffer: Vec<u8>,
-    page_idx: usize,
-}
-
-impl FunctionInputBuffer {
-    pub fn new() -> Self {
-        Self {
-            buffer: Vec::new(),
-            page_idx: 0usize,
-        }
-    }
-
-    pub fn set(&mut self, buffer: Vec<u8>) {
-        self.buffer = buffer;
-    }
-
-    pub fn len(&self) -> usize {
-        self.buffer.len()
-    }
-}
-
-impl PagedWasmBuffer for FunctionInputBuffer {
-    fn first(&mut self, _buffer_id: usize, offset: usize) -> Vec<BufferElement> {
-        let end: usize = match self.buffer.len() < FUNCTION_INPUT_BUFFER_SIZE {
-            true => self.buffer.len(),
-            false => FUNCTION_INPUT_BUFFER_SIZE,
-        };
-        self.page_idx = 0usize;
-
-        let mut out: Vec<BufferElement> = Vec::with_capacity(end);
-        for (i, b) in self.buffer[0..end].iter().enumerate() {
-            let idx = i + offset;
-            out.push((idx, *b));
-        }
-        out
-    }
-
-    fn next(&mut self, offset: usize) -> Vec<BufferElement> {
-        use std::cmp::min;
-
-        let start = FUNCTION_INPUT_BUFFER_SIZE * self.page_idx;
-        let end = min(
-            FUNCTION_INPUT_BUFFER_SIZE * (self.page_idx + 1),
-            self.buffer.len(),
-        );
-        let mut out: Vec<BufferElement> = Vec::with_capacity(end);
-        if self.buffer.len() > FUNCTION_INPUT_BUFFER_SIZE {
-            self.page_idx += 1;
-            for (i, b) in self.buffer[start..end].iter().enumerate() {
-                let idx = i + offset;
-                out.push((idx, *b));
-            }
-        }
-        out
-    }
-}
-
 pub struct IoBuffer {
     active_buffer: usize,
     buffers: HashMap<usize, Vec<u8>>,

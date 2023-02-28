@@ -47,7 +47,12 @@ where
     pub fn new_from_path(module_path: &Path) -> anyhow::Result<Self> {
         let m = match module_path.extension().unwrap().to_str().unwrap() {
             "bin" => {
-                let engine = new_engine(Some("x86_64-apple-darwin"), None)?;
+                let target = match std::env::consts::OS {
+                    "macos" => Some("x86_64-apple-darwin"),
+                    "linux" => Some("x86_64-linux-gnu"),
+                    _ => None,
+                };
+                let engine = new_engine(target, None)?;
                 let module = unsafe { Component::deserialize_file(&engine, module_path) };
                 (engine, module)
             }
