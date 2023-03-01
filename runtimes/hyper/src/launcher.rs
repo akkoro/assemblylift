@@ -2,32 +2,41 @@ use std::collections::BTreeMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
 
-use crossbeam_channel::bounded;
-use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
+use hyper::service::{make_service_fn, service_fn};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
 
-use crate::Status::Exited;
-use crate::{Failure, RunnerMessage, RunnerTx, StatusRx, StatusTx, Success};
+use assemblylift_core::wasm::{status_channel, StatusRx};
 
-pub struct Launcher {
+use crate::{Failure, RunnerMessage, RunnerTx, Status, StatusTx, Success};
+use crate::Status::Exited;
+
+pub struct Launcher<S>
+where
+    S: Clone + Send + Sized + 'static,
+{
     runtime: tokio::runtime::Runtime,
+    _phantom: std::marker::PhantomData<S>,
 }
 
-impl Launcher {
+impl Launcher<Status> {
     pub fn new() -> Self {
         Self {
-            runtime: tokio::runtime::Runtime::new().unwrap(),
+            runtime: tokio::runtime::Builder::new_current_thread()
+                .enable_io()
+                .build()
+                .unwrap(),
+            _phantom: std::marker::PhantomData::default(),
         }
     }
 
-    pub fn spawn(&mut self, runner_tx: RunnerTx) {
+    pub fn spawn(&mut self, runner_tx: RunnerTx<Status>) {
         info!("Spawning launcher");
         tokio::task::LocalSet::new().block_on(&self.runtime, async {
             let make_svc = make_service_fn(|_| {
                 debug!("called make_service_fn");
-                let channel = bounded(32);
+                let channel = status_channel(32);
                 let runner_tx = runner_tx.clone();
                 let tx = channel.0.clone();
                 let rx = channel.1.clone();
@@ -49,9 +58,9 @@ impl Launcher {
 
 async fn launch(
     req: Request<Body>,
-    runner_tx: RunnerTx,
-    status_tx: StatusTx,
-    status_rx: StatusRx,
+    runner_tx: RunnerTx<Status>,
+    status_tx: StatusTx<Status>,
+    status_rx: StatusRx<Status>,
 ) -> Result<Response<Body>, Infallible> {
     debug!("launching function...");
     let method = req.method().to_string();

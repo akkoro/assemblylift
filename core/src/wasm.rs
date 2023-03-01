@@ -7,8 +7,8 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, Context};
 pub use crossbeam_channel::bounded as status_channel;
 use once_cell::sync::Lazy;
-use wasmtime::component::{bindgen, Component, Linker};
 use wasmtime::{Caller, Config, Engine, Store};
+use wasmtime::component::{bindgen, Component, Linker};
 use wit_component::ComponentEncoder;
 
 use assemblylift_core_iomod::registry::RegistryTx;
@@ -21,6 +21,7 @@ use crate::threader::Threader;
 pub type BufferElement = (usize, u8);
 pub type State<R, S> = AsmlFunctionState<R, S>;
 pub type StatusTx<S> = crossbeam_channel::Sender<S>;
+pub type StatusRx<S> = crossbeam_channel::Receiver<S>;
 
 pub static CPU_COMPAT_MODE: Lazy<String> =
     Lazy::new(|| std::env::var("ASML_CPU_COMPAT_MODE").unwrap_or("default".to_string()));

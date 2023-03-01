@@ -81,7 +81,16 @@ impl AwsLambdaRuntime {
         )
         .to_string();
 
-        match self.client.post(url).body(format!("{{\"errorMessage\":\"{}\", \"errorType\":\"Unknown\"}}", &message)).send().await {
+        match self
+            .client
+            .post(url)
+            .body(format!(
+                "{{\"errorMessage\":\"{}\", \"errorType\":\"Unknown\"}}",
+                &message
+            ))
+            .send()
+            .await
+        {
             Ok(_) => Ok(()),
             Err(why) => Err(anyhow!(why.to_string())),
         }
