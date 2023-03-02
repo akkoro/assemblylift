@@ -4,10 +4,11 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{debug, info};
 
-use assemblylift_core::wasm::Wasmtime;
+use assemblylift_core::wasm::{StatusTx, Wasmtime};
 use assemblylift_core_iomod::registry::RegistryTx;
 
-use crate::{Abi, Status, StatusTx};
+use crate::abi::Abi;
+use crate::Status;
 
 pub type RunnerTx<S> = mpsc::Sender<RunnerMessage<S>>;
 pub type RunnerRx<S> = mpsc::Receiver<RunnerMessage<S>>;

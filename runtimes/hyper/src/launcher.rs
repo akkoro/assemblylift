@@ -7,10 +7,11 @@ use hyper::service::{make_service_fn, service_fn};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
 
-use assemblylift_core::wasm::{status_channel, StatusRx};
+use assemblylift_core::wasm::{status_channel, StatusRx, StatusTx};
 
-use crate::{Failure, RunnerMessage, RunnerTx, Status, StatusTx, Success};
-use crate::Status::Exited;
+use crate::runner::{RunnerMessage, RunnerTx};
+use crate::Status;
+use crate::Status::{Exited, Failure, Success};
 
 pub struct Launcher<S>
 where
