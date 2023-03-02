@@ -109,6 +109,8 @@ where
         // }
         assemblylift_wasi_host::add_to_linker(&mut linker, |s| &mut s.wasi)
             .expect("TODO: panic message");
+        Assemblylift::add_to_linker(&mut linker, |s| s)
+            .expect("could not add assemblylift runtime component");
         // env vars prefixed with __ASML_ are defined in the function definition;
         // the prefix indicates that they are to be mapped to the module environment
         let envs: Vec<(String, String)> = Vec::from_iter(

@@ -18,11 +18,12 @@ pub mod assemblylift;
 pub mod wasi_command;
 
 pub struct FunctionContext {
-    pub input: String,
+    pub input: Vec<u8>,
 }
 
 impl FunctionContext {
     pub fn log(message: String) {
+        // TODO context should be the module name if possible
         wasi_logging::log(wasi_logging::Level::Info, "Function", &message)
     }
 

@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use hyper::{Body, Request, Response, Server};
 use hyper::service::{make_service_fn, service_fn};
@@ -72,14 +73,16 @@ async fn launch(
     let input_bytes = hyper::body::to_bytes(req.into_body()).await.unwrap();
     let launcher_req = LauncherRequest {
         method,
-        headers,
+        headers: headers.clone(),
         body_encoding: "base64".into(),
         body: Some(base64::encode(input_bytes.as_ref())),
     };
 
+    let wasm_path = (*headers.get("x-assemblylift-wasm-path").unwrap()).clone();
     let msg = RunnerMessage {
         input: serde_json::to_vec(&launcher_req).unwrap(),
         status_sender: status_tx.clone(),
+        wasm_path: PathBuf::from(wasm_path),
     };
 
     debug!("sending runner request...");
