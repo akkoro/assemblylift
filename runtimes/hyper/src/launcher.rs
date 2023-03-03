@@ -1,12 +1,14 @@
 use std::collections::BTreeMap;
-use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::str::FromStr;
 
+use anyhow::anyhow;
 use hyper::{Body, Request, Response, Server};
 use hyper::service::{make_service_fn, service_fn};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
+use url::Url;
 
 use assemblylift_core::wasm::{status_channel, StatusRx, StatusTx};
 
@@ -36,14 +38,15 @@ impl Launcher<Status> {
     pub fn spawn(&mut self, runner_tx: RunnerTx<Status>) {
         info!("Spawning launcher");
         tokio::task::LocalSet::new().block_on(&self.runtime, async {
+            let channel = status_channel(32);
+
             let make_svc = make_service_fn(|_| {
                 debug!("called make_service_fn");
-                let channel = status_channel(32);
                 let runner_tx = runner_tx.clone();
                 let tx = channel.0.clone();
                 let rx = channel.1.clone();
                 async {
-                    Ok::<_, Infallible>(service_fn(move |req| {
+                    Ok::<_, anyhow::Error>(service_fn(move |req| {
                         launch(req, runner_tx.clone(), tx.clone(), rx.clone())
                     }))
                 }
@@ -63,13 +66,14 @@ async fn launch(
     runner_tx: RunnerTx<Status>,
     status_tx: StatusTx<Status>,
     status_rx: StatusRx<Status>,
-) -> Result<Response<Body>, Infallible> {
+) -> anyhow::Result<Response<Body>> {
     debug!("launching function...");
     let method = req.method().to_string();
     let mut headers = BTreeMap::new();
     for h in req.headers().iter() {
         headers.insert(h.0.as_str().to_string(), h.1.to_str().unwrap().to_string());
     }
+    // FIXME cap input length to limit DoS attacks
     let input_bytes = hyper::body::to_bytes(req.into_body()).await.unwrap();
     let launcher_req = LauncherRequest {
         method,
@@ -78,17 +82,22 @@ async fn launch(
         body: Some(base64::encode(input_bytes.as_ref())),
     };
 
-    let wasm_path = (*headers.get("x-assemblylift-wasm-path").unwrap()).clone();
+    let wasm_uri = Url::from_str(&**headers.get("x-assemblylift-wasm-uri").unwrap())
+        .map_err(|e| anyhow!(e))?;
+    if !wasm_uri.scheme().eq_ignore_ascii_case("file") {
+        unimplemented!("{} scheme not yet supported", wasm_uri.scheme());
+    }
     let msg = RunnerMessage {
         input: serde_json::to_vec(&launcher_req).unwrap(),
         status_sender: status_tx.clone(),
-        wasm_path: PathBuf::from(wasm_path),
+        wasm_path: PathBuf::from(wasm_uri.path()),
     };
 
     debug!("sending runner request...");
-    if let Err(e) = runner_tx.send(msg).await {
-        error!("could not send to runner: {}", e.to_string())
-    }
+    runner_tx
+        .send(msg)
+        .await
+        .map_err(|e| anyhow!("could not send to runner: {}", e.to_string()))?;
 
     debug!("waiting for runner response...");
     while let Ok(result) = status_rx.recv() {

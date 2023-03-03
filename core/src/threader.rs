@@ -18,7 +18,6 @@ pub type IoId = u32;
 pub struct Threader<S> {
     io_memory: Arc<Mutex<IoMemory>>,
     registry_tx: RegistryTx,
-    runtime: tokio::runtime::Runtime,
     _phantom: std::marker::PhantomData<S>,
 }
 
@@ -31,7 +30,6 @@ where
         Threader {
             io_memory: Arc::new(Mutex::new(IoMemory::new())),
             registry_tx: tx,
-            runtime: tokio::runtime::Runtime::new().unwrap(),
             _phantom: std::marker::PhantomData::default(),
         }
     }
@@ -113,36 +111,27 @@ where
         let registry_tx = self.registry_tx.clone();
         let (local_tx, mut local_rx) = mpsc::channel(100);
 
-        let hnd = self.runtime.handle().clone();
-        hnd.spawn(async move {
-            tokio::spawn(async move {
-                registry_tx
-                    .send(RegistryChannelMessage {
-                        iomod_coords,
-                        method_name,
-                        payload_type: "IOMOD_REQUEST",
-                        payload: method_input,
-                        responder: Some(local_tx.clone()),
-                    })
-                    .await
-                    .unwrap();
-            });
-
-            tokio::spawn(async move {
-                if let Some(response) = local_rx.recv().await {
-                    io_memory
-                        .lock()
-                        .unwrap()
-                        .handle_response(response.payload, ioid);
-                }
-            });
+        tokio::spawn(async move {
+            registry_tx
+                .send(RegistryChannelMessage {
+                    iomod_coords,
+                    method_name,
+                    payload_type: "IOMOD_REQUEST",
+                    payload: method_input,
+                    responder: Some(local_tx.clone()),
+                })
+                .await
+                .unwrap();
         });
-    }
 
-    /// Spawn a Future on the Threader tokio runtime
-    pub fn spawn(&self, future: impl Future<Output = Result<(), std::io::Error>> + Send + 'static) {
-        let hnd = self.runtime.handle();
-        hnd.spawn(future);
+        tokio::spawn(async move {
+            if let Some(response) = local_rx.recv().await {
+                io_memory
+                    .lock()
+                    .unwrap()
+                    .handle_response(response.payload, ioid);
+            }
+        });
     }
 
     /// Clear the IO memory.

@@ -98,7 +98,7 @@ where
         status_tx: StatusTx<S>,
         request_id: Option<String>,
     ) -> anyhow::Result<(assemblylift_wasi_host::WasiCommand, Store<State<R, S>>)> {
-        let threader = ManuallyDrop::new(Arc::new(Mutex::new(Threader::new(registry_tx))));
+        let threader = Arc::new(Mutex::new(Threader::new(registry_tx)));
         let mut linker: Linker<State<R, S>> = Linker::new(&self.engine);
 
         // FIXME this might be confusingly named (confused with the function env vars)
@@ -338,7 +338,7 @@ where
     S: Clone + Send + Sized + 'static,
 {
     status_sender: StatusTx<S>,
-    threader: ManuallyDrop<Arc<Mutex<Threader<S>>>>,
+    threader: Arc<Mutex<Threader<S>>>,
     function_input: Vec<u8>,
     request_id: Option<String>,
     wasi: WasiCtx,

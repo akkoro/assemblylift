@@ -50,25 +50,27 @@ impl Runner<Status> {
     pub fn spawn<'a>(&mut self) {
         info!("Spawning runner");
         tokio::task::LocalSet::new().block_on(&self.runtime, async {
-            let mut functions: BTreeMap<PathBuf, Rc<RefCell<Wasmtime::<Abi, Status>>>> = BTreeMap::new();
+            let mut functions: BTreeMap<PathBuf, Rc<RefCell<Wasmtime<Abi, Status>>>> =
+                BTreeMap::new();
 
             while let Some(msg) = self.channel.1.recv().await {
                 debug!("received runner message");
 
-                let wasmtime = match functions.contains_key(&*msg.wasm_path.clone()) {
-                     false => {
-                         let wt = Rc::new(RefCell::new(
-                             Wasmtime::<Abi, Status>::new_from_path(
-                                 msg.wasm_path.as_ref(),
-                             )
-                             .expect("could not create WASM runtime from module path"),
-                         ));
-                         functions.insert(msg.wasm_path.clone(), wt.clone());
-                         wt
-                     }
-                    true => {
-                        functions.get(&*msg.wasm_path.clone()).unwrap().clone()
+                let wasm_path = match std::env::var("ASML_WASM_MODULE_NAME") {
+                    Ok(module_name) => PathBuf::from(format!("/opt/assemblylift/{}", module_name)),
+                    Err(_) => msg.wasm_path.clone(),
+                };
+
+                let wasmtime = match functions.contains_key(&*wasm_path) {
+                    false => {
+                        let wt = Rc::new(RefCell::new(
+                            Wasmtime::<Abi, Status>::new_from_path(wasm_path.as_ref())
+                                .expect("could not create WASM runtime from module path"),
+                        ));
+                        functions.insert(wasm_path, wt.clone());
+                        wt
                     }
+                    true => functions.get(&*wasm_path).unwrap().clone(),
                 };
 
                 let (instance, mut store) = wasmtime
