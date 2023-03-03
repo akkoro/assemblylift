@@ -54,7 +54,7 @@ where
     }
 
     /// Invoke the IOmod call at `method_path` with `method_input`, and assign it id `ioid`.
-    /// A task is spawned on the Threader's tokio runtime which runs until the IOmod call responds.
+    /// A task is spawned on the tokio runtime which runs until the IOmod call responds.
     pub fn invoke(&mut self, method_path: &str, method_input: Vec<u8>, ioid: IoId) {
         let io_memory = self.io_memory.clone();
 
@@ -91,15 +91,6 @@ where
             }
         });
     }
-}
-
-#[derive(Clone)]
-/// IoMemoryDocument represents a segment of memory in an IO buffer, belonging to an IOmod call.
-pub struct IoMemoryDocument {
-    /// Starting byte offset into the buffer
-    pub start: usize,
-    /// Length in bytes of the document
-    pub length: usize,
 }
 
 struct IoMemory {

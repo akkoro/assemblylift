@@ -135,7 +135,8 @@ impl CastableFunction for RustFunction {
         todo!()
     }
 
-    // TODO don't love the use of format! everywhere to make the artifact path
+    // TODO don't love the use of format!() everywhere here to make the artifact path
+    //      use projectfs instead
     fn precompile(&self) {
         println!("⚡️ > Precompiling function `{}`...", &self.function_name);
         let path = format!("{}/{}.wasm", &self.net_path, &self.function_name);
