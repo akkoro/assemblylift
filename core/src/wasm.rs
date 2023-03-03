@@ -34,7 +34,6 @@ where
     S: Clone + Send + Sized + 'static,
 {
     engine: Engine,
-    // module: Module,
     component: Component,
     _phantom_r: std::marker::PhantomData<R>,
     _phantom_s: std::marker::PhantomData<S>,
@@ -79,19 +78,6 @@ where
         }
     }
 
-    // pub fn new_from_bytes(module_bytes: &[u8]) -> anyhow::Result<Self> {
-    //     let engine = new_engine(Some("x86_64-linux-gnu"), None)?;
-    //     match unsafe { Module::deserialize(&engine, module_bytes) } {
-    //         Ok(module) => Ok(Self {
-    //             engine,
-    //             module,
-    //             _phantom_r: Default::default(),
-    //             _phantom_s: Default::default(),
-    //         }),
-    //         Err(err) => Err(anyhow!(err)),
-    //     }
-    // }
-
     pub async fn link_wasi_component(
         &mut self,
         registry_tx: RegistryTx,
@@ -104,9 +90,6 @@ where
         // FIXME this might be confusingly named (confused with the function env vars)
         let function_env = std::env::var("ASML_FUNCTION_ENV").unwrap_or("default".into());
 
-        // if let Err(err) = wasmtime_wasi::add_to_linker(&mut linker, |s| &mut s.wasi) {
-        //     return Err(anyhow!(err));
-        // }
         assemblylift_wasi_host::add_to_linker(&mut linker, |s| &mut s.wasi)
             .expect("TODO: panic message");
         Assemblylift::add_to_linker(&mut linker, |s| s)
@@ -189,68 +172,6 @@ where
         };
         let mut store = Store::new(&self.engine, state);
 
-        // linker
-        //     .func_wrap("env", "__asml_abi_runtime_log", R::log)
-        //     .unwrap();
-        // linker
-        //     .func_wrap("env", "__asml_abi_runtime_success", R::success)
-        //     .unwrap();
-        // linker
-        //     .func_wrap("env", "__asml_abi_invoke", asml_abi_io_invoke::<R, S>)
-        //     .unwrap();
-        // linker
-        //     .func_wrap("env", "__asml_abi_io_invoke", asml_abi_io_invoke::<R, S>)
-        //     .unwrap();
-        // linker
-        //     .func_wrap("env", "__asml_abi_io_poll", asml_abi_io_poll::<S>)
-        //     .unwrap();
-        // linker
-        //     .func_wrap("env", "__asml_abi_io_len", asml_abi_io_len::<S>)
-        //     .unwrap();
-        // linker
-        //     .func_wrap("env", "__asml_abi_io_load", asml_abi_io_load::<S>)
-        //     .unwrap();
-        // linker
-        //     .func_wrap("env", "__asml_abi_io_next", asml_abi_io_next::<S>)
-        //     .unwrap();
-        // linker
-        //     .func_wrap("env", "__asml_abi_clock_time_get", asml_abi_clock_time_get)
-        //     .unwrap();
-        // linker
-        //     .func_wrap("env", "__asml_abi_input_start", asml_abi_input_start)
-        //     .unwrap();
-        // linker
-        //     .func_wrap("env", "__asml_abi_input_next", asml_abi_input_next)
-        //     .unwrap();
-        // linker
-        //     .func_wrap(
-        //         "env",
-        //         "__asml_abi_input_length_get",
-        //         asml_abi_input_length_get,
-        //     )
-        //     .unwrap();
-        //
-        // match linker.instantiate(&mut store, &self.component) {
-        //     Ok(instance) => {
-        //         let get_ptr = instance
-        //             .get_export(&mut store, "__asml_guest_get_io_buffer_pointer")
-        //             .unwrap()
-        //             .into_func()
-        //             .unwrap();
-        //         store.data_mut().io_buffer_ptr = Some(get_ptr);
-        //
-        //         let get_ptr = instance
-        //             .get_export(&mut store, "__asml_guest_get_function_input_buffer_pointer")
-        //             .unwrap()
-        //             .into_func()
-        //             .unwrap();
-        //         store.data_mut().function_input_buffer_ptr = Some(get_ptr);
-        //
-        //         Ok((instance, store))
-        //     }
-        //     Err(err) => Err(anyhow!(err)),
-        // }
-
         match assemblylift_wasi_host::WasiCommand::instantiate_async(
             &mut store,
             &self.component,
@@ -282,16 +203,6 @@ where
         wasi: assemblylift_wasi_host::WasiCommand,
         mut store: &mut Store<State<R, S>>,
     ) -> anyhow::Result<()> {
-        // match instance
-        //     .get_func(&mut store, "_start")
-        //     .expect("could not find default function")
-        //     .typed::<(), (), _>(&mut store)
-        //     .expect("invalid default function signature")
-        //     .call(&mut store, ())
-        // {
-        //     Ok(_) => Ok(()),
-        //     Err(trap) => Err(trap.into()),
-        // }
         wasi.call_command(
             &mut store,
             0 as assemblylift_wasi_host::wasi_io::InputStream,
@@ -302,33 +213,6 @@ where
         )
         .await?
         .map_err(|()| anyhow::anyhow!("command returned with failing exit status"))
-    }
-
-    pub fn ptr_to_string(
-        caller: &mut Caller<'_, State<R, S>>,
-        ptr: u32,
-        len: u32,
-    ) -> anyhow::Result<String> {
-        let bytes = Self::ptr_to_bytes(caller, ptr, len).unwrap();
-        let s = std::str::from_utf8(&bytes).unwrap();
-        Ok(s.into())
-    }
-
-    pub fn ptr_to_bytes(
-        caller: &mut Caller<'_, State<R, S>>,
-        ptr: u32,
-        len: u32,
-    ) -> anyhow::Result<Vec<u8>> {
-        let memory = caller
-            .get_export("memory")
-            .expect("could not find the default memory export named \"memory\"")
-            .into_memory()
-            .unwrap();
-        let mut buffer: Vec<u8> = vec![0; len as usize];
-        match memory.read(&caller, ptr as usize, &mut buffer) {
-            Ok(_) => Ok(buffer),
-            Err(err) => Err(err.into()),
-        }
     }
 }
 

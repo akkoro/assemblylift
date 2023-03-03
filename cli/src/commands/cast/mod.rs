@@ -16,44 +16,12 @@ use crate::commands::cast::rust::RustFunction;
 use crate::projectfs::Project;
 use crate::terraform;
 use crate::tools;
+use crate::transpiler::{Castable, context, toml};
 use crate::transpiler::context::Context;
 use crate::transpiler::toml::service::Function;
-use crate::transpiler::{context, toml, Castable};
 
 mod ruby;
 mod rust;
-
-mod lang {
-    use std::path::PathBuf;
-    use std::rc::Rc;
-
-    use crate::cast::{ruby, rust};
-    use crate::commands::cast::rust::RustFunction;
-    use crate::commands::cast::CastableFunction;
-    use crate::projectfs::Project;
-    use crate::transpiler::toml::service::Function;
-
-    // pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> PathBuf {
-    //     let function_name = function.name.clone();
-    //     let function_artifact_path = project
-    //         .net_dir()
-    //         .service_dir(service_name)
-    //         .function_dir(function_name)
-    //         .into_os_string()
-    //         .into_string()
-    //         .unwrap();
-    //     std::fs::create_dir_all(PathBuf::from(function_artifact_path.clone())).expect(&*format!(
-    //         "unable to create path {}",
-    //         function_artifact_path
-    //     ));
-    //
-    //     match function.language.clone().unwrap_or("rust".into()).as_str() {
-    //         "rust" => rust::compile(project, service_name, function),
-    //         "ruby" => ruby::compile(project, service_name, function),
-    //         _ => panic!("unsupported function language"),
-    //     }
-    // }
-}
 
 pub trait CastableFunction {
     fn compile(&self, wasi_snapshot_preview1: Vec<u8>);
@@ -83,11 +51,6 @@ pub fn command(matches: Option<&ArgMatches>) {
         Context::from_project(project.clone(), asml_manifest)
             .expect("could not make context from manifest"),
     );
-
-    // Fetch WASI adapter
-    // let wasi_snapshot_preview1 = tools::download_to_bytes(
-    //     "https://github.com/bytecodealliance/preview2-prototyping/releases/download/latest/wasi_snapshot_preview1.command.wasm",
-    // ).unwrap();
 
     let wasi_snapshot_preview1 = include_bytes!("wasm/wasi_snapshot_preview1.wasm");
 
