@@ -3,15 +3,13 @@
 //! See [core-threader doc](../../docs/core-threader.md) for more details.
 
 use std::collections::HashMap;
-use std::future::Future;
 use std::sync::{Arc, Mutex};
 
 use tokio::sync::mpsc;
 
 use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
-use crate::buffers::{IoBuffer, PagedWasmBuffer};
-use crate::wasm::BufferElement;
+use crate::buffers::IoBuffer;
 
 pub type IoId = u32;
 
@@ -42,56 +40,16 @@ where
         }
     }
 
-    /// Fetch the memory document associated with `ioid`
-    pub fn get_io_memory_document(&mut self, ioid: IoId) -> Option<IoMemoryDocument> {
-        match self.io_memory.clone().lock() {
-            Ok(memory) => match memory.document_map.get(&ioid) {
-                Some(doc) => Some(doc.clone()),
-                None => None,
-            },
-            Err(_) => None,
-        }
-    }
-
-    /// Load the memory document associated with `ioid` into the guest IO memory
-    pub fn document_load(
-        &mut self,
-        memory_offset: usize,
-        ioid: IoId,
-    ) -> anyhow::Result<Vec<BufferElement>> {
-        let doc = self.get_io_memory_document(ioid).unwrap();
-        let data = self
-            .io_memory
-            .lock()
-            .unwrap()
-            .buffer
-            .first(doc.start, memory_offset);
-        Ok(data)
-    }
-
-    /// Advance the guest IO memory to the next page
-    pub fn document_next(&mut self, memory_offset: usize) -> anyhow::Result<Vec<BufferElement>> {
-        let data = self.io_memory.lock().unwrap().buffer.next(memory_offset);
-        Ok(data)
-    }
-
     /// Poll the runtime for the completion status of call associated with `ioid`
-    pub fn poll(&mut self, ioid: IoId) -> bool {
+    pub fn poll(&mut self, ioid: IoId) -> Option<Vec<u8>> {
         match self.io_memory.clone().lock() {
             Ok(memory) => {
                 match memory.poll(ioid) {
-                    true => {
-                        // At this point, the document "contents" have already been written to the WASM buffer
-                        //    and are read on the guest side immediately after poll() exits.
-                        // We can free the host-side memory structure here.
-
-                        //                        memory.free(ioid);
-                        true
-                    }
-                    false => false,
+                    true => Some(memory.buffer.get(ioid as usize)),
+                    false => None,
                 }
             }
-            Err(_) => false,
+            Err(_) => None,
         }
     }
 
@@ -133,15 +91,6 @@ where
             }
         });
     }
-
-    /// Clear the IO memory.
-    /// This should NOT be called while any calls are still in-flight.
-    /// Intended for use preparing the environment for a subsequent handler execution.
-    pub fn __reset_memory(&self) {
-        if let Ok(mut memory) = self.io_memory.clone().lock() {
-            memory.reset();
-        }
-    }
 }
 
 #[derive(Clone)]
@@ -156,7 +105,6 @@ pub struct IoMemoryDocument {
 struct IoMemory {
     next_id: IoId,
     buffer: IoBuffer,
-    document_map: HashMap<IoId, IoMemoryDocument>,
     io_status: HashMap<IoId, bool>,
 }
 
@@ -165,16 +113,8 @@ impl IoMemory {
         IoMemory {
             next_id: 1, // id 0 is reserved (null)
             buffer: IoBuffer::new(),
-            document_map: Default::default(),
             io_status: Default::default(),
         }
-    }
-
-    fn reset(&mut self) {
-        self.next_id = 1;
-        self.buffer = IoBuffer::new();
-        self.document_map.clear();
-        self.io_status.clear();
     }
 
     fn next_id(&mut self) -> Option<IoId> {
@@ -194,12 +134,5 @@ impl IoMemory {
     fn handle_response(&mut self, response: Vec<u8>, ioid: IoId) {
         self.buffer.set(ioid as usize, response.clone());
         self.io_status.insert(ioid, true);
-        self.document_map.insert(
-            ioid,
-            IoMemoryDocument {
-                start: ioid as usize,
-                length: response.len(),
-            },
-        );
     }
 }

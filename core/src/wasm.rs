@@ -1,5 +1,4 @@
 use std::iter::FromIterator;
-use std::mem::ManuallyDrop;
 use std::path::Path;
 use std::string::ToString;
 use std::sync::{Arc, Mutex};
@@ -7,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, Context};
 pub use crossbeam_channel::bounded as status_channel;
 use once_cell::sync::Lazy;
-use wasmtime::{Caller, Config, Engine, Store};
+use wasmtime::{Config, Engine, Store};
 use wasmtime::component::{bindgen, Component, Linker};
 use wit_component::ComponentEncoder;
 
@@ -18,7 +17,6 @@ use assemblylift_wasi_common::WasiCtx;
 use crate::abi::*;
 use crate::threader::Threader;
 
-pub type BufferElement = (usize, u8);
 pub type State<R, S> = AsmlFunctionState<R, S>;
 pub type StatusTx<S> = crossbeam_channel::Sender<S>;
 pub type StatusRx<S> = crossbeam_channel::Receiver<S>;
@@ -256,10 +254,10 @@ where
         Ok(Ok(ioid as asml_io::Ioid))
     }
 
-    fn poll(&mut self, ioid: asml_io::Ioid) -> anyhow::Result<Result<String, asml_io::PollError>> {
+    fn poll(&mut self, ioid: asml_io::Ioid) -> anyhow::Result<Result<Vec<u8>, asml_io::PollError>> {
         match self.threader.clone().lock().unwrap().poll(ioid) {
-            true => Ok(Ok("document".into())),
-            false => Ok(Err(asml_io::PollError::NotReady)),
+            Some(response) => Ok(Ok(response)),
+            None => Ok(Err(asml_io::PollError::NotReady)),
         }
     }
 }

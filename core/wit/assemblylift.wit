@@ -13,7 +13,7 @@ interface assemblylift-io {
   }
 
   invoke: func(path: string, input: string) -> result<ioid, io-error>
-  poll: func(ioid: ioid) -> result<string, poll-error>
+  poll: func(ioid: ioid) -> result<list<u8>, poll-error>
 }
 
 interface assemblylift-function-runtime {
