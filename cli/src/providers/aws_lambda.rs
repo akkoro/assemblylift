@@ -7,16 +7,22 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use handlebars::{Handlebars, to_json};
+use handlebars::{to_json, Handlebars};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use registry_common::models::GetIomodAtResponse;
 use serde::Serialize;
 
 use crate::archive;
-use crate::providers::{AWS_LAMBDA_PROVIDER_NAME, DNS_PROVIDERS, flatten, LockBox, Options, Provider, ProviderError, ProviderMap, render_string_list, render_string_map};
-use crate::transpiler::{Artifact, Bindable, Bootable, Castable, CastError, ContentType, context, StringMap, Template};
+use crate::providers::{
+    flatten, render_string_list, render_string_map, LockBox, Options, Provider, ProviderError,
+    ProviderMap, AWS_LAMBDA_PROVIDER_NAME, DNS_PROVIDERS,
+};
+use crate::tools;
 use crate::transpiler::context::{Context, Function};
+use crate::transpiler::{
+    context, Artifact, Bindable, Bootable, CastError, Castable, ContentType, StringMap, Template,
+};
 
 pub struct AwsLambdaProvider {
     options: Arc<Options>,
@@ -28,16 +34,11 @@ impl AwsLambdaProvider {
             "http://public.assemblylift.akkoro.io/runtime/{}/aws-lambda/bootstrap.zip",
             clap::crate_version!(),
         );
-        let mut response =
-            reqwest::blocking::get(runtime_url).expect("could not download bootstrap.zip");
-        if !response.status().is_success() {
-            panic!("unable to fetch asml runtime from {}", runtime_url);
-        }
-        let mut response_buffer = Vec::new();
-        response.read_to_end(&mut response_buffer).unwrap();
 
         fs::create_dir_all("./.asml/runtime").unwrap();
-        fs::write("./.asml/runtime/bootstrap.zip", response_buffer).unwrap();
+        // fs::write("./.asml/runtime/bootstrap.zip", response_buffer).unwrap();
+        tools::download_to_path(runtime_url, "./.asml/runtime/bootstrap.zip")
+            .expect("could not download bootstrap.zip");
 
         Self {
             options: Arc::new(Options::new()),
@@ -53,14 +54,13 @@ impl AwsLambdaProvider {
         fs::create_dir_all(iomod_path.clone()).expect("could not create iomod directory");
 
         let mut dependencies: Vec<PathBuf> = Vec::new();
-        // println!("DEBUG service_name={:?}", service_name);
-        // println!("DEBUG iomods={:?}", ctx.iomods);
+
         let service_iomods: Vec<&context::Iomod> = ctx
             .iomods
             .iter()
             .filter(|m| m.service_name == service_name.to_string())
             .collect();
-        // println!("DEBUG iomods={:?}", service_iomods);
+
         for iomod in service_iomods {
             // let dependency_coords: Vec<&str> = iomod.coordinates.split('.').collect();
             // let dependency_name = dependency_coords.get(2).unwrap().to_string();
@@ -433,7 +433,7 @@ impl Castable for LambdaFunction {
                     environment: match environment.keys().len() {
                         0 => None,
                         _ => Some(render_string_map(environment)),
-                    }
+                    },
                 };
 
                 let hcl = Artifact {

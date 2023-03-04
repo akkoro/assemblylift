@@ -1,38 +1,52 @@
 use std::collections::BTreeMap;
-use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::path::PathBuf;
+use std::str::FromStr;
 
-use crossbeam_channel::bounded;
+use anyhow::anyhow;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
+use url::Url;
 
-use crate::Status::Exited;
-use crate::{Failure, RunnerMessage, RunnerTx, StatusRx, StatusTx, Success};
+use assemblylift_core::wasm::{status_channel, StatusRx, StatusTx};
 
-pub struct Launcher {
+use crate::runner::{RunnerMessage, RunnerTx};
+use crate::Status;
+use crate::Status::{Exited, Failure, Success};
+
+pub struct Launcher<S>
+where
+    S: Clone + Send + Sized + 'static,
+{
     runtime: tokio::runtime::Runtime,
+    _phantom: std::marker::PhantomData<S>,
 }
 
-impl Launcher {
+impl Launcher<Status> {
     pub fn new() -> Self {
         Self {
-            runtime: tokio::runtime::Runtime::new().unwrap(),
+            runtime: tokio::runtime::Builder::new_current_thread()
+                .enable_io()
+                .build()
+                .unwrap(),
+            _phantom: std::marker::PhantomData::default(),
         }
     }
 
-    pub fn spawn(&mut self, runner_tx: RunnerTx) {
+    pub fn spawn(&mut self, runner_tx: RunnerTx<Status>) {
         info!("Spawning launcher");
         tokio::task::LocalSet::new().block_on(&self.runtime, async {
+            let channel = status_channel(32);
+
             let make_svc = make_service_fn(|_| {
                 debug!("called make_service_fn");
-                let channel = bounded(32);
                 let runner_tx = runner_tx.clone();
                 let tx = channel.0.clone();
                 let rx = channel.1.clone();
                 async {
-                    Ok::<_, Infallible>(service_fn(move |req| {
+                    Ok::<_, anyhow::Error>(service_fn(move |req| {
                         launch(req, runner_tx.clone(), tx.clone(), rx.clone())
                     }))
                 }
@@ -49,33 +63,44 @@ impl Launcher {
 
 async fn launch(
     req: Request<Body>,
-    runner_tx: RunnerTx,
-    status_tx: StatusTx,
-    status_rx: StatusRx,
-) -> Result<Response<Body>, Infallible> {
+    runner_tx: RunnerTx<Status>,
+    status_tx: StatusTx<Status>,
+    status_rx: StatusRx<Status>,
+) -> anyhow::Result<Response<Body>> {
     debug!("launching function...");
     let method = req.method().to_string();
     let mut headers = BTreeMap::new();
     for h in req.headers().iter() {
         headers.insert(h.0.as_str().to_string(), h.1.to_str().unwrap().to_string());
     }
+    // FIXME cap input length to limit DoS attacks
     let input_bytes = hyper::body::to_bytes(req.into_body()).await.unwrap();
     let launcher_req = LauncherRequest {
         method,
-        headers,
+        headers: headers.clone(),
         body_encoding: "base64".into(),
         body: Some(base64::encode(input_bytes.as_ref())),
     };
 
+    // TODO check for x-assemblylift-function-coordinates header, and if found then load from a
+    //      projects dir, $INSTALL/assemblylift/projects, or failing that from the cwd if assemblylift.toml
+    //      is found and the project name matches
+    let wasm_uri = Url::from_str(&**headers.get("x-assemblylift-wasm-uri").unwrap())
+        .map_err(|e| anyhow!(e))?;
+    if !wasm_uri.scheme().eq_ignore_ascii_case("file") {
+        unimplemented!("{} scheme not yet supported", wasm_uri.scheme());
+    }
     let msg = RunnerMessage {
         input: serde_json::to_vec(&launcher_req).unwrap(),
         status_sender: status_tx.clone(),
+        wasm_path: PathBuf::from(wasm_uri.path()),
     };
 
     debug!("sending runner request...");
-    if let Err(e) = runner_tx.send(msg).await {
-        error!("could not send to runner: {}", e.to_string())
-    }
+    runner_tx
+        .send(msg)
+        .await
+        .map_err(|e| anyhow!("could not send to runner: {}", e.to_string()))?;
 
     debug!("waiting for runner response...");
     while let Ok(result) = status_rx.recv() {

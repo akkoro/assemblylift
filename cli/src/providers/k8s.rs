@@ -8,10 +8,15 @@ use itertools::Itertools;
 use once_cell::sync::Lazy;
 use serde::Serialize;
 
-use crate::providers::{DNS_PROVIDERS, flatten, gloo, KUBERNETES_PROVIDER_NAME, LockBox, Options, Provider, ProviderError, ProviderMap};
+use crate::providers::{
+    flatten, gloo, LockBox, Options, Provider, ProviderError, ProviderMap, DNS_PROVIDERS,
+    KUBERNETES_PROVIDER_NAME,
+};
 use crate::tools::glooctl::GlooCtl;
-use crate::transpiler::{Artifact, Bindable, Bootable, Castable, CastError, ContentType, context, StringMap, Template};
 use crate::transpiler::context::Context;
+use crate::transpiler::{
+    context, Artifact, Bindable, Bootable, CastError, Castable, ContentType, StringMap, Template,
+};
 
 fn to_container_registry(r: &context::Registry) -> ContainerRegistry {
     ContainerRegistry {
@@ -238,7 +243,7 @@ impl Castable for KubernetesFunction {
                     .iter()
                     .map(|e| ContainerEnv {
                         name: format!("__ASML_{}", e.0.clone()),
-                        value: e.1.clone()
+                        value: e.1.clone(),
                     })
                     .collect();
 

@@ -16,6 +16,7 @@ use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::{AsyncReadExt, FutureExt, TryFutureExt};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
+pub use tokio::sync::mpsc::channel as registry_channel;
 use tracing::{error, info};
 
 use crate::iomod_capnp::{agent, iomod, registry};

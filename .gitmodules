@@ -1,0 +1,3 @@
+[submodule "core/components/wasi-secrets"]
+	path = core/components/wasi-secrets
+	url = https://github.com/akkoro/wasi-secrets.git

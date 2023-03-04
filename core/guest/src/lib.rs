@@ -3,26 +3,36 @@ extern crate assemblylift_core_guest_macros;
 use std::collections::HashMap;
 use std::fmt;
 
+pub use direct_executor;
 use serde::{Deserialize, Serialize};
+pub use wit_bindgen;
 
+pub use assemblylift::asml_io;
+pub use assemblylift::asml_rt;
 pub use assemblylift_core_guest_macros::handler;
+pub use wasi_command::wasi_logging;
 
-extern "C" {
-    fn __asml_abi_runtime_log(ptr: *const u8, len: usize);
-    fn __asml_abi_runtime_success(ptr: *const u8, len: usize);
-}
+pub mod assemblylift;
+#[allow(dead_code)]
+#[macro_use]
+pub mod wasi_command;
 
 pub struct FunctionContext {
-    pub input: String,
+    pub input: Vec<u8>,
 }
 
 impl FunctionContext {
     pub fn log(message: String) {
-        unsafe { __asml_abi_runtime_log(message.as_ptr(), message.len()) }
+        // TODO context should be the module name if possible
+        wasi_logging::log(wasi_logging::Level::Info, "Function", &message)
     }
 
     pub fn success(response: String) {
-        unsafe { __asml_abi_runtime_success(response.as_ptr(), response.len()) }
+        assemblylift::asml_rt::success(response.as_bytes())
+    }
+
+    pub fn failure(response: String) {
+        assemblylift::asml_rt::failure(response.as_bytes())
     }
 }
 

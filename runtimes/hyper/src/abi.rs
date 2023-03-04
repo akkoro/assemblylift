@@ -1,25 +1,24 @@
-use tracing::{debug, error, info};
+use tracing::error;
 
 use assemblylift_core::abi::RuntimeAbi;
-use assemblylift_core::Caller;
-use assemblylift_core::wasm::{State, Wasmtime};
+use assemblylift_core::wasm::StatusTx;
 
 use crate::Status;
 
-pub struct GenericDockerAbi;
+pub struct Abi;
 
-impl RuntimeAbi<Status> for GenericDockerAbi {
-    fn log(mut caller: Caller<'_, State<Status>>, ptr: u32, len: u32) {
-        let s = Wasmtime::<Self, Status>::ptr_to_string(&mut caller, ptr, len).unwrap();
-        info!("Guest: {}", s);
+impl RuntimeAbi<Status> for Abi {
+    fn success(status_tx: StatusTx<Status>, response: Vec<u8>, _request_id: Option<String>) {
+        std::thread::spawn(move || {
+            if let Err(e) = status_tx.send(Status::Success(response)) {
+                error!("could not send status: {:?}", e.to_string())
+            }
+        });
     }
 
-    fn success(mut caller: Caller<'_, State<Status>>, ptr: u32, len: u32) {
-        debug!("called success");
-        let tx = caller.data().status_sender.clone();
-        let s = Wasmtime::<Self, Status>::ptr_to_string(&mut caller, ptr, len).unwrap();
+    fn failure(status_tx: StatusTx<Status>, response: Vec<u8>, _request_id: Option<String>) {
         std::thread::spawn(move || {
-            if let Err(e) = tx.send(Status::Success(s.into())) {
+            if let Err(e) = status_tx.send(Status::Success(response)) {
                 error!("could not send status: {:?}", e.to_string())
             }
         });

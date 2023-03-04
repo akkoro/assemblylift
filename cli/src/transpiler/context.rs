@@ -11,7 +11,7 @@ use serde::Serialize;
 use crate::projectfs::Project as ProjectFs;
 use crate::providers::{DNS_PROVIDERS, PROVIDERS};
 use crate::transpiler::{
-    Artifact, Bindable, Castable, CastError, ContentType, StringMap, Template, toml,
+    toml, Artifact, Bindable, CastError, Castable, ContentType, StringMap, Template,
 };
 
 /// `Context` is a state object, containing the configuration of a project as deserialized from the
@@ -83,12 +83,14 @@ impl Context {
                     tf_name: match &*service_provider.name {
                         "aws-lambda" => "aws",
                         "k8s" => "kubernetes",
-                        _ => "nil"
-                    }.to_string(),
+                        _ => "nil",
+                    }
+                    .to_string(),
                 }),
                 is_root: service_manifest.api.is_root,
                 domain_name: service_manifest.api.domain_name,
                 project_name: project.name.clone(),
+                project: project.clone(),
             });
 
             for function in functions.as_ref() {
@@ -99,7 +101,10 @@ impl Context {
                     language: function.language.clone().unwrap_or("rust".to_string()),
                     size: function.size_mb.unwrap_or(1024u16),
                     timeout: function.timeout_seconds.unwrap_or(5u16),
-                    cpu_compat_mode: function.cpu_compat_mode.clone().unwrap_or("default".to_string()),
+                    cpu_compat_mode: function
+                        .cpu_compat_mode
+                        .clone()
+                        .unwrap_or("default".to_string()),
                     precompile: function.precompile.unwrap_or(true),
                     http: match &function.clone().http.as_ref() {
                         Some(http) => Some(Http {
@@ -110,6 +115,7 @@ impl Context {
                     },
                     authorizer_id: function.authorizer_id.clone(),
                     environment: function.environment.clone(),
+                    project: project.clone(),
                 });
             }
 
@@ -234,11 +240,7 @@ impl Castable for Context {
                 .unwrap()
                 .set_options(dns.options.clone())
                 .expect("could not set dns provider options");
-            let artifacts = provider
-                .lock()
-                .unwrap()
-                .cast(ctx.clone(), None)
-                .unwrap();
+            let artifacts = provider.lock().unwrap().cast(ctx.clone(), None).unwrap();
             for a in artifacts {
                 if let ContentType::HCL(_) = a.content_type {
                     hcl_content.push_str(&*a.content.clone());
@@ -340,6 +342,8 @@ pub struct Service {
     pub is_root: Option<bool>,
     pub domain_name: Option<String>,
     pub project_name: String,
+
+    pub project: Rc<ProjectFs>,
 }
 
 impl Service {
@@ -368,6 +372,8 @@ pub struct Function {
     pub timeout: u16,
     pub cpu_compat_mode: String,
     pub precompile: bool,
+
+    pub project: Rc<ProjectFs>,
 }
 
 pub struct Http {
