@@ -299,6 +299,7 @@ dependencies = [
 name = "assemblylift-core-io-guest"
 version = "0.4.0-beta.0"
 dependencies = [
+ "assemblylift-core-guest 0.4.0-beta.0",
  "futures",
  "lazy_static",
  "serde",

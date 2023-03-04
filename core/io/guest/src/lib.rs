@@ -1,10 +1,12 @@
 use std::future::Future;
-use std::io::BufReader;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 
 use serde::{de::DeserializeOwned, Deserialize};
+
+use assemblylift_core_guest::{asml_io, wasi_logging};
+use assemblylift_core_guest::wasi_logging::Level;
 
 #[derive(Clone)]
 /// A handle implementing `std::future::Future` for an in-flight IOmod call
@@ -32,7 +34,7 @@ where
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         match asml_io::poll(self.id) {
-            Ok(res) => Poll::Ready(read_response::<Self::Output>(res).unwrap()),
+            Ok(res) => Poll::Ready(read_response::<Self::Output>(std::str::from_utf8(&*res).unwrap()).unwrap()),
             _ => {
                 self.waker = Box::new(Some(cx.waker().clone()));
                 Poll::Pending
@@ -41,14 +43,14 @@ where
     }
 }
 
-fn read_response<'a, T>(res: String) -> Option<T>
+fn read_response<'a, T>(res: &str) -> Option<T>
 where
     T: DeserializeOwned,
 {
-    match serde_json::from_str(&res) {
+    match serde_json::from_str(res) {
         Ok(response) => Some(response),
         Err(why) => {
-            // console_log(format!("[ERROR] ioid={} {}", id, why.to_string()));
+            wasi_logging::log(Level::Error, "core::io::read_response", &why.to_string());
             None
         }
     }
