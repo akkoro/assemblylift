@@ -43,12 +43,10 @@ where
     /// Poll the runtime for the completion status of call associated with `ioid`
     pub fn poll(&mut self, ioid: IoId) -> Option<Vec<u8>> {
         match self.io_memory.clone().lock() {
-            Ok(memory) => {
-                match memory.poll(ioid) {
-                    true => Some(memory.buffer.get(ioid as usize)),
-                    false => None,
-                }
-            }
+            Ok(memory) => match memory.poll(ioid) {
+                true => Some(memory.buffer.get(ioid as usize)),
+                false => None,
+            },
             Err(_) => None,
         }
     }

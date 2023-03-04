@@ -5,8 +5,8 @@ use std::task::{Context, Poll, Waker};
 
 use serde::{de::DeserializeOwned, Deserialize};
 
-use assemblylift_core_guest::{asml_io, wasi_logging};
 use assemblylift_core_guest::wasi_logging::Level;
+use assemblylift_core_guest::{asml_io, wasi_logging};
 
 #[derive(Clone)]
 /// A handle implementing `std::future::Future` for an in-flight IOmod call
@@ -34,7 +34,9 @@ where
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         match asml_io::poll(self.id) {
-            Ok(res) => Poll::Ready(read_response::<Self::Output>(std::str::from_utf8(&*res).unwrap()).unwrap()),
+            Ok(res) => Poll::Ready(
+                read_response::<Self::Output>(std::str::from_utf8(&*res).unwrap()).unwrap(),
+            ),
             _ => {
                 self.waker = Box::new(Some(cx.waker().clone()));
                 Poll::Pending

@@ -17,6 +17,9 @@ pub enum Status {
 }
 
 pub fn spawn_runtime(registry_tx: RegistryTx) {
+    // Mapped to /tmp inside the WASM module
+    std::fs::create_dir_all("/tmp/asmltmp").expect("could not create /tmp/asmltmp");
+
     crossbeam_utils::thread::scope(|s| {
         let runner = Arc::new(Mutex::new(Runner::<Status>::new(registry_tx)));
         let tx = { runner.clone().lock().unwrap().sender() };

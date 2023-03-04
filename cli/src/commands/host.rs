@@ -10,11 +10,9 @@ pub fn command(_matches: Option<&ArgMatches>) {
         .with_max_level(Level::INFO)
         .finish();
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     let (registry_tx, registry_rx) = registry_channel(8);
-    spawn_registry(registry_rx)
-        .expect("unable to spawn IOmod registry");
+    spawn_registry(registry_rx).expect("unable to spawn IOmod registry");
     spawn_runtime(registry_tx);
 }

@@ -16,9 +16,9 @@ use crate::commands::cast::rust::RustFunction;
 use crate::projectfs::Project;
 use crate::terraform;
 use crate::tools;
-use crate::transpiler::{Castable, context, toml};
 use crate::transpiler::context::Context;
 use crate::transpiler::toml::service::Function;
+use crate::transpiler::{context, toml, Castable};
 
 mod ruby;
 mod rust;
@@ -26,7 +26,7 @@ mod rust;
 pub trait CastableFunction {
     fn compile(&self, wasi_snapshot_preview1: Vec<u8>);
     fn compose(&self);
-    fn precompile(&self);
+    fn precompile(&self, target: Option<&str>);
     fn artifact_path(&self) -> PathBuf;
 }
 
@@ -76,7 +76,8 @@ pub fn command(matches: Option<&ArgMatches>) {
         };
         castable_function.compile(wasi_snapshot_preview1.clone().to_vec());
         if function.precompile {
-            castable_function.precompile();
+            // TODO set target triple
+            castable_function.precompile(None);
         }
 
         // TODO zip not needed w/ container functions

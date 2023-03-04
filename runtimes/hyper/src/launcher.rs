@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use anyhow::anyhow;
-use hyper::{Body, Request, Response, Server};
 use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Request, Response, Server};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info};
 use url::Url;

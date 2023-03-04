@@ -1,18 +1,19 @@
+use std::fs::File;
 use std::iter::FromIterator;
 use std::path::Path;
 use std::string::ToString;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
+use assemblylift_wasi_cap_std_sync::{dir, Dir, WasiCtxBuilder};
+use assemblylift_wasi_common::WasiCtx;
 pub use crossbeam_channel::bounded as status_channel;
 use once_cell::sync::Lazy;
-use wasmtime::{Config, Engine, Store};
 use wasmtime::component::{bindgen, Component, Linker};
+use wasmtime::{Config, Engine, Store};
 use wit_component::ComponentEncoder;
 
 use assemblylift_core_iomod::registry::RegistryTx;
-use assemblylift_wasi_cap_std_sync::WasiCtxBuilder;
-use assemblylift_wasi_common::WasiCtx;
 
 use crate::abi::*;
 use crate::threader::Threader;
@@ -94,6 +95,7 @@ where
             .expect("could not add assemblylift runtime component");
         // env vars prefixed with __ASML_ are defined in the function definition;
         // the prefix indicates that they are to be mapped to the module environment
+        // FIXME this only really works when running inside a container/single-function environment
         let envs: Vec<(String, String)> = Vec::from_iter(
             std::env::vars()
                 .into_iter()
@@ -101,64 +103,69 @@ where
                 .map(|e| (e.0.replace("__ASML_", ""), e.1))
                 .into_iter(),
         );
-        let wasi = WasiCtxBuilder::new().build();
-        // let wasi = match function_env.as_str() {
-        //     "ruby-docker" => WasiCtxBuilder::new()
-        //         .arg("/src/handler.rb")
-        //         .unwrap()
-        //         .env("RUBY_PLATFORM", "wasm32-wasi")
-        //         .unwrap()
-        //         .envs(&*envs)
-        //         .unwrap()
-        //         .preopened_dir(
-        //             Dir::from_std_file(File::open("/usr/bin/ruby-wasm32-wasi/src").unwrap()),
-        //             "/src",
-        //         )
-        //         .expect("could not map guest dir -- is the image built correctly?")
-        //         .preopened_dir(
-        //             Dir::from_std_file(File::open("/usr/bin/ruby-wasm32-wasi/usr").unwrap()),
-        //             "/usr",
-        //         )
-        //         .expect("could not map guest dir -- is the image built correctly?")
-        //         .preopened_dir(
-        //             Dir::from_std_file(File::open("/tmp/asmltmp").unwrap()),
-        //             "/tmp",
-        //         )
-        //         .expect("could not map guest dir -- is the image built correctly?")
-        //         .build(),
-        //     "ruby-lambda" => WasiCtxBuilder::new()
-        //         .arg("/src/handler.rb")
-        //         .unwrap()
-        //         .env("RUBY_PLATFORM", "wasm32-wasi")
-        //         .unwrap()
-        //         .envs(&*envs)
-        //         .unwrap()
-        //         .preopened_dir(
-        //             Dir::from_std_file(File::open("/tmp/rubysrc").unwrap()),
-        //             "/src",
-        //         )
-        //         .expect("could not map guest dir -- is the image built correctly?")
-        //         .preopened_dir(
-        //             Dir::from_std_file(File::open("/tmp/rubyusr").unwrap()),
-        //             "/usr",
-        //         )
-        //         .expect("could not map guest dir -- is the image built correctly?")
-        //         .preopened_dir(
-        //             Dir::from_std_file(File::open("/tmp/asmltmp").unwrap()),
-        //             "/tmp",
-        //         )
-        //         .expect("could not map guest tmpfs -- is /tmp accessible?")
-        //         .build(),
-        //     _ => WasiCtxBuilder::new()
-        //         .envs(&*envs)
-        //         .unwrap()
-        //         .preopened_dir(
-        //             Dir::from_std_file(File::open("/tmp/asmltmp").unwrap()),
-        //             "/tmp",
-        //         )
-        //         .expect("could not map guest tmpfs -- is /tmp accessible?")
-        //         .build(),
-        // };
+        let mut wasi = WasiCtxBuilder::new().build();
+        for e in envs {
+            wasi.push_env(&*e.0, &*e.1)
+        }
+        match function_env.as_str() {
+            "ruby-docker" => {
+                wasi.push_env("RUBY_PLATFORM", "wasm32-wasi");
+                wasi.push_preopened_dir(
+                    Box::new(dir::Dir::from_cap_std(Dir::from_std_file(
+                        File::open("/usr/bin/ruby-wasm32-wasi/src").unwrap(),
+                    ))),
+                    "/src",
+                )
+                .expect("could not push preopened wasi dir");
+                wasi.push_preopened_dir(
+                    Box::new(dir::Dir::from_cap_std(Dir::from_std_file(
+                        File::open("/usr/bin/ruby-wasm32-wasi/usr").unwrap(),
+                    ))),
+                    "/usr",
+                )
+                .expect("could not push preopened wasi dir");
+                wasi.push_preopened_dir(
+                    Box::new(dir::Dir::from_cap_std(Dir::from_std_file(
+                        File::open("/tmp/asmltmp").unwrap(),
+                    ))),
+                    "/tmp",
+                )
+                .expect("could not push preopened wasi dir");
+            }
+            "ruby-lambda" => {
+                wasi.push_env("RUBY_PLATFORM", "wasm32-wasi");
+                wasi.push_preopened_dir(
+                    Box::new(dir::Dir::from_cap_std(Dir::from_std_file(
+                        File::open("/tmp/rubysrc").unwrap(),
+                    ))),
+                    "/src",
+                )
+                .expect("could not push preopened wasi dir");
+                wasi.push_preopened_dir(
+                    Box::new(dir::Dir::from_cap_std(Dir::from_std_file(
+                        File::open("/tmp/rubyusr").unwrap(),
+                    ))),
+                    "/usr",
+                )
+                .expect("could not push preopened wasi dir");
+                wasi.push_preopened_dir(
+                    Box::new(dir::Dir::from_cap_std(Dir::from_std_file(
+                        File::open("/tmp/asmltmp").unwrap(),
+                    ))),
+                    "/tmp",
+                )
+                .expect("could not push preopened wasi dir");
+            }
+            _ => {
+                wasi.push_preopened_dir(
+                    Box::new(dir::Dir::from_cap_std(Dir::from_std_file(
+                        File::open("/tmp/asmltmp").unwrap(),
+                    ))),
+                    "/tmp",
+                )
+                .expect("could not push preopened wasi dir");
+            }
+        }
 
         let state = State {
             function_input: Vec::with_capacity(512usize),
@@ -204,9 +211,7 @@ where
             &mut store,
             0 as assemblylift_wasi_host::wasi_io::InputStream,
             1 as assemblylift_wasi_host::wasi_io::OutputStream,
-            &[], // args
-            // &[], // env
-            // &[], // file descriptors
+            &[], // TODO args
         )
         .await?
         .map_err(|()| anyhow::anyhow!("command returned with failing exit status"))
