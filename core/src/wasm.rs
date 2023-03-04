@@ -187,7 +187,6 @@ where
         store: &mut Store<State<R, S>>,
         input: &[u8],
     ) -> anyhow::Result<()> {
-        // store.data_mut().function_input_buffer.set(input.to_vec());
         store.data_mut().function_input.clear();
         store
             .data_mut()
@@ -206,8 +205,8 @@ where
             0 as assemblylift_wasi_host::wasi_io::InputStream,
             1 as assemblylift_wasi_host::wasi_io::OutputStream,
             &[], // args
-            &[], // env
-            &[], // file descriptors
+            // &[], // env
+            // &[], // file descriptors
         )
         .await?
         .map_err(|()| anyhow::anyhow!("command returned with failing exit status"))

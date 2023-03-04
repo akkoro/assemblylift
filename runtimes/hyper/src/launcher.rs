@@ -82,6 +82,9 @@ async fn launch(
         body: Some(base64::encode(input_bytes.as_ref())),
     };
 
+    // TODO check for x-assemblylift-function-coordinates header, and if found then load from a
+    //      projects dir, $INSTALL/assemblylift/projects, or failing that from the cwd if assemblylift.toml
+    //      is found and the project name matches
     let wasm_uri = Url::from_str(&**headers.get("x-assemblylift-wasm-uri").unwrap())
         .map_err(|e| anyhow!(e))?;
     if !wasm_uri.scheme().eq_ignore_ascii_case("file") {

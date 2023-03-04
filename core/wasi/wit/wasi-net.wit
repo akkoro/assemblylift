@@ -1,5 +1,0 @@
-/// This interface defines an opaque descriptor type that represents a particular network. This enables context-based security for networking.
-default interface wasi-net {
-    /// A network, possibly virtual.
-    type network = u32
-}

@@ -5,7 +5,7 @@ use std::fmt;
 
 pub use direct_executor;
 use serde::{Deserialize, Serialize};
-pub use wit_bindgen_guest_rust;
+pub use wit_bindgen;
 
 pub use assemblylift::asml_io;
 pub use assemblylift::asml_rt;
