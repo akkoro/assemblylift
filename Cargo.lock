@@ -156,7 +156,7 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-cli"
-version = "0.4.0-alpha.12"
+version = "0.4.0-beta.0"
 dependencies = [
  "anyhow",
  "asml-iomod-registry-common",
