@@ -1,4 +1,4 @@
-use assemblylift_core::abi::RuntimeAbi;
+use assemblylift_core::RuntimeAbi;
 use assemblylift_core::wasm::StatusTx;
 
 #[derive(Clone)]

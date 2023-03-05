@@ -15,7 +15,7 @@ use wit_component::ComponentEncoder;
 
 use assemblylift_core_iomod::registry::RegistryTx;
 
-use crate::abi::*;
+use crate::RuntimeAbi;
 use crate::threader::Threader;
 
 pub type State<R, S> = AsmlFunctionState<R, S>;

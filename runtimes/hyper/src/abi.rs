@@ -1,6 +1,6 @@
 use tracing::error;
 
-use assemblylift_core::abi::RuntimeAbi;
+use assemblylift_core::RuntimeAbi;
 use assemblylift_core::wasm::StatusTx;
 
 use crate::Status;

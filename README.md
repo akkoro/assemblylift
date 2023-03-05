@@ -3,7 +3,6 @@
   <br/>
   <br/>
   <img src="https://github.com/akkoro/assemblylift/workflows/AssemblyLift%20CI/badge.svg"/>
-  <img src="https://img.shields.io/crates/v/assemblylift-cli"/>
   <img src="https://img.shields.io/discord/901946190667595786"/>
   <br/>
   AssemblyLift is an open source platform that gives you a fast & ergonomic way to build cloud-native services on a predictable, 
