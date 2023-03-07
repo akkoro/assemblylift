@@ -9,15 +9,15 @@ use assemblylift_wasi_cap_std_sync::{dir, Dir, WasiCtxBuilder};
 use assemblylift_wasi_common::WasiCtx;
 pub use crossbeam_channel::bounded as status_channel;
 use once_cell::sync::Lazy;
-use wasmtime::{Config, Engine, Store};
 use wasmtime::component::{bindgen, Component, Linker};
+use wasmtime::{Config, Engine, Store};
 use wit_component::ComponentEncoder;
 
 use assemblylift_core_iomod::registry::RegistryTx;
 
-use crate::RuntimeAbi;
 use crate::threader::Threader;
 use crate::wasm::secrets::{Error, Key, Secret};
+use crate::RuntimeAbi;
 
 pub type State<R, S> = AsmlFunctionState<R, S>;
 pub type StatusTx<S> = crossbeam_channel::Sender<S>;
@@ -309,7 +309,12 @@ where
         }))
     }
 
-    fn set_secret_value(&mut self, id: String, value: Vec<u8>, key: Key) -> anyhow::Result<Result<Secret, Error>> {
+    fn set_secret_value(
+        &mut self,
+        id: String,
+        value: Vec<u8>,
+        key: Key,
+    ) -> anyhow::Result<Result<Secret, Error>> {
         R::set_secret(id.clone(), value.clone(), Some(key)).unwrap();
         Ok(Ok(Secret {
             id: id.clone(),

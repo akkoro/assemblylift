@@ -2,24 +2,27 @@ use std::collections::BTreeMap;
 use std::sync::Mutex;
 
 use anyhow::anyhow;
-use chacha20poly1305::{ChaCha20Poly1305, Key, KeyInit, Nonce};
 use chacha20poly1305::aead::Aead;
+use chacha20poly1305::{ChaCha20Poly1305, Key, KeyInit, Nonce};
 use once_cell::sync::Lazy;
 use rand::RngCore;
 use tracing::{debug, error, info};
 
-use assemblylift_core::{KeysAbi, RuntimeAbi, SecretsAbi};
 use assemblylift_core::wasm::StatusTx;
+use assemblylift_core::{KeysAbi, RuntimeAbi, SecretsAbi};
 
 use crate::Status;
 
 pub static INMEM_KEYS: Lazy<Mutex<BTreeMap<String, &[u8; 32]>>> = Lazy::new(|| {
     let mut map = BTreeMap::new();
-    map.insert("default".to_string(), b"This key is not secure\0\0\0\0\0\0\0\0\0\0");
+    map.insert(
+        "default".to_string(),
+        b"This key is not secure\0\0\0\0\0\0\0\0\0\0",
+    );
     Mutex::new(map)
 });
-pub static INMEM_SECRETS: Lazy<Mutex<BTreeMap<String, (String, Vec<u8>)>>> = Lazy::new(|| Mutex::new(BTreeMap::new()));
-
+pub static INMEM_SECRETS: Lazy<Mutex<BTreeMap<String, (String, Vec<u8>)>>> =
+    Lazy::new(|| Mutex::new(BTreeMap::new()));
 
 pub struct Abi;
 
@@ -35,7 +38,8 @@ impl KeysAbi for Abi {
         let cipher = ChaCha20Poly1305::new(&key);
         let nonce = Nonce::from(nonce_bytes);
 
-        let encrypted = cipher.encrypt(&nonce, &*plaintext)
+        let encrypted = cipher
+            .encrypt(&nonce, &*plaintext)
             .map_err(|e| anyhow!(e.to_string()))?;
 
         let mut ret: Vec<u8> = Vec::new();
@@ -63,7 +67,8 @@ impl KeysAbi for Abi {
         let cipher = ChaCha20Poly1305::new(&key);
         let nonce = Nonce::from(nonce_bytes);
 
-        let decrypted = cipher.decrypt(&nonce, sealed.as_ref())
+        let decrypted = cipher
+            .decrypt(&nonce, sealed.as_ref())
             .map_err(|e| anyhow!(e.to_string()))?;
 
         Ok(decrypted)
@@ -83,7 +88,10 @@ impl SecretsAbi for Abi {
         info!("storing secret id={}", id.clone());
         let key_id = key_id.unwrap_or("default".to_string());
         let ciphertext = Abi::encrypt(key_id.clone(), value)?;
-        INMEM_SECRETS.lock().unwrap().insert(id.clone(), (key_id.clone(), ciphertext));
+        INMEM_SECRETS
+            .lock()
+            .unwrap()
+            .insert(id.clone(), (key_id.clone(), ciphertext));
         Ok(())
     }
 }
@@ -99,7 +107,7 @@ impl RuntimeAbi<Status> for Abi {
 
     fn failure(status_tx: StatusTx<Status>, response: Vec<u8>, _request_id: Option<String>) {
         std::thread::spawn(move || {
-            if let Err(e) = status_tx.send(Status::Success(response)) {
+            if let Err(e) = status_tx.send(Status::Failure(response)) {
                 error!("could not send status: {:?}", e.to_string())
             }
         });
