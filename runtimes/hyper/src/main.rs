@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
 use clap::crate_version;
-use tracing::log::LevelFilter;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 

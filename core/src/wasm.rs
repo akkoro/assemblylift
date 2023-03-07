@@ -310,7 +310,7 @@ where
     }
 
     fn set_secret_value(&mut self, id: String, value: Vec<u8>, key: Key) -> anyhow::Result<Result<Secret, Error>> {
-        R::set_secret(id.clone(), value.clone()).unwrap();
+        R::set_secret(id.clone(), value.clone(), Some(key)).unwrap();
         Ok(Ok(Secret {
             id: id.clone(),
             value: Some(value),
