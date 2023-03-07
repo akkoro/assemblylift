@@ -28,6 +28,8 @@ pub struct Abi;
 
 impl KeysAbi for Abi {
     fn encrypt(id: String, plaintext: Vec<u8>) -> anyhow::Result<Vec<u8>> {
+        info!("encrypting with key_id={}", &id);
+
         let mut rng = rand::thread_rng();
         let mut nonce_bytes: [u8; 12] = [0; 12];
         rng.fill_bytes(&mut nonce_bytes);
@@ -50,6 +52,8 @@ impl KeysAbi for Abi {
     }
 
     fn decrypt(id: String, ciphertext: Vec<u8>) -> anyhow::Result<Vec<u8>> {
+        info!("decrypting with key_id={}", &id);
+
         let raw_data: &[u8] = ciphertext.as_ref();
         if raw_data.len() <= 44 {
             return Err(anyhow!("Encrypted data too short"));
@@ -81,13 +85,13 @@ impl SecretsAbi for Abi {
         //      may need to enforce prefixes for other managers e.g. vault/adfuuid-deadb33f-adfd
         let secrets = INMEM_SECRETS.lock().unwrap();
         let secret_pair = secrets.get(&id.clone()).unwrap();
-        Ok(Abi::decrypt(secret_pair.0.clone(), secret_pair.1.clone())?)
+        Ok(Self::decrypt(secret_pair.0.clone(), secret_pair.1.clone())?)
     }
 
     fn set_secret(id: String, value: Vec<u8>, key_id: Option<String>) -> anyhow::Result<()> {
         info!("storing secret id={}", id.clone());
         let key_id = key_id.unwrap_or("default".to_string());
-        let ciphertext = Abi::encrypt(key_id.clone(), value)?;
+        let ciphertext = Self::encrypt(key_id.clone(), value)?;
         INMEM_SECRETS
             .lock()
             .unwrap()
