@@ -3,6 +3,7 @@ members = [
     "runtimes/aws-lambda/host",
     "runtimes/aws-lambda/guest",
     "runtimes/hyper",
+    "runtimes/components/wasi-secrets/in-memory",
 #    "builtin/functions/verify-macaroon",
     "core",
     "core/guest",

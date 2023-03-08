@@ -16,10 +16,10 @@ base64 = "0.13"
 clap = { version = "4", features = ["cargo"] }
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
-chacha20poly1305 = "0.10"
+#chacha20poly1305 = "0.10"
 hyper = { version = "0.14", features = ["full"] }
-once_cell = "1.17"
-rand = "0.8"
+#once_cell = "1.17"
+#rand = "0.8"
 serde = "1"
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
@@ -30,3 +30,4 @@ zip = "0.6"
 
 assemblylift-core = { version = "0.4.0-beta.0", path = "../../core" }
 assemblylift-core-iomod = { version = "0.4.0-beta.0", path = "../../core/iomod" }
+assemblylift-wasi-secrets-in-memory = { path = "../../runtimes/components/wasi-secrets/in-memory" }

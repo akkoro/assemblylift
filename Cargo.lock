@@ -129,6 +129,7 @@ dependencies = [
  "anyhow",
  "assemblylift-core",
  "assemblylift-core-iomod",
+ "assemblylift-wasi-secrets-in-memory",
  "clap 3.2.23",
  "crossbeam-channel",
  "once_cell",
@@ -292,14 +293,12 @@ dependencies = [
  "anyhow",
  "assemblylift-core",
  "assemblylift-core-iomod",
+ "assemblylift-wasi-secrets-in-memory",
  "base64 0.13.1",
- "chacha20poly1305",
  "clap 4.1.4",
  "crossbeam-channel",
  "crossbeam-utils",
  "hyper",
- "once_cell",
- "rand",
  "serde",
  "serde_json",
  "tokio",
@@ -321,6 +320,18 @@ dependencies = [
  "bytes 0.5.6",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "assemblylift-wasi-secrets-in-memory"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "assemblylift-core",
+ "chacha20poly1305",
+ "once_cell",
+ "rand",
+ "tracing",
 ]
 
 [[package]]
