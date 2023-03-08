@@ -10,7 +10,7 @@ use tracing::info;
 
 use assemblylift_core::{KeysAbi, SecretsAbi};
 
-static INMEM_KEYS: Lazy<Mutex<BTreeMap<String, &[u8; 32]>>> = Lazy::new(|| {
+static KEYS: Lazy<Mutex<BTreeMap<String, &[u8; 32]>>> = Lazy::new(|| {
     let mut map = BTreeMap::new();
     map.insert(
         "default".to_string(),
@@ -18,7 +18,7 @@ static INMEM_KEYS: Lazy<Mutex<BTreeMap<String, &[u8; 32]>>> = Lazy::new(|| {
     );
     Mutex::new(map)
 });
-static INMEM_SECRETS: Lazy<Mutex<BTreeMap<String, (String, Vec<u8>)>>> =
+static SECRETS: Lazy<Mutex<BTreeMap<String, (String, Vec<u8>)>>> =
     Lazy::new(|| Mutex::new(BTreeMap::new()));
 
 pub struct InMemorySecrets;
@@ -31,7 +31,7 @@ impl KeysAbi for InMemorySecrets {
         let mut nonce_bytes: [u8; 12] = [0; 12];
         rng.fill_bytes(&mut nonce_bytes);
 
-        let keys = INMEM_KEYS.lock().unwrap();
+        let keys = KEYS.lock().unwrap();
         let key_bytes = keys.get(&*id).unwrap();
         let key = Key::from_slice(*key_bytes);
         let cipher = ChaCha20Poly1305::new(&key);
@@ -62,7 +62,7 @@ impl KeysAbi for InMemorySecrets {
         let mut sealed: Vec<u8> = Vec::new();
         sealed.extend(&raw_data[12..]);
 
-        let keys = INMEM_KEYS.lock().unwrap();
+        let keys = KEYS.lock().unwrap();
         let key_bytes = keys.get(&*id).unwrap();
         let key = Key::from_slice(key_bytes.as_ref());
         let cipher = ChaCha20Poly1305::new(&key);
@@ -78,18 +78,19 @@ impl KeysAbi for InMemorySecrets {
 
 impl SecretsAbi for InMemorySecrets {
     fn get_secret(id: String) -> anyhow::Result<Vec<u8>> {
+        info!("retrieving secret id={}", &id);
         // TODO detect secret manager from id, e.g. AWS should be an ARN
         //      may need to enforce prefixes for other managers e.g. vault/adfuuid-deadb33f-adfd
-        let secrets = INMEM_SECRETS.lock().unwrap();
+        let secrets = SECRETS.lock().unwrap();
         let secret_pair = secrets.get(&id.clone()).unwrap();
         Ok(Self::decrypt(secret_pair.0.clone(), secret_pair.1.clone())?)
     }
 
     fn set_secret(id: String, value: Vec<u8>, key_id: Option<String>) -> anyhow::Result<()> {
-        info!("storing secret id={}", id.clone());
+        info!("storing secret id={}", &id);
         let key_id = key_id.unwrap_or("default".to_string());
         let ciphertext = Self::encrypt(key_id.clone(), value)?;
-        INMEM_SECRETS
+        SECRETS
             .lock()
             .unwrap()
             .insert(id.clone(), (key_id.clone(), ciphertext));
