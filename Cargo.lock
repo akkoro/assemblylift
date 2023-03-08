@@ -115,7 +115,7 @@ dependencies = [
 name = "assemblylift-awslambda-guest"
 version = "0.4.0-alpha.0"
 dependencies = [
- "assemblylift-core-guest 0.4.0-beta.0",
+ "assemblylift-core-guest",
  "assemblylift-core-io-guest 0.4.0-beta.0",
  "direct-executor",
  "serde",
@@ -129,6 +129,7 @@ dependencies = [
  "anyhow",
  "assemblylift-core",
  "assemblylift-core-iomod",
+ "assemblylift-wasi-secrets-in-memory",
  "clap 3.2.23",
  "crossbeam-channel",
  "once_cell",
@@ -138,20 +139,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "zip",
-]
-
-[[package]]
-name = "assemblylift-builtins-verify-macaroon"
-version = "0.0.0"
-dependencies = [
- "assemblylift-core-guest 0.4.0-alpha.0",
- "assemblylift-core-io-guest 0.4.0-alpha.10",
- "assemblylift-iomod-secretsmanager-guest",
- "base64 0.20.0",
- "direct-executor",
- "macaroon-asml-fork",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -206,36 +193,13 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-guest"
-version = "0.4.0-alpha.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d26fc4531abc0d7c0a12968b9bdeb74abdf2fa03211c670c5df1418d59ed3b9"
-dependencies = [
- "assemblylift-core-guest-macros 0.4.0-alpha.0",
- "paste 0.1.18",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "assemblylift-core-guest"
 version = "0.4.0-beta.0"
 dependencies = [
- "assemblylift-core-guest-macros 0.4.0-beta.0",
+ "assemblylift-core-guest-macros",
  "direct-executor",
  "serde",
  "serde_json",
  "wit-bindgen",
-]
-
-[[package]]
-name = "assemblylift-core-guest-macros"
-version = "0.4.0-alpha.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "653da30439799b7ddd8c989100f9dd79dcfff48f47b960de03c61339af38bce8"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -282,22 +246,9 @@ dependencies = [
 
 [[package]]
 name = "assemblylift-core-io-guest"
-version = "0.4.0-alpha.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56ead663abbbf7110fc663dc45bf1ee403fb3cc7511ac77e063475f412326271"
-dependencies = [
- "assemblylift-core-io-common 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "futures",
- "lazy_static",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "assemblylift-core-io-guest"
 version = "0.4.0-beta.0"
 dependencies = [
- "assemblylift-core-guest 0.4.0-beta.0",
+ "assemblylift-core-guest",
  "futures",
  "lazy_static",
  "serde",
@@ -316,7 +267,7 @@ dependencies = [
  "futures-util",
  "lazy_static",
  "once_cell",
- "paste 1.0.11",
+ "paste",
  "rustc_version",
  "serde",
  "tokio",
@@ -336,18 +287,13 @@ name = "assemblylift-core-iomod-guest"
 version = "0.4.0-alpha.0"
 
 [[package]]
-name = "assemblylift-core-iomod-guest"
-version = "0.4.0-alpha.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63abddec0a59344aafeb4c3ac80c5e86b76b1d6eb92b7ecbf9551b34ef27bff5"
-
-[[package]]
 name = "assemblylift-hyper-runtime"
 version = "0.4.0-beta.0"
 dependencies = [
  "anyhow",
  "assemblylift-core",
  "assemblylift-core-iomod",
+ "assemblylift-wasi-secrets-in-memory",
  "base64 0.13.1",
  "clap 4.1.4",
  "crossbeam-channel",
@@ -377,17 +323,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "assemblylift-iomod-secretsmanager-guest"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c198e99a8b6ee6bc2978c95be243f21bfdcce87981d02648649339a56847eb5"
+name = "assemblylift-wasi-secrets-in-memory"
+version = "0.0.0"
 dependencies = [
- "assemblylift-core-io-guest 0.4.0-alpha.10",
- "assemblylift-core-iomod-guest 0.4.0-alpha.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "base64 0.13.1",
- "bytes 0.5.6",
- "serde",
- "serde_json",
+ "anyhow",
+ "assemblylift-core",
+ "chacha20poly1305",
+ "once_cell",
+ "rand",
+ "tracing",
 ]
 
 [[package]]
@@ -429,12 +373,6 @@ name = "base64"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
-
-[[package]]
-name = "base64"
-version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ea22880d78093b0cbe17c89f64a7d457941e65759157ec6cb31a31d652b05e5"
 
 [[package]]
 name = "base64"
@@ -1773,22 +1711,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "macaroon-asml-fork"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01a7ba74a0caca7706500eec371ebdff14b7e2e3a7eb77500ee104a13b8ca055"
-dependencies = [
- "base64 0.20.0",
- "chacha20poly1305",
- "hmac",
- "log",
- "rand",
- "serde",
- "serde_json",
- "sha2",
-]
-
-[[package]]
 name = "mach"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2018,28 +1940,9 @@ dependencies = [
 
 [[package]]
 name = "paste"
-version = "0.1.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45ca20c77d80be666aef2b45486da86238fabe33e38306bd3118fe4af33fa880"
-dependencies = [
- "paste-impl",
- "proc-macro-hack",
-]
-
-[[package]]
-name = "paste"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d01a5bd0424d00070b0098dd17ebca6f961a959dead1dbcbbbc1d1cd8d3deeba"
-
-[[package]]
-name = "paste-impl"
-version = "0.1.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d95a7db200b97ef370c8e6de0088252f7e0dfff7d047a28528e47456c0fc98b6"
-dependencies = [
- "proc-macro-hack",
-]
 
 [[package]]
 name = "path_abs"
@@ -2183,12 +2086,6 @@ dependencies = [
  "quote",
  "version_check",
 ]
-
-[[package]]
-name = "proc-macro-hack"
-version = "0.5.20+deprecated"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc375e1527247fe1a97d8b7156678dfe7c1af2fc075c9a4db3690ecd2a148068"
 
 [[package]]
 name = "proc-macro2"
@@ -3383,7 +3280,7 @@ dependencies = [
  "log",
  "object",
  "once_cell",
- "paste 1.0.11",
+ "paste",
  "psm",
  "rayon",
  "serde",
@@ -3570,7 +3467,7 @@ dependencies = [
  "mach",
  "memfd",
  "memoffset 0.6.5",
- "paste 1.0.11",
+ "paste",
  "rand",
  "rustix",
  "wasmtime-asm-macros",

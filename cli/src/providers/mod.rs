@@ -6,7 +6,6 @@ use once_cell::sync::Lazy;
 use crate::transpiler::{Artifact, Bindable, Bootable, Castable, StringMap};
 
 pub mod aws_lambda;
-pub mod aws_lambda_alpine;
 pub mod gloo;
 pub mod k8s;
 pub mod route53;

@@ -10,12 +10,13 @@ pub use wit_bindgen;
 pub use assemblylift::asml_io;
 pub use assemblylift::asml_rt;
 pub use assemblylift_core_guest_macros::handler;
-pub use wasi_command::wasi_logging;
+pub use wasi_command as wasi;
 
 pub mod assemblylift;
 #[allow(dead_code)]
 #[macro_use]
 pub mod wasi_command;
+pub mod wasi_secrets;
 
 pub struct FunctionContext {
     pub input: Vec<u8>,
@@ -24,15 +25,15 @@ pub struct FunctionContext {
 impl FunctionContext {
     pub fn log(message: String) {
         // TODO context should be the module name if possible
-        wasi_logging::log(wasi_logging::Level::Info, "Function", &message)
+        wasi::wasi_logging::log(wasi::wasi_logging::Level::Info, "Function", &message)
     }
 
     pub fn success(response: String) {
-        assemblylift::asml_rt::success(response.as_bytes())
+        asml_rt::success(response.as_bytes())
     }
 
     pub fn failure(response: String) {
-        assemblylift::asml_rt::failure(response.as_bytes())
+        asml_rt::failure(response.as_bytes())
     }
 }
 

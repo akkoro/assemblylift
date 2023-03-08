@@ -18,6 +18,8 @@ jobs:
         aws-region: us-east-1
     - name: 'Checkout'
       uses: actions/checkout@v2
+      with:
+        submodules: recursive
     - name: 'Build Image'
       run: docker build -t assemblylift/asml-lambda-default . --file docker/asml-lambda-default
     - name: 'Copy Artifacts'
@@ -93,6 +95,8 @@ jobs:
           aws-region: us-east-1
       - name: 'Checkout'
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: 'Get Version'
         run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
       - name: 'Build Image'
@@ -115,6 +119,8 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
       - uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: Install latest stable Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -144,6 +150,8 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
       - uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: Install latest stable Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -173,6 +181,8 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
       - uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: Install latest stable Rust
         uses: actions-rs/toolchain@v1
         with:

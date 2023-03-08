@@ -15,8 +15,9 @@ use wit_component::ComponentEncoder;
 
 use assemblylift_core_iomod::registry::RegistryTx;
 
-use crate::RuntimeAbi;
 use crate::threader::Threader;
+use crate::wasm::secrets::{Error, Key, Secret};
+use crate::RuntimeAbi;
 
 pub type State<R, S> = AsmlFunctionState<R, S>;
 pub type StatusTx<S> = crossbeam_channel::Sender<S>;
@@ -26,6 +27,7 @@ pub static CPU_COMPAT_MODE: Lazy<String> =
     Lazy::new(|| std::env::var("ASML_CPU_COMPAT_MODE").unwrap_or("default".to_string()));
 
 bindgen!("assemblylift");
+bindgen!("wasi-secrets" in "components/wasi-secrets/wit");
 
 pub struct Wasmtime<R, S>
 where
@@ -86,13 +88,13 @@ where
         let threader = Arc::new(Mutex::new(Threader::new(registry_tx)));
         let mut linker: Linker<State<R, S>> = Linker::new(&self.engine);
 
-        // FIXME this might be confusingly named (confused with the function env vars)
-        let function_env = std::env::var("ASML_FUNCTION_ENV").unwrap_or("default".into());
-
         assemblylift_wasi_host::add_to_linker(&mut linker, |s| &mut s.wasi)
-            .expect("TODO: panic message");
+            .expect("could not link wasi runtime component");
         Assemblylift::add_to_linker(&mut linker, |s| s)
-            .expect("could not add assemblylift runtime component");
+            .expect("could not link assemblylift runtime component");
+        WasiSecrets::add_to_linker(&mut linker, |s| s)
+            .expect("could not link wasi-secrets runtime component");
+
         // env vars prefixed with __ASML_ are defined in the function definition;
         // the prefix indicates that they are to be mapped to the module environment
         // FIXME this only really works when running inside a container/single-function environment
@@ -107,6 +109,8 @@ where
         for e in envs {
             wasi.push_env(&*e.0, &*e.1)
         }
+        // FIXME this might be confusingly named (confused with the function env vars)
+        let function_env = std::env::var("ASML_FUNCTION_ENV").unwrap_or("default".into());
         match function_env.as_str() {
             "ruby-docker" => {
                 wasi.push_env("RUBY_PLATFORM", "wasm32-wasi");
@@ -289,6 +293,33 @@ where
 
     fn get_input(&mut self) -> anyhow::Result<Vec<u8>> {
         Ok(self.function_input.clone())
+    }
+}
+
+impl<R, S> secrets::Secrets for AsmlFunctionState<R, S>
+where
+    R: RuntimeAbi<S> + Send + 'static,
+    S: Clone + Send + Sized + 'static,
+{
+    fn get_secret_value(&mut self, id: String) -> anyhow::Result<Result<Secret, Error>> {
+        let value = R::get_secret(id.clone()).unwrap();
+        Ok(Ok(Secret {
+            id: id.clone(),
+            value: Some(value),
+        }))
+    }
+
+    fn set_secret_value(
+        &mut self,
+        id: String,
+        value: Vec<u8>,
+        key: Key,
+    ) -> anyhow::Result<Result<Secret, Error>> {
+        R::set_secret(id.clone(), value.clone(), Some(key)).unwrap();
+        Ok(Ok(Secret {
+            id: id.clone(),
+            value: Some(value),
+        }))
     }
 }
 

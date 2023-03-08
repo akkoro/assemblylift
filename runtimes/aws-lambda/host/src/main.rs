@@ -18,7 +18,7 @@ use assemblylift_core_iomod::registry::registry_channel;
 use assemblylift_core_iomod::{package::IomodManifest, registry};
 use runtime::AwsLambdaRuntime;
 
-use crate::abi::{LambdaAbi, Status};
+use crate::abi::{Abi, Status};
 
 mod abi;
 mod runtime;
@@ -171,7 +171,7 @@ async fn main() {
             let mut full_path = PathBuf::from(&module_path);
             full_path.push(&handler_name);
             let wasmtime = Arc::new(RefCell::new(
-                Wasmtime::<LambdaAbi, Status>::new_from_path(Path::new(full_path.as_path()))
+                Wasmtime::<Abi, Status>::new_from_path(Path::new(full_path.as_path()))
                     .expect("could not create WASM runtime from module path"),
             ));
 

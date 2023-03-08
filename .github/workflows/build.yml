@@ -12,6 +12,8 @@ jobs:
     steps:
     - name: 'Checkout'
       uses: actions/checkout@v2
+      with:
+        submodules: recursive
     - name: 'Build'
       run: docker build -t assemblylift/asml-lambda-default . --file docker/asml-lambda-default
 
@@ -21,5 +23,7 @@ jobs:
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: 'Build'
         run: docker build -t assemblylift/asml-hyper-alpine . --file docker/asml-hyper-alpine

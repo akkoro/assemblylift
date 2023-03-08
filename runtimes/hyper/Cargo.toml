@@ -27,3 +27,4 @@ zip = "0.6"
 
 assemblylift-core = { version = "0.4.0-beta.0", path = "../../core" }
 assemblylift-core-iomod = { version = "0.4.0-beta.0", path = "../../core/iomod" }
+assemblylift-wasi-secrets-in-memory = { path = "../../runtimes/components/wasi-secrets/in-memory" }
