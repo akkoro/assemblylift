@@ -154,7 +154,7 @@ impl Castable for AwsLambdaProvider {
             .unwrap();
 
         let base_tmpl = LambdaBaseTemplate {
-            project_name: ctx.project.hostname().clone(),
+            project_name: ctx.project.name.clone(),
             options: self.options.clone(),
         };
         let hcl = Artifact {
@@ -290,7 +290,7 @@ impl Castable for LambdaService {
         .render();
 
         let function_subprovider = LambdaFunction {
-            service_name: service.hostname().clone(),
+            service_name: service.name.clone(),
         };
         let function_artifacts = ctx
             .functions

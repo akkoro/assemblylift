@@ -317,12 +317,6 @@ pub struct Project {
     //    pub version: String,
 }
 
-impl Project {
-    pub fn hostname(&self) -> String {
-        self.name.replace("_", "-")
-    }
-}
-
 pub struct Terraform {
     pub state_bucket_name: String,
     pub lock_table_name: String,
@@ -346,12 +340,6 @@ pub struct Service {
     pub is_root: Option<bool>,
     pub domain_name: Option<String>,
     pub project_name: String,
-}
-
-impl Service {
-    pub fn hostname(&self) -> String {
-        self.name.replace("_", "-")
-    }
 }
 
 #[derive(Serialize)]
