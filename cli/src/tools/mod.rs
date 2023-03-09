@@ -6,7 +6,9 @@ use std::process::Command;
 use flate2::read::GzDecoder;
 
 pub mod cmctl;
+#[allow(dead_code)]
 pub mod glooctl;
+#[allow(dead_code)]
 pub mod kubectl;
 
 pub trait Tool {

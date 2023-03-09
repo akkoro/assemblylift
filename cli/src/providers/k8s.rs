@@ -1,14 +1,12 @@
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use clap::crate_version;
 use handlebars::Handlebars;
 use itertools::Itertools;
-use once_cell::sync::Lazy;
 use serde::Serialize;
 
-use crate::providers::{DNS_PROVIDERS, flatten, gloo, KUBERNETES_PROVIDER_NAME, LockBox, Options, Provider, ProviderError, ProviderMap};
+use crate::providers::{flatten, gloo, KUBERNETES_PROVIDER_NAME, Options, Provider, ProviderError};
 use crate::tools::glooctl::GlooCtl;
 use crate::transpiler::{Artifact, Bindable, Bootable, Castable, CastError, ContentType, context, StringMap, Template};
 use crate::transpiler::context::Context;
@@ -102,7 +100,7 @@ impl Bindable for KubernetesProvider {
         ctx.services
             .iter()
             .filter(|&s| s.provider.name == self.name())
-            .map(|s| self.service_subprovider.bind(ctx.clone()))
+            .map(|_| self.service_subprovider.bind(ctx.clone()))
             .collect_vec();
         Ok(())
     }
@@ -148,7 +146,6 @@ impl Castable for KubernetesService {
 
         let function_subprovider = KubernetesFunction {
             service_name: name.clone(),
-            options: self.options.clone(),
         };
         let function_artifacts = ctx
             .functions
@@ -194,7 +191,6 @@ impl Bindable for KubernetesService {
 
 struct KubernetesFunction {
     service_name: String,
-    options: Arc<Options>,
 }
 
 impl Castable for KubernetesFunction {

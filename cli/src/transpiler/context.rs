@@ -39,7 +39,7 @@ impl Context {
         let mut ctx_functions: Vec<Function> = Vec::new();
         let mut ctx_authorizers: Vec<Authorizer> = Vec::new();
         let mut ctx_iomods: Vec<Iomod> = Vec::new();
-        let mut ctx_registries: Vec<Registry> = manifest
+        let ctx_registries: Vec<Registry> = manifest
             .registries
             .unwrap_or(Vec::new())
             .iter()
@@ -48,7 +48,7 @@ impl Context {
                 options: r.options.clone(),
             })
             .collect();
-        let mut ctx_domains = manifest
+        let ctx_domains = manifest
             .domains
             .unwrap_or(Vec::new())
             .iter()
@@ -224,7 +224,7 @@ impl Castable for Context {
         hcl_content.push_str(&*tmpl.render());
 
         // FIXME dedupe by name (there's only one provider possible rn)
-        let mut dns_providers = ctx.domains.iter().map(|d| d.provider.clone()).collect_vec();
+        let dns_providers = ctx.domains.iter().map(|d| d.provider.clone()).collect_vec();
         for dns in dns_providers {
             let provider = DNS_PROVIDERS
                 .get(&*dns.name.clone())
@@ -317,6 +317,12 @@ pub struct Project {
     //    pub version: String,
 }
 
+impl Project {
+    pub fn hostname(&self) -> String {
+        self.name.replace("_", "-")
+    }
+}
+
 pub struct Terraform {
     pub state_bucket_name: String,
     pub lock_table_name: String,
@@ -343,8 +349,8 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn option(&self, name: &str) -> Option<&String> {
-        self.provider.options.get(name)
+    pub fn hostname(&self) -> String {
+        self.name.replace("_", "-")
     }
 }
 
