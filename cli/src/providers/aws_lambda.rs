@@ -269,6 +269,7 @@ impl Castable for LambdaService {
 
         let hcl_content = ServiceTemplate {
             project_name: ctx.project.name.clone(),
+            project_hostname: to_hostname(&ctx.project.name),
             service_name: service.name.clone(),
             service_hostname: to_hostname(&service.name),
             domain_name: String::from(
@@ -477,6 +478,7 @@ impl Template for LambdaBaseTemplate {
 #[derive(Serialize)]
 struct ServiceTemplate {
     project_name: String,
+    project_hostname: String,
     service_name: String,
     service_hostname: String,
     layer_name: String,
@@ -558,7 +560,7 @@ resource aws_apigatewayv2_stage {{service_name}}_default_stage {
 
 {{#if has_large_payloads}}resource aws_s3_bucket asml_{{service_name}}_functions {
     provider = aws.{{project_name}}-aws-lambda
-    bucket   = "asml-${local.project_name}-{{service_hostname}}-functions"
+    bucket   = "asml-{{project_hostname}}-{{service_hostname}}-functions"
 }
 resource aws_s3_bucket_acl functions {
     provider = aws.{{project_name}}-aws-lambda
