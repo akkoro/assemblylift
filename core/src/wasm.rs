@@ -27,6 +27,7 @@ pub static CPU_COMPAT_MODE: Lazy<String> =
     Lazy::new(|| std::env::var("ASML_CPU_COMPAT_MODE").unwrap_or("default".to_string()));
 
 bindgen!("assemblylift");
+bindgen!("opa");
 bindgen!("wasi-secrets" in "components/wasi-secrets/wit");
 
 pub struct Wasmtime<R, S>
@@ -320,6 +321,16 @@ where
             id: id.clone(),
             value: Some(value),
         }))
+    }
+}
+
+impl<R, S> opa::Opa for AsmlFunctionState<R, S>
+where
+    R: RuntimeAbi<S> + Send + 'static,
+    S: Clone + Send + Sized + 'static,
+{
+    fn eval(&mut self, data: String, input: String) -> anyhow::Result<String> {
+        todo!()
     }
 }
 

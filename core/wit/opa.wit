@@ -1,0 +1,7 @@
+interface opa-module {
+    eval: func(data: string, input: string) -> string
+}
+
+default world opa {
+   import opa: self.opa-module 
+}
