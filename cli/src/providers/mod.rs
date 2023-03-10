@@ -6,7 +6,6 @@ use once_cell::sync::Lazy;
 use crate::transpiler::{Artifact, Bindable, Bootable, Castable, StringMap};
 
 pub mod aws_lambda;
-pub mod aws_lambda_alpine;
 pub mod gloo;
 pub mod k8s;
 pub mod route53;
@@ -63,6 +62,10 @@ pub trait Provider: Castable + Bindable + Bootable {
 #[derive(Debug)]
 pub enum ProviderError {
     TransformationError(String),
+}
+
+fn to_hostname(name: &str) -> String {
+    name.replace("_", "-")
 }
 
 fn render_string_list(list: Rc<Vec<String>>) -> String {

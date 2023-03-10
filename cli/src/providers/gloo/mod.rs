@@ -1,22 +1,20 @@
 use std::rc::Rc;
 use std::sync::Arc;
 
-use handlebars::{Handlebars, to_json};
+use handlebars::Handlebars;
 use itertools::Itertools;
 use jsonpath_lib::Selector;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde::Serialize;
 
 use crate::providers::{
     KUBERNETES_PROVIDER_NAME, Options, Provider, ProviderError, ROUTE53_PROVIDER_NAME,
 };
 use crate::tools::cmctl::CmCtl;
-use crate::tools::glooctl::GlooCtl;
 use crate::tools::kubectl::KubeCtl;
 use crate::transpiler::{
     Artifact, Bindable, Bootable, Castable, CastError, ContentType, StringMap, Template,
 };
-use crate::transpiler::context::{Context, Domain, Function};
+use crate::transpiler::context::{Context, Function};
 
 pub struct ApiProvider {
     options: Arc<Options>,
@@ -29,6 +27,7 @@ impl ApiProvider {
         }
     }
 
+    #[allow(dead_code)] // Will need this eventually
     fn is_installed() -> bool {
         let kubectl = KubeCtl::default();
         let namespaces = kubectl.get_namespaces().unwrap();
@@ -283,71 +282,6 @@ impl Provider for ApiProvider {
         self.options = opts;
         Ok(())
     }
-}
-
-#[derive(Deserialize, Clone, Debug)]
-struct Status {
-    authorizations: Vec<Authorization>,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-struct Authorization {
-    challenges: Vec<Challenge>,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-struct Challenge {
-    r#type: String,
-    token: String,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-struct VirtualService {
-    #[serde(rename = "apiVersion")]
-    api_version: String,
-    kind: String,
-    metadata: std::collections::HashMap<String, Value>,
-    spec: VirtualServiceSpec,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-struct VirtualServiceSpec {
-    #[serde(rename = "virtualHost")]
-    virtual_host: VirtualHost,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-struct VirtualHost {
-    domains: Vec<String>,
-    routes: Vec<Route>,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-struct Route {
-    matchers: Vec<std::collections::HashMap<String, String>>,
-    #[serde(rename = "routeAction")]
-    route_action: RouteAction,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-struct RouteAction {
-    single: RouteActionSingle,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-struct RouteActionSingle {
-    upstream: Upstream,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-struct Upstream {
-    metadata: Metadata,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-struct Metadata {
-    name: String,
-    namespace: String,
 }
 
 #[derive(Serialize)]

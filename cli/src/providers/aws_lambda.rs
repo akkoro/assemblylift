@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
@@ -7,14 +6,13 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use handlebars::{Handlebars, to_json};
+use handlebars::Handlebars;
 use itertools::Itertools;
-use once_cell::sync::Lazy;
 use registry_common::models::GetIomodAtResponse;
 use serde::Serialize;
 
 use crate::archive;
-use crate::providers::{AWS_LAMBDA_PROVIDER_NAME, DNS_PROVIDERS, flatten, LockBox, Options, Provider, ProviderError, ProviderMap, render_string_list, render_string_map};
+use crate::providers::{AWS_LAMBDA_PROVIDER_NAME, flatten, to_hostname, Options, Provider, ProviderError, render_string_list, render_string_map};
 use crate::transpiler::{Artifact, Bindable, Bootable, Castable, CastError, ContentType, context, StringMap, Template};
 use crate::transpiler::context::{Context, Function};
 
@@ -271,7 +269,9 @@ impl Castable for LambdaService {
 
         let hcl_content = ServiceTemplate {
             project_name: ctx.project.name.clone(),
-            service_name: name.clone(),
+            project_hostname: to_hostname(&ctx.project.name),
+            service_name: service.name.clone(),
+            service_hostname: to_hostname(&service.name),
             domain_name: String::from(
                 service
                     .domain_name
@@ -290,8 +290,7 @@ impl Castable for LambdaService {
         .render();
 
         let function_subprovider = LambdaFunction {
-            service_name: name.clone(),
-            options: self.options.clone(),
+            service_name: service.name.clone(),
         };
         let function_artifacts = ctx
             .functions
@@ -322,7 +321,6 @@ impl Castable for LambdaService {
 
 struct LambdaFunction {
     service_name: String,
-    options: Arc<Options>,
 }
 
 impl Castable for LambdaFunction {
@@ -337,13 +335,13 @@ impl Castable for LambdaFunction {
             .find(|&f| f.name == name)
         {
             Some(function) => {
-                let service = function.service_name.clone();
+                let service_name = function.service_name.clone();
 
                 // find dependencies for service
                 let iomod_names: Vec<String> = ctx
                     .iomods
                     .iter()
-                    .filter(|&m| *m.service_name == service.clone())
+                    .filter(|&m| *m.service_name == service_name.clone())
                     .map(|m| m.name.clone())
                     .collect();
 
@@ -353,7 +351,7 @@ impl Castable for LambdaFunction {
                         let authorizer = ctx
                             .authorizers
                             .iter()
-                            .filter(|a| a.service_name == service.clone())
+                            .filter(|a| a.service_name == service_name.clone())
                             .find(|a| a.id == id.clone())
                             .expect(&format!(
                                 "could not find authorizer by id \"{}\" in context",
@@ -365,7 +363,7 @@ impl Castable for LambdaFunction {
                                 "aws_iam" => None,
                                 _ => Some(format!(
                                     "aws_apigatewayv2_authorizer.{}_{}.id",
-                                    service.clone(),
+                                    service_name.clone(),
                                     id
                                 )),
                             },
@@ -394,7 +392,7 @@ impl Castable for LambdaFunction {
 
                 let tmpl = FunctionTemplate {
                     project_name: ctx.project.name.clone(),
-                    service_name: service.clone(),
+                    service_name: service_name.clone(),
                     function_name: function.name.clone(),
                     handler_name: match function.language.as_str() {
                         "rust" => format!("{}.{}", function.name.clone(), ext),
@@ -403,19 +401,19 @@ impl Castable for LambdaFunction {
                     },
                     runtime_layer: format!(
                         "aws_lambda_layer_version.asml_{}_runtime.arn",
-                        service.clone()
+                        service_name.clone()
                     ),
                     iomods_layer: match iomod_names.len() {
                         0 => None,
                         _ => Some(format!(
                             "aws_lambda_layer_version.asml_{}_iomods.arn",
-                            service.clone()
+                            service_name.clone()
                         )),
                     },
                     ruby_layer: match &*function.language {
                         "ruby" => Some(format!(
                             "aws_lambda_layer_version.asml_{}_ruby.arn",
-                            service.clone()
+                            service_name.clone()
                         )),
                         _ => None,
                     },
@@ -480,7 +478,9 @@ impl Template for LambdaBaseTemplate {
 #[derive(Serialize)]
 struct ServiceTemplate {
     project_name: String,
+    project_hostname: String,
     service_name: String,
+    service_hostname: String,
     layer_name: String,
     domain_name: String,
     has_iomods_layer: bool,
@@ -560,7 +560,7 @@ resource aws_apigatewayv2_stage {{service_name}}_default_stage {
 
 {{#if has_large_payloads}}resource aws_s3_bucket asml_{{service_name}}_functions {
     provider = aws.{{project_name}}-aws-lambda
-    bucket   = "asml-${local.project_name}-{{service_name}}-functions"
+    bucket   = "asml-{{project_hostname}}-{{service_hostname}}-functions"
 }
 resource aws_s3_bucket_acl functions {
     provider = aws.{{project_name}}-aws-lambda

@@ -3,7 +3,6 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use itertools::Itertools;
 use serde_json::Value;
 
 use crate::tools::Tool;
@@ -32,7 +31,7 @@ impl KubeCtl {
 
     pub fn apply(&self) -> Result<(), String> {
         println!("Applying kubernetes configuration...");
-        let mut child = self
+        let child = self
             .command()
             .arg("apply")
             .arg("-f")
@@ -88,7 +87,7 @@ impl KubeCtl {
     }
 
     pub fn get_namespaces(&self) -> Result<Value, String> {
-        let mut child = self
+        let child = self
             .command()
             .args(vec!["get", "namespaces"])
             .arg("-o")
@@ -103,7 +102,7 @@ impl KubeCtl {
     }
 
     pub fn get(&self, kind: &str) -> Result<Value, String> {
-        let mut child = self
+        let child = self
             .command()
             .args(vec!["get", kind])
             .args(vec!["-o", "json"])
@@ -137,7 +136,7 @@ impl KubeCtl {
                 a
             })
             .unwrap_or(Default::default());
-        let mut child = self
+        let child = self
             .command()
             .args(vec!["get", kind])
             .args(vec!["-n", ns])
