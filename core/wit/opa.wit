@@ -1,5 +1,16 @@
 interface opa-module {
-    eval: func(data: string, input: string) -> string
+    enum policy-error {
+        invalid-wasm,
+        no-entrypoint,
+    }
+
+    record policy {
+        id: string,
+        entrypoints: list<string>,
+    }
+
+    new-policy: func(bytes: list<u8>) -> result<policy, policy-error>
+    eval: func(policy: policy, data: string, input: string, entrypoint: option<string>) -> string
 }
 
 default world opa {

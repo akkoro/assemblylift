@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::iter::FromIterator;
 use std::path::Path;
@@ -9,6 +10,7 @@ use assemblylift_wasi_cap_std_sync::{dir, Dir, WasiCtxBuilder};
 use assemblylift_wasi_common::WasiCtx;
 pub use crossbeam_channel::bounded as status_channel;
 use once_cell::sync::Lazy;
+use uuid::Uuid;
 use wasmtime::component::{bindgen, Component, Linker};
 use wasmtime::{Config, Engine, Store};
 use wit_component::ComponentEncoder;
@@ -93,6 +95,7 @@ where
             .expect("could not link wasi runtime component");
         Assemblylift::add_to_linker(&mut linker, |s| s)
             .expect("could not link assemblylift runtime component");
+        Opa::add_to_linker(&mut linker, |s| s).expect("could not link opa runtime component");
         WasiSecrets::add_to_linker(&mut linker, |s| s)
             .expect("could not link wasi-secrets runtime component");
 
@@ -177,6 +180,7 @@ where
             status_sender: status_tx,
             threader,
             request_id,
+            policies: Default::default(),
             wasi,
             _phantom: Default::default(),
         };
@@ -232,6 +236,7 @@ where
     threader: Arc<Mutex<Threader<S>>>,
     function_input: Vec<u8>,
     request_id: Option<String>,
+    policies: BTreeMap<String, policy_agent::wasm::Opa>,
     wasi: WasiCtx,
     _phantom: std::marker::PhantomData<R>,
 }
@@ -329,8 +334,42 @@ where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
 {
-    fn eval(&mut self, data: String, input: String) -> anyhow::Result<String> {
-        todo!()
+    fn new_policy(
+        &mut self,
+        policy_bytes: Vec<u8>,
+    ) -> anyhow::Result<Result<opa::Policy, opa::PolicyError>> {
+        let bundle = match policy_agent::bundle::Bundle::from_bytes(policy_bytes) {
+            Ok(bundle) => bundle,
+            Err(_) => return Ok(Err(opa::PolicyError::InvalidWasm)),
+        };
+        let opa = policy_agent::wasm::Opa::new().build_from_bundle(&bundle)?;
+        let entrypoints: Vec<String> = opa.entrypoints().map(|e| e.to_string()).collect();
+        if entrypoints.len() == 0 {
+            return Ok(Err(opa::PolicyError::NoEntrypoint));
+        }
+        let id = Uuid::new_v4().to_string();
+        self.policies.insert(id.clone(), opa);
+        Ok(Ok(opa::Policy {
+            id,
+            entrypoints,
+        }))
+    }
+
+    fn eval(
+        &mut self,
+        policy: opa::Policy,
+        data: String,
+        input: String,
+        entrypoint: Option<String>,
+    ) -> anyhow::Result<String> {
+        let opa = self.policies.get_mut(&policy.id).unwrap();
+        opa.set_data(&data)?;
+        let entrypoint = match entrypoint {
+            Some(ep) => ep,
+            None => policy.entrypoints.get(0).unwrap().to_string(),
+        };
+        let result: serde_json::Value = opa.eval(&entrypoint, &input)?;
+        Ok(result.to_string())
     }
 }
 
