@@ -13,6 +13,7 @@ pub use assemblylift_core_guest_macros::handler;
 pub use wasi_command as wasi;
 
 pub mod assemblylift;
+pub mod opa;
 #[allow(dead_code)]
 #[macro_use]
 pub mod wasi_command;
