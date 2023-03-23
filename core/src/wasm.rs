@@ -351,11 +351,11 @@ where
         }))
     }
 
-    fn eval(&mut self, policy: opa::Policy, data: String, input: String) -> anyhow::Result<bool> {
+    fn eval(&mut self, id: String, data: String, input: String) -> anyhow::Result<bool> {
         self.policy_manager
             .lock()
             .unwrap()
-            .eval(policy.id, data, &*input)
+            .eval(id, data, &*input)
     }
 }
 
