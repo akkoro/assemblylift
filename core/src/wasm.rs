@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::fs::File;
 use std::iter::FromIterator;
 use std::path::Path;
@@ -11,15 +10,16 @@ use assemblylift_wasi_common::WasiCtx;
 pub use crossbeam_channel::bounded as status_channel;
 use once_cell::sync::Lazy;
 use uuid::Uuid;
-use wasmtime::component::{bindgen, Component, Linker};
 use wasmtime::{Config, Engine, Store};
+use wasmtime::component::{bindgen, Component, Linker};
 use wit_component::ComponentEncoder;
 
 use assemblylift_core_iomod::registry::RegistryTx;
 
+use crate::policy_manager::PolicyManager;
+use crate::RuntimeAbi;
 use crate::threader::Threader;
 use crate::wasm::secrets::{Error, Key, Secret};
-use crate::RuntimeAbi;
 
 pub type State<R, S> = AsmlFunctionState<R, S>;
 pub type StatusTx<S> = crossbeam_channel::Sender<S>;
@@ -178,9 +178,9 @@ where
         let state = State {
             function_input: Vec::with_capacity(512usize),
             status_sender: status_tx,
+            policy_manager: Arc::new(Mutex::new(PolicyManager::new())),
             threader,
             request_id,
-            policies: Default::default(),
             wasi,
             _phantom: Default::default(),
         };
@@ -234,9 +234,9 @@ where
 {
     status_sender: StatusTx<S>,
     threader: Arc<Mutex<Threader<S>>>,
+    policy_manager: Arc<Mutex<PolicyManager>>,
     function_input: Vec<u8>,
     request_id: Option<String>,
-    policies: BTreeMap<String, policy_agent::wasm::Opa>,
     wasi: WasiCtx,
     _phantom: std::marker::PhantomData<R>,
 }
@@ -338,38 +338,24 @@ where
         &mut self,
         policy_bytes: Vec<u8>,
     ) -> anyhow::Result<Result<opa::Policy, opa::PolicyError>> {
-        let bundle = match policy_agent::bundle::Bundle::from_bytes(policy_bytes) {
-            Ok(bundle) => bundle,
-            Err(_) => return Ok(Err(opa::PolicyError::InvalidWasm)),
-        };
-        let opa = policy_agent::wasm::Opa::new().build_from_bundle(&bundle)?;
-        let entrypoints: Vec<String> = opa.entrypoints().map(|e| e.to_string()).collect();
-        if entrypoints.len() == 0 {
-            return Ok(Err(opa::PolicyError::NoEntrypoint));
-        }
         let id = Uuid::new_v4().to_string();
-        self.policies.insert(id.clone(), opa);
+        let entrypoints = self
+            .policy_manager
+            .lock()
+            .unwrap()
+            .load_policy_bundle(id.clone(), &*policy_bytes)
+            .unwrap();
         Ok(Ok(opa::Policy {
-            id,
+            id: id.clone(),
             entrypoints,
         }))
     }
 
-    fn eval(
-        &mut self,
-        policy: opa::Policy,
-        data: String,
-        input: String,
-        entrypoint: Option<String>,
-    ) -> anyhow::Result<String> {
-        let opa = self.policies.get_mut(&policy.id).unwrap();
-        opa.set_data(&data)?;
-        let entrypoint = match entrypoint {
-            Some(ep) => ep,
-            None => policy.entrypoints.get(0).unwrap().to_string(),
-        };
-        let result: serde_json::Value = opa.eval(&entrypoint, &input)?;
-        Ok(result.to_string())
+    fn eval(&mut self, policy: opa::Policy, data: String, input: String) -> anyhow::Result<bool> {
+        self.policy_manager
+            .lock()
+            .unwrap()
+            .eval(policy.id, data, &*input)
     }
 }
 

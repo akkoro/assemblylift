@@ -10,7 +10,7 @@ interface opa-module {
     }
 
     new-policy: func(bytes: list<u8>) -> result<policy, policy-error>
-    eval: func(policy: policy, data: string, input: string, entrypoint: option<string>) -> string
+    eval: func(policy: policy, data: string, input: string) -> bool
 }
 
 default world opa {
