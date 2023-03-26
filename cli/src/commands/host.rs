@@ -7,7 +7,7 @@ use assemblylift_hyper_runtime::spawn_runtime;
 
 pub fn command(_matches: Option<&ArgMatches>) {
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_max_level(Level::DEBUG)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");

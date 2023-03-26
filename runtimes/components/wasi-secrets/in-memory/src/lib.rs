@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::sync::Mutex;
 
 use anyhow::anyhow;
-use chacha20poly1305::{ChaCha20Poly1305, Key, KeyInit, Nonce};
 use chacha20poly1305::aead::Aead;
+use chacha20poly1305::{ChaCha20Poly1305, Key, KeyInit, Nonce};
 use once_cell::sync::Lazy;
 use rand::RngCore;
 use tracing::info;

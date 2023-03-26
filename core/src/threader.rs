@@ -1,5 +1,5 @@
 //! The Threader Runtime
-//! "Threader" is the interface between the Wasmer runtime and the IOmod RPC network.
+//! "Threader" is the interface between the Wasmtime runtime and the IOmod RPC network.
 //! See [core-threader doc](../../docs/core-threader.md) for more details.
 
 use std::collections::HashMap;

@@ -20,29 +20,19 @@ pub fn handler(
     proc_macro::TokenStream::from(quote! {
         use assemblylift_core_guest::asml_rt;
         use assemblylift_core_guest::direct_executor;
-        use assemblylift_core_guest::export_wasi_command;
+        use assemblylift_core_guest::export_command;
         use assemblylift_core_guest::FunctionContext;
-        use assemblylift_core_guest::wasi_command::*;
+        use assemblylift_core_guest::command::*;
         use assemblylift_core_guest::wit_bindgen;
         struct Cmd;
-        impl WasiCommand for Cmd {
-            fn command(
-                stdin: u32,
-                stdout: u32,
+        impl Command for Cmd {
+            fn main(
                 args: wit_bindgen::rt::vec::Vec<wit_bindgen::rt::string::String>,
-                // env_vars: wit_bindgen::rt::vec::Vec<(
-                //     wit_bindgen::rt::string::String,
-                //     wit_bindgen::rt::string::String,
-                // )>,
-                // preopens: wit_bindgen::rt::vec::Vec<(
-                //     u32,
-                //     wit_bindgen::rt::string::String,
-                // )>,
             ) -> Result<(), ()> {
                 Ok(__handler(FunctionContext { input: asml_rt::get_input() }))
             }
         }
-        export_wasi_command!(Cmd);
+        export_command!(Cmd);
         fn __handler(ctx: FunctionContext) {
             direct_executor::run_spinning(async {
                 #(#block_statements)*

@@ -5,8 +5,8 @@ use std::task::{Context, Poll, Waker};
 
 use serde::{de::DeserializeOwned, Deserialize};
 
-use assemblylift_core_guest::wasi_logging::Level;
-use assemblylift_core_guest::{asml_io, wasi_logging};
+use assemblylift_core_guest::wasi::wasi_logging::Level;
+use assemblylift_core_guest::{asml_io, wasi::wasi_logging};
 
 #[derive(Clone)]
 /// A handle implementing `std::future::Future` for an in-flight IOmod call

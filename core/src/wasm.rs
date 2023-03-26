@@ -9,12 +9,14 @@ use assemblylift_wasi_cap_std_sync::{dir, Dir, WasiCtxBuilder};
 use assemblylift_wasi_common::WasiCtx;
 pub use crossbeam_channel::bounded as status_channel;
 use once_cell::sync::Lazy;
+use uuid::Uuid;
 use wasmtime::component::{bindgen, Component, Linker};
 use wasmtime::{Config, Engine, Store};
 use wit_component::ComponentEncoder;
 
 use assemblylift_core_iomod::registry::RegistryTx;
 
+use crate::policy_manager::PolicyManager;
 use crate::threader::Threader;
 use crate::wasm::secrets::{Error, Key, Secret};
 use crate::RuntimeAbi;
@@ -27,6 +29,7 @@ pub static CPU_COMPAT_MODE: Lazy<String> =
     Lazy::new(|| std::env::var("ASML_CPU_COMPAT_MODE").unwrap_or("default".to_string()));
 
 bindgen!("assemblylift");
+bindgen!("opa");
 bindgen!("wasi-secrets" in "components/wasi-secrets/wit");
 
 pub struct Wasmtime<R, S>
@@ -84,14 +87,18 @@ where
         registry_tx: RegistryTx,
         status_tx: StatusTx<S>,
         request_id: Option<String>,
-    ) -> anyhow::Result<(assemblylift_wasi_host::WasiCommand, Store<State<R, S>>)> {
+    ) -> anyhow::Result<(
+        assemblylift_wasi_host::command::wasi::Command,
+        Store<State<R, S>>,
+    )> {
         let threader = Arc::new(Mutex::new(Threader::new(registry_tx)));
         let mut linker: Linker<State<R, S>> = Linker::new(&self.engine);
 
-        assemblylift_wasi_host::add_to_linker(&mut linker, |s| &mut s.wasi)
+        assemblylift_wasi_host::command::add_to_linker(&mut linker, |s| &mut s.wasi)
             .expect("could not link wasi runtime component");
         Assemblylift::add_to_linker(&mut linker, |s| s)
             .expect("could not link assemblylift runtime component");
+        Opa::add_to_linker(&mut linker, |s| s).expect("could not link opa runtime component");
         WasiSecrets::add_to_linker(&mut linker, |s| s)
             .expect("could not link wasi-secrets runtime component");
 
@@ -174,6 +181,7 @@ where
         let state = State {
             function_input: Vec::with_capacity(512usize),
             status_sender: status_tx,
+            policy_manager: Arc::new(Mutex::new(PolicyManager::new())),
             threader,
             request_id,
             wasi,
@@ -181,7 +189,7 @@ where
         };
         let mut store = Store::new(&self.engine, state);
 
-        match assemblylift_wasi_host::WasiCommand::instantiate_async(
+        match assemblylift_wasi_host::command::wasi::Command::instantiate_async(
             &mut store,
             &self.component,
             &linker,
@@ -208,13 +216,11 @@ where
 
     pub async fn run(
         &mut self,
-        wasi: assemblylift_wasi_host::WasiCommand,
+        wasi: assemblylift_wasi_host::command::wasi::Command,
         mut store: &mut Store<State<R, S>>,
     ) -> anyhow::Result<()> {
-        wasi.call_command(
+        wasi.call_main(
             &mut store,
-            0 as assemblylift_wasi_host::wasi_io::InputStream,
-            1 as assemblylift_wasi_host::wasi_io::OutputStream,
             &[], // TODO args
         )
         .await?
@@ -229,13 +235,14 @@ where
 {
     status_sender: StatusTx<S>,
     threader: Arc<Mutex<Threader<S>>>,
+    policy_manager: Arc<Mutex<PolicyManager>>,
     function_input: Vec<u8>,
     request_id: Option<String>,
     wasi: WasiCtx,
     _phantom: std::marker::PhantomData<R>,
 }
 
-impl<R, S> asml_io::AsmlIo for AsmlFunctionState<R, S>
+impl<R, S> asml_io::Host for AsmlFunctionState<R, S>
 where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
@@ -270,7 +277,7 @@ where
     }
 }
 
-impl<R, S> asml_rt::AsmlRt for AsmlFunctionState<R, S>
+impl<R, S> asml_rt::Host for AsmlFunctionState<R, S>
 where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
@@ -291,12 +298,22 @@ where
         ))
     }
 
+    fn log(
+        &mut self,
+        log_level: asml_rt::LogLevel,
+        context: String,
+        message: String,
+    ) -> anyhow::Result<()> {
+        tracing::info!("Function Log: {}", message);
+        Ok(())
+    }
+
     fn get_input(&mut self) -> anyhow::Result<Vec<u8>> {
         Ok(self.function_input.clone())
     }
 }
 
-impl<R, S> secrets::Secrets for AsmlFunctionState<R, S>
+impl<R, S> secrets::Host for AsmlFunctionState<R, S>
 where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
@@ -320,6 +337,33 @@ where
             id: id.clone(),
             value: Some(value),
         }))
+    }
+}
+
+impl<R, S> opa::Host for AsmlFunctionState<R, S>
+where
+    R: RuntimeAbi<S> + Send + 'static,
+    S: Clone + Send + Sized + 'static,
+{
+    fn new_policy(
+        &mut self,
+        policy_bytes: Vec<u8>,
+    ) -> anyhow::Result<Result<opa::Policy, opa::PolicyError>> {
+        let id = Uuid::new_v4().to_string();
+        let entrypoints = self
+            .policy_manager
+            .lock()
+            .unwrap()
+            .load_policy_bundle(id.clone(), &*policy_bytes)
+            .unwrap();
+        Ok(Ok(opa::Policy {
+            id: id.clone(),
+            entrypoints,
+        }))
+    }
+
+    fn eval(&mut self, id: String, data: String, input: String) -> anyhow::Result<String> {
+        self.policy_manager.lock().unwrap().eval(id, data, input)
     }
 }
 
