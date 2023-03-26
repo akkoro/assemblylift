@@ -18,9 +18,18 @@ interface assemblylift-io {
 
 interface assemblylift-function-runtime {
   type bytes = list<u8>
+
+  enum log-level {
+    debug,
+    trace,
+    info,
+    warn,
+    error
+  }
+
   success: func(response: bytes)
   failure: func(response: bytes)
-
+  log: func(level: log-level, context: string, message: string)
   get-input: func() -> list<u8>
 }
 

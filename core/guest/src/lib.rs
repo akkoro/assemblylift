@@ -10,13 +10,13 @@ pub use wit_bindgen;
 pub use assemblylift::asml_io;
 pub use assemblylift::asml_rt;
 pub use assemblylift_core_guest_macros::handler;
-pub use wasi_command as wasi;
+pub use command as wasi;
 
 pub mod assemblylift;
 pub mod opa;
 #[allow(dead_code)]
 #[macro_use]
-pub mod wasi_command;
+pub mod command;
 pub mod wasi_secrets;
 
 pub struct FunctionContext {
@@ -26,7 +26,8 @@ pub struct FunctionContext {
 impl FunctionContext {
     pub fn log(message: String) {
         // TODO context should be the module name if possible
-        wasi::wasi_logging::log(wasi::wasi_logging::Level::Info, "Function", &message)
+        asml_rt::log(asml_rt::LogLevel::Info, "Function", &message)
+        // wasi::wasi_logging::log(wasi::wasi_logging::Level::Info, "Function", &message)
     }
 
     pub fn success(response: String) {

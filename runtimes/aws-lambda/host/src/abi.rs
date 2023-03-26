@@ -1,5 +1,5 @@
-use assemblylift_core::{KeysAbi, RuntimeAbi, SecretsAbi};
 use assemblylift_core::wasm::StatusTx;
+use assemblylift_core::{KeysAbi, RuntimeAbi, SecretsAbi};
 use assemblylift_wasi_secrets_in_memory::InMemorySecrets;
 
 #[derive(Clone)]

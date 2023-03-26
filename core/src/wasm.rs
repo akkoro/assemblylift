@@ -10,16 +10,16 @@ use assemblylift_wasi_common::WasiCtx;
 pub use crossbeam_channel::bounded as status_channel;
 use once_cell::sync::Lazy;
 use uuid::Uuid;
-use wasmtime::{Config, Engine, Store};
 use wasmtime::component::{bindgen, Component, Linker};
+use wasmtime::{Config, Engine, Store};
 use wit_component::ComponentEncoder;
 
 use assemblylift_core_iomod::registry::RegistryTx;
 
 use crate::policy_manager::PolicyManager;
-use crate::RuntimeAbi;
 use crate::threader::Threader;
 use crate::wasm::secrets::{Error, Key, Secret};
+use crate::RuntimeAbi;
 
 pub type State<R, S> = AsmlFunctionState<R, S>;
 pub type StatusTx<S> = crossbeam_channel::Sender<S>;
@@ -87,11 +87,14 @@ where
         registry_tx: RegistryTx,
         status_tx: StatusTx<S>,
         request_id: Option<String>,
-    ) -> anyhow::Result<(assemblylift_wasi_host::WasiCommand, Store<State<R, S>>)> {
+    ) -> anyhow::Result<(
+        assemblylift_wasi_host::command::wasi::Command,
+        Store<State<R, S>>,
+    )> {
         let threader = Arc::new(Mutex::new(Threader::new(registry_tx)));
         let mut linker: Linker<State<R, S>> = Linker::new(&self.engine);
 
-        assemblylift_wasi_host::add_to_linker(&mut linker, |s| &mut s.wasi)
+        assemblylift_wasi_host::command::add_to_linker(&mut linker, |s| &mut s.wasi)
             .expect("could not link wasi runtime component");
         Assemblylift::add_to_linker(&mut linker, |s| s)
             .expect("could not link assemblylift runtime component");
@@ -186,7 +189,7 @@ where
         };
         let mut store = Store::new(&self.engine, state);
 
-        match assemblylift_wasi_host::WasiCommand::instantiate_async(
+        match assemblylift_wasi_host::command::wasi::Command::instantiate_async(
             &mut store,
             &self.component,
             &linker,
@@ -213,13 +216,11 @@ where
 
     pub async fn run(
         &mut self,
-        wasi: assemblylift_wasi_host::WasiCommand,
+        wasi: assemblylift_wasi_host::command::wasi::Command,
         mut store: &mut Store<State<R, S>>,
     ) -> anyhow::Result<()> {
-        wasi.call_command(
+        wasi.call_main(
             &mut store,
-            0 as assemblylift_wasi_host::wasi_io::InputStream,
-            1 as assemblylift_wasi_host::wasi_io::OutputStream,
             &[], // TODO args
         )
         .await?
@@ -241,7 +242,7 @@ where
     _phantom: std::marker::PhantomData<R>,
 }
 
-impl<R, S> asml_io::AsmlIo for AsmlFunctionState<R, S>
+impl<R, S> asml_io::Host for AsmlFunctionState<R, S>
 where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
@@ -276,7 +277,7 @@ where
     }
 }
 
-impl<R, S> asml_rt::AsmlRt for AsmlFunctionState<R, S>
+impl<R, S> asml_rt::Host for AsmlFunctionState<R, S>
 where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
@@ -297,12 +298,22 @@ where
         ))
     }
 
+    fn log(
+        &mut self,
+        log_level: asml_rt::LogLevel,
+        context: String,
+        message: String,
+    ) -> anyhow::Result<()> {
+        tracing::info!("Function Log: {}", message);
+        Ok(())
+    }
+
     fn get_input(&mut self) -> anyhow::Result<Vec<u8>> {
         Ok(self.function_input.clone())
     }
 }
 
-impl<R, S> secrets::Secrets for AsmlFunctionState<R, S>
+impl<R, S> secrets::Host for AsmlFunctionState<R, S>
 where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
@@ -329,7 +340,7 @@ where
     }
 }
 
-impl<R, S> opa::Opa for AsmlFunctionState<R, S>
+impl<R, S> opa::Host for AsmlFunctionState<R, S>
 where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
@@ -351,11 +362,8 @@ where
         }))
     }
 
-    fn eval(&mut self, id: String, data: String, input: String) -> anyhow::Result<bool> {
-        self.policy_manager
-            .lock()
-            .unwrap()
-            .eval(id, data, &*input)
+    fn eval(&mut self, id: String, data: String, input: String) -> anyhow::Result<String> {
+        self.policy_manager.lock().unwrap().eval(id, data, input)
     }
 }
 

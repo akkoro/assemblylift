@@ -52,7 +52,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             .expect("could not make context from manifest"),
     );
 
-    let wasi_snapshot_preview1 = include_bytes!("wasm/wasi_snapshot_preview1.wasm");
+    let wasi_snapshot_preview1 = include_bytes!("wasm/wasi_snapshot_preview1.reactor.wasm");
 
     // Fetch the latest terraform binary to the project directory
     terraform::fetch(&*project.dir());
