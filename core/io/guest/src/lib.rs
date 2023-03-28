@@ -5,8 +5,8 @@ use std::task::{Context, Poll, Waker};
 
 use serde::{de::DeserializeOwned, Deserialize};
 
-use assemblylift_core_guest::wasi::wasi_logging::Level;
-use assemblylift_core_guest::{asml_io, wasi::wasi_logging};
+use assemblylift_core_guest::asml_rt::LogLevel;
+use assemblylift_core_guest::{asml_io, asml_rt};
 
 #[derive(Clone)]
 /// A handle implementing `std::future::Future` for an in-flight IOmod call
@@ -52,7 +52,7 @@ where
     match serde_json::from_str(res) {
         Ok(response) => Some(response),
         Err(why) => {
-            wasi_logging::log(Level::Error, "core::io::read_response", &why.to_string());
+            asml_rt::log(LogLevel::Error, "core::io::read_response", &why.to_string());
             None
         }
     }
