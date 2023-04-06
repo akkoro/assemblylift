@@ -2,6 +2,11 @@
 
 #[allow(clippy::all)]
 pub mod opa {
+    #[used]
+    #[doc(hidden)]
+    #[cfg(target_arch = "wasm32")]
+    static __FORCE_SECTION_REF: fn() = super::__link_section;
+
     #[repr(u8)]
     #[derive(Clone, Copy, PartialEq, Eq)]
     pub enum PolicyError {

@@ -16,6 +16,7 @@ use wit_component::ComponentEncoder;
 
 use assemblylift_core_iomod::registry::RegistryTx;
 
+use crate::jwt::keyset::KeyStore as JwtKeyStore;
 use crate::policy_manager::PolicyManager;
 use crate::threader::Threader;
 use crate::wasm::secrets::{Error, Key, Secret};
@@ -29,6 +30,7 @@ pub static CPU_COMPAT_MODE: Lazy<String> =
     Lazy::new(|| std::env::var("ASML_CPU_COMPAT_MODE").unwrap_or("default".to_string()));
 
 bindgen!("assemblylift");
+bindgen!("jwt");
 bindgen!("opa");
 bindgen!("wasi-secrets" in "components/wasi-secrets/wit");
 
@@ -98,6 +100,7 @@ where
             .expect("could not link wasi runtime component");
         Assemblylift::add_to_linker(&mut linker, |s| s)
             .expect("could not link assemblylift runtime component");
+        Jwt::add_to_linker(&mut linker, |s| s).expect("could not link jwt runtime component");
         Opa::add_to_linker(&mut linker, |s| s).expect("could not link opa runtime component");
         WasiSecrets::add_to_linker(&mut linker, |s| s)
             .expect("could not link wasi-secrets runtime component");
@@ -337,6 +340,28 @@ where
             id: id.clone(),
             value: Some(value),
         }))
+    }
+}
+
+impl<R, S> jwt::Host for AsmlFunctionState<R, S>
+where
+    R: RuntimeAbi<S> + Send + 'static,
+    S: Clone + Send + Sized + 'static,
+{
+    fn decode_verify(
+        &mut self,
+        token: String,
+        jwks: String,
+        params: jwt::ValidationParams,
+    ) -> anyhow::Result<Result<jwt::VerifyResult, jwt::JwtError>> {
+        let key_set =
+            std::thread::spawn(move || JwtKeyStore::new_from_blocking(jwks.to_owned()).unwrap())
+                .join()
+                .unwrap();
+        tracing::debug!("num keys = {}", key_set.keys_len());
+        let jwt = key_set.verify(&token)?;
+        // TODO validate jwt claims
+        Ok(Ok(jwt::VerifyResult { valid: jwt.valid().unwrap() }))
     }
 }
 

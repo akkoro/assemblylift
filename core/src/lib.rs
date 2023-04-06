@@ -1,6 +1,7 @@
 pub use wasmtime::AsContextMut;
 
 pub mod buffers;
+pub mod jwt;
 pub mod policy_manager;
 pub mod threader;
 pub mod wasm;

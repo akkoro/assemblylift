@@ -13,10 +13,11 @@ pub use assemblylift_core_guest_macros::handler;
 pub use command as wasi;
 
 pub mod assemblylift;
+pub mod command;
+pub mod jwt;
 pub mod opa;
 #[allow(dead_code)]
 #[macro_use]
-pub mod command;
 pub mod wasi_secrets;
 
 pub struct FunctionContext {

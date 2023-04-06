@@ -2,6 +2,11 @@
 
 #[allow(clippy::all)]
 pub mod asml_io {
+    #[used]
+    #[doc(hidden)]
+    #[cfg(target_arch = "wasm32")]
+    static __FORCE_SECTION_REF: fn() = super::__link_section;
+
     #[repr(u8)]
     #[derive(Clone, Copy, PartialEq, Eq)]
     pub enum PollError {
@@ -175,6 +180,11 @@ pub mod asml_io {
 
 #[allow(clippy::all)]
 pub mod asml_rt {
+    #[used]
+    #[doc(hidden)]
+    #[cfg(target_arch = "wasm32")]
+    static __FORCE_SECTION_REF: fn() = super::__link_section;
+
     #[repr(u8)]
     #[derive(Clone, Copy, PartialEq, Eq)]
     pub enum LogLevel {
