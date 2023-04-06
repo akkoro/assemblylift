@@ -216,7 +216,10 @@ impl Jwt {
     pub fn early_time(&self, time: SystemTime) -> Option<bool> {
         match self.payload.not_before() {
             Some(token_time) => Some(time < token_time),
-            None => None,
+            None => match self.payload.issued_at() {
+                Some(iss_time) => Some(time < iss_time),
+                None => None,
+            },
         }
     }
 

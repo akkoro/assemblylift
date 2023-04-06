@@ -358,10 +358,8 @@ where
             std::thread::spawn(move || JwtKeyStore::new_from_blocking(jwks.to_owned()).unwrap())
                 .join()
                 .unwrap();
-        tracing::debug!("num keys = {}", key_set.keys_len());
         let jwt = key_set.verify(&token)?;
-        // TODO validate jwt claims
-        Ok(Ok(jwt::VerifyResult { valid: jwt.valid().unwrap() }))
+        Ok(Ok(jwt::VerifyResult { valid: jwt.valid().unwrap_or(false) }))
     }
 }
 
