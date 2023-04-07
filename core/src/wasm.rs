@@ -354,6 +354,8 @@ where
         jwks: String,
         params: jwt::ValidationParams,
     ) -> anyhow::Result<Result<jwt::VerifyResult, jwt::JwtError>> {
+        // TODO need to cache the key set
+        //      Wasmtme will need a global cache that is available to each instance
         let key_set =
             std::thread::spawn(move || JwtKeyStore::new_from_blocking(jwks.to_owned()).unwrap())
                 .join()
