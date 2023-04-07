@@ -1,0 +1,21 @@
+interface jwt-import {
+    enum jwt-error {
+        invalid-token,
+        invalid-jwks,
+    }
+
+    record validation-params {
+        iss: string,
+        aud: string,
+    }
+
+    record verify-result {
+        valid: bool,
+    }
+
+    decode-verify: func(token: string, jwks: string, params: validation-params) -> result<verify-result, jwt-error>
+}
+
+default world jwt {
+    import jwt: self.jwt-import
+}
