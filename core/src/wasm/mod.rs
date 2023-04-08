@@ -1,3 +1,5 @@
+mod cache;
+
 use std::fs::File;
 use std::iter::FromIterator;
 use std::path::Path;
@@ -19,6 +21,7 @@ use assemblylift_core_iomod::registry::RegistryTx;
 use crate::jwt::keyset::KeyStore as JwtKeyStore;
 use crate::policy_manager::PolicyManager;
 use crate::threader::Threader;
+use crate::wasm::cache::Cache;
 use crate::wasm::secrets::{Error, Key, Secret};
 use crate::RuntimeAbi;
 
@@ -41,6 +44,7 @@ where
 {
     engine: Engine,
     component: Component,
+    cache: Arc<Mutex<Cache>>,
     _phantom_r: std::marker::PhantomData<R>,
     _phantom_s: std::marker::PhantomData<S>,
 }
@@ -77,6 +81,7 @@ where
             Ok(component) => Ok(Self {
                 engine: m.0,
                 component,
+                cache: Arc::new(Mutex::new(Cache::new())),
                 _phantom_r: Default::default(),
                 _phantom_s: Default::default(),
             }),
@@ -187,6 +192,7 @@ where
             policy_manager: Arc::new(Mutex::new(PolicyManager::new())),
             threader,
             request_id,
+            cache: self.cache.clone(),
             wasi,
             _phantom: Default::default(),
         };
@@ -241,6 +247,7 @@ where
     policy_manager: Arc<Mutex<PolicyManager>>,
     function_input: Vec<u8>,
     request_id: Option<String>,
+    cache: Arc<Mutex<Cache>>,
     wasi: WasiCtx,
     _phantom: std::marker::PhantomData<R>,
 }
@@ -354,13 +361,24 @@ where
         jwks: String,
         params: jwt::ValidationParams,
     ) -> anyhow::Result<Result<jwt::VerifyResult, jwt::JwtError>> {
-        // TODO need to cache the key set
-        //      Wasmtme will need a global cache that is available to each instance
-        let key_set =
-            std::thread::spawn(move || JwtKeyStore::new_from_blocking(jwks.to_owned()).unwrap())
-                .join()
-                .unwrap();
-        let jwt = key_set.verify(&token)?;
+        let mut cache = self.cache.lock().unwrap();
+        let key_set = match cache.get("jwt.keyset.TESTID")? {
+            Some(key_set) => key_set,
+            None => {
+                let key_set = std::thread::spawn(move || JwtKeyStore::new_from_blocking(jwks.to_owned()).unwrap())
+                    .join()
+                    .unwrap();
+
+                cache.put("jwt.keyset.TESTID", &key_set).unwrap();
+                key_set
+            },
+        };
+        
+        let jwt = match key_set.verify(&token) {
+            Ok(jwt) => jwt,
+            Err(_err) => return Ok(Err(jwt::JwtError::InvalidToken)),
+        };
+        
         Ok(Ok(jwt::VerifyResult { valid: jwt.valid().unwrap_or(false) }))
     }
 }

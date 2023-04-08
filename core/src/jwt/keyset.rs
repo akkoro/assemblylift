@@ -52,6 +52,7 @@ impl Clone for JwtKey {
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct KeyStore {
     key_url: String,
     keys: Vec<JwtKey>,
