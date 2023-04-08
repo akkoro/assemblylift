@@ -362,14 +362,14 @@ where
         params: jwt::ValidationParams,
     ) -> anyhow::Result<Result<jwt::VerifyResult, jwt::JwtError>> {
         let mut cache = self.cache.lock().unwrap();
-        let key_set = match cache.get("jwt.keyset.TESTID")? {
+        let key_set = match cache.get("jwt.keyset")? {
             Some(key_set) => key_set,
             None => {
                 let key_set = std::thread::spawn(move || JwtKeyStore::new_from_blocking(jwks.to_owned()).unwrap())
                     .join()
                     .unwrap();
 
-                cache.put("jwt.keyset.TESTID", &key_set).unwrap();
+                cache.put("jwt.keyset", &key_set).unwrap();
                 key_set
             },
         };
