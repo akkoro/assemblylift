@@ -7,7 +7,7 @@ use assemblylift_core::wasm;
 use crate::projectfs::Project;
 use crate::transpiler::toml::service::Function;
 
-pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> PathBuf {
+pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> Option<PathBuf> {
     let function_name = function.name.clone();
     let function_artifact_path = format!("./net/services/{}/{}", service_name, function_name);
 
@@ -82,13 +82,13 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
     }
 
     if function.precompile.unwrap_or(true) {
-        wasm::precompile(
+        Some(wasm::precompile(
             Path::new(&copy_to),
             "x86_64-linux-gnu",
             &function.cpu_compat_mode.clone().unwrap_or("default".to_string()),
         )
-            .unwrap()
+            .unwrap())
     } else {
-        PathBuf::from(&copy_to)
+       Some(PathBuf::from(&copy_to))
     }
 }
