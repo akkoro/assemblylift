@@ -14,6 +14,6 @@ members = [
     "core/io",
     "core/io/guest",
     "core/io/common",
-    "cli"
+    "cli",
 ]
 exclude = ["examples"]

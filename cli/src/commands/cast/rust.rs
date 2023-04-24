@@ -7,7 +7,7 @@ use assemblylift_core::wasm;
 use crate::projectfs::Project;
 use crate::transpiler::toml::service::Function;
 
-pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> Option<PathBuf> {
+pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> Result<PathBuf, String> {
     let function_name = function.name.clone();
     let function_artifact_path = format!("./net/services/{}/{}", service_name, function_name);
 
@@ -72,23 +72,27 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
     };
     let copy_to = format!("{}/{}.wasm", function_artifact_path.clone(), &function_name);
     let copy_result = std::fs::copy(copy_from.clone(), copy_to.clone());
-    if copy_result.is_err() {
-        println!(
-            "ERROR COPY from={} to={}",
-            copy_from.clone(),
-            copy_to.clone()
-        );
-        panic!("{:?}", copy_result.err());
+
+    match copy_result {
+        Ok(_) => println!("Copied {} to {}", copy_from.clone(), copy_to.clone()),
+        Err(e) => {
+            println!(
+                "ERROR COPY from={} to={}",
+                copy_from.clone(),
+                copy_to.clone()
+            );
+            return Err(e.to_string());
+        },
     }
 
     if function.precompile.unwrap_or(true) {
-        Some(wasm::precompile(
+        Ok(wasm::precompile(
             Path::new(&copy_to),
             "x86_64-linux-gnu",
             &function.cpu_compat_mode.clone().unwrap_or("default".to_string()),
         )
             .unwrap())
     } else {
-       Some(PathBuf::from(&copy_to))
+       Ok(PathBuf::from(&copy_to))
     }
 }

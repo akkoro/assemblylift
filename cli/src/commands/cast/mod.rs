@@ -25,7 +25,7 @@ mod lang {
     use crate::projectfs::Project;
     use crate::transpiler::toml::service::Function;
 
-    pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> Option<PathBuf> {
+    pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> Result<PathBuf, String> {
         let function_name = function.name.clone();
         let function_artifact_path = format!("./net/services/{}/{}", service_name, function_name);
         std::fs::create_dir_all(PathBuf::from(function_artifact_path.clone())).expect(&*format!(
@@ -33,10 +33,36 @@ mod lang {
             function_artifact_path
         ));
 
-        match function.language.clone().unwrap_or("rust".into()).as_str() {
-            "rust" => rust::compile(project, service_name, function),
-            "ruby" => ruby::compile(project, service_name, function),
-            _ => panic!("unsupported language"),
+        match function.language.clone() {
+            Some(lang) => {
+                match lang.as_str() {
+                    "rust" => {
+                        let mx = rust::compile(project, service_name, function);
+                        match mx {
+                            Ok(wasm_path) => Ok(wasm_path),
+                            Err(e) => {
+                                println!("Unable to compile function {} in service {}", function_name, service_name);
+                                Err(e.to_string())
+                            }
+                        }
+                    },
+                    "ruby" => {
+                        let mx = ruby::compile(project, service_name, function);
+                        match mx {
+                            Ok(wasm_path) => Ok(wasm_path),
+                            Err(e) => {
+                                println!("Unable to compile function {} in service {}", function_name, service_name);
+                                Err(e.to_string())
+                            }
+                        }
+                    },
+                    _ => panic!("unsupported language"),
+                }
+            },
+            None => {
+                println!("Unable to compile function {} in service {}", function_name, service_name);
+                Err("no language specified".into())
+            }
         }
     }
 }
@@ -74,8 +100,8 @@ pub fn command(matches: Option<&ArgMatches>) {
             let function_artifact_path =
                 format!("./net/services/{}/{}", service_name, function_name);
 
-            match lang::compile(project.clone(), &service_name, function).unwrap() {
-                wasm_path => {
+            match lang::compile(project.clone(), &service_name, function) {
+                Ok(wasm_path) => {
                     let mut function_dirs = vec![wasm_path.clone()];
                     if let Some("ruby") = function.language.clone().as_deref() {
                         function_dirs.push(PathBuf::from(format!(
@@ -117,13 +143,12 @@ pub fn command(matches: Option<&ArgMatches>) {
 
                         terraform::commands::init();
                         terraform::commands::plan();
-                        wasm_path
                     }
                 },
-                _ => {
-                    panic!("unable to compile function {} in service {}", function_name, service_name)
+                Err(e) => {
+                    println!("Error compiling function {}: {}", function_name, e);
                 }
-            };
+            }
         }
     }
 }
