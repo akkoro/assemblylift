@@ -15,7 +15,7 @@ pub struct AwsLambdaEvent {
 pub struct AwsLambdaRuntime {
     client: Client,
     api_endpoint: String,
-    last_request_id: Option<String>,
+//    last_request_id: Option<String>,
 }
 
 impl AwsLambdaRuntime {
@@ -23,7 +23,7 @@ impl AwsLambdaRuntime {
         AwsLambdaRuntime {
             client: Client::new(),
             api_endpoint: env::var("AWS_LAMBDA_RUNTIME_API").unwrap(),
-            last_request_id: None,
+ //           last_request_id: None,
         }
     }
 
@@ -42,12 +42,12 @@ impl AwsLambdaRuntime {
                         return Err(anyhow!("missing header \"Lambda-Runtime-Aws-Request-Id\""))
                     }
                 };
-                if let Some(last_request_id) = self.last_request_id.as_ref() {
-                    if last_request_id.eq_ignore_ascii_case(&request_id) {
-                        return Err(anyhow!("already processed"));
-                    }
-                }
-                self.last_request_id = Some(request_id.clone());
+//                if let Some(last_request_id) = self.last_request_id.as_ref() {
+//                    if last_request_id.eq_ignore_ascii_case(&request_id) {
+//                        return Err(anyhow!("already processed"));
+//                    }
+//                }
+//                self.last_request_id = Some(request_id.clone());
 
                 let event_body = res.text().await.unwrap();
 
