@@ -113,6 +113,7 @@ async fn launch(
             Success(response) => match serde_json::from_slice::<serde_json::Value>(&response) {
                 Ok(json) => match json.get("isBase64Encoded").is_some() {
                     true => {
+                        debug!("function response detected as Lambda-APIGW format");
                         let b64 = json.get("isBase64Encoded").unwrap().as_bool().unwrap();
                         let body = json
                             .get("body")
