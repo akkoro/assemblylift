@@ -2,6 +2,7 @@ use std::env;
 
 use anyhow::anyhow;
 use reqwest::Client;
+use tracing::debug;
 
 // https://docs.aws.amazon.com/lambda/latest/dg/runtimes-api.html
 
@@ -42,6 +43,7 @@ impl AwsLambdaRuntime {
                         return Err(anyhow!("missing header \"Lambda-Runtime-Aws-Request-Id\""))
                     }
                 };
+                debug!("got next event request ID {}", &request_id);
 //                if let Some(last_request_id) = self.last_request_id.as_ref() {
 //                    if last_request_id.eq_ignore_ascii_case(&request_id) {
 //                        return Err(anyhow!("already processed"));
@@ -62,6 +64,7 @@ impl AwsLambdaRuntime {
     }
 
     pub async fn respond(&self, response: String, request_id: String) -> anyhow::Result<()> {
+        debug!("responding to request ID {}", &request_id);
         let url = &format!(
             "http://{}/2018-06-01/runtime/invocation/{}/response",
             self.api_endpoint, request_id
@@ -75,6 +78,7 @@ impl AwsLambdaRuntime {
     }
 
     pub async fn error(&self, message: String, request_id: String) -> anyhow::Result<()> {
+        debug!("posting error to request ID {}", &request_id);
         let url = &format!(
             "http://{}/2018-06-01/runtime/invocation/{}/error",
             self.api_endpoint, request_id
