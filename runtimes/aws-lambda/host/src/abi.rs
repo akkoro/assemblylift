@@ -31,6 +31,7 @@ impl SecretsAbi for Abi {
         InMemorySecrets::set_secret(id, value, key_id)
     }
 }
+
 impl RuntimeAbi<Status> for Abi {
     fn success(status_tx: StatusTx<Status>, response: Vec<u8>, request_id: Option<String>) {
         let response = std::str::from_utf8(response.as_slice())
