@@ -186,7 +186,7 @@ async fn main() -> Result<(), Error> {
                     match status_rx.recv() {
                         Ok(status) => match status {
                             Status::Success(s) => Ok(s.1),
-                            Status::Failure(s) => Err(Error::from(s.1)),
+                            Status::Failure(s) => Err(Error::from(s.1.to_string())),
                         },
                         Err(err) => Err(Error::from(err)),
                     }

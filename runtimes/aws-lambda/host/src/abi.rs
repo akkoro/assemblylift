@@ -4,8 +4,8 @@ use assemblylift_wasi_secrets_in_memory::InMemorySecrets;
 
 #[derive(Clone)]
 pub enum Status {
-    Success((Option<String>, String)),
-    Failure((Option<String>, String)),
+    Success((Option<String>, serde_json::Value)),
+    Failure((Option<String>, serde_json::Value)),
 }
 
 pub struct Abi;
@@ -34,18 +34,14 @@ impl SecretsAbi for Abi {
 
 impl RuntimeAbi<Status> for Abi {
     fn success(status_tx: StatusTx<Status>, response: Vec<u8>, request_id: Option<String>) {
-        let response = std::str::from_utf8(response.as_slice())
-            .unwrap()
-            .to_string();
+        let response = serde_json::from_slice(response.as_slice()).unwrap();
         status_tx
             .send(Status::Success((request_id, response)))
             .unwrap();
     }
 
     fn failure(status_tx: StatusTx<Status>, response: Vec<u8>, request_id: Option<String>) {
-        let response = std::str::from_utf8(response.as_slice())
-            .unwrap()
-            .to_string();
+        let response = serde_json::from_slice(response.as_slice()).unwrap();
         status_tx
             .send(Status::Failure((request_id, response)))
             .unwrap();
