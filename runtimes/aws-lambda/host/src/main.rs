@@ -16,7 +16,7 @@ use zip;
 use assemblylift_core::wasm::{status_channel, Wasmtime};
 use assemblylift_core_iomod::registry::registry_channel;
 use assemblylift_core_iomod::{package::IomodManifest, registry};
-use runtime::AwsLambdaRuntime;
+use lambda_runtime::{run, service_fn, Error, LambdaEvent};
 
 use crate::abi::{Abi, Status};
 
@@ -24,9 +24,12 @@ mod abi;
 mod runtime;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Error> {
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::DEBUG)
+        .with_target(false)
+        .with_ansi(false)
+        .without_time()
         .finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
@@ -38,7 +41,7 @@ async fn main() {
 
     let module_path = env::var("LAMBDA_TASK_ROOT").unwrap();
     let handler_name = env::var("_HANDLER").unwrap();
-    let lambda_runtime = AwsLambdaRuntime::new();
+//    let lambda_runtime = AwsLambdaRuntime::new();
     let (status_tx, status_rx) = status_channel::<Status>(1);
     let (registry_tx, registry_rx) = registry_channel(32);
     registry::spawn_registry(registry_rx).unwrap();
@@ -153,61 +156,52 @@ async fn main() {
         );
     }
 
-    let lrt = lambda_runtime.clone();
-    tokio::spawn(async move {
-        loop {
-            if let Ok(status) = status_rx.recv() {
-                match status {
-                    Status::Success(s) => lrt.respond(s.1, s.0.unwrap()).await.unwrap(),
-                    Status::Failure(s) => lrt.error(s.1, s.0.unwrap()).await.unwrap(),
+    let mut full_path = PathBuf::from(&module_path);
+    full_path.push(&handler_name);
+    let wasmtime = RefCell::new(
+        Wasmtime::<Abi, Status>::new_from_path(Path::new(full_path.as_path()))
+            .expect("could not create wasm runtime from module path"),
+    );
+
+    let wasmtime_ref = &wasmtime;
+    let registry_tx_ref = &registry_tx;
+    let status_tx_ref = &status_tx;
+    let status_rx_ref = &status_rx;
+    run(service_fn(move |event: LambdaEvent<String>| async move {
+        let request_id = &event.context.request_id;
+        let (instance, mut store) = wasmtime_ref
+            .borrow_mut()
+            .link_wasi_component(
+                registry_tx_ref.clone(),
+                status_tx_ref.clone(),
+                Some(String::from(request_id)),
+            )
+            .await
+            .expect("could not link wasm module");
+
+        wasmtime_ref
+            .borrow_mut()
+            .initialize_function_input_buffer(&mut store, &event.payload.as_bytes())
+            .expect("could not initialize input buffer");
+
+        return match wasmtime_ref.borrow_mut().run(instance, &mut store).await {
+            Ok(_) => {
+                info!("handler for event {} returned OK", request_id);
+                match status_rx_ref.recv() {
+                    Ok(status) => {
+                        match status {
+                            Status::Success(s) => Ok(s.1),
+                            Status::Failure(s) => Err(Error::from(s.1)),
+                        }
+                    }
+                    Err(err) => Err(Error::from(err)),
                 }
             }
-        }
-    });
-
-    let mut lrt = lambda_runtime.clone();
-    tokio::task::LocalSet::new()
-        .run_until(async move {
-            let mut full_path = PathBuf::from(&module_path);
-            full_path.push(&handler_name);
-            let wasmtime = Arc::new(RefCell::new(
-                Wasmtime::<Abi, Status>::new_from_path(Path::new(full_path.as_path()))
-                    .expect("could not create WASM runtime from module path"),
-            ));
-
-            loop {
-                let event = match lrt.get_next_event().await {
-                    Ok(event) => event,
-                    Err(err) => {
-                        error!("{}", err.to_string());
-                        continue;
-                    }
-                };
-
-                let (instance, mut store) = wasmtime
-                    .borrow_mut()
-                    .link_wasi_component(
-                        registry_tx.clone(),
-                        status_tx.clone(),
-                        Some(event.request_id.clone()),
-                    )
-                    .await
-                    .expect("could not link wasm module");
-
-                wasmtime
-                    .borrow_mut()
-                    .initialize_function_input_buffer(&mut store, &event.event_body.into_bytes())
-                    .expect("could not initialize input buffer");
-
-                let request_id = event.request_id.clone();
-                let wasmtime = wasmtime.clone();
-                tokio::task::spawn_local(async move {
-                    match wasmtime.borrow_mut().run(instance, &mut store).await {
-                        Ok(_) => info!("event id {} handler returned OK", &request_id),
-                        Err(err) => error!("event id {}: {}", &request_id, err.to_string()),
-                    }
-                });
+            Err(err) => {
+                error!("event id {}: {}", &request_id, err.to_string());
+                return Err(Error::from(err))
             }
-        })
-        .await;
+        };
+    })).await?;
+    Ok(())
 }
