@@ -39,7 +39,6 @@ async fn main() -> Result<(), Error> {
 
     let module_path = env::var("LAMBDA_TASK_ROOT").unwrap();
     let handler_name = env::var("_HANDLER").unwrap();
-    let (status_tx, status_rx) = status_channel::<Status>(1);
     let (registry_tx, registry_rx) = registry_channel(32);
     registry::spawn_registry(registry_rx).unwrap();
 
@@ -162,15 +161,14 @@ async fn main() -> Result<(), Error> {
 
     let wasmtime_ref = &wasmtime;
     let registry_tx_ref = &registry_tx;
-    let status_tx_ref = &status_tx;
-    let status_rx_ref = &status_rx;
     run(service_fn(move |event: LambdaEvent<String>| async move {
+        let (status_tx, status_rx) = status_channel::<Status>(1);
         let request_id = &event.context.request_id;
         let (instance, mut store) = wasmtime_ref
             .borrow_mut()
             .link_wasi_component(
                 registry_tx_ref.clone(),
-                status_tx_ref.clone(),
+                status_tx.clone(),
                 Some(String::from(request_id)),
             )
             .await
@@ -184,7 +182,7 @@ async fn main() -> Result<(), Error> {
         return match wasmtime_ref.borrow_mut().run(instance, &mut store).await {
             Ok(_) => {
                 info!("handler for event {} returned OK", request_id);
-                match status_rx_ref.recv() {
+                match status_rx.recv() {
                     Ok(status) => {
                         match status {
                             Status::Success(s) => Ok(s.1),
