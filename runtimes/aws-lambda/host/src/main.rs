@@ -6,7 +6,6 @@ use std::io::{BufReader, Read};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process;
-use std::sync::Arc;
 
 use clap::crate_version;
 use tracing::{error, info, Level};
@@ -21,7 +20,6 @@ use lambda_runtime::{run, service_fn, Error, LambdaEvent};
 use crate::abi::{Abi, Status};
 
 mod abi;
-mod runtime;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -41,7 +39,6 @@ async fn main() -> Result<(), Error> {
 
     let module_path = env::var("LAMBDA_TASK_ROOT").unwrap();
     let handler_name = env::var("_HANDLER").unwrap();
-//    let lambda_runtime = AwsLambdaRuntime::new();
     let (status_tx, status_rx) = status_channel::<Status>(1);
     let (registry_tx, registry_rx) = registry_channel(32);
     registry::spawn_registry(registry_rx).unwrap();
@@ -199,7 +196,7 @@ async fn main() -> Result<(), Error> {
             }
             Err(err) => {
                 error!("event id {}: {}", &request_id, err.to_string());
-                return Err(Error::from(err))
+                Err(Error::from(err))
             }
         };
     })).await?;
