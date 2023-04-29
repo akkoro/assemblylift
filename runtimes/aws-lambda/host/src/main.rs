@@ -161,42 +161,43 @@ async fn main() -> Result<(), Error> {
 
     let wasmtime_ref = &wasmtime;
     let registry_tx_ref = &registry_tx;
-    run(service_fn(move |event: LambdaEvent<String>| async move {
-        let (status_tx, status_rx) = status_channel::<Status>(1);
-        let request_id = &event.context.request_id;
-        let (instance, mut store) = wasmtime_ref
-            .borrow_mut()
-            .link_wasi_component(
-                registry_tx_ref.clone(),
-                status_tx.clone(),
-                Some(String::from(request_id)),
-            )
-            .await
-            .expect("could not link wasm module");
+    run(service_fn(
+        move |event: LambdaEvent<serde_json::Value>| async move {
+            let (status_tx, status_rx) = status_channel::<Status>(1);
+            let request_id = &event.context.request_id;
+            let (instance, mut store) = wasmtime_ref
+                .borrow_mut()
+                .link_wasi_component(
+                    registry_tx_ref.clone(),
+                    status_tx.clone(),
+                    Some(String::from(request_id)),
+                )
+                .await
+                .expect("could not link wasm module");
 
-        wasmtime_ref
-            .borrow_mut()
-            .initialize_function_input_buffer(&mut store, &event.payload.as_bytes())
-            .expect("could not initialize input buffer");
+            wasmtime_ref
+                .borrow_mut()
+                .initialize_function_input_buffer(&mut store, &event.payload.to_string().as_bytes())
+                .expect("could not initialize input buffer");
 
-        return match wasmtime_ref.borrow_mut().run(instance, &mut store).await {
-            Ok(_) => {
-                info!("handler for event {} returned OK", request_id);
-                match status_rx.recv() {
-                    Ok(status) => {
-                        match status {
+            return match wasmtime_ref.borrow_mut().run(instance, &mut store).await {
+                Ok(_) => {
+                    info!("handler for event {} returned OK", request_id);
+                    match status_rx.recv() {
+                        Ok(status) => match status {
                             Status::Success(s) => Ok(s.1),
                             Status::Failure(s) => Err(Error::from(s.1)),
-                        }
+                        },
+                        Err(err) => Err(Error::from(err)),
                     }
-                    Err(err) => Err(Error::from(err)),
                 }
-            }
-            Err(err) => {
-                error!("event id {}: {}", &request_id, err.to_string());
-                Err(Error::from(err))
-            }
-        };
-    })).await?;
+                Err(err) => {
+                    error!("event id {}: {}", &request_id, err.to_string());
+                    Err(Error::from(err))
+                }
+            };
+        },
+    ))
+    .await?;
     Ok(())
 }

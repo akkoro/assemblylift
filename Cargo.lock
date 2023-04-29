@@ -181,6 +181,7 @@ dependencies = [
  "assemblylift-wasi-secrets-in-memory",
  "clap 3.2.25",
  "lambda_runtime",
+ "serde_json",
  "tokio",
  "toml",
  "tracing",
