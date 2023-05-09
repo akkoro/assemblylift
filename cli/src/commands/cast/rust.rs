@@ -1,3 +1,4 @@
+use std::env::current_dir;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -7,10 +8,15 @@ use assemblylift_core::wasm;
 use crate::projectfs::Project;
 use crate::transpiler::toml::service::Function;
 
-pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> Result<PathBuf, String> {
+pub fn compile(
+    project: Rc<Project>,
+    service_name: &str,
+    function: &Function,
+) -> Result<PathBuf, String> {
     let function_name = function.name.clone();
+    let curr_dir = std::env::current_dir().unwrap();
+    let target_dir = format!("{}/target", curr_dir.to_str().unwrap());
     let function_artifact_path = format!("./net/services/{}/{}", service_name, function_name);
-
     let function_path = PathBuf::from(format!(
         "{}/Cargo.toml",
         project
@@ -21,11 +27,9 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
             .into_string()
             .unwrap()
     ));
-
     let mode = "release";
     let target = "wasm32-wasi";
 
-    println!("Compiling function `{}`...", function_name.clone());
     let cargo_build = std::process::Command::new("cargo")
         .arg("build")
         .arg(format!("--{}", mode))
@@ -33,6 +37,8 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
         .arg(function_path)
         .arg("--target")
         .arg(target)
+        .arg("--target-dir")
+        .arg(target_dir)
         .output()
         .unwrap();
 
@@ -81,18 +87,38 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
                 copy_from.clone(),
                 copy_to.clone()
             );
-            return Err(e.to_string());
-        },
+            if e.kind() == std::io::ErrorKind::NotFound {
+                return Err(format!(
+                    "Unable to find compiled function at {}",
+                    copy_from.clone()
+                ));
+            }
+            return Err(format!(
+                "Unable to copy compiled function from {} to {}",
+                copy_from.clone(),
+                copy_to.clone()
+            ));
+        }
     }
 
-    if function.precompile.unwrap_or(true) {
-        Ok(wasm::precompile(
+    let precompile = function.precompile.unwrap_or(true);
+    if precompile {
+        let precompile_result = wasm::precompile(
             Path::new(&copy_to),
             "x86_64-linux-gnu",
-            &function.cpu_compat_mode.clone().unwrap_or("default".to_string()),
-        )
-            .unwrap())
+            &function
+                .cpu_compat_mode
+                .clone()
+                .unwrap_or("default".to_string()),
+        );
+
+        match precompile_result {
+            Ok(path) => Ok(path),
+            Err(e) => {
+                return Err(format!("Unable to precompile function: {}", e));
+            }
+        }
     } else {
-       Ok(PathBuf::from(&copy_to))
+        Ok(PathBuf::from(&copy_to))
     }
 }

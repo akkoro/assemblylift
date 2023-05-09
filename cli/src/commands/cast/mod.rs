@@ -25,7 +25,11 @@ mod lang {
     use crate::projectfs::Project;
     use crate::transpiler::toml::service::Function;
 
-    pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> Result<PathBuf, String> {
+    pub fn compile(
+        project: Rc<Project>,
+        service_name: &str,
+        function: &Function,
+    ) -> Result<PathBuf, String> {
         let function_name = function.name.clone();
         let function_artifact_path = format!("./net/services/{}/{}", service_name, function_name);
         std::fs::create_dir_all(PathBuf::from(function_artifact_path.clone())).expect(&*format!(
@@ -34,35 +38,24 @@ mod lang {
         ));
 
         match function.language.clone() {
-            Some(lang) => {
-                match lang.as_str() {
-                    "rust" => {
-                        let mx = rust::compile(project, service_name, function);
-                        match mx {
-                            Ok(wasm_path) => Ok(wasm_path),
-                            Err(e) => {
-                                println!("Unable to compile function {} in service {}", function_name, service_name);
-                                Err(e.to_string())
-                            }
-                        }
-                    },
-                    "ruby" => {
-                        let mx = ruby::compile(project, service_name, function);
-                        match mx {
-                            Ok(wasm_path) => Ok(wasm_path),
-                            Err(e) => {
-                                println!("Unable to compile function {} in service {}", function_name, service_name);
-                                Err(e.to_string())
-                            }
-                        }
-                    },
-                    _ => panic!("unsupported language"),
+            Some(lang) => match lang.as_str() {
+                "rust" => {
+                    let mx = rust::compile(project, service_name, function);
+                    match mx {
+                        Ok(wasm_path) => Ok(wasm_path),
+                        Err(e) => Err(e.to_string()),
+                    }
                 }
+                "ruby" => {
+                    let mx = ruby::compile(project, service_name, function);
+                    match mx {
+                        Ok(wasm_path) => Ok(wasm_path),
+                        Err(e) => Err(e.to_string()),
+                    }
+                }
+                _ => panic!("unsupported language"),
             },
-            None => {
-                println!("Unable to compile function {} in service {}", function_name, service_name);
-                Err("no language specified".into())
-            }
+            None => Err("no language specified".into()),
         }
     }
 }
@@ -116,7 +109,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                         format!("{}/{}.zip", function_artifact_path.clone(), &function_name),
                         Vec::new(),
                     )
-                        .expect("unable to zip function artifacts");
+                    .expect("unable to zip function artifacts");
 
                     {
                         let ctx = Rc::new(
@@ -131,7 +124,11 @@ pub fn command(matches: Option<&ArgMatches>) {
                         for artifact in artifacts {
                             let path = artifact.write_path;
                             let mut file = match fs::File::create(path.clone()) {
-                                Err(why) => panic!("couldn't create file {}: {}", path.clone(), why.to_string()),
+                                Err(why) => panic!(
+                                    "couldn't create file {}: {}",
+                                    path.clone(),
+                                    why.to_string()
+                                ),
                                 Ok(file) => file,
                             };
 
@@ -140,11 +137,10 @@ pub fn command(matches: Option<&ArgMatches>) {
                             println!("📄 > Wrote {}", path.clone());
                         }
 
-
                         terraform::commands::init();
                         terraform::commands::plan();
                     }
-                },
+                }
                 Err(e) => {
                     println!("Error compiling function {}: {}", function_name, e);
                 }
