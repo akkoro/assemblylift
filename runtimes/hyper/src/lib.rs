@@ -28,7 +28,7 @@ pub fn spawn_runtime(registry_tx: RegistryTx) {
         s.spawn(move |_| r.lock().unwrap().spawn());
 
         s.spawn(move |_| {
-            let mut launcher = Launcher::<Status>::new();
+            let mut launcher = Launcher::new();
             launcher.spawn(tx);
         });
     })

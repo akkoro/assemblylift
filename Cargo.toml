@@ -10,7 +10,6 @@ members = [
     "core/guest/macros",
     "core/iomod",
     "core/iomod/guest",
-    "core/io",
     "core/io/guest",
     "core/io/common",
     "cli"

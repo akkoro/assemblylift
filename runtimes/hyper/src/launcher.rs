@@ -4,10 +4,12 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use anyhow::anyhow;
+use hyper::body::HttpBody;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 use url::Url;
 
 use assemblylift_core::wasm::{status_channel, StatusRx, StatusTx};
@@ -16,22 +18,21 @@ use crate::runner::{RunnerMessage, RunnerTx};
 use crate::Status;
 use crate::Status::{Exited, Failure, Success};
 
-pub struct Launcher<S>
-where
-    S: Clone + Send + Sized + 'static,
-{
+pub const INSTALL_DIR: Lazy<String> =
+    Lazy::new(|| std::env::var("ASML_INSTALL_DIR").unwrap_or("/opt/assemblylift".to_string()));
+pub const MAX_ALLOWED_REQUEST_SIZE: u64 = 4096;
+
+pub struct Launcher {
     runtime: tokio::runtime::Runtime,
-    _phantom: std::marker::PhantomData<S>,
 }
 
-impl Launcher<Status> {
+impl Launcher {
     pub fn new() -> Self {
         Self {
             runtime: tokio::runtime::Builder::new_current_thread()
                 .enable_io()
                 .build()
                 .unwrap(),
-            _phantom: std::marker::PhantomData::default(),
         }
     }
 
@@ -73,8 +74,22 @@ async fn launch(
     for h in req.headers().iter() {
         headers.insert(h.0.as_str().to_string(), h.1.to_str().unwrap().to_string());
     }
-    // FIXME cap input length to limit DoS attacks
-    let input_bytes = hyper::body::to_bytes(req.into_body()).await.unwrap();
+    let request_content_length = match req.body().size_hint().upper() {
+        Some(v) => v,
+        None => MAX_ALLOWED_REQUEST_SIZE + 1,
+    };
+    let input_bytes = match request_content_length < MAX_ALLOWED_REQUEST_SIZE {
+        true => hyper::body::to_bytes(req.into_body()).await.unwrap(),
+        false => {
+            warn!(
+                "function request payload exceeds limit of {} bytes",
+                MAX_ALLOWED_REQUEST_SIZE
+            );
+            hyper::body::to_bytes(Body::from(Vec::<u8>::new()))
+                .await
+                .unwrap()
+        }
+    };
     let launcher_req = LauncherRequest {
         method,
         headers: headers.clone(),
@@ -82,18 +97,71 @@ async fn launch(
         body: Some(base64::encode(input_bytes.as_ref())),
     };
 
-    // TODO check for x-assemblylift-function-coordinates header, and if found then load from a
-    //      projects dir, $INSTALL/assemblylift/projects, or failing that from the cwd if assemblylift.toml
-    //      is found and the project name matches
-    let wasm_uri = Url::from_str(&**headers.get("x-assemblylift-wasm-uri").unwrap())
-        .map_err(|e| anyhow!(e))?;
+    let wasm_uri = match headers.get("x-assemblylift-function-coordinates") {
+        Some(coords) => {
+            // coordinate is the triple project.service.function
+            let coordinates = coords.split('.').collect::<Vec<&str>>();
+            if coordinates.len() != 3 {
+                return Err(anyhow!("malformed coordinates in header"));
+            }
+            let project_dir = PathBuf::from(format!(
+                "{}/projects/{}",
+                INSTALL_DIR.as_str(),
+                coordinates[0]
+            ));
+            match project_dir.exists() {
+                true => Url::from_str(
+                    format!(
+                        "file://{}/services/{}/{}.wasm",
+                        project_dir.to_str().unwrap(),
+                        coordinates[1],
+                        coordinates[2]
+                    )
+                    .as_str(),
+                )
+                .map_err(|e| anyhow!(e))?,
+                false => match PathBuf::from("./assemblylift.toml").exists() {
+                    true => Url::from_str(
+                        format!(
+                            "file://{}/net/services/{}/{}.wasm",
+                            std::env::current_dir().unwrap().to_str().unwrap(),
+                            coordinates[1],
+                            coordinates[2]
+                        )
+                        .as_str(),
+                    )
+                    .map_err(|e| anyhow!(e))?,
+                    false => return Err(anyhow!("cannot find function to run; assemblylift is not installed or we are not in a project directory")),
+                },
+            }
+        }
+        None => Url::from_str(&**headers.get("x-assemblylift-wasm-uri").unwrap())
+            .map_err(|e| anyhow!(e))?,
+    };
     if !wasm_uri.scheme().eq_ignore_ascii_case("file") {
         unimplemented!("{} scheme not yet supported", wasm_uri.scheme());
     }
+
+    let env_vars: BTreeMap<String, String> = match headers.get("x-assemblylift-function-env-vars") {
+        Some(vars) => {
+            let mut env_vars = BTreeMap::new();
+            let pairs = vars.split(',');
+            for pair in pairs {
+                let kv = pair.split('=').collect::<Vec<&str>>();
+                env_vars.insert(kv[0].into(), kv[1].into());
+            }
+            env_vars
+        }
+        None => Default::default(),
+    };
+
+    let runtime_environment = headers.get("x-assemblylift-function-runtime-env").cloned();
     let msg = RunnerMessage {
         input: serde_json::to_vec(&launcher_req).unwrap(),
         status_sender: status_tx.clone(),
         wasm_path: PathBuf::from(wasm_uri.path()),
+        env_vars,
+        runtime_environment,
     };
 
     debug!("sending runner request...");
@@ -109,7 +177,15 @@ async fn launch(
             result
         );
         return Ok(match result {
-            Exited(_status) => continue, // TODO start timeout to default response
+            Exited(_status) => {
+                let timer = timer::Timer::new();
+                let tx = status_tx.clone();
+                timer.schedule_with_delay(chrono::Duration::seconds(3), move || {
+                    tx.send(Status::Failure("No Response".as_bytes().to_vec()))
+                        .unwrap();
+                });
+                continue;
+            }
             Success(response) => Response::builder()
                 .status(200)
                 .body(Body::from(response))

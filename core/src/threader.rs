@@ -53,12 +53,18 @@ where
 
     /// Invoke the IOmod call at `method_path` with `method_input`, and assign it id `ioid`.
     /// A task is spawned on the tokio runtime which runs until the IOmod call responds.
-    pub fn invoke(&mut self, method_path: &str, method_input: Vec<u8>, ioid: IoId) {
+    pub fn invoke(
+        &mut self,
+        method_path: &str,
+        method_input: Vec<u8>,
+        ioid: IoId,
+    ) -> Result<(), crate::wasm::asml_io::IoError> {
         let io_memory = self.io_memory.clone();
 
         let coords = method_path.split(".").collect::<Vec<&str>>();
         if coords.len() != 4 {
-            panic!("Malformed method path @ Threader::invoke") // TODO don't panic
+            tracing::error!("io invoke failed: malformed module coordinates");
+            return Err(crate::wasm::asml_io::IoError::InvalidCoords);
         }
 
         let iomod_coords = format!("{}.{}.{}", coords[0], coords[1], coords[2]);
@@ -88,6 +94,8 @@ where
                     .handle_response(response.payload, ioid);
             }
         });
+
+        Ok(())
     }
 }
 

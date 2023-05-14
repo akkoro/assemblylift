@@ -26,9 +26,7 @@ pub struct FunctionContext {
 
 impl FunctionContext {
     pub fn log(message: String) {
-        // TODO context should be the module name if possible
-        asml_rt::log(asml_rt::LogLevel::Info, "Function", &message)
-        // wasi::wasi_logging::log(wasi::wasi_logging::Level::Info, "Function", &message)
+        asml_rt::log(asml_rt::LogLevel::Info, clap::crate_name!(), &message)
     }
 
     pub fn success(response: String) {
