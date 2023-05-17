@@ -1,24 +1,16 @@
 use std::fs;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::rc::Rc;
-use std::str::FromStr;
 
 use clap::ArgMatches;
-use path_abs::PathInfo;
-use registry_common::models::GetIomodAtResponse;
-use reqwest;
-
-use assemblylift_core::wasm;
 
 use crate::archive;
 use crate::commands::cast::rust::RustFunction;
 use crate::projectfs::Project;
-use crate::terraform;
 use crate::tools;
 use crate::transpiler::context::Context;
-use crate::transpiler::toml::service::Function;
-use crate::transpiler::{context, toml, Castable};
+use crate::transpiler::{toml, Castable};
 
 mod ruby;
 mod rust;
@@ -31,7 +23,7 @@ pub trait CastableFunction {
 }
 
 pub fn command(matches: Option<&ArgMatches>) {
-    use std::rc::Rc;
+    let tf = tools::terraform::Terraform::default();
 
     let _matches = match matches {
         Some(matches) => matches,
@@ -54,9 +46,6 @@ pub fn command(matches: Option<&ArgMatches>) {
 
     let wasi_snapshot_preview1 = include_bytes!("wasm/wasi_snapshot_preview1.reactor.wasm");
 
-    // Fetch the latest terraform binary to the project directory
-    terraform::fetch(&*project.dir());
-
     // Compile WASM & package function
     let functions = ctx.functions.as_slice();
     for function in functions {
@@ -72,7 +61,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         {
             "rust" => Box::new(RustFunction::new(&function)),
             // "ruby" => ruby::compile(project, service_name, function),
-            _ => panic!("unsupported function language"),
+            lang => panic!("unsupported function language: {}", lang),
         };
         castable_function.compile(wasi_snapshot_preview1.clone().to_vec());
         if function.precompile {
@@ -80,20 +69,28 @@ pub fn command(matches: Option<&ArgMatches>) {
             castable_function.precompile(None);
         }
 
-        // TODO zip not needed w/ container functions
-        let mut function_dirs = vec![castable_function.artifact_path()];
-        if "ruby" == function.language.clone().as_str() {
-            function_dirs.push(PathBuf::from(format!(
-                "{}/rubysrc",
-                &function_artifact_path
-            )));
+        // Function archive is only needed for Lambda at this time
+        if ctx
+            .service(&function.service_name)
+            .unwrap()
+            .provider
+            .name
+            .eq(crate::providers::AWS_LAMBDA_PROVIDER_NAME)
+        {
+            let mut function_dirs = vec![castable_function.artifact_path()];
+            if "ruby" == function.language.clone().as_str() {
+                function_dirs.push(PathBuf::from(format!(
+                    "{}/rubysrc",
+                    &function_artifact_path
+                )));
+            }
+            archive::zip_dirs(
+                function_dirs,
+                format!("{}/{}.zip", function_artifact_path.clone(), &function.name),
+                Vec::new(),
+            )
+            .expect("unable to zip function artifacts");
         }
-        archive::zip_dirs(
-            function_dirs,
-            format!("{}/{}.zip", function_artifact_path.clone(), &function.name),
-            Vec::new(),
-        )
-        .expect("unable to zip function artifacts");
     }
 
     // Cast Context to artifacts
@@ -114,6 +111,6 @@ pub fn command(matches: Option<&ArgMatches>) {
         }
     }
 
-    terraform::commands::init();
-    terraform::commands::plan();
+    tf.init();
+    tf.plan();
 }

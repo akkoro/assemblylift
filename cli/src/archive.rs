@@ -69,7 +69,7 @@ pub fn zip_dirs(
         }
     }
 
-    println!("🗜  > Wrote zip artifact {}", file_out.as_ref().display());
+    println!("🗜 > Wrote zip artifact {}", file_out.as_ref().display());
 
     Ok(())
 }

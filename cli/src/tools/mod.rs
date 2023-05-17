@@ -9,6 +9,7 @@ use flate2::read::GzDecoder;
 pub mod cmctl;
 pub mod glooctl;
 pub mod kubectl;
+pub mod terraform;
 
 pub trait Tool {
     fn command_name(&self) -> &str;
@@ -28,6 +29,7 @@ where
         std::fs::create_dir_all(tool.path().clone()).unwrap();
         let bytes = download_to_bytes(tool.fetch_url())
             .expect(&*format!("could not download {}", tool.command_name()));
+
         if tool.fetch_url().contains(".tar.gz") {
             // FIXME this leans on the assumption that the only gzipped tool we fetch is cmctl
             let tar = GzDecoder::new(bytes.as_slice());
@@ -38,23 +40,27 @@ where
                 .expect("cmctl not found in archive")
                 .unwrap()
                 .unpack(tool.command_path())
-                .expect("could not unpack cmctl");
+                .map_err(|err| anyhow!("could not unpack cmctl: {}", err.to_string()))?;
+        } else if tool.fetch_url().contains(".zip") {
+            crate::archive::unzip_terraform(bytes, tool.command_path().to_str().unwrap())
+                .map_err(|err| anyhow!("could not unpack terraform: {}", err.to_string()))?;
         } else {
-            std::fs::write(tool.command_path(), bytes).unwrap();
+            std::fs::write(tool.command_path(), bytes)
+                .map_err(|err| anyhow!("could not unpack {}: {}", tool.command_name(), err.to_string()))?;
         }
 
         let mut perms = std::fs::metadata(tool.command_path())
             .unwrap()
             .permissions();
         perms.set_mode(0o755);
-        if let Err(_) = std::fs::set_permissions(tool.command_path(), perms) {
-            panic!(
-                "could not set {:?} binary executable (octal 755) permissions",
-                tool.command_path()
+        std::fs::set_permissions(tool.command_path(), perms).map_err(|err| anyhow!(
+                "could not set {:?} binary executable (octal 755) permissions: {}",
+                tool.command_path(),
+                err.to_string(),
             )
-        }
+        )?;
     }
-    // TODO handle errors
+
     Ok(())
 }
 

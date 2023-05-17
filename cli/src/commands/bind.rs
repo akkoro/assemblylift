@@ -3,7 +3,7 @@ use std::rc::Rc;
 use clap::ArgMatches;
 
 use crate::projectfs::Project;
-use crate::terraform;
+use crate::tools;
 use crate::transpiler::context::Context;
 use crate::transpiler::toml;
 use crate::transpiler::Bindable;
@@ -28,7 +28,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     );
     ctx.bind(ctx.clone()).unwrap();
 
-    // TODO terraform should be refactored around Tool trait
-    terraform::commands::init();
-    terraform::commands::apply();
+    let tf = tools::terraform::Terraform::default();
+    tf.init();
+    tf.apply();
 }
