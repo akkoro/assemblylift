@@ -20,7 +20,7 @@ use crate::Status::{Exited, Failure, Success};
 
 pub const INSTALL_DIR: Lazy<String> =
     Lazy::new(|| std::env::var("ASML_INSTALL_DIR").unwrap_or("/opt/assemblylift".to_string()));
-pub const MAX_ALLOWED_REQUEST_SIZE: u64 = 4096;
+pub const MAX_ALLOWED_REQUEST_SIZE: u64 = 10_485_760;
 
 pub struct Launcher {
     runtime: tokio::runtime::Runtime,
