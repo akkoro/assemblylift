@@ -49,7 +49,7 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
         let mut zip = Vec::new();
         println!("Fetching additional Ruby runtime archive...");
         let mut response = reqwest::blocking::get(
-            "http://public.assemblylift.akkoro.io/runtime/ruby/ruby-wasm32-wasi.zip",
+            "http://public.assemblylift.akkoro.io/runtime/ruby/3.3.0-dev/ruby-wasm32-wasi.zip",
         )
         .expect("could not fetch ruby runtime zip");
         response.read_to_end(&mut zip).unwrap();
