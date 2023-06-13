@@ -52,21 +52,22 @@ version = "0.0.0"
 edition = "2021"
 
 [dependencies]
-base64 = "0.13"
-direct-executor = "0.3.0"
 serde = "1"
 serde_json = "1"
-asml_core = { version = "0.4.0-alpha", package = "assemblylift-core-guest" }
-assemblylift_core_io_guest = { version = "0.4.0-alpha", package = "assemblylift-core-io-guest" }
+assemblylift-core-guest = { version = "0.4.0-beta" }
+# You can omit core-io-guest if you will not be using IOmods in your function
+assemblylift-core-io-guest = { version = "0.4.0-beta" }
 "#;
 
-static FUNCTION_MAIN_RS: &str = r#"use asml_core::*;
+static FUNCTION_MAIN_RS: &str = r#"use assemblylift_core_guest::*;
 
 #[handler]
 async fn main() {
     // `ctx` is a value injected by the `handler` attribute macro
-    let event: serde_json::Value = serde_json::from_str(&ctx.input)
-        .expect("could not parse function input as JSON");
+    let event: serde_json::Value = match serde_json::from_slice(&ctx.input) {
+        Ok(val) => val,
+        Err(err) => return FunctionContext::failure(format!("could not parse function input as JSON: {}", err.to_string()));
+    };
 
     FunctionContext::success("\"Function returned OK!\"".to_string());
 }

@@ -111,8 +111,10 @@ async fn main() -> Result<(), Error> {
         }
     }
 
+    let runtime_environment = std::env::var("ASML_FUNCTION_ENV");
+
     // Copy Ruby env to /tmp
-    if let Ok("ruby-lambda") = env::var("ASML_FUNCTION_ENV").as_deref() {
+    if let Ok("ruby-lambda") = runtime_environment.as_deref() {
         let rubysrc_path = "/tmp/rubysrc";
         if !Path::new(&rubysrc_path).exists() {
             fs::create_dir_all(rubysrc_path)
@@ -163,6 +165,19 @@ async fn main() -> Result<(), Error> {
     let registry_tx_ref = &registry_tx;
     run(service_fn(
         move |event: LambdaEvent<serde_json::Value>| async move {
+            // Environment vars prefixed with __ASML_ are defined in the function definition;
+            // the prefix indicates that they are to be mapped to the function environment.
+            // In a single-function environment (Lambda or Docker), these are the only function env-vars;
+            // in a multi-function environment, these are global across all functions and function-specific
+            // vars are passed thru the runner request from the launcher.
+            let environment_vars: Vec<(String, String)> = Vec::from_iter(
+                std::env::vars()
+                    .into_iter()
+                    .filter(|e| e.0.starts_with("__ASML_"))
+                    .map(|e| (e.0.replace("__ASML_", ""), e.1))
+                    .into_iter(),
+            );
+            let runtime_environment = std::env::var("ASML_FUNCTION_ENV");
             let (status_tx, status_rx) = status_channel::<Status>(1);
             let request_id = &event.context.request_id;
             let (instance, mut store) = wasmtime_ref
@@ -170,6 +185,8 @@ async fn main() -> Result<(), Error> {
                 .link_wasi_component(
                     registry_tx_ref.clone(),
                     status_tx.clone(),
+                    environment_vars,
+                    runtime_environment.clone().unwrap_or("default".to_string()),
                     Some(String::from(request_id)),
                 )
                 .await
@@ -180,7 +197,18 @@ async fn main() -> Result<(), Error> {
                 .initialize_function_input_buffer(&mut store, &event.payload.to_string().as_bytes())
                 .expect("could not initialize input buffer");
 
-            return match wasmtime_ref.borrow_mut().run(instance, &mut store).await {
+            return match wasmtime_ref
+                .borrow_mut()
+                .run(
+                    instance,
+                    &mut store,
+                    match runtime_environment.as_deref() {
+                        Ok("ruby-lambda") | Ok("ruby-docker") => vec!["/src/handler.rb"],
+                        _ => vec![],
+                    },
+                )
+                .await
+            {
                 Ok(_) => {
                     info!("handler for event {} returned OK", request_id);
                     match status_rx.recv() {

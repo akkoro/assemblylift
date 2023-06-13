@@ -2,8 +2,6 @@ use clap::ArgMatches;
 use dialoguer::Confirm;
 
 use crate::projectfs::{locate_asml_manifest, Project};
-use crate::terraform;
-use crate::transpiler::toml::asml::ServiceRef;
 use crate::transpiler::toml::{asml, service};
 
 pub fn command(matches: Option<&ArgMatches>) {

@@ -1,7 +1,7 @@
 use clap::ArgMatches;
 use dialoguer::Confirm;
 
-use crate::terraform;
+use crate::tools;
 
 pub fn command(_matches: Option<&ArgMatches>) {
     if Confirm::new()
@@ -11,6 +11,7 @@ pub fn command(_matches: Option<&ArgMatches>) {
         .interact()
         .unwrap()
     {
-        terraform::commands::destroy()
+        let tf = tools::terraform::Terraform::default();
+        tf.destroy();
     }
 }

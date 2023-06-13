@@ -6,7 +6,6 @@ use assemblylift_core::wasm;
 
 use crate::commands::cast::CastableFunction;
 use crate::projectfs::Project;
-use crate::transpiler::toml::service::Function;
 
 pub struct RustFunction {
     project: Rc<Project>,
@@ -27,9 +26,9 @@ impl RustFunction {
             .net_dir()
             .service_dir(&service_name.clone())
             .function_dir(function.name.clone())
-            .into_os_string()
-            .into_string()
-            .unwrap();
+            .to_str()
+            .unwrap()
+            .to_string();
         std::fs::create_dir_all(PathBuf::from(&net_path))
             .expect(&*format!("unable to create path {}", &net_path));
         Self {
@@ -51,8 +50,7 @@ impl RustFunction {
                 .clone()
                 .service_dir(self.service_name.clone())
                 .function_dir(self.function_name.clone())
-                .into_os_string()
-                .into_string()
+                .to_str()
                 .unwrap(),
             self.target,
             self.mode,
@@ -65,8 +63,7 @@ impl RustFunction {
                 self.project
                     .clone()
                     .dir()
-                    .into_os_string()
-                    .into_string()
+                    .to_str()
                     .unwrap(),
                 self.target,
                 self.mode,
@@ -85,8 +82,7 @@ impl CastableFunction for RustFunction {
                 .clone()
                 .service_dir(self.service_name.clone())
                 .function_dir(self.function_name.clone())
-                .into_os_string()
-                .into_string()
+                .to_str()
                 .unwrap()
         ));
 
@@ -126,7 +122,7 @@ impl CastableFunction for RustFunction {
         {
             let module = std::fs::read(move_to.clone()).unwrap();
             let component = wasm::make_wasi_component(module, wasi_snapshot_preview1.as_slice())
-                .expect("TODO: panic message");
+                .expect("unable to make component of the provided module");
             std::fs::write(move_to.clone(), component).unwrap();
         }
     }
