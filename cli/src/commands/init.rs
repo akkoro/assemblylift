@@ -9,7 +9,6 @@ use crate::templates::project::{
     ROOT_DOCUMENTS, RUBY_FUNCTION_DOCUMENTS, RUST_FUNCTION_DOCUMENTS, SERVICE_DOCUMENTS,
 };
 use crate::templates::write_documents;
-use crate::terraform;
 
 pub fn command(matches: Option<&ArgMatches>) {
     let matches = match matches {
@@ -23,8 +22,6 @@ pub fn command(matches: Option<&ArgMatches>) {
     // let function_language = matches.value_of("language").unwrap();
 
     let project = Project::new(project_name.parse().unwrap(), None);
-
-    terraform::fetch(&*project.dir());
 
     {
         let data = &mut Map::<String, Json>::new();

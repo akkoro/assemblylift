@@ -24,6 +24,8 @@ where
     pub input: Vec<u8>,
     pub status_sender: StatusTx<S>,
     pub wasm_path: PathBuf,
+    pub env_vars: BTreeMap<String, String>,
+    pub runtime_environment: Option<String>,
 }
 
 pub struct Runner<S>
@@ -56,10 +58,38 @@ impl Runner<Status> {
             while let Some(msg) = self.channel.1.recv().await {
                 debug!("received runner message");
 
+                let runtime_environment = match std::env::var("ASML_FUNCTION_ENV") {
+                    Ok(env) => env,
+                    Err(_) => msg.runtime_environment.unwrap_or("default".to_string()),
+                };
+
+                // In single-function environments (Lambda or Docker), the wasm module path is defined as an envvar.
+                // Otherwise the path is passed thru the runner request from the launcher.
                 let wasm_path = match std::env::var("ASML_WASM_MODULE_NAME") {
                     Ok(module_name) => PathBuf::from(format!("/opt/assemblylift/{}", module_name)),
                     Err(_) => msg.wasm_path.clone(),
                 };
+
+                // Environment vars prefixed with __ASML_ are defined in the function definition;
+                // the prefix indicates that they are to be mapped to the function environment.
+                // In a single-function environment (Lambda or Docker), these are the only function env-vars;
+                // in a multi-function environment, these are global across all functions and function-specific
+                // vars are passed thru the runner request from the launcher.
+                let mut env_vars: Vec<(String, String)> = Vec::from_iter(
+                    std::env::vars()
+                        .into_iter()
+                        .filter(|e| e.0.starts_with("__ASML_"))
+                        .map(|e| (e.0.replace("__ASML_", ""), e.1))
+                        .into_iter(),
+                );
+                env_vars.append(
+                    &mut Vec::from_iter(
+                        msg.env_vars
+                            .into_iter()
+                            .map(|e| (e.0, e.1))
+                            .into_iter(),
+                    )
+                );
 
                 let wasmtime = match functions.contains_key(&*wasm_path) {
                     false => {
@@ -75,7 +105,13 @@ impl Runner<Status> {
 
                 let (instance, mut store) = wasmtime
                     .borrow_mut()
-                    .link_wasi_component(self.registry_tx.clone(), msg.status_sender.clone(), None)
+                    .link_wasi_component(
+                        self.registry_tx.clone(),
+                        msg.status_sender.clone(),
+                        env_vars,
+                        runtime_environment.clone(),
+                        None,
+                    )
                     .await
                     .expect("could not link wasm module");
 
@@ -85,8 +121,16 @@ impl Runner<Status> {
                     .expect("could not initialize input buffer");
 
                 let wasmtime = wasmtime.clone();
+                let rtenv = runtime_environment.clone();
                 tokio::task::spawn_local(async move {
-                    match wasmtime.borrow_mut().run(instance, &mut store).await {
+                    match wasmtime
+                        .borrow_mut()
+                        .run(instance, &mut store, match rtenv.as_str() {
+                            "ruby-lambda"|"ruby-docker" => vec!["/src/handler.rb"],
+                            _ => vec![],
+                        })
+                        .await
+                    {
                         Ok(_) => msg.status_sender.send(Status::Exited(0)),
                         Err(_) => msg.status_sender.send(Status::Failure(
                             "WASM module exited in error".as_bytes().to_vec(),

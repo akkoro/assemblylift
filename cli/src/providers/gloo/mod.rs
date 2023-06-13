@@ -136,13 +136,11 @@ impl Bootable for ApiProvider {
             route53_options: match route53_provider {
                 Some(r53) => {
                     let opts = r53.provider.options.clone();
-                    println!("DEBUG opts={:?}", opts);
                     match opts.get("cert_manager_aws_credentials_secret_name") {
                         Some(secret) => {
                             let secrets = kubectl
                                 .get_in_namespace("secrets", "cert-manager", None)
                                 .unwrap();
-                            // println!("DEBUG secrets={:?}", secrets);
                             let mut selector = Selector::new();
                             let results = selector
                                 .str_path(&*format!(

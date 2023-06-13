@@ -1,7 +1,6 @@
 mod cache;
 
 use std::fs::File;
-use std::iter::FromIterator;
 use std::path::Path;
 use std::string::ToString;
 use std::sync::{Arc, Mutex};
@@ -93,6 +92,8 @@ where
         &mut self,
         registry_tx: RegistryTx,
         status_tx: StatusTx<S>,
+        environment_vars: Vec<(String, String)>,
+        runtime_environment: String,
         request_id: Option<String>,
     ) -> anyhow::Result<(
         assemblylift_wasi_host::command::wasi::Command,
@@ -110,23 +111,12 @@ where
         WasiSecrets::add_to_linker(&mut linker, |s| s)
             .expect("could not link wasi-secrets runtime component");
 
-        // env vars prefixed with __ASML_ are defined in the function definition;
-        // the prefix indicates that they are to be mapped to the module environment
-        // FIXME this only really works when running inside a container/single-function environment
-        let envs: Vec<(String, String)> = Vec::from_iter(
-            std::env::vars()
-                .into_iter()
-                .filter(|e| e.0.starts_with("__ASML_"))
-                .map(|e| (e.0.replace("__ASML_", ""), e.1))
-                .into_iter(),
-        );
         let mut wasi = WasiCtxBuilder::new().build();
-        for e in envs {
+        for e in environment_vars {
             wasi.push_env(&*e.0, &*e.1)
         }
-        // FIXME this might be confusingly named (confused with the function env vars)
-        let function_env = std::env::var("ASML_FUNCTION_ENV").unwrap_or("default".into());
-        match function_env.as_str() {
+
+        match runtime_environment.as_str() {
             "ruby-docker" => {
                 wasi.push_env("RUBY_PLATFORM", "wasm32-wasi");
                 wasi.push_preopened_dir(
@@ -227,10 +217,11 @@ where
         &mut self,
         wasi: assemblylift_wasi_host::command::wasi::Command,
         mut store: &mut Store<State<R, S>>,
+        args: Vec<&str>,
     ) -> anyhow::Result<()> {
         wasi.call_main(
             &mut store,
-            &[], // TODO args
+            &args,
         )
         .await?
         .map_err(|()| anyhow::anyhow!("command returned with failing exit status"))
@@ -270,11 +261,14 @@ where
             .next_ioid()
             .expect("unable to get a new IO ID");
 
-        self.threader
+        if let Err(err) = self.threader
             .clone()
             .lock()
             .unwrap()
-            .invoke(&path, input.into_bytes(), ioid);
+            .invoke(&path, input.into_bytes(), ioid)
+        {
+            return Ok(Err(err));
+        }
 
         Ok(Ok(ioid as asml_io::Ioid))
     }
@@ -314,7 +308,14 @@ where
         context: String,
         message: String,
     ) -> anyhow::Result<()> {
-        tracing::info!("Function Log: {}", message);
+        use asml_rt::LogLevel;
+        match log_level {
+            LogLevel::Debug => tracing::debug!("Function:{}: {}", context, message),
+            LogLevel::Trace => tracing::trace!("Function:{}: {}", context, message),
+            LogLevel::Info => tracing::info!("Function:{}: {}", context, message),
+            LogLevel::Warn => tracing::warn!("Function:{}: {}", context, message),
+            LogLevel::Error => tracing::error!("Function:{}: {}", context, message),
+        }
         Ok(())
     }
 
@@ -359,7 +360,7 @@ where
         &mut self,
         token: String,
         jwks: String,
-        params: jwt::ValidationParams,
+        _params: jwt::ValidationParams,
     ) -> anyhow::Result<Result<jwt::VerifyResult, jwt::JwtError>> {
         let mut cache = self.cache.lock().unwrap();
         let key_set = match cache.get("jwt.keyset")? {

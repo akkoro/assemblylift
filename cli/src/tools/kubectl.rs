@@ -11,28 +11,31 @@ use crate::tools::Tool;
 pub struct KubeCtl {
     cmd: String,
     path: String,
-    // TODO kubeconfig
+    // TODO pass to args
+    kubeconfig: Option<String>,
 }
 
 impl Default for KubeCtl {
     fn default() -> Self {
-        KubeCtl::new("kubectl", ".asml/bin")
+        KubeCtl::new("kubectl", ".asml/bin", None)
     }
 }
 
 impl KubeCtl {
-    pub fn new(name: &str, path: &str) -> Self {
+    pub fn new(name: &str, path: &str, kubeconfig: Option<String>) -> Self {
         let s = Self {
             cmd: name.into(),
             path: path.into(),
+            kubeconfig,
         };
         crate::tools::fetch(&s).unwrap();
         s
     }
 
+    #[allow(dead_code)]
     pub fn apply(&self) -> Result<(), String> {
         println!("Applying kubernetes configuration...");
-        let mut child = self
+        let child = self
             .command()
             .arg("apply")
             .arg("-f")
@@ -88,7 +91,7 @@ impl KubeCtl {
     }
 
     pub fn get_namespaces(&self) -> Result<Value, String> {
-        let mut child = self
+        let child = self
             .command()
             .args(vec!["get", "namespaces"])
             .arg("-o")
@@ -103,7 +106,7 @@ impl KubeCtl {
     }
 
     pub fn get(&self, kind: &str) -> Result<Value, String> {
-        let mut child = self
+        let child = self
             .command()
             .args(vec!["get", kind])
             .args(vec!["-o", "json"])
