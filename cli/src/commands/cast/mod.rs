@@ -73,8 +73,11 @@ pub fn command(matches: Option<&ArgMatches>) {
     let mut manifest_path = cwd.clone();
     manifest_path.push("assemblylift.toml");
 
-    let asml_manifest =
-        toml::asml::Manifest::read(&manifest_path).expect("could not read assemblylift.toml");
+    let asml_manifest = match toml::asml::Manifest::read(&manifest_path) {
+        Ok(manifest) => manifest,
+        Err(e) => panic!("could not read assemblylift.toml: {}", e),
+    };
+
     let project = Rc::new(Project::new(asml_manifest.project.name.clone(), Some(cwd)));
 
     // Fetch the latest terraform binary to the project directory

@@ -45,7 +45,12 @@ pub fn compile(
     let build_log = std::str::from_utf8(&cargo_build.stderr).unwrap();
     std::io::stderr().write_all(&cargo_build.stderr).unwrap();
     if build_log.contains("error") {
-        std::process::exit(-1);
+        if cargo_build.status.code().unwrap() != 0 {
+            return Err(format!(
+                "Unable to compile function {}:\n{}",
+                function_name, build_log
+            ));
+        }
     }
 
     let copy_from = format!(

@@ -15,6 +15,6 @@ members = [
     "core/io/guest",
     "core/io/common",
     "cli",
-    # "ayo-test/services/ayo-service/ayo-function"
+#     "ayo-test/services/ayo-service/ayo-function"
 ]
 exclude = ["examples"]
