@@ -11,6 +11,8 @@ secure, and portable runtime &mdash; from the edge to the cloud &mdash; powered 
   <br/>
   <br/>
   <a href="/examples"><b>EXAMPLES</b></a> | <a href="https://dev.to/akkoro"><b>BLOG</b></a> | <a href="/docs"><b>DESIGN DOCS</b></a>
+  <br/>
+  <b>Work on the upcoming beta release is happening on the <a href="https://github.com/akkoro/assemblylift/tree/v0.4.0-beta">v0.4.0-beta branch</a>.</b>
 </p>
 
 -----
