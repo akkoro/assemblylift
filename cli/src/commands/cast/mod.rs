@@ -12,6 +12,8 @@ use crate::tools;
 use crate::transpiler::context::Context;
 use crate::transpiler::{toml, Castable};
 
+use self::ruby::RubyFunction;
+
 mod ruby;
 mod rust;
 
@@ -60,7 +62,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         let castable_function: Box<dyn CastableFunction> = match function.language.clone().as_str()
         {
             "rust" => Box::new(RustFunction::new(&function)),
-            // "ruby" => ruby::compile(project, service_name, function),
+            "ruby" => Box::new(RubyFunction::new(&function)),
             lang => panic!("unsupported function language: {}", lang),
         };
         castable_function.compile(wasi_snapshot_preview1.clone().to_vec());
