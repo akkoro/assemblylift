@@ -29,8 +29,12 @@ assemblylift-wasi-host = { git = "https://github.com/bytecodealliance/preview2-p
 assemblylift-wasi-common = { git = "https://github.com/bytecodealliance/preview2-prototyping.git", rev = "4e84fc2", package = "wasi-common" }
 assemblylift-wasi-cap-std-sync = { git = "https://github.com/bytecodealliance/preview2-prototyping.git", rev = "4e84fc2", package = "wasi-cap-std-sync" }
 wasmtime = { version = "7.0", features = ["default", "component-model"] }
-wasm-tools = "1.0.28"
-wit-component = "0.7.4"
+wasm-encoder = "0.29"
+wasm-tools = "1.0"
+wat = "1.0"
+wast = "60.0"
+wit-component = "0.11.0"
+wit-parser = "0.8.0"
 
 assemblylift-core-iomod = { path = "./iomod" }
 

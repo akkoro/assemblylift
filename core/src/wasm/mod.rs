@@ -1,7 +1,8 @@
 mod cache;
 
+use std::borrow::Cow;
 use std::fs::File;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::string::ToString;
 use std::sync::{Arc, Mutex};
 
@@ -13,7 +14,9 @@ use once_cell::sync::Lazy;
 use uuid::Uuid;
 use wasmtime::component::{bindgen, Component, Linker};
 use wasmtime::{Config, Engine, Store};
-use wit_component::ComponentEncoder;
+use wit_component::{ComponentEncoder, DecodedWasm, StringEncoding, WitPrinter};
+use wasm_encoder::{Encode, Section};
+use wit_parser::{PackageId, Resolve, UnresolvedPackage};
 
 use assemblylift_core_iomod::registry::RegistryTx;
 
@@ -475,4 +478,80 @@ pub fn make_wasi_component(module: Vec<u8>, preview1: &[u8]) -> anyhow::Result<V
         .context("failed to encode a component from module")?;
 
     Ok(bytes)
+}
+
+pub fn embed_wit(module: Vec<u8>, wit: PathBuf, world: String) -> anyhow::Result<Vec<u8>> {
+    let mut wasm = module.clone();
+    let (resolve, id) = parse_wit(&wit)?;
+    let world = resolve.select_world(id, Some(&world))?;
+
+    let encoded = wit_component::metadata::encode(
+        &resolve,
+        world,
+        StringEncoding::UTF8,
+        None,
+    )?;
+
+    let section = wasm_encoder::CustomSection {
+        name: "component-type".into(),
+        data: Cow::Borrowed(&encoded),
+    };
+    wasm.push(section.id());
+    section.encode(&mut wasm);
+
+    Ok(wasm)
+}
+
+fn parse_wit(path: &Path) -> anyhow::Result<(Resolve, PackageId)> {
+    let mut resolve = Resolve::default();
+    let id = if path.is_dir() {
+        resolve.push_dir(&path)?.0
+    } else {
+        let contents =
+            std::fs::read(&path).with_context(|| format!("failed to read file {path:?}"))?;
+        if is_wasm(&contents) {
+            let bytes = wat::parse_bytes(&contents).map_err(|mut e| {
+                e.set_path(path);
+                e
+            })?;
+            match wit_component::decode(&bytes)? {
+                DecodedWasm::Component(..) => {
+                    anyhow::bail!("specified path is a component, not a wit package")
+                }
+                DecodedWasm::WitPackage(resolve, pkg) => return Ok((resolve, pkg)),
+            }
+        } else {
+            let text = match std::str::from_utf8(&contents) {
+                Ok(s) => s,
+                Err(_) => anyhow::bail!("input file is not valid utf-8"),
+            };
+            let pkg = UnresolvedPackage::parse(&path, text)?;
+            resolve.push(pkg)?
+        }
+    };
+    Ok((resolve, id))
+}
+
+fn is_wasm(bytes: &[u8]) -> bool {
+    use wast::lexer::{Lexer, Token};
+
+    if bytes.starts_with(b"\0asm") {
+        return true;
+    }
+    let text = match std::str::from_utf8(bytes) {
+        Ok(s) => s,
+        Err(_) => return true,
+    };
+
+    let mut lexer = Lexer::new(text);
+
+    while let Some(next) = lexer.next() {
+        match next {
+            Ok(Token::Whitespace(_)) | Ok(Token::BlockComment(_)) | Ok(Token::LineComment(_)) => {}
+            Ok(Token::LParen(_)) => return true,
+            _ => break,
+        }
+    }
+
+    false
 }
