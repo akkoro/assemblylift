@@ -35,7 +35,8 @@ walkdir = "2.3"
 z85 = "3"
 zip = "0.6"
 
-wasmtime = "7.0"
+#wasmtime = "9.0"
+wasmtime = { git = "https://github.com/bytecodealliance/wasmtime.git", package = "wasmtime", rev = "1033a88" }
 
 assemblylift-core = { version = "0.4.0-beta.0", path = "../core" }
 assemblylift-core-iomod = { version = "0.4.0-beta.0", path = "../core/iomod" }

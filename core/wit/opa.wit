@@ -1,4 +1,6 @@
-interface opa-module {
+package akkoro:assemblylift
+
+interface module {
     enum policy-error {
         invalid-wasm,
         no-entrypoint,
@@ -13,6 +15,6 @@ interface opa-module {
     eval: func(id: string, data: string, input: string) -> string
 }
 
-default world opa {
-   import opa: self.opa-module 
+world opa {
+   import module 
 }

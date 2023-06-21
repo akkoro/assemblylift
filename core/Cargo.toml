@@ -25,10 +25,13 @@ tokio = { version = "1.4", features = ["full"] }
 tracing = "0.1"
 uuid = { version = "1.3", features = ["v4", "fast-rng"] }
 
-assemblylift-wasi-host = { git = "https://github.com/bytecodealliance/preview2-prototyping.git", rev = "4e84fc2", package = "host" }
-assemblylift-wasi-common = { git = "https://github.com/bytecodealliance/preview2-prototyping.git", rev = "4e84fc2", package = "wasi-common" }
-assemblylift-wasi-cap-std-sync = { git = "https://github.com/bytecodealliance/preview2-prototyping.git", rev = "4e84fc2", package = "wasi-cap-std-sync" }
-wasmtime = { version = "7.0", features = ["default", "component-model"] }
+#assemblylift-wasi-host = { git = "https://github.com/bytecodealliance/preview2-prototyping.git", rev = "4e84fc2", package = "host" }
+#assemblylift-wasi-common = { git = "https://github.com/bytecodealliance/preview2-prototyping.git", rev = "4e84fc2", package = "wasi-common" }
+#assemblylift-wasi-cap-std-sync = { git = "https://github.com/bytecodealliance/preview2-prototyping.git", rev = "4e84fc2", package = "wasi-cap-std-sync" }
+#wasmtime = { version = "9.0", features = ["default", "component-model"] }
+#wasmtime-wasi = { version = "9.0", features = ["preview2"] }
+wasmtime = { git = "https://github.com/bytecodealliance/wasmtime.git", package = "wasmtime", rev = "1033a88" } 
+wasmtime-wasi = { git = "https://github.com/bytecodealliance/wasmtime.git", package = "wasmtime-wasi", rev = "1033a88" }
 wasm-encoder = "0.29"
 wasm-tools = "1.0"
 wat = "1.0"

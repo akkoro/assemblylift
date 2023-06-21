@@ -7,8 +7,8 @@ use std::string::ToString;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
-use assemblylift_wasi_cap_std_sync::{dir, Dir, WasiCtxBuilder};
-use assemblylift_wasi_common::WasiCtx;
+use wasmtime_wasi::sync::{dir, Dir};
+use wasmtime_wasi::preview2::{WasiCtx, WasiCtxBuilder};
 pub use crossbeam_channel::bounded as status_channel;
 use once_cell::sync::Lazy;
 use uuid::Uuid;
@@ -35,9 +35,9 @@ pub static CPU_COMPAT_MODE: Lazy<String> =
     Lazy::new(|| std::env::var("ASML_CPU_COMPAT_MODE").unwrap_or("default".to_string()));
 
 bindgen!("assemblylift");
-bindgen!("jwt");
-bindgen!("opa");
-bindgen!("wasi-secrets" in "components/wasi-secrets/wit");
+// bindgen!("jwt");
+// bindgen!("opa");
+// bindgen!("wasi-secrets" in "components/wasi-secrets/wit");
 
 pub struct Wasmtime<R, S>
 where
@@ -99,13 +99,13 @@ where
         runtime_environment: String,
         request_id: Option<String>,
     ) -> anyhow::Result<(
-        assemblylift_wasi_host::command::wasi::Command,
+        wasmtime_wasi::preview2::wasi::command::Command,
         Store<State<R, S>>,
     )> {
         let threader = Arc::new(Mutex::new(Threader::new(registry_tx)));
         let mut linker: Linker<State<R, S>> = Linker::new(&self.engine);
 
-        assemblylift_wasi_host::command::add_to_linker(&mut linker, |s| &mut s.wasi)
+        wasmtime_wasi::preview2::wasi::command::add_to_linker(&mut linker)
             .expect("could not link wasi runtime component");
         Assemblylift::add_to_linker(&mut linker, |s| s)
             .expect("could not link assemblylift runtime component");
@@ -191,7 +191,7 @@ where
         };
         let mut store = Store::new(&self.engine, state);
 
-        match assemblylift_wasi_host::command::wasi::Command::instantiate_async(
+        match wasmtime_wasi::preview2::wasi::command::Command::instantiate_async(
             &mut store,
             &self.component,
             &linker,
@@ -480,9 +480,10 @@ pub fn make_wasi_component(module: Vec<u8>, preview1: &[u8]) -> anyhow::Result<V
     Ok(bytes)
 }
 
-pub fn embed_wit(module: Vec<u8>, wit: PathBuf, world: String) -> anyhow::Result<Vec<u8>> {
+pub fn embed_wit(module: Vec<u8>) -> anyhow::Result<Vec<u8>> {
     let mut wasm = module.clone();
-    let (resolve, id) = parse_wit(&wit)?;
+    let world = "assemblylift".to_string();
+    let (resolve, id) = parse_wit()?;
     let world = resolve.select_world(id, Some(&world))?;
 
     let encoded = wit_component::metadata::encode(
@@ -502,32 +503,19 @@ pub fn embed_wit(module: Vec<u8>, wit: PathBuf, world: String) -> anyhow::Result
     Ok(wasm)
 }
 
-fn parse_wit(path: &Path) -> anyhow::Result<(Resolve, PackageId)> {
+fn parse_wit() -> anyhow::Result<(Resolve, PackageId)> {
+    let path = "../../wit/assemblylift.wit";
     let mut resolve = Resolve::default();
-    let id = if path.is_dir() {
-        resolve.push_dir(&path)?.0
-    } else {
-        let contents =
-            std::fs::read(&path).with_context(|| format!("failed to read file {path:?}"))?;
-        if is_wasm(&contents) {
-            let bytes = wat::parse_bytes(&contents).map_err(|mut e| {
-                e.set_path(path);
-                e
-            })?;
-            match wit_component::decode(&bytes)? {
-                DecodedWasm::Component(..) => {
-                    anyhow::bail!("specified path is a component, not a wit package")
-                }
-                DecodedWasm::WitPackage(resolve, pkg) => return Ok((resolve, pkg)),
-            }
-        } else {
-            let text = match std::str::from_utf8(&contents) {
-                Ok(s) => s,
-                Err(_) => anyhow::bail!("input file is not valid utf-8"),
-            };
-            let pkg = UnresolvedPackage::parse(&path, text)?;
-            resolve.push(pkg)?
-        }
+    let id = {
+        //let contents =
+        //    std::fs::read(&path).with_context(|| format!("failed to read file {path:?}"))?;
+        let contents = include_bytes!("../../wit/assemblylift.wit");
+        let text = match std::str::from_utf8(contents) {
+            Ok(s) => s,
+            Err(_) => anyhow::bail!("input file is not valid utf-8"),
+        };
+        let pkg = UnresolvedPackage::parse(&Path::new(path), text)?;
+        resolve.push(pkg)?
     };
     Ok((resolve, id))
 }

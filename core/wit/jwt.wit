@@ -1,4 +1,6 @@
-interface jwt-import {
+package akkoro:assemblylift
+
+interface decoder {
     enum jwt-error {
         invalid-token,
         invalid-jwks,
@@ -16,6 +18,6 @@ interface jwt-import {
     decode-verify: func(token: string, jwks: string, params: validation-params) -> result<verify-result, jwt-error>
 }
 
-default world jwt {
-    import jwt: self.jwt-import
+world jwt {
+    import decoder
 }
