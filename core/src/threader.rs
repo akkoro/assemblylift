@@ -9,7 +9,8 @@ use tokio::sync::mpsc;
 
 use assemblylift_core_iomod::registry::{RegistryChannelMessage, RegistryTx};
 
-use crate::buffers::IoBuffer;
+use super::buffers::IoBuffer;
+use super::wasm::asml_io;
 
 pub type IoId = u32;
 
@@ -58,13 +59,13 @@ where
         method_path: &str,
         method_input: Vec<u8>,
         ioid: IoId,
-    ) -> Result<(), crate::wasm::asml_io::IoError> {
+    ) -> Result<(), asml_io::IoError> {
         let io_memory = self.io_memory.clone();
 
         let coords = method_path.split(".").collect::<Vec<&str>>();
         if coords.len() != 4 {
             tracing::error!("io invoke failed: malformed module coordinates");
-            return Err(crate::wasm::asml_io::IoError::InvalidCoords);
+            return Err(asml_io::IoError::InvalidCoords);
         }
 
         let iomod_coords = format!("{}.{}.{}", coords[0], coords[1], coords[2]);

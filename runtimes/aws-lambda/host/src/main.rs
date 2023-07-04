@@ -202,10 +202,6 @@ async fn main() -> Result<(), Error> {
                 .run(
                     instance,
                     &mut store,
-                    match runtime_environment.as_deref() {
-                        Ok("ruby-lambda") | Ok("ruby-docker") => vec!["/src/handler.rb"],
-                        _ => vec![],
-                    },
                 )
                 .await
             {

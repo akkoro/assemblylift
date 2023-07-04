@@ -69,6 +69,7 @@ impl Runner<Status> {
                     Ok(module_name) => PathBuf::from(format!("/opt/assemblylift/{}", module_name)),
                     Err(_) => msg.wasm_path.clone(),
                 };
+                info!("Loading module at {}", wasm_path.clone().display());
 
                 // Environment vars prefixed with __ASML_ are defined in the function definition;
                 // the prefix indicates that they are to be mapped to the function environment.
@@ -121,14 +122,10 @@ impl Runner<Status> {
                     .expect("could not initialize input buffer");
 
                 let wasmtime = wasmtime.clone();
-                let rtenv = runtime_environment.clone();
                 tokio::task::spawn_local(async move {
                     match wasmtime
                         .borrow_mut()
-                        .run(instance, &mut store, match rtenv.as_str() {
-                            "ruby-lambda"|"ruby-docker" => vec!["/src/handler.rb"],
-                            _ => vec![],
-                        })
+                        .run(instance, &mut store)
                         .await
                     {
                         Ok(_) => msg.status_sender.send(Status::Exited(0)),

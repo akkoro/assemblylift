@@ -126,10 +126,11 @@ async fn launch(
                 false => match PathBuf::from("./assemblylift.toml").exists() {
                     true => Url::from_str(
                         format!(
-                            "file://{}/net/services/{}/{}.wasm",
+                            "file://{}/net/services/{}/{}/{}.wasm",
                             std::env::current_dir().unwrap().to_str().unwrap(),
                             coordinates[1],
-                            coordinates[2]
+                            coordinates[2],
+                            coordinates[2],
                         )
                         .as_str(),
                     )

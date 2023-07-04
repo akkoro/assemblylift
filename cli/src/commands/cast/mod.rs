@@ -46,7 +46,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             .expect("could not make context from manifest"),
     );
 
-    let wasi_snapshot_preview1 = include_bytes!("wasm/wasi_snapshot_preview1.reactor.wasm");
+    let wasi_snapshot_preview1 = include_bytes!("wasm/wasi_snapshot_preview1.command.wasm");
 
     // Compile WASM & package function
     let functions = ctx.functions.as_slice();

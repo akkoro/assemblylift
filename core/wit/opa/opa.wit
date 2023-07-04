@@ -1,4 +1,4 @@
-package akkoro:assemblylift
+package akkoro:opa
 
 interface module {
     enum policy-error {

@@ -36,7 +36,7 @@ z85 = "3"
 zip = "0.6"
 
 #wasmtime = "9.0"
-wasmtime = { git = "https://github.com/bytecodealliance/wasmtime.git", package = "wasmtime", rev = "1033a88" }
+wasmtime = { git = "https://github.com/bytecodealliance/wasmtime.git", package = "wasmtime", rev = "a330867" }
 
 assemblylift-core = { version = "0.4.0-beta.0", path = "../core" }
 assemblylift-core-iomod = { version = "0.4.0-beta.0", path = "../core/iomod" }

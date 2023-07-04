@@ -133,7 +133,7 @@ impl CastableFunction for RubyFunction {
 
         {
             let module = std::fs::read(copy_to.clone()).unwrap();
-            let embedded = wasm::embed_wit(module).unwrap();
+            let embedded = wasm::embed_wit(module).expect("unable to embed assemblylift WIT");
             let component = wasm::make_wasi_component(embedded, wasi_snapshot_preview1.as_slice())
                 .expect("unable to make component of the provided module");
             std::fs::write(copy_to.clone(), component).unwrap();
