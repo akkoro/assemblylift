@@ -100,6 +100,7 @@ async fn launch(
         body: Some(base64::encode(input_bytes.as_ref())),
     };
 
+    // TODO also return runtime_environment here, trying to detect from service.toml, then falling back to header
     let wasm_uri = match headers.get("x-assemblylift-function-coordinates") {
         Some(coords) => {
             // coordinate is the triple project.service.function
@@ -148,13 +149,14 @@ async fn launch(
 
     let env_vars: BTreeMap<String, String> = match headers.get("x-assemblylift-function-env-vars") {
         Some(vars) => {
-            let mut env_vars = BTreeMap::new();
-            let pairs = vars.split(',');
-            for pair in pairs {
-                let kv = pair.split('=').collect::<Vec<&str>>();
-                env_vars.insert(kv[0].into(), kv[1].into());
-            }
-            env_vars
+            parse_map(vars)
+        }
+        None => Default::default(),
+    };
+
+    let bind_paths: BTreeMap<String, String> = match headers.get("x-assemblylift-function-bind-paths") {
+        Some(paths) => {
+            parse_map(paths)
         }
         None => Default::default(),
     };
@@ -165,6 +167,7 @@ async fn launch(
         status_sender: status_tx.clone(),
         wasm_path: PathBuf::from(wasm_uri.path()),
         env_vars,
+        bind_paths,
         runtime_environment,
     };
 
@@ -238,6 +241,16 @@ async fn launch(
         .status(500)
         .body(Body::default())
         .unwrap())
+}
+
+fn parse_map(vars: &String) -> BTreeMap<String, String> {
+    let mut map = BTreeMap::<String, String>::new();
+    let pairs = vars.split(',');
+    for pair in pairs {
+        let kv = pair.split('=').collect::<Vec<&str>>();
+        map.insert(kv[0].into(), kv[1].into());
+    }
+    map
 }
 
 #[derive(Serialize, Deserialize)]

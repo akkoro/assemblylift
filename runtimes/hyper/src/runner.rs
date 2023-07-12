@@ -25,6 +25,7 @@ where
     pub status_sender: StatusTx<S>,
     pub wasm_path: PathBuf,
     pub env_vars: BTreeMap<String, String>,
+    pub bind_paths: BTreeMap<String, String>,
     pub runtime_environment: Option<String>,
 }
 
@@ -92,6 +93,14 @@ impl Runner<Status> {
                     )
                 );
 
+                let bind_paths: Vec<(String, String)> = Vec::from_iter(
+                    msg
+                    .bind_paths
+                    .into_iter()
+                    .map(|e| (e.0, e.1))
+                    .into_iter(),
+                );
+
                 let wasmtime = match functions.contains_key(&*wasm_path) {
                     false => {
                         let wt = Rc::new(RefCell::new(
@@ -111,6 +120,7 @@ impl Runner<Status> {
                         msg.status_sender.clone(),
                         env_vars,
                         runtime_environment.clone(),
+                        bind_paths,
                         None,
                     )
                     .await
@@ -129,8 +139,8 @@ impl Runner<Status> {
                         .await
                     {
                         Ok(_) => msg.status_sender.send(Status::Exited(0)),
-                        Err(_) => msg.status_sender.send(Status::Failure(
-                            "WASM module exited in error".as_bytes().to_vec(),
+                        Err(err) => msg.status_sender.send(Status::Failure(
+                            format!("WASM module exited in error: {}", err.to_string()).as_bytes().to_vec(),
                         )),
                     }
                 });

@@ -102,6 +102,7 @@ where
         status_tx: StatusTx<S>,
         environment_vars: Vec<(String, String)>,
         runtime_environment: String,
+        bind_paths: Vec<(String, String)>,
         request_id: Option<String>,
     ) -> anyhow::Result<(
         wasmtime_wasi::preview2::wasi::command::Command,
@@ -126,12 +127,12 @@ where
             builder = builder.push_env(&*e.0, &*e.1);
         }
 
-        // TODO handle ruby localhost
         match runtime_environment.as_str() {
-            "ruby-lambda" | "ruby-docker" => builder = builder.push_arg("/src/handler.rb"),
+            "ruby-lambda" | "ruby-docker" | "ruby-localhost" => builder = builder.push_arg("/src/handler.rb"),
             _ => (),
         }
 
+        // TODO we could lift the platform-specific path bindings out and just rely on bind_paths
         match runtime_environment.as_str() {
             "ruby-docker" => {
                 builder = builder.push_env("RUBY_PLATFORM", "wasm32-wasi");
@@ -178,6 +179,28 @@ where
                     FilePerms::READ,
                     "/usr",
                 );
+                builder = builder.push_preopened_dir(
+                    Dir::from_std_file(
+                        File::open("/tmp/asmltmp").unwrap(),
+                    ),
+                    DirPerms::all(), 
+                    FilePerms::all(),
+                    "/tmp",
+                );
+            }
+            "ruby-localhost" => {
+                builder = builder.push_env("RUBY_PLATFORM", "wasm32-wasi");
+                for path in bind_paths {
+                    tracing::debug!("binding {} to {}", path.0, path.1);
+                    builder = builder.push_preopened_dir(
+                        Dir::from_std_file(
+                            File::open(path.0).unwrap(),
+                        ),
+                        DirPerms::all(), 
+                        FilePerms::all(),
+                        path.1,
+                    );
+                }
                 builder = builder.push_preopened_dir(
                     Dir::from_std_file(
                         File::open("/tmp/asmltmp").unwrap(),

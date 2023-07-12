@@ -187,6 +187,7 @@ async fn main() -> Result<(), Error> {
                     status_tx.clone(),
                     environment_vars,
                     runtime_environment.clone().unwrap_or("default".to_string()),
+                    Default::default(),
                     Some(String::from(request_id)),
                 )
                 .await
