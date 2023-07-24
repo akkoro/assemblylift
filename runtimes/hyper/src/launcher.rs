@@ -116,7 +116,7 @@ async fn launch(
             match project_dir.exists() {
                 true => Url::from_str(
                     format!(
-                        "file://{}/services/{}/{}.wasm",
+                        "file://{}/services/{}/{}.component.wasm",
                         project_dir.to_str().unwrap(),
                         coordinates[1],
                         coordinates[2]
@@ -127,7 +127,7 @@ async fn launch(
                 false => match PathBuf::from("./assemblylift.toml").exists() {
                     true => Url::from_str(
                         format!(
-                            "file://{}/net/services/{}/{}/{}.wasm",
+                            "file://{}/net/services/{}/{}/{}.component.wasm",
                             std::env::current_dir().unwrap().to_str().unwrap(),
                             coordinates[1],
                             coordinates[2],
@@ -181,7 +181,8 @@ async fn launch(
     while let Ok(result) = status_rx.recv() {
         debug!("launcher received response from runner");
         return Ok(match result {
-            Exited(_status) => {
+            Exited(status) => {
+                debug!("exit code {}", status);
                 let timer = timer::Timer::new();
                 let tx = status_tx.clone();
                 timer.schedule_with_delay(chrono::Duration::seconds(3), move || {

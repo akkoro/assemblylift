@@ -113,37 +113,63 @@ impl Runner<Status> {
                     true => functions.get(&*wasm_path).unwrap().clone(),
                 };
 
-                let (instance, mut store) = wasmtime
-                    .borrow_mut()
-                    .link_wasi_component(
-                        self.registry_tx.clone(),
-                        msg.status_sender.clone(),
-                        env_vars,
-                        runtime_environment.clone(),
-                        bind_paths,
-                        None,
-                    )
-                    .await
-                    .expect("could not link wasm module");
-
-                wasmtime
-                    .borrow_mut()
-                    .initialize_function_input_buffer(&mut store, &msg.input)
-                    .expect("could not initialize input buffer");
-
-                let wasmtime = wasmtime.clone();
-                tokio::task::spawn_local(async move {
-                    match wasmtime
+                if wasmtime.borrow_mut().is_component() {
+                    let (command, mut store) = wasmtime
                         .borrow_mut()
-                        .run(instance, &mut store)
+                        .link_wasi_component(
+                            self.registry_tx.clone(),
+                            msg.status_sender.clone(),
+                            env_vars,
+                            runtime_environment.clone(),
+                            bind_paths,
+                            None,
+                            &msg.input,
+                        )
                         .await
-                    {
-                        Ok(_) => msg.status_sender.send(Status::Exited(0)),
-                        Err(err) => msg.status_sender.send(Status::Failure(
-                            format!("WASM module exited in error: {}", err.to_string()).as_bytes().to_vec(),
-                        )),
-                    }
-                });
+                        .expect("could not link wasm component");
+
+                    let wasmtime = wasmtime.clone();
+                    tokio::task::spawn_local(async move {
+                        match wasmtime
+                            .borrow_mut()
+                            .run_component(command, &mut store)
+                            .await
+                        {
+                            Ok(_) => msg.status_sender.send(Status::Exited(0)),
+                            Err(err) => msg.status_sender.send(Status::Failure(
+                                format!("WASM module exited in error: {}", err.to_string()).as_bytes().to_vec(),
+                            )),
+                        }
+                    });
+                } else {
+                    let (instance, mut store) = wasmtime
+                        .borrow_mut()
+                        .link_wasi_module(
+                            self.registry_tx.clone(),
+                            msg.status_sender.clone(),
+                            env_vars,
+                            runtime_environment.clone(),
+                            bind_paths,
+                            None,
+                            &msg.input,
+                        )
+                        .await
+                        .expect("could not link wasm module");
+
+                        let wasmtime = wasmtime.clone();
+                        tokio::task::spawn_local(async move {
+                            match wasmtime
+                                .borrow_mut()
+                                .run_module(instance, &mut store)
+                                .await
+                            {
+                                Ok(_) => msg.status_sender.send(Status::Exited(0)),
+                                Err(err) => msg.status_sender.send(Status::Failure(
+                                    format!("WASM module exited in error: {}", err.to_string()).as_bytes().to_vec(),
+                                )),
+                            }
+                        });
+                }
             }
         });
     }

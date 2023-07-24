@@ -2,21 +2,24 @@ mod cache;
 
 use std::borrow::Cow;
 use std::fs::File;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::string::ToString;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
-use wasmtime_wasi::sync::Dir;
-use wasmtime_wasi::preview2::{DirPerms, FilePerms, Table, WasiCtx, WasiCtxBuilder, WasiView};
+use wasmtime_wasi::sync::{ambient_authority, Dir};
+use wasmtime_wasi::preview2;
+use wasmtime_wasi::preview2::{DirPerms, FilePerms, Table, WasiView};
 pub use crossbeam_channel::bounded as status_channel;
 use once_cell::sync::Lazy;
+use tracing::debug;
 use uuid::Uuid;
-use wasmtime::component::{Component, Linker};
-use wasmtime::{Config, Engine, Store};
+use wasmtime::{component, AsContextMut, AsContext};
+use wasmtime::component::Component;
+use wasmtime::{Config, Engine, Store, Module};
 use wit_component::{ComponentEncoder, StringEncoding};
 use wasm_encoder::{Encode, Section};
-use wit_parser::{PackageId, Resolve, UnresolvedPackage};
+use wit_parser::{PackageId, Resolve, UnresolvedPackage, WorldId};
 
 use assemblylift_core_iomod::registry::RegistryTx;
 
@@ -32,7 +35,7 @@ use crate::threader::Threader;
 use crate::wasm::cache::Cache;
 use crate::RuntimeAbi;
 
-pub type State<R, S> = AsmlFunctionState<R, S>;
+// pub type State<R, S> = AsmlFunctionState<R, S>;
 pub type StatusTx<S> = crossbeam_channel::Sender<S>;
 pub type StatusRx<S> = crossbeam_channel::Receiver<S>;
 
@@ -50,7 +53,8 @@ where
     S: Clone + Send + Sized + 'static,
 {
     engine: Engine,
-    component: Component,
+    component: Option<Component>,
+    module: Option<Module>,
     cache: Arc<Mutex<Cache>>,
     _phantom_r: std::marker::PhantomData<R>,
     _phantom_s: std::marker::PhantomData<S>,
@@ -61,39 +65,104 @@ where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
 {
-    pub fn new_from_path(module_path: &Path) -> anyhow::Result<Self> {
-        let m = match module_path.extension().unwrap().to_str().unwrap() {
+    fn new_component(path: &Path) -> anyhow::Result<(Engine, Component)> {
+        match path.extension().unwrap().to_str().unwrap() {
             "bin" => {
-                let target = match std::env::consts::OS {
-                    "macos" => Some("x86_64-apple-darwin"),
-                    "linux" => Some("x86_64-linux-gnu"),
-                    _ => None,
-                };
+                let target = Self::get_target();
                 let engine = new_engine(target, None)?;
-                let module = unsafe { Component::deserialize_file(&engine, module_path) };
-                (engine, module)
+                let component = unsafe { Component::deserialize_file(&engine, path) }
+                    .expect("could not deserialize component");
+                Ok((engine, component))
             }
             "wasm" => {
                 let engine = new_engine(None, None)?;
-                let module = Component::from_file(&engine, module_path);
-                (engine, module)
+                let component = Component::from_file(&engine, path)
+                    .expect("could not deserialize component");
+                Ok((engine, component))
             }
             _ => {
                 return Err(anyhow!(
                     "invalid module extension; must be .wasm or .wasm.bin"
                 ))
             }
-        };
-        match m.1 {
-            Ok(component) => Ok(Self {
-                engine: m.0,
-                component,
-                cache: Arc::new(Mutex::new(Cache::new())),
-                _phantom_r: Default::default(),
-                _phantom_s: Default::default(),
-            }),
-            Err(err) => Err(anyhow!(err)),
         }
+    }
+
+    fn new_module(path: &Path) -> anyhow::Result<(Engine, Module)> {
+        match path.extension().unwrap().to_str().unwrap() {
+            "bin" => {
+                let target = Self::get_target();
+                let engine = new_engine(target, None)?;
+                let module = unsafe { Module::deserialize_file(&engine, path) }
+                    .expect("could not deserialize component");
+                Ok((engine, module))
+            }
+            "wasm" => {
+                let engine = new_engine(None, None)?;
+                let module = Module::from_file(&engine, path)
+                    .expect("could not deserialize component");
+                Ok((engine, module))
+            }
+            _ => {
+                return Err(anyhow!(
+                    "invalid module extension; must be .wasm or .wasm.bin"
+                ))
+            }
+        }
+    }
+
+    fn get_target() -> Option<&'static str> {
+        match std::env::consts::OS {
+            "macos" => Some("x86_64-apple-darwin"),
+            "linux" => Some("x86_64-linux-gnu"),
+            _ => None,
+        }
+    }
+}
+
+impl<R, S> Wasmtime<R, S>
+where
+    R: RuntimeAbi<S> + Send + 'static,
+    S: Clone + Send + Sized + 'static,
+{
+    pub fn new_from_path(path: &Path) -> anyhow::Result<Self> {
+        let path_str = path.to_str().unwrap();
+        let is_component = path_str.contains(".component.");
+        match is_component {
+            true => {
+                let ec = Self::new_component(path);
+                match ec {
+                    Ok(ec) => Ok(Self {
+                        engine: ec.0,
+                        component: Some(ec.1),
+                        module: None,
+                        cache: Arc::new(Mutex::new(Cache::new())),
+                        _phantom_r: Default::default(),
+                        _phantom_s: Default::default(),
+                    }),
+                    Err(err) => Err(anyhow!(err)),
+                }
+            }
+            false => {
+                let em = Self::new_module(path);
+                match em {
+                    Ok(em) => Ok(Self {
+                        engine: em.0,
+                        component: None,
+                        module: Some(em.1),
+                        cache: Arc::new(Mutex::new(Cache::new())),
+                        _phantom_r: Default::default(),
+                        _phantom_s: Default::default(),
+                    }),
+                    Err(err) => Err(anyhow!(err)),
+                }
+            }
+        }
+        
+    }
+
+    pub fn is_component(&self) -> bool {
+        self.component.is_some() && self.module.is_none()
     }
 
     pub async fn link_wasi_component(
@@ -104,12 +173,17 @@ where
         runtime_environment: String,
         bind_paths: Vec<(String, String)>,
         request_id: Option<String>,
+        input: &[u8],
     ) -> anyhow::Result<(
-        wasmtime_wasi::preview2::wasi::command::Command,
-        Store<State<R, S>>,
+        preview2::wasi::command::Command,
+        Store<AsmlComponentFunctionState<R, S>>,
     )> {
+        if !self.is_component() {
+            return Err(anyhow!("unable to link with `link_wasi_component`: loaded WASM is not a component"));
+        }
+
         let threader = Arc::new(Mutex::new(Threader::new(registry_tx)));
-        let mut linker: Linker<State<R, S>> = Linker::new(&self.engine);
+        let mut linker: component::Linker<AsmlComponentFunctionState<R, S>> = component::Linker::new(&self.engine);
 
         wasmtime_wasi::preview2::wasi::command::add_to_linker(&mut linker)
             .expect("could not link wasi runtime component");
@@ -122,13 +196,13 @@ where
         secrets_wit::Secrets::add_to_linker(&mut linker, |s| s)
             .expect("could not link secrets runtime component");
 
-        let mut builder = WasiCtxBuilder::new();
+        let mut builder = preview2::WasiCtxBuilder::new();
         for e in environment_vars {
             builder = builder.push_env(&*e.0, &*e.1);
         }
 
         match runtime_environment.as_str() {
-            "ruby-lambda" | "ruby-docker" | "ruby-localhost" => builder = builder.push_arg("/src/handler.rb"),
+            "ruby-lambda" | "ruby-docker" | "ruby-localhost" => builder = builder.inherit_stdio().set_args(&["ruby", "/src/handler.rb"]),
             _ => (),
         }
 
@@ -189,9 +263,10 @@ where
                 );
             }
             "ruby-localhost" => {
-                builder = builder.push_env("RUBY_PLATFORM", "wasm32-wasi");
+                // builder = builder.push_env("RUBY_DEBUG_LOG", "stderr");
+                // builder = builder.push_env("RUBY_PLATFORM", "wasm32-wasi");
                 for path in bind_paths {
-                    tracing::debug!("binding {} to {}", path.0, path.1);
+                    debug!("binding {} to {}", path.0, path.1);
                     builder = builder.push_preopened_dir(
                         Dir::from_std_file(
                             File::open(path.0).unwrap(),
@@ -209,6 +284,8 @@ where
                     FilePerms::all(),
                     "/tmp",
                 );
+                builder = builder.inherit_stdout();
+                builder = builder.inherit_stderr();
             }
             _ => {
                 builder = builder.push_preopened_dir(
@@ -224,8 +301,8 @@ where
         let mut table = Table::new();
         let wasi = builder.build(&mut table).unwrap();
 
-        let state = State {
-            function_input: Vec::with_capacity(512usize),
+        let state = AsmlComponentFunctionState {
+            function_input: input.to_vec(),
             status_sender: status_tx,
             policy_manager: Arc::new(Mutex::new(PolicyManager::new())),
             threader,
@@ -239,7 +316,7 @@ where
 
         match wasmtime_wasi::preview2::wasi::command::Command::instantiate_async(
             &mut store,
-            &self.component,
+            &self.component.as_ref().unwrap(),
             &linker,
         )
         .await
@@ -249,33 +326,172 @@ where
         }
     }
 
-    pub fn initialize_function_input_buffer(
+    pub async fn link_wasi_module(
         &mut self,
-        store: &mut Store<State<R, S>>,
+        registry_tx: RegistryTx,
+        status_tx: StatusTx<S>,
+        environment_vars: Vec<(String, String)>,
+        runtime_environment: String,
+        bind_paths: Vec<(String, String)>,
+        request_id: Option<String>,
         input: &[u8],
-    ) -> anyhow::Result<()> {
-        store.data_mut().function_input.clear();
-        store
-            .data_mut()
-            .function_input
-            .append(&mut Vec::from(input));
-        Ok(())
+    ) -> anyhow::Result<(wasmtime::Instance, Store<AsmlModuleFunctionState<R, S>>)> {
+        if self.is_component() {
+            return Err(anyhow!("unable to link with `link_wasi_module`: loaded WASM is not a core module"));
+        }
+
+        let threader = Arc::new(Mutex::new(Threader::new(registry_tx)));
+        let mut linker: wasmtime::Linker<AsmlModuleFunctionState<R, S>> = wasmtime::Linker::new(&self.engine);
+
+        wasmtime_wasi::add_to_linker(&mut linker, |s| &mut s.wasi)?;
+
+        let mut builder = wasmtime_wasi::sync::WasiCtxBuilder::new();
+        for e in environment_vars {
+            builder = builder.env(&*e.0, &*e.1).expect("could not push env var into WASI module state");
+        }
+
+        match runtime_environment.as_str() {
+            "ruby-lambda" | "ruby-docker" | "ruby-localhost" => {
+                debug!("setting WASI args");
+                builder = builder.inherit_stdio().args(&["ruby".to_string(), "/src/handler.rb".to_string()]).expect("could not push arg into WASI module state");
+            }
+            _ => (),
+        }
+
+        // TODO we could lift the platform-specific path bindings out and just rely on bind_paths
+        match runtime_environment.as_str() {
+            "ruby-docker" => {
+                builder = builder.env("RUBY_PLATFORM", "wasm32-wasi").unwrap();
+                builder = builder.preopened_dir(
+                    Dir::from_std_file(
+                        File::open("/usr/bin/ruby-wasm32-wasi/src").unwrap(),
+                    ),
+                    "/src",
+                ).unwrap();
+                builder = builder.preopened_dir(
+                    Dir::from_std_file(
+                        File::open("/usr/bin/ruby-wasm32-wasi/usr").unwrap(),
+                    ),
+                    "/usr",
+                ).unwrap();
+                builder = builder.preopened_dir(
+                    Dir::from_std_file(
+                        File::open("/tmp/asmltmp").unwrap(),
+                    ),
+                    "/tmp",
+                ).unwrap();
+            }
+            "ruby-lambda" => {
+                builder = builder.env("RUBY_PLATFORM", "wasm32-wasi").unwrap();
+                builder = builder.preopened_dir(
+                    Dir::from_std_file(
+                        File::open("/tmp/rubysrc").unwrap(),
+                    ),
+                    "/src",
+                ).unwrap();
+                builder = builder.preopened_dir(
+                    Dir::from_std_file(
+                        File::open("/tmp/rubyusr").unwrap(),
+                    ),
+                    "/usr",
+                ).unwrap();
+                builder = builder.preopened_dir(
+                    Dir::from_std_file(
+                        File::open("/tmp/asmltmp").unwrap(),
+                    ),
+                    "/tmp",
+                ).unwrap();
+            }
+            "ruby-localhost" => {
+                // builder = builder.env("RUBY_DEBUG_LOG", "stderr").unwrap();
+                // builder = builder.env("RUBY_PLATFORM", "wasm32-wasi").unwrap();
+                for path in bind_paths {
+                    tracing::debug!("binding {} to {}", path.0, path.1);
+                    builder = builder.preopened_dir(
+                        Dir::open_ambient_dir(
+                            PathBuf::from(path.0),
+                            ambient_authority(),
+                        ).unwrap(),
+                        path.1,
+                    ).unwrap();
+                }
+                builder = builder.preopened_dir(
+                    Dir::from_std_file(
+                        File::open("/tmp/asmltmp").unwrap(),
+                    ),
+                    "/tmp",
+                ).unwrap();
+            }
+            _ => {
+                builder = builder.preopened_dir(
+                    Dir::from_std_file(
+                        File::open("/tmp/asmltmp").unwrap(),
+                    ),
+                    "/tmp",
+                ).unwrap();
+            }
+        }
+
+        let wasi = builder.build();
+
+        let state = AsmlModuleFunctionState {
+            function_input: input.to_vec(),
+            status_sender: status_tx,
+            policy_manager: Arc::new(Mutex::new(PolicyManager::new())),
+            threader,
+            request_id,
+            cache: self.cache.clone(),
+            wasi,
+            _phantom: Default::default(),
+        };
+        let mut store = Store::new(&self.engine, state);
+
+        match linker.instantiate_async(&mut store, &self.module.as_ref().unwrap()).await {
+            Ok(instance) => Ok((instance, store)),
+            Err(err) =>  Err(anyhow!(err)),
+        }
     }
 
-    pub async fn run(
+    pub async fn run_component<CTX>(
         &mut self,
         wasi: wasmtime_wasi::preview2::wasi::command::Command,
-        mut store: &mut Store<State<R, S>>,
-    ) -> anyhow::Result<()> {
+        mut store: CTX,
+    ) -> anyhow::Result<()>
+    where
+        CTX: AsContextMut,
+        <CTX as AsContext>::Data: std::marker::Send,
+    {
         wasi.call_run(
             &mut store,
         )
         .await?
         .map_err(|()| anyhow::anyhow!("command returned with failing exit status"))
     }
+
+    pub async fn run_module<CTX>(
+        &mut self,
+        instance: wasmtime::Instance,
+        mut store: CTX,
+    ) -> anyhow::Result<()>
+    where
+        CTX: AsContextMut,
+        <CTX as AsContext>::Data: std::marker::Send,
+    {
+        match instance
+            .get_func(&mut store, "_start")
+            .expect("could not find default function")
+            .typed::<(), ()>(&mut store)
+            .expect("invalid default function signature")
+            .call_async(&mut store, ())
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(trap) => Err(trap.into()),
+        }
+    }
 }
 
-pub struct AsmlFunctionState<R, S>
+pub struct AsmlModuleFunctionState<R, S>
 where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
@@ -286,12 +502,27 @@ where
     function_input: Vec<u8>,
     request_id: Option<String>,
     cache: Arc<Mutex<Cache>>,
-    wasi: WasiCtx,
+    wasi: wasmtime_wasi::WasiCtx,
+    _phantom: std::marker::PhantomData<R>,
+}
+
+pub struct AsmlComponentFunctionState<R, S>
+where
+    R: RuntimeAbi<S> + Send + 'static,
+    S: Clone + Send + Sized + 'static,
+{
+    status_sender: StatusTx<S>,
+    threader: Arc<Mutex<Threader<S>>>,
+    policy_manager: Arc<Mutex<PolicyManager>>,
+    function_input: Vec<u8>,
+    request_id: Option<String>,
+    cache: Arc<Mutex<Cache>>,
+    wasi: preview2::WasiCtx,
     table: Table,
     _phantom: std::marker::PhantomData<R>,
 }
 
-impl<R, S> WasiView for AsmlFunctionState<R, S>
+impl<R, S> WasiView for AsmlComponentFunctionState<R, S>
 where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
@@ -304,16 +535,16 @@ where
         &mut self.table
     }
 
-    fn ctx(&self) -> &WasiCtx {
+    fn ctx(&self) -> &preview2::WasiCtx {
         &self.wasi
     }
 
-    fn ctx_mut(&mut self) -> &mut WasiCtx {
+    fn ctx_mut(&mut self) -> &mut preview2::WasiCtx {
         &mut self.wasi
     }
 }
 
-impl<R, S> asml_io::Host for AsmlFunctionState<R, S>
+impl<R, S> asml_io::Host for AsmlComponentFunctionState<R, S>
 where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
@@ -351,7 +582,7 @@ where
     }
 }
 
-impl<R, S> asml_rt::Host for AsmlFunctionState<R, S>
+impl<R, S> asml_rt::Host for AsmlComponentFunctionState<R, S>
 where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
@@ -394,7 +625,7 @@ where
     }
 }
 
-impl<R, S> secret_storage::Host for AsmlFunctionState<R, S>
+impl<R, S> secret_storage::Host for AsmlComponentFunctionState<R, S>
 where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
@@ -421,7 +652,7 @@ where
     }
 }
 
-impl<R, S> jwt::decoder::Host for AsmlFunctionState<R, S>
+impl<R, S> jwt::decoder::Host for AsmlComponentFunctionState<R, S>
 where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
@@ -454,7 +685,7 @@ where
     }
 }
 
-impl<R, S> opa::module::Host for AsmlFunctionState<R, S>
+impl<R, S> opa::module::Host for AsmlComponentFunctionState<R, S>
 where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
@@ -483,6 +714,7 @@ where
 
 pub fn precompile(module_path: &Path, target: &str, mode: &str) -> anyhow::Result<Vec<u8>> {
     let file_path = format!("{}.bin", module_path.display().to_string());
+    let is_component = file_path.contains(".component.");
     println!("Precompiling WASM to {}...", file_path.clone());
 
     let wasm_bytes = match std::fs::read(module_path.clone()) {
@@ -490,7 +722,10 @@ pub fn precompile(module_path: &Path, target: &str, mode: &str) -> anyhow::Resul
         Err(err) => return Err(err.into()),
     };
     let engine = new_engine(Some(target), Some(mode))?;
-    engine.precompile_component(&*wasm_bytes)
+    match is_component {
+        true => engine.precompile_component(&*wasm_bytes),
+        false => engine.precompile_module(&*wasm_bytes),
+    }
 }
 
 fn new_engine(target: Option<&str>, cpu_compat_mode: Option<&str>) -> anyhow::Result<Engine> {
@@ -535,7 +770,7 @@ fn new_engine(target: Option<&str>, cpu_compat_mode: Option<&str>) -> anyhow::Re
 }
 
 pub fn make_wasi_component(module: Vec<u8>, preview1: &[u8]) -> anyhow::Result<Vec<u8>> {
-    println!("      --> encoding WASM Module as Component...");
+    println!("Encoding WASM Module as Component...");
     let mut encoder = ComponentEncoder::default().validate(true).module(&module)?;
 
     encoder = encoder.adapter("wasi_snapshot_preview1", preview1)?;
@@ -547,41 +782,65 @@ pub fn make_wasi_component(module: Vec<u8>, preview1: &[u8]) -> anyhow::Result<V
     Ok(bytes)
 }
 
-pub fn embed_wit(module: Vec<u8>) -> anyhow::Result<Vec<u8>> {
-    println!("Embedding WIT in module...");
-    let mut wasm = module.clone();
-    let world = "assemblylift".to_string();
-    let (resolve, id) = parse_wit()?;
-    let world = resolve.select_world(id, Some(&world))?;
-
-    let encoded = wit_component::metadata::encode(
-        &resolve,
-        world,
-        StringEncoding::UTF8,
-        None,
-    )?;
-
-    let section = wasm_encoder::CustomSection {
-        name: "component-type".into(),
-        data: Cow::Borrowed(&encoded),
+macro_rules! parse_wit {
+    ($path:expr) => {
+        {
+            let mut resolve = Resolve::default();
+            let id = {
+                let contents = include_bytes!($path);
+                let text = match std::str::from_utf8(contents) {
+                    Ok(s) => s,
+                    Err(_) => anyhow::bail!("input file is not valid utf-8"),
+                };
+                let pkg = UnresolvedPackage::parse(&Path::new($path), text)?;
+                resolve.push(pkg)?
+            };
+            anyhow::Ok::<(Resolve, PackageId)>((resolve, id))
+        }
     };
-    wasm.push(section.id());
-    section.encode(&mut wasm);
-
-    Ok(wasm)
 }
 
-fn parse_wit() -> anyhow::Result<(Resolve, PackageId)> {
-    let path = "../../wit/assemblylift/assemblylift.wit";
-    let mut resolve = Resolve::default();
-    let id = {
-        let contents = include_bytes!("../../wit/assemblylift/assemblylift.wit");
-        let text = match std::str::from_utf8(contents) {
-            Ok(s) => s,
-            Err(_) => anyhow::bail!("input file is not valid utf-8"),
+pub fn embed_asml_wit(module: Vec<u8>) -> anyhow::Result<Vec<u8>> {
+    println!("Embedding WIT in module...");
+    let mut wasm = module.clone();
+    
+    fn push_world(mut wasm: &mut Vec<u8>, world: WorldId, resolve: Resolve) -> anyhow::Result<()>{
+        let encoded = wit_component::metadata::encode(
+            &resolve,
+            world,
+            StringEncoding::UTF8,
+            None,
+        )?;
+
+        let section = wasm_encoder::CustomSection {
+            name: "component-type".into(),
+            data: Cow::Borrowed(&encoded),
         };
-        let pkg = UnresolvedPackage::parse(&Path::new(path), text)?;
-        resolve.push(pkg)?
-    };
-    Ok((resolve, id))
+        wasm.push(section.id());
+        section.encode(&mut wasm);
+
+        Ok(())
+    }
+
+    let world = "assemblylift".to_string();
+    let (resolve, id) = parse_wit!("../../wit/assemblylift/assemblylift.wit")?;
+    let world = resolve.select_world(id, Some(&world))?;
+    push_world(&mut wasm, world, resolve)?;
+
+    let world: String = "jwt".to_string();
+    let (resolve, id) = parse_wit!("../../wit/jwt/jwt.wit")?;
+    let world = resolve.select_world(id, Some(&world))?;
+    push_world(&mut wasm, world, resolve)?;
+
+    let world = "opa".to_string();
+    let (resolve, id) = parse_wit!("../../wit/opa/opa.wit")?;
+    let world = resolve.select_world(id, Some(&world))?;
+    push_world(&mut wasm, world, resolve)?;
+
+    let world: String = "secrets".to_string();
+    let (resolve, id) = parse_wit!("../../wit/secrets/secrets.wit")?;
+    let world = resolve.select_world(id, Some(&world))?;
+    push_world(&mut wasm, world, resolve)?;
+
+    Ok(wasm)
 }

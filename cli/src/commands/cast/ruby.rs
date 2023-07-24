@@ -1,4 +1,3 @@
-use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -16,11 +15,8 @@ pub struct RubyFunction {
     project: Rc<Project>,
     service_name: String,
     function_name: String,
-    // net_path: String,
     net_dir: NetDir,
     enable_precompile: bool,
-    target: String,
-    mode: String,
     cpu_compat_mode: String,
 }
 
@@ -42,11 +38,8 @@ impl RubyFunction {
             project: function.project.clone(),
             service_name,
             function_name: function.name.clone(),
-            // net_path,
             net_dir,
             enable_precompile: function.precompile,
-            mode: "release".to_string(),
-            target: "wasm32-wasi".to_string(),
             cpu_compat_mode: function.cpu_compat_mode.clone(),
         }
     }
@@ -102,11 +95,10 @@ impl CastableFunction for RubyFunction {
 
         if !Path::new(&format!("{}/ruby-wasm32-wasi", service_artifact_path)).exists() {
             let mut zip = Vec::new();
-            println!("Fetching additional Ruby runtime archive...");
-            let mut response = reqwest::blocking::get(
-                "http://public.assemblylift.akkoro.io/runtime/ruby/3.3.0-dev/ruby-wasm32-wasi.zip",
-            )
-            .expect("could not fetch ruby runtime zip");
+            let url = "http://public.assemblylift.akkoro.io/runtime/ruby/3.3.0-dev/ruby-wasm32-wasi.zip";
+            println!("Fetching Ruby runtime archive from {}...", url);
+            let mut response = reqwest::blocking::get(url)
+                .expect("could not fetch ruby runtime zip");
             response.read_to_end(&mut zip).unwrap();
             unzip(&zip, &service_artifact_path).unwrap();
         }
@@ -120,7 +112,7 @@ impl CastableFunction for RubyFunction {
         if Path::new(&ruby_bin).exists() {
             std::fs::rename(ruby_bin.clone(), ruby_wasm.clone()).unwrap();
         }
-        let copy_to = format!("{}/{}.wasm", &function_artifact_path, &function_name);
+        let copy_to = format!("{}/{}.component.wasm", &function_artifact_path, &function_name);
         let copy_result = std::fs::copy(ruby_wasm.clone(), copy_to.clone());
         if copy_result.is_err() {
             println!(
@@ -133,7 +125,7 @@ impl CastableFunction for RubyFunction {
 
         {
             let module = std::fs::read(copy_to.clone()).unwrap();
-            let embedded = wasm::embed_wit(module).expect("unable to embed assemblylift WIT");
+            let embedded = wasm::embed_asml_wit(module).expect("unable to embed assemblylift WIT");
             let component = wasm::make_wasi_component(embedded, wasi_snapshot_preview1.as_slice())
                 .expect("unable to make component of the provided module");
             std::fs::write(copy_to.clone(), component).unwrap();
@@ -154,7 +146,7 @@ impl CastableFunction for RubyFunction {
             .to_str()
             .unwrap()
             .to_string();
-        let path = format!("{}/{}.wasm", &net_path, &self.function_name);
+        let path = format!("{}/{}.component.wasm", &net_path, &self.function_name);
         let bytes = wasm::precompile(
             Path::new(&path),
             &target.unwrap_or("x86_64-linux-gnu"),
@@ -176,12 +168,12 @@ impl CastableFunction for RubyFunction {
             .to_string();
         match self.enable_precompile {
             true => PathBuf::from(format!(
-                "{}/{}.wasm.bin",
+                "{}/{}.component.wasm.bin",
                 net_path.clone(),
                 &self.function_name
             )),
             false => PathBuf::from(format!(
-                "{}/{}.wasm",
+                "{}/{}.component.wasm",
                 net_path.clone(),
                 &self.function_name
             )),

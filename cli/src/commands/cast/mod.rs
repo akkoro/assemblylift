@@ -8,7 +8,7 @@ use clap::ArgMatches;
 use crate::archive;
 use crate::commands::cast::rust::RustFunction;
 use crate::projectfs::Project;
-use crate::tools;
+use crate::tools::terraform::Terraform;
 use crate::transpiler::context::Context;
 use crate::transpiler::{toml, Castable};
 
@@ -25,7 +25,7 @@ pub trait CastableFunction {
 }
 
 pub fn command(matches: Option<&ArgMatches>) {
-    let tf = tools::terraform::Terraform::default();
+    let tf = Terraform::default();
 
     let _matches = match matches {
         Some(matches) => matches,

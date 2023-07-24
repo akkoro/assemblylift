@@ -180,47 +180,53 @@ async fn main() -> Result<(), Error> {
             let runtime_environment = std::env::var("ASML_FUNCTION_ENV");
             let (status_tx, status_rx) = status_channel::<Status>(1);
             let request_id = &event.context.request_id;
-            let (instance, mut store) = wasmtime_ref
-                .borrow_mut()
-                .link_wasi_component(
-                    registry_tx_ref.clone(),
-                    status_tx.clone(),
-                    environment_vars,
-                    runtime_environment.clone().unwrap_or("default".to_string()),
-                    Default::default(),
-                    Some(String::from(request_id)),
-                )
-                .await
-                .expect("could not link wasm module");
+            
+            if wasmtime_ref.borrow().is_component() {
+                let (instance, mut store) = wasmtime_ref
+                    .borrow_mut()
+                    .link_wasi_component(
+                        registry_tx_ref.clone(),
+                        status_tx.clone(),
+                        environment_vars,
+                        runtime_environment.clone().unwrap_or("default".to_string()),
+                        Default::default(),
+                        Some(String::from(request_id)),
+                        &event.payload.to_string().as_bytes(),
+                    )
+                    .await
+                    .expect("could not link wasm module");
 
-            wasmtime_ref
-                .borrow_mut()
-                .initialize_function_input_buffer(&mut store, &event.payload.to_string().as_bytes())
-                .expect("could not initialize input buffer");
+                // wasmtime_ref
+                //     .borrow_mut()
+                //     .initialize_function_input_buffer(&mut store, &event.payload.to_string().as_bytes())
+                //     .expect("could not initialize input buffer");
 
-            return match wasmtime_ref
-                .borrow_mut()
-                .run(
-                    instance,
-                    &mut store,
-                )
-                .await
-            {
-                Ok(_) => {
-                    info!("handler for event {} returned OK", request_id);
-                    match status_rx.recv() {
-                        Ok(status) => match status {
-                            Status::Success(s) => Ok(s.1),
-                            Status::Failure(s) => Err(Error::from(s.1.to_string())),
-                        },
-                        Err(err) => Err(Error::from(err)),
+                return match wasmtime_ref
+                    .borrow_mut()
+                    .run_component(
+                        instance,
+                        &mut store,
+                    )
+                    .await
+                {
+                    Ok(_) => {
+                        info!("handler for event {} returned OK", request_id);
+                        match status_rx.recv() {
+                            Ok(status) => match status {
+                                Status::Success(s) => Ok(s.1),
+                                Status::Failure(s) => Err(Error::from(s.1.to_string())),
+                            },
+                            Err(err) => Err(Error::from(err)),
+                        }
                     }
-                }
-                Err(err) => {
-                    error!("event id {}: {}", &request_id, err.to_string());
-                    Err(Error::from(err))
-                }
-            };
+                    Err(err) => {
+                        error!("event id {}: {}", &request_id, err.to_string());
+                        Err(Error::from(err))
+                    }
+                };
+            } else {
+                todo!()
+            }
         },
     ))
     .await?;
