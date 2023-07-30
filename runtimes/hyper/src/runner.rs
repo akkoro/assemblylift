@@ -113,63 +113,33 @@ impl Runner<Status> {
                     true => functions.get(&*wasm_path).unwrap().clone(),
                 };
 
-                if wasmtime.borrow_mut().is_component() {
-                    let (command, mut store) = wasmtime
-                        .borrow_mut()
-                        .link_wasi_component(
-                            self.registry_tx.clone(),
-                            msg.status_sender.clone(),
-                            env_vars,
-                            runtime_environment.clone(),
-                            bind_paths,
-                            None,
-                            &msg.input,
-                        )
-                        .await
-                        .expect("could not link wasm component");
+                let (command, mut store) = wasmtime
+                    .borrow_mut()
+                    .link_wasi_component(
+                        self.registry_tx.clone(),
+                        msg.status_sender.clone(),
+                        env_vars,
+                        runtime_environment.clone(),
+                        bind_paths,
+                        None,
+                        &msg.input,
+                    )
+                    .await
+                    .expect("could not link wasm component");
 
-                    let wasmtime = wasmtime.clone();
-                    tokio::task::spawn_local(async move {
-                        match wasmtime
-                            .borrow_mut()
-                            .run_component(command, &mut store)
-                            .await
-                        {
-                            Ok(_) => msg.status_sender.send(Status::Exited(0)),
-                            Err(err) => msg.status_sender.send(Status::Failure(
-                                format!("WASM module exited in error: {}", err.to_string()).as_bytes().to_vec(),
-                            )),
-                        }
-                    });
-                } else {
-                    let (instance, mut store) = wasmtime
+                let wasmtime = wasmtime.clone();
+                tokio::task::spawn_local(async move {
+                    match wasmtime
                         .borrow_mut()
-                        .link_wasi_module(
-                            self.registry_tx.clone(),
-                            msg.status_sender.clone(),
-                            env_vars,
-                            runtime_environment.clone(),
-                            bind_paths,
-                            None,
-                            &msg.input,
-                        )
+                        .run_component(command, &mut store)
                         .await
-                        .expect("could not link wasm module");
-
-                        let wasmtime = wasmtime.clone();
-                        tokio::task::spawn_local(async move {
-                            match wasmtime
-                                .borrow_mut()
-                                .run_module(instance, &mut store)
-                                .await
-                            {
-                                Ok(_) => msg.status_sender.send(Status::Exited(0)),
-                                Err(err) => msg.status_sender.send(Status::Failure(
-                                    format!("WASM module exited in error: {}", err.to_string()).as_bytes().to_vec(),
-                                )),
-                            }
-                        });
-                }
+                    {
+                        Ok(_) => msg.status_sender.send(Status::Exited(0)),
+                        Err(err) => msg.status_sender.send(Status::Failure(
+                            format!("WASM module exited in error: {}", err.to_string()).as_bytes().to_vec(),
+                        )),
+                    }
+                });
             }
         });
     }
