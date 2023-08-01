@@ -148,16 +148,12 @@ async fn launch(
     }
 
     let env_vars: BTreeMap<String, String> = match headers.get("x-assemblylift-function-env-vars") {
-        Some(vars) => {
-            parse_map(vars)
-        }
+        Some(vars) => parse_map(vars),
         None => Default::default(),
     };
 
     let bind_paths: BTreeMap<String, String> = match headers.get("x-assemblylift-function-bind-paths") {
-        Some(paths) => {
-            parse_map(paths)
-        }
+        Some(paths) => parse_map(paths),
         None => Default::default(),
     };
 

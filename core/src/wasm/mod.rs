@@ -181,7 +181,6 @@ where
                 );
             }
             "ruby-lambda" => {
-                builder = builder;
                 builder = builder.push_preopened_dir(
                     Dir::from_std_file(
                         File::open("/tmp/rubysrc").unwrap(),

@@ -108,7 +108,7 @@ impl CastableFunction for RustFunction {
         }
 
         let move_from = self.source_wasm_path();
-        let move_to = format!("{}/{}.wasm", self.net_path.clone(), &self.function_name);
+        let move_to = format!("{}/{}.component.wasm", self.net_path.clone(), &self.function_name);
         let move_result = std::fs::copy(move_from.clone(), move_to.clone());
         if move_result.is_err() {
             println!(
@@ -134,7 +134,7 @@ impl CastableFunction for RustFunction {
     // TODO projectfs should handle mapping the precompiled bin path
     fn precompile(&self, target: Option<&str>) {
         println!("⚡️ > Precompiling function `{}`...", &self.function_name);
-        let path = format!("{}/{}.wasm", &self.net_path, &self.function_name);
+        let path = format!("{}/{}.component.wasm", &self.net_path, &self.function_name);
         let bytes = wasm::precompile(
             Path::new(&path),
             &target.unwrap_or("x86_64-linux-gnu"),
@@ -149,12 +149,12 @@ impl CastableFunction for RustFunction {
     fn artifact_path(&self) -> PathBuf {
         match self.enable_precompile {
             true => PathBuf::from(format!(
-                "{}/{}.wasm.bin",
+                "{}/{}.component.wasm.bin",
                 self.net_path.clone(),
                 &self.function_name
             )),
             false => PathBuf::from(format!(
-                "{}/{}.wasm",
+                "{}/{}.component.wasm",
                 self.net_path.clone(),
                 &self.function_name
             )),
