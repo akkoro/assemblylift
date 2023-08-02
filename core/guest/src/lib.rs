@@ -7,18 +7,16 @@ pub use direct_executor;
 use serde::{Deserialize, Serialize};
 pub use wit_bindgen;
 
-pub use assemblylift::asml_io;
-pub use assemblylift::asml_rt;
+pub use assemblylift::akkoro::assemblylift::asml_io;
+pub use assemblylift::akkoro::assemblylift::asml_rt;
 pub use assemblylift_core_guest_macros::handler;
-pub use command as wasi;
+pub use command::wasi;
 
 pub mod assemblylift;
 pub mod command;
 pub mod jwt;
 pub mod opa;
-#[allow(dead_code)]
-#[macro_use]
-pub mod wasi_secrets;
+pub mod secrets;
 
 pub struct FunctionContext {
     pub input: Vec<u8>,

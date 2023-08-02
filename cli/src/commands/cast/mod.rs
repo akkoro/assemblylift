@@ -8,9 +8,11 @@ use clap::ArgMatches;
 use crate::archive;
 use crate::commands::cast::rust::RustFunction;
 use crate::projectfs::Project;
-use crate::tools;
+use crate::tools::terraform::Terraform;
 use crate::transpiler::context::Context;
 use crate::transpiler::{toml, Castable};
+
+use self::ruby::RubyFunction;
 
 mod ruby;
 mod rust;
@@ -23,7 +25,7 @@ pub trait CastableFunction {
 }
 
 pub fn command(matches: Option<&ArgMatches>) {
-    let tf = tools::terraform::Terraform::default();
+    let tf = Terraform::default();
 
     let _matches = match matches {
         Some(matches) => matches,
@@ -44,7 +46,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             .expect("could not make context from manifest"),
     );
 
-    let wasi_snapshot_preview1 = include_bytes!("wasm/wasi_snapshot_preview1.reactor.wasm");
+    let wasi_snapshot_preview1 = include_bytes!("wasm/wasi_snapshot_preview1.command.wasm");
 
     // Compile WASM & package function
     let functions = ctx.functions.as_slice();
@@ -60,7 +62,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         let castable_function: Box<dyn CastableFunction> = match function.language.clone().as_str()
         {
             "rust" => Box::new(RustFunction::new(&function)),
-            // "ruby" => ruby::compile(project, service_name, function),
+            "ruby" => Box::new(RubyFunction::new(&function)),
             lang => panic!("unsupported function language: {}", lang),
         };
         castable_function.compile(wasi_snapshot_preview1.clone().to_vec());

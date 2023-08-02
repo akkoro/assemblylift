@@ -100,6 +100,7 @@ async fn launch(
         body: Some(base64::encode(input_bytes.as_ref())),
     };
 
+    // TODO also return runtime_environment here, trying to detect from service.toml, then falling back to header
     let wasm_uri = match headers.get("x-assemblylift-function-coordinates") {
         Some(coords) => {
             // coordinate is the triple project.service.function
@@ -115,7 +116,7 @@ async fn launch(
             match project_dir.exists() {
                 true => Url::from_str(
                     format!(
-                        "file://{}/services/{}/{}.wasm",
+                        "file://{}/services/{}/{}.component.wasm",
                         project_dir.to_str().unwrap(),
                         coordinates[1],
                         coordinates[2]
@@ -126,10 +127,11 @@ async fn launch(
                 false => match PathBuf::from("./assemblylift.toml").exists() {
                     true => Url::from_str(
                         format!(
-                            "file://{}/net/services/{}/{}.wasm",
+                            "file://{}/net/services/{}/{}/{}.component.wasm",
                             std::env::current_dir().unwrap().to_str().unwrap(),
                             coordinates[1],
-                            coordinates[2]
+                            coordinates[2],
+                            coordinates[2],
                         )
                         .as_str(),
                     )
@@ -146,15 +148,12 @@ async fn launch(
     }
 
     let env_vars: BTreeMap<String, String> = match headers.get("x-assemblylift-function-env-vars") {
-        Some(vars) => {
-            let mut env_vars = BTreeMap::new();
-            let pairs = vars.split(',');
-            for pair in pairs {
-                let kv = pair.split('=').collect::<Vec<&str>>();
-                env_vars.insert(kv[0].into(), kv[1].into());
-            }
-            env_vars
-        }
+        Some(vars) => parse_map(vars),
+        None => Default::default(),
+    };
+
+    let bind_paths: BTreeMap<String, String> = match headers.get("x-assemblylift-function-bind-paths") {
+        Some(paths) => parse_map(paths),
         None => Default::default(),
     };
 
@@ -164,6 +163,7 @@ async fn launch(
         status_sender: status_tx.clone(),
         wasm_path: PathBuf::from(wasm_uri.path()),
         env_vars,
+        bind_paths,
         runtime_environment,
     };
 
@@ -177,7 +177,8 @@ async fn launch(
     while let Ok(result) = status_rx.recv() {
         debug!("launcher received response from runner");
         return Ok(match result {
-            Exited(_status) => {
+            Exited(status) => {
+                debug!("exit code {}", status);
                 let timer = timer::Timer::new();
                 let tx = status_tx.clone();
                 timer.schedule_with_delay(chrono::Duration::seconds(3), move || {
@@ -237,6 +238,16 @@ async fn launch(
         .status(500)
         .body(Body::default())
         .unwrap())
+}
+
+fn parse_map(vars: &String) -> BTreeMap<String, String> {
+    let mut map = BTreeMap::<String, String>::new();
+    let pairs = vars.split(',');
+    for pair in pairs {
+        let kv = pair.split('=').collect::<Vec<&str>>();
+        map.insert(kv[0].into(), kv[1].into());
+    }
+    map
 }
 
 #[derive(Serialize, Deserialize)]

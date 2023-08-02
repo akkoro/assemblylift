@@ -25,6 +25,7 @@ where
     pub status_sender: StatusTx<S>,
     pub wasm_path: PathBuf,
     pub env_vars: BTreeMap<String, String>,
+    pub bind_paths: BTreeMap<String, String>,
     pub runtime_environment: Option<String>,
 }
 
@@ -69,6 +70,7 @@ impl Runner<Status> {
                     Ok(module_name) => PathBuf::from(format!("/opt/assemblylift/{}", module_name)),
                     Err(_) => msg.wasm_path.clone(),
                 };
+                info!("Loading module at {}", wasm_path.clone().display());
 
                 // Environment vars prefixed with __ASML_ are defined in the function definition;
                 // the prefix indicates that they are to be mapped to the function environment.
@@ -91,6 +93,14 @@ impl Runner<Status> {
                     )
                 );
 
+                let bind_paths: Vec<(String, String)> = Vec::from_iter(
+                    msg
+                    .bind_paths
+                    .into_iter()
+                    .map(|e| (e.0, e.1))
+                    .into_iter(),
+                );
+
                 let wasmtime = match functions.contains_key(&*wasm_path) {
                     false => {
                         let wt = Rc::new(RefCell::new(
@@ -103,37 +113,30 @@ impl Runner<Status> {
                     true => functions.get(&*wasm_path).unwrap().clone(),
                 };
 
-                let (instance, mut store) = wasmtime
+                let (command, mut store) = wasmtime
                     .borrow_mut()
                     .link_wasi_component(
                         self.registry_tx.clone(),
                         msg.status_sender.clone(),
                         env_vars,
                         runtime_environment.clone(),
+                        bind_paths,
                         None,
+                        &msg.input,
                     )
                     .await
-                    .expect("could not link wasm module");
-
-                wasmtime
-                    .borrow_mut()
-                    .initialize_function_input_buffer(&mut store, &msg.input)
-                    .expect("could not initialize input buffer");
+                    .expect("could not link wasm component");
 
                 let wasmtime = wasmtime.clone();
-                let rtenv = runtime_environment.clone();
                 tokio::task::spawn_local(async move {
                     match wasmtime
                         .borrow_mut()
-                        .run(instance, &mut store, match rtenv.as_str() {
-                            "ruby-lambda"|"ruby-docker" => vec!["/src/handler.rb"],
-                            _ => vec![],
-                        })
+                        .run_component(command, &mut store)
                         .await
                     {
                         Ok(_) => msg.status_sender.send(Status::Exited(0)),
-                        Err(_) => msg.status_sender.send(Status::Failure(
-                            "WASM module exited in error".as_bytes().to_vec(),
+                        Err(err) => msg.status_sender.send(Status::Failure(
+                            format!("WASM module exited in error: {}", err.to_string()).as_bytes().to_vec(),
                         )),
                     }
                 });

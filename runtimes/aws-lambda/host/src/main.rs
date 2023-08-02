@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process;
 
 use clap::crate_version;
+use lambda_runtime::{run, service_fn, Error, LambdaEvent};
 use tracing::{error, info, Level};
 use tracing_subscriber::FmtSubscriber;
 use zip;
@@ -15,7 +16,6 @@ use zip;
 use assemblylift_core::wasm::{status_channel, Wasmtime};
 use assemblylift_core_iomod::registry::registry_channel;
 use assemblylift_core_iomod::{package::IomodManifest, registry};
-use lambda_runtime::{run, service_fn, Error, LambdaEvent};
 
 use crate::abi::{Abi, Status};
 
@@ -180,32 +180,26 @@ async fn main() -> Result<(), Error> {
             let runtime_environment = std::env::var("ASML_FUNCTION_ENV");
             let (status_tx, status_rx) = status_channel::<Status>(1);
             let request_id = &event.context.request_id;
-            let (instance, mut store) = wasmtime_ref
+            
+            let (command, mut store) = wasmtime_ref
                 .borrow_mut()
                 .link_wasi_component(
                     registry_tx_ref.clone(),
                     status_tx.clone(),
                     environment_vars,
                     runtime_environment.clone().unwrap_or("default".to_string()),
+                    Default::default(),
                     Some(String::from(request_id)),
+                    &event.payload.to_string().as_bytes(),
                 )
                 .await
                 .expect("could not link wasm module");
 
-            wasmtime_ref
-                .borrow_mut()
-                .initialize_function_input_buffer(&mut store, &event.payload.to_string().as_bytes())
-                .expect("could not initialize input buffer");
-
             return match wasmtime_ref
                 .borrow_mut()
-                .run(
-                    instance,
+                .run_component(
+                    command,
                     &mut store,
-                    match runtime_environment.as_deref() {
-                        Ok("ruby-lambda") | Ok("ruby-docker") => vec!["/src/handler.rb"],
-                        _ => vec![],
-                    },
                 )
                 .await
             {

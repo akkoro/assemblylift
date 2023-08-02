@@ -1,4 +1,6 @@
-interface assemblylift-io {
+package akkoro:assemblylift
+
+interface asml-io {
   type ioid = u32
   
   enum io-error {
@@ -16,7 +18,7 @@ interface assemblylift-io {
   poll: func(ioid: ioid) -> result<list<u8>, poll-error>
 }
 
-interface assemblylift-function-runtime {
+interface asml-rt {
   type bytes = list<u8>
 
   enum log-level {
@@ -33,7 +35,7 @@ interface assemblylift-function-runtime {
   get-input: func() -> list<u8>
 }
 
-default world assemblylift {
-  import asml-io: self.assemblylift-io
-  import asml-rt: self.assemblylift-function-runtime
+world assemblylift {
+  import asml-io
+  import asml-rt
 }
