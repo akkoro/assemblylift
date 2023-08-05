@@ -248,8 +248,8 @@ impl Castable for KubernetesFunction {
                     .collect();
 
                 let ext = match function.precompile {
-                    true => "wasm.bin",
-                    false => "wasm",
+                    true => "component.wasm.bin",
+                    false => "component.wasm",
                 };
 
                 let hcl_tmpl = FunctionTemplate {
@@ -493,6 +493,12 @@ resource random_id {{service_name}}_{{function_name}}_image {
 }
 
 resource docker_registry_image {{service_name}}_{{function_name}} {
+    provider      = docker.{{project_name}}-k8s
+    name          = docker_image.{{service_name}}_{{function_name}}.name
+    keep_remotely = true
+}
+
+resource docker_image {{service_name}}_{{function_name}} {
     provider = docker.{{project_name}}-k8s
     {{#if registry.is_dockerhub}}name = "{{registry.options.registry_name}}/${local.{{service_name}}_{{function_name}}_image_name}:${random_id.{{service_name}}_{{function_name}}_image.hex}"{{/if}}
     {{#if registry.is_ecr}}name = "${aws_ecr_repository.{{service_name}}_{{function_name}}.repository_url}:${random_id.{{service_name}}_{{function_name}}_image.hex}"{{/if}}
