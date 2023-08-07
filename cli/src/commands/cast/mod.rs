@@ -1,5 +1,6 @@
 use std::fs;
-use std::io::Write;
+use std::fs::read_to_string;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -7,6 +8,8 @@ use clap::ArgMatches;
 use path_abs::PathInfo;
 use registry_common::models::GetIomodAtResponse;
 use reqwest;
+use sha2::{Digest, Sha256};
+use sha2::digest::FixedOutput;
 
 use crate::archive;
 use crate::projectfs::Project;
@@ -135,7 +138,25 @@ pub fn command(matches: Option<&ArgMatches>) {
                                 Ok(file) => file,
                             };
 
-                            file.write_all(artifact.content.as_bytes())
+                            // if the artifact and the file are the same, we dont want to serialize file to string
+                            // so after we compare the hashes and if they are the same, we serialize to string.
+                            let artifact_content = artifact.content.as_bytes();
+                            let mut artifact_hasher = Sha256::new();
+                            artifact_hasher.update(artifact_content);
+                            let artifact_hash_result = artifact_hasher.finalize_fixed();
+
+
+                            let mut file_content_hash = Sha256::new();
+                            let file_content = read_to_string(path.clone()).expect("could not read file");
+                            file_content_hash.update(file_content.as_bytes());
+                            let file_content_hash_result = file_content_hash.finalize_fixed();
+
+                            if artifact_hash_result != file_content_hash_result {
+                                println!("📄 > Skipping {}", path.clone());
+                                continue;
+                            }
+
+                            file.write_all(artifact_content)
                                 .expect("could not write artifact");
                             println!("📄 > Wrote {}", path.clone());
                         }
