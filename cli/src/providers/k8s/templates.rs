@@ -288,6 +288,7 @@ pub struct DockerfileTemplate {
     pub function_name: String,
     pub handler_name: String,
     pub function_coordinates: String,
+    pub function_precompiled: String,
     pub is_ruby: bool,
 }
 
@@ -303,6 +304,7 @@ impl Template for DockerfileTemplate {
         r#"FROM public.ecr.aws/akkoro/assemblylift/hyper-alpine:{{base_image_version}}
 ENV ASML_WASM_MODULE_NAME {{handler_name}}
 ENV ASML_FUNCTION_COORDINATES {{function_coordinates}}
+ENV ASML_FUNCTION_PRECOMPILED {{function_precompiled}}
 {{#if is_ruby}}ENV ASML_FUNCTION_ENV ruby-docker{{/if}}
 ADD ./{{function_name}}/{{handler_name}} /opt/assemblylift/projects/{{project_name}}/services/{{service_name}}/{{handler_name}}
 {{#if is_ruby}}COPY ./ruby-wasm32-wasi /usr/bin/ruby-wasm32-wasi

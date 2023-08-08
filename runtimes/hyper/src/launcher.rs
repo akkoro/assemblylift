@@ -24,6 +24,8 @@ pub const INSTALL_DIR: Lazy<String> =
     Lazy::new(|| std::env::var("ASML_INSTALL_DIR").unwrap_or("/opt/assemblylift".to_string()));
 pub const FUNCTION_COORDINATES: Lazy<Option<String>> = 
     Lazy::new(|| std::env::var("ASML_FUNCTION_COORDINATES").ok());
+pub const FUNCTION_PRECOMPILED: Lazy<Option<String>> = 
+    Lazy::new(|| std::env::var("ASML_FUNCTION_PRECOMPILED").ok());
 pub const MAX_ALLOWED_REQUEST_SIZE: u64 = 10_485_760;
 
 pub struct Launcher {
@@ -103,7 +105,15 @@ async fn launch(
         body: Some(base64::encode(input_bytes.as_ref())),
     };
 
-    fn uri_from_coords(coords: &String) -> anyhow::Result<Url> {
+    let wasm_ext = match FUNCTION_PRECOMPILED.deref() {
+        Some(precompiled) => match !precompiled.eq_ignore_ascii_case("false") {
+            true => "wasm.bin",
+            false => "wasm",
+        }
+        None => "wasm.bin",
+    };
+
+    fn uri_from_coords(coords: &String, ext: &str) -> anyhow::Result<Url> {
         // coordinate is the triple project.service.function
         let coordinates = coords.split('.').collect::<Vec<&str>>();
         if coordinates.len() != 3 {
@@ -117,10 +127,11 @@ async fn launch(
         match project_dir.exists() {
             true => Url::from_str(
                 format!(
-                    "file://{}/services/{}/{}.component.wasm",
+                    "file://{}/services/{}/{}.component.{}",
                     project_dir.to_str().unwrap(),
                     coordinates[1],
-                    coordinates[2]
+                    coordinates[2],
+                    ext,
                 )
                 .as_str(),
             )
@@ -129,11 +140,12 @@ async fn launch(
             false => match PathBuf::from("./assemblylift.toml").exists() {
                 true => Url::from_str(
                     format!(
-                        "file://{}/net/services/{}/{}/{}.component.wasm",
+                        "file://{}/net/services/{}/{}/{}.component.{}",
                         std::env::current_dir().unwrap().to_str().unwrap(),
                         coordinates[1],
                         coordinates[2],
                         coordinates[2],
+                        ext,
                     )
                     .as_str(),
                 )
@@ -144,9 +156,9 @@ async fn launch(
     }
 
     let wasm_uri: Url = match FUNCTION_COORDINATES.deref() {
-        Some(coords) => uri_from_coords(coords)?,
+        Some(coords) => uri_from_coords(coords, wasm_ext)?,
         None => match headers.get("x-assemblylift-function-coordinates") {
-            Some(coords) => uri_from_coords(coords)?,
+            Some(coords) => uri_from_coords(coords, wasm_ext)?,
             None => Url::from_str(&**headers.get("x-assemblylift-wasm-uri").unwrap())
                 .map_err(|e| anyhow!(e))?,
         }

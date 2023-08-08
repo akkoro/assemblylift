@@ -296,6 +296,10 @@ impl Castable for KubernetesFunction {
                         hcl_tmpl.service_name.clone(),
                         hcl_tmpl.function_name.clone()
                     ),
+                    function_precompiled: match function.precompile {
+                        true => "true".into(),
+                        false => "false".into(),
+                    },
                     is_ruby: hcl_tmpl.is_ruby,
                 }
                 .render();
