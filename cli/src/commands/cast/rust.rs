@@ -87,7 +87,7 @@ impl CastableFunction for RustFunction {
         ));
 
         println!(
-            "🛠️  > Compiling function `{}`...",
+            "🛠️ > Compiling function `{}`...",
             self.function_name.clone()
         );
         let cargo_build = std::process::Command::new("cargo")

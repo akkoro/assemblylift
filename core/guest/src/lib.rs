@@ -22,6 +22,7 @@ pub struct FunctionContext {
     pub input: Vec<u8>,
 }
 
+// TODO success and failure should take bytes as args, not string
 impl FunctionContext {
     pub fn log(message: String) {
         asml_rt::log(asml_rt::LogLevel::Info, clap::crate_name!(), &message)

@@ -52,8 +52,8 @@ impl Tool for CmCtl {
 
     fn fetch_url(&self) -> &str {
         #[cfg(target_os = "linux")]
-        return "https://github.com/cert-manager/cert-manager/releases/download/v1.9.1/cmctl-linux-amd64.tar.gz";
+        return "https://github.com/cert-manager/cert-manager/releases/download/v1.12.3/cmctl-linux-amd64.tar.gz";
         #[cfg(target_os = "macos")]
-        return "https://github.com/cert-manager/cert-manager/releases/download/v1.9.1/cmctl-darwin-amd64.tar.gz";
+        return "https://github.com/cert-manager/cert-manager/releases/download/v1.12.3/cmctl-darwin-amd64.tar.gz";
     }
 }
