@@ -64,12 +64,7 @@ impl Runner<Status> {
                     Err(_) => msg.runtime_environment.unwrap_or("default".to_string()),
                 };
 
-                // In single-function environments (Lambda or Docker), the wasm module path is defined as an envvar.
-                // Otherwise the path is passed thru the runner request from the launcher.
-                let wasm_path = match std::env::var("ASML_WASM_MODULE_NAME") {
-                    Ok(module_name) => PathBuf::from(format!("/opt/assemblylift/{}", module_name)),
-                    Err(_) => msg.wasm_path.clone(),
-                };
+                let wasm_path = msg.wasm_path;
                 info!("Loading module at {}", wasm_path.clone().display());
 
                 // Environment vars prefixed with __ASML_ are defined in the function definition;
