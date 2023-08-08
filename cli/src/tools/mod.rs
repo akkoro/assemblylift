@@ -24,7 +24,7 @@ where
     T: Tool + Sized,
 {
     if !tool.command_path().exists() {
-        println!("🔧  > Fetching tool {}", tool.command_name());
+        println!("🔧 > Fetching tool {}", tool.command_name());
 
         std::fs::create_dir_all(tool.path().clone()).unwrap();
         let bytes = download_to_bytes(tool.fetch_url())

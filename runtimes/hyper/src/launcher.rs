@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -21,6 +22,8 @@ use crate::Status::{Exited, Failure, Success};
 
 pub const INSTALL_DIR: Lazy<String> =
     Lazy::new(|| std::env::var("ASML_INSTALL_DIR").unwrap_or("/opt/assemblylift".to_string()));
+pub const FUNCTION_COORDINATES: Lazy<Option<String>> = 
+    Lazy::new(|| std::env::var("ASML_FUNCTION_COORDINATES").ok());
 pub const MAX_ALLOWED_REQUEST_SIZE: u64 = 10_485_760;
 
 pub struct Launcher {
@@ -100,49 +103,55 @@ async fn launch(
         body: Some(base64::encode(input_bytes.as_ref())),
     };
 
-    // TODO also return runtime_environment here, trying to detect from service.toml, then falling back to header
-    let wasm_uri = match headers.get("x-assemblylift-function-coordinates") {
-        Some(coords) => {
-            // coordinate is the triple project.service.function
-            let coordinates = coords.split('.').collect::<Vec<&str>>();
-            if coordinates.len() != 3 {
-                return Err(anyhow!("malformed coordinates in header"));
-            }
-            let project_dir = PathBuf::from(format!(
-                "{}/projects/{}",
-                INSTALL_DIR.as_str(),
-                coordinates[0]
-            ));
-            match project_dir.exists() {
+    fn uri_from_coords(coords: &String) -> anyhow::Result<Url> {
+        // coordinate is the triple project.service.function
+        let coordinates = coords.split('.').collect::<Vec<&str>>();
+        if coordinates.len() != 3 {
+            return Err(anyhow!("malformed coordinates in header"));
+        }
+        let project_dir = PathBuf::from(format!(
+            "{}/projects/{}",
+            INSTALL_DIR.as_str(),
+            coordinates[0]
+        ));
+        match project_dir.exists() {
+            true => Url::from_str(
+                format!(
+                    "file://{}/services/{}/{}.component.wasm",
+                    project_dir.to_str().unwrap(),
+                    coordinates[1],
+                    coordinates[2]
+                )
+                .as_str(),
+            )
+            .map_err(|e| anyhow!(e)),
+
+            false => match PathBuf::from("./assemblylift.toml").exists() {
                 true => Url::from_str(
                     format!(
-                        "file://{}/services/{}/{}.component.wasm",
-                        project_dir.to_str().unwrap(),
+                        "file://{}/net/services/{}/{}/{}.component.wasm",
+                        std::env::current_dir().unwrap().to_str().unwrap(),
                         coordinates[1],
-                        coordinates[2]
+                        coordinates[2],
+                        coordinates[2],
                     )
                     .as_str(),
                 )
-                .map_err(|e| anyhow!(e))?,
-                false => match PathBuf::from("./assemblylift.toml").exists() {
-                    true => Url::from_str(
-                        format!(
-                            "file://{}/net/services/{}/{}/{}.component.wasm",
-                            std::env::current_dir().unwrap().to_str().unwrap(),
-                            coordinates[1],
-                            coordinates[2],
-                            coordinates[2],
-                        )
-                        .as_str(),
-                    )
-                    .map_err(|e| anyhow!(e))?,
-                    false => return Err(anyhow!("cannot find function to run; assemblylift is not installed or we are not in a project directory")),
-                },
-            }
+                .map_err(|e| anyhow!(e)),
+                false => return Err(anyhow!("cannot find function to run; assemblylift is not installed or we are not in a project directory")),
+            },
         }
-        None => Url::from_str(&**headers.get("x-assemblylift-wasm-uri").unwrap())
-            .map_err(|e| anyhow!(e))?,
+    }
+
+    let wasm_uri: Url = match FUNCTION_COORDINATES.deref() {
+        Some(coords) => uri_from_coords(coords)?,
+        None => match headers.get("x-assemblylift-function-coordinates") {
+            Some(coords) => uri_from_coords(coords)?,
+            None => Url::from_str(&**headers.get("x-assemblylift-wasm-uri").unwrap())
+                .map_err(|e| anyhow!(e))?,
+        }
     };
+
     if !wasm_uri.scheme().eq_ignore_ascii_case("file") {
         unimplemented!("{} scheme not yet supported", wasm_uri.scheme());
     }
@@ -181,6 +190,7 @@ async fn launch(
                 debug!("exit code {}", status);
                 let timer = timer::Timer::new();
                 let tx = status_tx.clone();
+                // FIXME this doesn't work
                 timer.schedule_with_delay(chrono::Duration::seconds(3), move || {
                     tx.send(Status::Failure("No Response".as_bytes().to_vec()))
                         .unwrap();

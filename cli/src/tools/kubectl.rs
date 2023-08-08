@@ -175,8 +175,8 @@ impl Tool for KubeCtl {
 
     fn fetch_url(&self) -> &str {
         #[cfg(target_os = "linux")]
-        return "https://dl.k8s.io/release/v1.22.5/bin/linux/amd64/kubectl";
+        return "https://dl.k8s.io/release/v1.27.4/bin/linux/amd64/kubectl";
         #[cfg(target_os = "macos")]
-        return "https://dl.k8s.io/release/v1.22.5/bin/darwin/amd64/kubectl";
+        return "https://dl.k8s.io/release/v1.27.4/bin/darwin/amd64/kubectl";
     }
 }
