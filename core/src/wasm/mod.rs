@@ -167,8 +167,8 @@ where
                     Dir::from_std_file(
                         File::open("/usr/bin/ruby-wasm32-wasi/usr").unwrap(),
                     ),
-                    DirPerms::READ, 
-                    FilePerms::READ,
+                    DirPerms::all(), 
+                    FilePerms::all(),
                     "/usr",
                 );
                 builder = builder.push_preopened_dir(

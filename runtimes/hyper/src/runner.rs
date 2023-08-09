@@ -99,6 +99,7 @@ impl Runner<Status> {
                 let wasmtime = match functions.contains_key(&*wasm_path) {
                     false => {
                         let wt = Rc::new(RefCell::new(
+                            // FIXME this should return an error response via status_sender instead of panicing
                             Wasmtime::<Abi, Status>::new_from_path(wasm_path.as_ref())
                                 .expect("could not create WASM runtime from module path"),
                         ));
