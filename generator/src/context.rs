@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::{fs::File, io::Write};
 
 use anyhow::anyhow;
 use handlebars::Handlebars;
@@ -291,6 +290,9 @@ impl Context {
             .iter()
             .map(|svc| {
                 let api_provider = svc.api.provider.as_api_provider().unwrap();
+                if !api_provider.is_booted() {
+                    api_provider.boot().map_err(|e| CastError(e.to_string()))?
+                }
                 let api_fragments = match api_provider
                     .supported_service_providers()
                     .iter()
@@ -306,30 +308,33 @@ impl Context {
 
                 let dns_fragments = match &svc.api.domain {
                     Some(domain) => {
-                        let dns_provider = domain
-                            .provider
-                            .as_dns_provider()
-                            .unwrap();
+                        let dns_provider = domain.provider.as_dns_provider().unwrap();
                         match dns_provider
                             .supported_api_providers()
                             .iter()
-                            .find(|&p| p.eq(&api_provider.name())) 
+                            .find(|&p| p.eq(&api_provider.name()))
                         {
-                            Some(_) => dns_provider.cast_service(&svc),
+                            Some(_) => {
+                                if !dns_provider.is_booted() {
+                                    dns_provider.boot().map_err(|e| CastError(e.to_string()))?
+                                }
+                                dns_provider.cast_service(&svc)
+                            }
                             None => Err(CastError(format!(
                                 "DNS provider `{}` is not compatible with API provider `{}`",
                                 dns_provider.name(),
                                 api_provider.name(),
-                            )))
+                            ))),
                         }
                     }
                     None => Ok(Vec::new()),
                 };
-        
-                let svc_fragments = svc.provider
-                    .as_service_provider()
-                    .unwrap()
-                    .cast_service(&svc);
+
+                let svc_provider = svc.provider.as_service_provider().unwrap();
+                if !svc_provider.is_booted() {
+                    svc_provider.boot().map_err(|e| CastError(e.to_string()))?
+                }
+                let svc_fragments = svc_provider.cast_service(&svc);
 
                 let mut out = Vec::new();
                 out.append(&mut api_fragments?);
@@ -385,7 +390,6 @@ impl Context {
             content: hbs.render("context", &self.as_json().unwrap()).unwrap(),
             write_path: PathBuf::from(format!("net/{}.tf", self.project.name)),
         }];
-        println!("root frag:\n{}", ctx_out[0].content);
 
         fragments.append(&mut svc_out);
         fragments.append(&mut dns_out);

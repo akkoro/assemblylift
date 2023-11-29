@@ -52,7 +52,7 @@ impl Provider for AwsLambdaProvider {
         self.options.clone()
     }
 
-    fn boot(&self) -> Option<Result<()>> {
+    fn boot(&self) -> Result<()> {
         let runtime_url = &*format!(
             "http://public.assemblylift.akkoro.io/runtime/{}/aws-lambda/bootstrap.zip",
             // clap::crate_version!(),
@@ -64,7 +64,7 @@ impl Provider for AwsLambdaProvider {
             .expect("could not download bootstrap.zip");
 
         // FIXME handle errors
-        Some(Ok(()))
+        Ok(())
     }
 
     fn is_booted(&self) -> bool {
@@ -90,10 +90,6 @@ impl Provider for AwsLambdaProvider {
 
 impl ServiceProvider for AwsLambdaProvider {
     fn cast_service(&self, service: &Service) -> CastResult<Vec<Fragment>> {
-        if !self.is_booted() {
-            self.boot().unwrap().map_err(|e| CastError(e.to_string()))?
-        }
-
         let mut fragments: Vec<Fragment> = Vec::new();
 
         let mut function_fragments = service
@@ -122,8 +118,6 @@ impl ServiceProvider for AwsLambdaProvider {
                 self.name(),
             )),
         };
-        println!("service json:\n{}\n\n", service.as_json().unwrap());
-        println!("service frag:\n{}", service_fragment.content);
 
         fragments.append(&mut vec![service_fragment]);
         fragments.append(&mut function_fragments);
@@ -154,7 +148,6 @@ impl FunctionProvider for AwsLambdaProvider {
                 function.name,
             )),
         };
-        println!("function frag:\n{}", function_fragment.content);
 
         fragments.append(&mut vec![function_fragment]);
 

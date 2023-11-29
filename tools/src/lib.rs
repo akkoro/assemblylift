@@ -42,6 +42,7 @@ where
                 .unpack(tool.command_path())
                 .map_err(|err| anyhow!("could not unpack cmctl: {}", err.to_string()))?;
         } else if tool.fetch_url().contains(".zip") {
+            // FIXME this leans on the assumption that the only zipped tool we fetch is terraform
             unzip_terraform(bytes, tool.command_path().to_str().unwrap())?;
         } else {
             std::fs::write(tool.command_path(), bytes)

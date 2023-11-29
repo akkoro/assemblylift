@@ -53,8 +53,8 @@ impl Provider for Route53Provider {
         self.options.clone()
     }
 
-    fn boot(&self) -> Option<Result<()>> {
-        None
+    fn boot(&self) -> Result<()> {
+        Ok(())
     }
 
     fn is_booted(&self) -> bool {
@@ -97,7 +97,6 @@ impl DnsProvider for Route53Provider {
                 domain.dns_name
             )),
         };
-        println!("dns root frag:\n{}", root_fragment.content);
 
         Ok(vec![root_fragment])
     }
@@ -122,7 +121,6 @@ impl DnsProvider for Route53Provider {
                 self.name(),
             )),
         };
-        println!("dns svc frag:\n{}", service_fragment.content);
 
         Ok(vec![service_fragment])
     }

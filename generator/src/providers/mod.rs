@@ -18,7 +18,7 @@ pub trait Provider {
     fn name(&self) -> String;
     fn platform(&self) -> String;
     fn options(&self) -> Options;
-    fn boot(&self) -> Option<Result<()>>;
+    fn boot(&self) -> Result<()>;
     fn is_booted(&self) -> bool;
     fn as_service_provider(&self) -> Result<&dyn ServiceProvider>;
     fn as_function_provider(&self) -> Result<&dyn FunctionProvider>;

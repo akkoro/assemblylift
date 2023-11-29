@@ -42,8 +42,8 @@ impl Provider for ApiGatewayProvider {
         self.options.clone()
     }
 
-    fn boot(&self) -> Option<Result<()>> {
-        None
+    fn boot(&self) -> Result<()> {
+        Ok(())
     }
 
     fn is_booted(&self) -> bool {
@@ -88,7 +88,6 @@ impl ApiProvider for ApiGatewayProvider {
                 self.name(),
             )),
         };
-        println!("api frag:\n{}", api_fragment.content);
 
         fragments.append(&mut vec![api_fragment]);
 
