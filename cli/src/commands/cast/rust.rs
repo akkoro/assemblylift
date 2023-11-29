@@ -3,9 +3,10 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use assemblylift_core::wasm;
+use assemblylift_generator::context::Function;
+use assemblylift_generator::projectfs::Project;
 
 use crate::commands::cast::CastableFunction;
-use crate::projectfs::Project;
 
 pub struct RustFunction {
     project: Rc<Project>,
@@ -19,10 +20,9 @@ pub struct RustFunction {
 }
 
 impl RustFunction {
-    pub fn new(function: &crate::transpiler::context::Function) -> Self {
+    pub fn new(function: &Function, project: Rc<Project>) -> Self {
         let service_name = function.service_name.clone();
-        let net_path = function
-            .project
+        let net_path = project
             .net_dir()
             .service_dir(&service_name.clone())
             .function_dir(function.name.clone())
@@ -32,7 +32,7 @@ impl RustFunction {
         std::fs::create_dir_all(PathBuf::from(&net_path))
             .expect(&*format!("unable to create path {}", &net_path));
         Self {
-            project: function.project.clone(),
+            project: project.clone(),
             service_name,
             function_name: function.name.clone(),
             net_path,
@@ -60,11 +60,7 @@ impl RustFunction {
             Ok(_) => copy_from,
             Err(_) => format!(
                 "{}/target/{}/{}/{}.wasm",
-                self.project
-                    .clone()
-                    .dir()
-                    .to_str()
-                    .unwrap(),
+                self.project.clone().dir().to_str().unwrap(),
                 self.target,
                 self.mode,
                 self.function_name,
@@ -86,10 +82,7 @@ impl CastableFunction for RustFunction {
                 .unwrap()
         ));
 
-        println!(
-            "🛠️ > Compiling function `{}`...",
-            self.function_name.clone()
-        );
+        println!("🛠️ > Compiling function `{}`...", self.function_name.clone());
         let cargo_build = std::process::Command::new("cargo")
             .arg("build")
             .arg(format!("--{}", self.mode.clone()))
@@ -108,7 +101,11 @@ impl CastableFunction for RustFunction {
         }
 
         let move_from = self.source_wasm_path();
-        let move_to = format!("{}/{}.component.wasm", self.net_path.clone(), &self.function_name);
+        let move_to = format!(
+            "{}/{}.component.wasm",
+            self.net_path.clone(),
+            &self.function_name
+        );
         let move_result = std::fs::copy(move_from.clone(), move_to.clone());
         if move_result.is_err() {
             println!(

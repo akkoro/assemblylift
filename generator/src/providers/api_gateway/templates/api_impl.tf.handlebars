@@ -1,0 +1,95 @@
+variable project_name {
+    type = string
+}
+
+variable project_path {
+    type = string
+}
+
+variable service_name {
+    type = string
+}
+
+terraform {
+    required_providers {
+        aws = {
+            source  = "hashicorp/aws"
+            version = "~> 5.0"
+        }
+    }
+}
+
+data aws_region current {}
+data aws_caller_identity current {}
+
+resource aws_apigatewayv2_api http_api {
+    provider      = aws
+    name          = "asml-${var.project_name}-${var.service_name}"
+    protocol_type = "HTTP"
+}
+
+resource aws_apigatewayv2_stage default {
+    provider    = aws
+    api_id      = aws_apigatewayv2_api.http_api.id
+    name        = "$default"
+    auto_deploy = true
+}
+
+{{#each functions}}
+{{#if this.authorizer}}resource {{snake_case this.name}}_faws_apigatewayv2_authorizer {{this.authorizer.id}} {
+    provider    = aws
+
+    api_id           = aws_apigatewayv2_api.http_api.id
+    authorizer_type  = "{{#if (eq this.authorizer.type "iam")}}REQUEST{{else}}{{this.authorizer.type}}{{/if}}"
+    identity_sources = ["$request.header.Authorization"]
+    name             = "{{this.authorizer.id}}"
+
+    {{#if this.authorizer.jwt_config}}jwt_configuration {
+        audience = {{{this.authorizer.jwt_config.audience}}}
+        issuer   = "{{this.authorizer.jwt_config.issuer}}"
+    }{{/if}}
+}
+{{/if}}
+
+resource aws_apigatewayv2_route {{snake_case this.name}}_ffunction_route {
+    provider = aws
+
+    api_id    = aws_apigatewayv2_api.http_api.id
+    route_key = "{{this.http.verb}} {{this.http.path}}"
+    target    = "integrations/${aws_apigatewayv2_integration.{{snake_case this.name}}_function_integration.id}"
+    
+    {{#if this.authorizer}}
+    authorization_type   = "{{#if (eq this.authorizer.type "iam")}}AWS_IAM{{else}}{{this.authorizer.type}}{{/if}}"
+    authorizer_id        = aws_apigatewayv2_authorizer.{{this.authorizer.id}}.id
+    {{#if this.authorizer.scopes}}authorization_scopes = [{{#each this.authorizer.scopes}}
+        {{this}},{{/each}}
+    ]{{/if}}
+    {{else}}authorization_type = "NONE"{{/if}}
+}
+
+resource aws_apigatewayv2_integration {{snake_case this.name}}_function_integration {
+    provider = aws
+
+    api_id                 = aws_apigatewayv2_api.http_api.id
+    integration_type       = "AWS_PROXY"
+    payload_format_version = "2.0"
+
+    connection_type    = "INTERNET"
+    integration_method = "POST"
+    integration_uri    = "arn:aws:apigateway:${data.aws_region.current.name}:lambda:path/2015-03-31/functions/arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:asml-${var.project_name}-${var.service_name}-{{this.name}}/invocations"
+}
+
+resource aws_lambda_permission {{snake_case this.name}}_function_lambda_permission {
+    provider = aws
+
+    action        = "lambda:InvokeFunction"
+    function_name = "asml-${var.project_name}-${var.service_name}-{{this.name}}"
+    principal     = "apigateway.amazonaws.com"
+
+    source_arn = "${aws_apigatewayv2_api.http_api.execution_arn}/*"
+}
+{{/each}}
+
+output api_id {
+    value = aws_apigatewayv2_api.http_api.id
+}

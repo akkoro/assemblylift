@@ -1,0 +1,36 @@
+# AssemblyLift Project
+# Name: {{project.name}}
+
+{{#each platforms}}
+provider {{this.name}} {
+    alias = "{{this.id}}"
+    {{#each this.options}}
+    {{@key}} = "{{this}}"
+    {{/each}}
+}
+{{/each}}
+
+{{#each domains}}
+{{> (concat (lookup this.provider "name") "-root") }}
+{{/each}}
+
+{{#each services}}
+{{> (lookup this.api.domain.provider "name") 
+project_name=../project.name 
+}}
+
+{{> (lookup this.provider "name") 
+platform=this.platform 
+provider=this.provider 
+project_name=../project.name 
+project_path=../project.path
+}}
+
+{{> (lookup this.api.provider "name") 
+platform=this.platform 
+provider=this.api.provider 
+service_provider=this.provider 
+project_name=../project.name 
+project_path=../project.path 
+}}
+{{/each}}

@@ -1,0 +1,30 @@
+variable project_name {
+  type = string
+}
+
+variable service_name {
+  type = string
+}
+
+variable zone_id {
+  type = string
+}
+
+variable api_id {
+  type = string
+}
+
+locals {
+  domain_name = "{{#unless this.api.is_root}}${var.service_name}.{{/unless}}{{#unless this.api.domain.map_to_root}}${var.project_name}.{{/unless}}{{this.api.domain.dns_name}}"
+}
+
+terraform {
+    required_providers {
+        aws = {
+            source  = "hashicorp/aws"
+            version = "~> 5.0"
+        }
+    }
+}
+
+{{> (lookup this.api.provider "name") }}

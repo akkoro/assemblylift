@@ -1,0 +1,60 @@
+resource aws_acm_certificate {{snake_case name}} {
+  provider    = aws
+  domain_name = local.domain_name
+  validation_method = "DNS"
+}
+
+resource aws_apigatewayv2_domain_name {{snake_case name}} {
+  provider    = aws
+  domain_name = local.domain_name
+
+  domain_name_configuration {
+    certificate_arn = aws_acm_certificate.{{snake_case name}}.arn
+    endpoint_type   = "REGIONAL"
+    security_policy = "TLS_1_2"
+  }
+}
+
+resource aws_route53_record {{snake_case name}}_validation {
+  provider = aws
+  for_each = {
+    for dvo in aws_acm_certificate.{{snake_case name}}.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = var.zone_id
+}
+
+resource aws_acm_certificate_validation {{snake_case name}} {
+  provider                = aws
+  certificate_arn         = aws_acm_certificate.{{snake_case name}}.arn
+  validation_record_fqdns = [for record in aws_route53_record.{{snake_case name}}_validation : record.fqdn]
+}
+
+resource aws_apigatewayv2_api_mapping {{snake_case name}} {
+  provider    = aws
+  api_id      = var.api_id
+  domain_name = aws_apigatewayv2_domain_name.{{snake_case name}}.id
+  stage       = "$default"
+}
+
+resource aws_route53_record {{snake_case name}} {
+  provider = aws
+  zone_id  = var.zone_id
+  name     = local.domain_name
+  type     = "A"
+  
+  alias {
+    name                   = aws_apigatewayv2_domain_name.{{snake_case name}}.domain_name_configuration[0].target_domain_name
+    zone_id                = aws_apigatewayv2_domain_name.{{snake_case name}}.domain_name_configuration[0].hosted_zone_id
+    evaluate_target_health = false
+  }
+}
