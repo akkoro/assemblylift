@@ -8,9 +8,9 @@ use clap::ArgMatches;
 use assemblylift_generator::context::Context;
 use assemblylift_generator::projectfs::Project;
 use assemblylift_generator::toml;
+use assemblylift_tools::terraform::Terraform;
 
 use crate::archive;
-use crate::tools::terraform::Terraform;
 
 use self::ruby::RubyFunction;
 use self::rust::RustFunction;
@@ -105,13 +105,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     {
         let fragments = ctx.cast().expect("could not cast assemblylift context");
         for fragment in fragments {
-            // TODO convert and bubble errors instead of unwrap
-            // TODO impl Fragment::write
-            let prefix = fragment.write_path.parent().unwrap();
-            std::fs::create_dir_all(prefix).unwrap();
-            let mut fout = File::create(&fragment.write_path).unwrap();
-            fout.write_all(fragment.content.as_bytes()).unwrap();
-            println!("📄 > Wrote {}", fragment.write_path.to_string_lossy());
+            fragment.write().expect("could not write fragment");
         }
     }
 

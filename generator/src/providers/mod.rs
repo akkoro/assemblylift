@@ -2,15 +2,17 @@ use anyhow::{anyhow, Result};
 
 pub mod api_gateway;
 pub mod aws_lambda;
+pub mod ecr;
+pub mod kubernetes;
 pub mod route53;
 
 use crate::{
-    context::{Domain, Function, Service},
+    context::{Domain, Function, Service, Registry},
     CastResult, Fragment, Options,
 };
 
 use self::{
-    api_gateway::ApiGatewayProvider, aws_lambda::AwsLambdaProvider, route53::Route53Provider,
+    api_gateway::ApiGatewayProvider, aws_lambda::AwsLambdaProvider, ecr::EcrProvider, kubernetes::KubernetesProvider, route53::Route53Provider,
 };
 
 #[typetag::serde(tag = "provider")]
@@ -45,14 +47,21 @@ pub trait DnsProvider: Provider {
     fn supported_api_providers(&self) -> Vec<String>;
 }
 
+pub trait ContainerRegistryProvider: Provider {
+    fn cast_registry(&self, registry: &Registry) -> CastResult<Vec<Fragment>>;
+    fn cast_service(&self, service: &Service) -> CastResult<Vec<Fragment>>;
+}
+
 pub struct ProviderFactory;
 
 impl ProviderFactory {
     pub fn new_provider(name: &str, options: Options) -> Result<Box<dyn Provider>> {
         match name {
-            _ if name == aws_lambda::provider_name() => Ok(AwsLambdaProvider::new(options)),
-            _ if name == route53::provider_name() => Ok(Route53Provider::new(options)),
             _ if name == api_gateway::provider_name() => Ok(ApiGatewayProvider::new(options)),
+            _ if name == aws_lambda::provider_name() => Ok(AwsLambdaProvider::new(options)),
+            _ if name == ecr::provider_name() => Ok(EcrProvider::new(options)),
+            _ if name == kubernetes::provider_name() => Ok(KubernetesProvider::new(options)),
+            _ if name == route53::provider_name() => Ok(Route53Provider::new(options)),
             _ => Err(anyhow!("unrecognized provider named {}", name)),
         }
     }

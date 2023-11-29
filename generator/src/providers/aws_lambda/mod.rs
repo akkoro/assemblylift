@@ -5,8 +5,9 @@ use handlebars::Handlebars;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    concat_cast,
     context::{Function, Service},
-    concat_cast, snake_case, CastResult, ContentType, Fragment, Options, CastError,
+    snake_case, CastError, CastResult, ContentType, Fragment, Options,
 };
 
 use super::{ApiProvider, DnsProvider, FunctionProvider, Provider, ServiceProvider};
@@ -60,8 +61,7 @@ impl Provider for AwsLambdaProvider {
         );
 
         std::fs::create_dir_all("./.asml/runtime").unwrap();
-        assemblylift_tools::download_to_path(runtime_url, "./.asml/runtime/bootstrap.zip")
-            .expect("could not download bootstrap.zip");
+        assemblylift_tools::download_to_path(runtime_url, "./.asml/runtime/bootstrap.zip")?;
 
         // FIXME handle errors
         Ok(())
@@ -103,7 +103,6 @@ impl ServiceProvider for AwsLambdaProvider {
             .reduce(concat_cast)
             .unwrap()?;
 
-        
         let mut hbs = Handlebars::new();
         hbs.register_helper("snake_case", Box::new(snake_case));
         hbs.register_template_string("root", include_str!("templates/service_impl.tf.handlebars"))
@@ -127,7 +126,6 @@ impl ServiceProvider for AwsLambdaProvider {
 }
 
 impl FunctionProvider for AwsLambdaProvider {
-    // net/services/{name}/infra/{provider.name}/functions/infra/{provider.name}/{function.name}/function.tf
     fn cast_function(&self, function: &Function, service_name: &str) -> CastResult<Vec<Fragment>> {
         let mut fragments: Vec<Fragment> = Vec::new();
 

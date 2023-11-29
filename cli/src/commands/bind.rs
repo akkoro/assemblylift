@@ -3,7 +3,7 @@
 use clap::ArgMatches;
 
 // use crate::projectfs::Project;
-use crate::tools;
+use assemblylift_tools::terraform::Terraform;
 // use crate::transpiler::context::Context;
 // use crate::transpiler::toml;
 // use crate::transpiler::Bindable;
@@ -28,7 +28,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     // );
     // ctx.bind(ctx.clone()).unwrap();
 
-    let tf = tools::terraform::Terraform::default();
+    let tf = Terraform::default();
     tf.init();
     tf.apply();
 }
