@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use std::rc::Rc;
+use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::anyhow;
 use handlebars::Handlebars;
@@ -51,11 +51,50 @@ impl Context {
         let ctx_registries: Vec<Registry> = manifest
             .registries()
             .iter()
-            .map(|r| Registry {
-                host: r.host.clone(),
-                options: r.options.clone(),
+            .map(|r| {
+                // let platform_options: Options = match r.platform_id.as_ref() {
+                //     Some(pid) => match ctx_platforms.iter().find(|&p| p.id.eq(pid)) {
+                //         Some(p) => p
+                //             .options
+                //             .clone()
+                //             .into_iter()
+                //             .chain(Options::from([("platform_id".into(), pid.clone())]))
+                //             .collect(),
+                //         None => {
+                //             return Err(format!(
+                //                 "platform with id `{}` not found in assemblylift.toml manifest",
+                //                 pid,
+                //             ))
+                //         },
+                //     },
+                //     None => Options::default(),
+                // };
+                let platform = match r.platform_id.as_ref() {
+                    Some(pid) => match ctx_platforms.iter().find(|&p| p.id.eq(pid)) {
+                        Some(p) => Some(p.clone()),
+                        None => {
+                            return Err(format!(
+                                "platform with id `{}` not found in assemblylift.toml manifest",
+                                pid,
+                            ))
+                        }
+                    },
+                    None => None,
+                };
+                Ok(Registry {
+                    id: r.id.clone(),
+                    provider: ProviderFactory::new_provider(
+                        &r.provider.name,
+                        r.provider.options.clone(),
+                        // .into_iter()
+                        // .chain(platform_options)
+                        // .collect(),
+                    )
+                    .unwrap(),
+                    platform,
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, String>>()?;
 
         let ctx_domains: Vec<Domain> = manifest
             .domains()
@@ -243,6 +282,7 @@ impl Context {
                     is_root: service_manifest.api.is_root,
                 },
                 functions: ctx_functions,
+                registry_id: service.registry_id.clone(),
             });
 
             for iomod in iomods {
@@ -384,6 +424,16 @@ impl Context {
             include_str!("providers/route53/templates/dns_inst.tf.handlebars"),
         )
         .unwrap();
+        hbs.register_template_string(
+            &format!("{}-root", crate::providers::ecr::provider_name()),
+            include_str!("providers/ecr/templates/ecr_inst_root.tf.handlebars"),
+        )
+        .unwrap();
+        hbs.register_template_string(
+            &crate::providers::kubernetes::provider_name(),
+            include_str!("providers/kubernetes/templates/service_inst.tf.handlebars"),
+        )
+        .unwrap();
 
         let mut ctx_out = vec![Fragment {
             content_type: ContentType::HCL,
@@ -425,8 +475,9 @@ pub struct Platform {
 
 #[derive(Serialize, Deserialize)]
 pub struct Registry {
-    pub host: String,
-    pub options: StringMap<String>,
+    pub id: String,
+    pub provider: Box<dyn Provider>,
+    pub platform: Option<Platform>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -473,6 +524,7 @@ pub struct Service {
     pub provider: Box<dyn Provider>,
     pub api: Api,
     pub functions: Vec<Function>,
+    pub registry_id: Option<String>,
 }
 
 impl Service {

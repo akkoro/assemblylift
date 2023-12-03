@@ -36,7 +36,7 @@ resource aws_apigatewayv2_stage default {
 }
 
 {{#each functions}}
-{{#if this.authorizer}}resource {{snake_case this.name}}_faws_apigatewayv2_authorizer {{this.authorizer.id}} {
+{{#if this.authorizer}}resource {{snake_case this.name}}_aws_apigatewayv2_authorizer {{this.authorizer.id}} {
     provider    = aws
 
     api_id           = aws_apigatewayv2_api.http_api.id
@@ -51,7 +51,7 @@ resource aws_apigatewayv2_stage default {
 }
 {{/if}}
 
-resource aws_apigatewayv2_route {{snake_case this.name}}_ffunction_route {
+resource aws_apigatewayv2_route {{snake_case this.name}}_function_route {
     provider = aws
 
     api_id    = aws_apigatewayv2_api.http_api.id

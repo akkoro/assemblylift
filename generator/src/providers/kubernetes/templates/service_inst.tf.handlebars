@@ -1,0 +1,14 @@
+module {{snake_case name}}_service {
+    source = "./services/{{name}}/infra/{{provider.name}}"
+
+    project_name = "{{project_name}}"
+    project_path = "{{project_path}}"
+    service_name = "{{name}}"
+
+    registry_credentials = local.{{registry_id}}_registry_credentials
+
+    providers = {
+        {{platform.name}} = {{platform.name}}.{{platform.id}}
+        docker = docker.{{registry_id}}
+    }
+}

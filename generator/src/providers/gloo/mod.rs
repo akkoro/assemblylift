@@ -5,7 +5,7 @@ use handlebars::Handlebars;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    context::Service, providers::aws_lambda, snake_case, CastResult, ContentType, Fragment, Options,
+    context::Service, snake_case, CastResult, ContentType, Fragment, Options, providers::kubernetes,
 };
 
 use super::{
@@ -14,17 +14,17 @@ use super::{
 };
 
 pub fn provider_name() -> String {
-    "aws-apigw".into()
+    "gloo".into()
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ApiGatewayProvider {
+pub struct GlooProvider {
     #[serde(default = "provider_name")]
     name: String,
     options: Options,
 }
 
-impl ApiGatewayProvider {
+impl GlooProvider {
     pub fn new(options: Options) -> Box<Self> {
         Box::new(Self {
             name: provider_name(),
@@ -34,13 +34,13 @@ impl ApiGatewayProvider {
 }
 
 #[typetag::serde]
-impl Provider for ApiGatewayProvider {
+impl Provider for GlooProvider {
     fn name(&self) -> String {
         self.name.clone()
     }
 
     fn platform(&self) -> String {
-        "aws".into()
+        "kubernetes".into()
     }
 
     fn options(&self) -> Options {
@@ -79,31 +79,31 @@ impl Provider for ApiGatewayProvider {
     }
 }
 
-impl ApiProvider for ApiGatewayProvider {
+impl ApiProvider for GlooProvider {
     fn cast_service(&self, service: &Service) -> CastResult<Vec<Fragment>> {
         let mut fragments: Vec<Fragment> = Vec::new();
 
-        let mut hbs = Handlebars::new();
-        hbs.register_helper("snake_case", Box::new(snake_case));
-        hbs.register_template_string("root", include_str!("templates/api_impl.tf.handlebars"))
-            .unwrap();
+        // let mut hbs = Handlebars::new();
+        // hbs.register_helper("snake_case", Box::new(snake_case));
+        // hbs.register_template_string("root", include_str!("templates/api_impl.tf.handlebars"))
+        //     .unwrap();
 
-        let api_fragment = Fragment {
-            content_type: ContentType::HCL,
-            content: hbs.render("root", &service.as_json().unwrap()).unwrap(),
-            write_path: PathBuf::from(format!(
-                "net/services/{}/infra/{}/api.tf",
-                service.name,
-                self.name(),
-            )),
-        };
+        // let api_fragment = Fragment {
+        //     content_type: ContentType::HCL,
+        //     content: hbs.render("root", &service.as_json().unwrap()).unwrap(),
+        //     write_path: PathBuf::from(format!(
+        //         "net/services/{}/infra/{}/api.tf",
+        //         service.name,
+        //         self.name(),
+        //     )),
+        // };
 
-        fragments.append(&mut vec![api_fragment]);
+        // fragments.append(&mut vec![api_fragment]);
 
         Ok(fragments)
     }
 
     fn supported_service_providers(&self) -> Vec<String> {
-        vec![aws_lambda::provider_name()]
+        vec![kubernetes::provider_name()]
     }
 }

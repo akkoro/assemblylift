@@ -45,8 +45,9 @@ pub struct ServiceRef {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Registry {
-    pub host: String,
-    pub options: Options,
+    pub id: String,
+    pub provider: Provider,
+    pub platform_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

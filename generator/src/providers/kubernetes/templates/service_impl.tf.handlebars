@@ -1,0 +1,62 @@
+# AssemblyLift Service
+# Name: {{name}}
+
+variable project_name {
+    type = string
+}
+
+variable project_path {
+    type = string
+}
+
+variable service_name {
+    type = string
+}
+
+variable registry_credentials {
+    type = map(string)
+}
+
+terraform {
+    required_providers {
+        kubernetes = {
+          source  = "hashicorp/kubernetes"
+          version = ">= 2.24.0"
+        }
+
+        docker = {
+            source  = "kreuzwerker/docker"
+            version = ">= 3.0.2"
+        }
+    }
+}
+
+resource kubernetes_namespace service_namespace {
+    provider = kubernetes
+    metadata {
+        name = "asml-${var.project_name}-${var.service_name}"
+    }
+}
+
+resource kubernetes_secret dockerconfig {
+    provider = kubernetes
+    metadata {
+        name      = "registry-credentials"
+        namespace = "asml-${var.project_name}-${var.service_name}"
+    }
+    data = {
+        ".dockerconfigjson" = jsonencode({
+            auths = {
+                (var.registry_credentials.proxy_endpoint) = {
+                    "username" = var.registry_credentials.username
+                    "password" = var.registry_credentials.password
+                    "email"    = "assemblylift@akkoro.io"
+                    "auth"     = var.registry_credentials.auth_token
+                }
+            }
+        })
+    }
+    type = "kubernetes.io/dockerconfigjson"
+
+    depends_on = [kubernetes_namespace.service_namespace]
+}

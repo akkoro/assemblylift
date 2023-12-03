@@ -1,0 +1,21 @@
+data aws_ecr_authorization_token {{snake_case id}}_token {
+    provider = aws.{{platform.id}}
+}
+
+locals {
+    {{snake_case id}}_registry_credentials = {
+        username       = data.aws_ecr_authorization_token.{{snake_case id}}_token.user_name
+        password       = data.aws_ecr_authorization_token.{{snake_case id}}_token.password
+        auth_token     = data.aws_ecr_authorization_token.{{snake_case id}}_token.authorization_token
+        proxy_endpoint = data.aws_ecr_authorization_token.{{snake_case id}}_token.proxy_endpoint
+    }
+}
+
+provider docker {
+    alias = "{{id}}"
+    registry_auth {
+        address  = data.aws_ecr_authorization_token.{{snake_case id}}_token.proxy_endpoint
+        password = data.aws_ecr_authorization_token.{{snake_case id}}_token.password
+        username = data.aws_ecr_authorization_token.{{snake_case id}}_token.user_name
+    }
+}

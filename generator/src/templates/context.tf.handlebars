@@ -10,6 +10,20 @@ provider {{this.name}} {
 }
 {{/each}}
 
+{{#if registries}}
+terraform {
+    required_providers {
+        docker = {
+            source  = "kreuzwerker/docker"
+        }
+    }
+}
+{{/if}}
+
+{{#each registries}}
+{{> (concat (lookup this.provider "name") "-root") }}
+{{/each}}
+
 {{#each domains}}
 {{> (concat (lookup this.provider "name") "-root") }}
 {{/each}}

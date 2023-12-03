@@ -46,6 +46,7 @@ impl Manifest {
         let svc = self.service.clone();
         let new_svc = Service {
             name: new_name.to_string(),
+            registry_id: svc.registry_id.clone(),
             provider: svc.provider.clone(),
         };
         self.service = new_svc;
@@ -119,6 +120,7 @@ pub type Iomods = Vec<Dependency>;
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Service {
     pub name: String,
+    pub registry_id: Option<String>,
     pub provider: Provider,
 }
 

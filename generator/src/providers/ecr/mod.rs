@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use handlebars::Handlebars;
 use serde::{Deserialize, Serialize};
 
-use crate::{Options, context::{Service, Function}, CastResult, Fragment};
+use crate::{Options, context::{Service, Function, Registry}, CastResult, Fragment};
 
 use super::{ApiProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, Provider, ServiceProvider};
 
@@ -11,7 +11,7 @@ pub fn provider_name() -> String {
 }
 
 pub fn platform_name() -> String {
-    "ecr".into()
+    "*".into()
 }
 
 #[derive(Serialize, Deserialize)]
@@ -69,5 +69,19 @@ impl Provider for EcrProvider {
 
     fn as_dns_provider(&self) -> Result<&dyn DnsProvider> {
         Err(anyhow!("{} is not a DnsProvider", self.name()))
+    }
+
+    fn as_container_registry_provider(&self) -> Result<&dyn ContainerRegistryProvider> {
+        Ok(self)
+    }
+}
+
+impl ContainerRegistryProvider for EcrProvider {
+    fn cast_registry(&self, registry: &Registry) -> CastResult<Vec<Fragment>> {
+        todo!()
+    }
+
+    fn cast_service(&self, service: &Service) -> CastResult<Vec<Fragment>> {
+        todo!()
     }
 }
