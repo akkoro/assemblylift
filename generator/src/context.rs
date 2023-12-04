@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use anyhow::anyhow;
 use handlebars::Handlebars;
@@ -52,24 +52,7 @@ impl Context {
             .registries()
             .iter()
             .map(|r| {
-                // let platform_options: Options = match r.platform_id.as_ref() {
-                //     Some(pid) => match ctx_platforms.iter().find(|&p| p.id.eq(pid)) {
-                //         Some(p) => p
-                //             .options
-                //             .clone()
-                //             .into_iter()
-                //             .chain(Options::from([("platform_id".into(), pid.clone())]))
-                //             .collect(),
-                //         None => {
-                //             return Err(format!(
-                //                 "platform with id `{}` not found in assemblylift.toml manifest",
-                //                 pid,
-                //             ))
-                //         },
-                //     },
-                //     None => Options::default(),
-                // };
-                let platform = match r.platform_id.as_ref() {
+                let platform = match &r.platform_id {
                     Some(pid) => match ctx_platforms.iter().find(|&p| p.id.eq(pid)) {
                         Some(p) => Some(p.clone()),
                         None => {
@@ -86,9 +69,6 @@ impl Context {
                     provider: ProviderFactory::new_provider(
                         &r.provider.name,
                         r.provider.options.clone(),
-                        // .into_iter()
-                        // .chain(platform_options)
-                        // .collect(),
                     )
                     .unwrap(),
                     platform,
@@ -119,14 +99,6 @@ impl Context {
                 )
                 .unwrap();
 
-                // let services: = ctx_services
-                //     .iter()
-                //     .filter(|&s| match s.api.domain_name {
-                //         Some(dns_name) => dns_name.eq(&domain.dns_name),
-                //         None => false,
-                //     })
-                //     .collect();
-
                 // TODO validate provider's supported platform matches selected platform
 
                 Ok(Domain {
@@ -134,7 +106,6 @@ impl Context {
                     map_to_root: domain.map_to_root,
                     platform,
                     provider,
-                    // services,
                 })
             })
             .collect::<Result<Vec<Domain>, String>>()?;
@@ -146,7 +117,6 @@ impl Context {
             .iter()
             .map(|authorizer| Authorizer {
                 id: authorizer.id.clone(),
-                // service_name: service.name.clone(),
                 r#type: authorizer.auth_type.clone(),
                 scopes: authorizer.scopes.clone().unwrap_or(Vec::<String>::new()),
                 jwt_config: match authorizer.auth_type.clone().to_lowercase().as_str() {
@@ -224,10 +194,10 @@ impl Context {
                             .iter()
                             .find(|&a| a.id == auth_id) {
                                 Some(a) => Some(a.clone()),
-                                None => {
-                                    println!("Warning: authorizer with id `{}` not found in definition for service `{}`", auth_id, service.name);
-                                    None
-                                }
+                                None => return Err(format!(
+                                    "authorizer with id `{}` not found in assemblylift.toml manifest",
+                                    &auth_id
+                                )),
                             },
                         None => None,
                     },
@@ -271,7 +241,6 @@ impl Context {
                         api_provider.options,
                     )
                     .unwrap(),
-                    // domain_name: service_manifest.api.domain_name,
                     domain: match service_manifest.api.domain_name {
                         Some(service_domain) => ctx_domains
                             .iter()
@@ -282,7 +251,16 @@ impl Context {
                     is_root: service_manifest.api.is_root,
                 },
                 functions: ctx_functions,
-                registry_id: service.registry_id.clone(),
+                container_registry: match service.registry_id {
+                    Some(rid) => match ctx_registries.iter().find(|&r| r.id.eq(&rid)) {
+                        Some(registry) => Some(registry.into()),
+                        None => return Err(format!(
+                            "registry with id `{}` not found in assemblylift.toml manifest",
+                            &rid
+                        )),
+                    },
+                    None => None,
+                },
             });
 
             for iomod in iomods {
@@ -346,6 +324,20 @@ impl Context {
                     ))),
                 };
 
+                let cnr_provider = match &svc.container_registry {
+                    Some(registry) => Some(registry.provider.as_container_registry_provider().unwrap()),
+                    None => None,
+                };
+                let cnr_fragments = match cnr_provider {
+                    Some(cnr_provider) => {
+                        if !cnr_provider.is_booted() {
+                            cnr_provider.boot().map_err(|e| CastError(e.to_string()))?
+                        }
+                        cnr_provider.cast_service(&svc)
+                    },
+                    None => Ok(Vec::new()),
+                };
+
                 let dns_fragments = match &svc.api.domain {
                     Some(domain) => {
                         let dns_provider = domain.provider.as_dns_provider().unwrap();
@@ -378,6 +370,7 @@ impl Context {
 
                 let mut out = Vec::new();
                 out.append(&mut api_fragments?);
+                out.append(&mut cnr_fragments?);
                 out.append(&mut dns_fragments?);
                 out.append(&mut svc_fragments?);
 
@@ -427,6 +420,11 @@ impl Context {
         hbs.register_template_string(
             &format!("{}-root", crate::providers::ecr::provider_name()),
             include_str!("providers/ecr/templates/ecr_inst_root.tf.handlebars"),
+        )
+        .unwrap();
+        hbs.register_template_string(
+            &crate::providers::ecr::provider_name(),
+            include_str!("providers/ecr/templates/ecr_inst.tf.handlebars"),
         )
         .unwrap();
         hbs.register_template_string(
@@ -480,6 +478,20 @@ pub struct Registry {
     pub platform: Option<Platform>,
 }
 
+impl From<&Registry> for Registry {
+    fn from(value: &Registry) -> Self {
+        Self {
+            id: value.id.clone(),
+            platform: value.platform.clone(),
+            provider: ProviderFactory::new_provider(
+                &value.provider.name(),
+                value.provider.options().clone(),
+            )
+            .unwrap(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Domain {
     pub dns_name: String,
@@ -524,7 +536,7 @@ pub struct Service {
     pub provider: Box<dyn Provider>,
     pub api: Api,
     pub functions: Vec<Function>,
-    pub registry_id: Option<String>,
+    pub container_registry: Option<Registry>,
 }
 
 impl Service {

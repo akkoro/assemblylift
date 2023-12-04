@@ -5,10 +5,11 @@ module {{snake_case name}}_service {
     project_path = "{{project_path}}"
     service_name = "{{name}}"
 
-    registry_credentials = local.{{registry_id}}_registry_credentials
+    function_urls        = module.{{snake_case name}}_container_registry.function_urls
+    registry_credentials = local.{{container_registry.id}}_registry_credentials
 
     providers = {
         {{platform.name}} = {{platform.name}}.{{platform.id}}
-        docker = docker.{{registry_id}}
+        docker = docker.{{container_registry.id}}
     }
 }

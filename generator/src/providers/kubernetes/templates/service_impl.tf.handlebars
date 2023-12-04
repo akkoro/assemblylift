@@ -17,6 +17,10 @@ variable registry_credentials {
     type = map(string)
 }
 
+variable function_urls {
+    type = map(string)
+}
+
 terraform {
     required_providers {
         kubernetes = {
@@ -60,3 +64,6 @@ resource kubernetes_secret dockerconfig {
 
     depends_on = [kubernetes_namespace.service_namespace]
 }
+
+{{#each functions}}
+{{/each}}

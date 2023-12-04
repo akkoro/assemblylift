@@ -1,0 +1,31 @@
+variable project_name {
+    type = string
+}
+
+variable service_name {
+    type = string
+}
+
+terraform {
+    required_providers {
+        aws = {
+            source  = "hashicorp/aws"
+            version = "~> 5.0"
+        }
+    }
+}
+
+{{#each functions}}
+resource aws_ecr_repository {{snake_case this.name}} {
+    provider = aws
+    name     = "asml/${var.project_name}/${var.service_name}/{{this.name}}"
+}
+{{/each}}
+
+output function_urls {
+    value = {
+        {{#each functions}}
+        "{{this.name}}" = aws_ecr_repository.{{snake_case this.name}}.repository_url
+        {{/each}}
+    }
+}

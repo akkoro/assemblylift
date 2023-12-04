@@ -50,7 +50,6 @@ pub trait DnsProvider: Provider {
 }
 
 pub trait ContainerRegistryProvider: Provider {
-    fn cast_registry(&self, registry: &Registry) -> CastResult<Vec<Fragment>>;
     fn cast_service(&self, service: &Service) -> CastResult<Vec<Fragment>>;
 }
 

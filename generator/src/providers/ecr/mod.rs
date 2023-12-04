@@ -1,8 +1,10 @@
+use std::path::PathBuf;
+
 use anyhow::{anyhow, Result};
 use handlebars::Handlebars;
 use serde::{Deserialize, Serialize};
 
-use crate::{Options, context::{Service, Function, Registry}, CastResult, Fragment};
+use crate::{Options, context::Service, CastResult, Fragment, snake_case, ContentType};
 
 use super::{ApiProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, Provider, ServiceProvider};
 
@@ -77,11 +79,22 @@ impl Provider for EcrProvider {
 }
 
 impl ContainerRegistryProvider for EcrProvider {
-    fn cast_registry(&self, registry: &Registry) -> CastResult<Vec<Fragment>> {
-        todo!()
-    }
-
     fn cast_service(&self, service: &Service) -> CastResult<Vec<Fragment>> {
-        todo!()
+        let mut hbs = Handlebars::new();
+        hbs.register_helper("snake_case", Box::new(snake_case));
+        hbs.register_template_string("service", include_str!("templates/ecr_impl.tf.handlebars"))
+            .unwrap();
+
+        let service_fragment = Fragment {
+            content_type: ContentType::HCL,
+            content: hbs.render("service", &service.as_json().unwrap()).unwrap(),
+            write_path: PathBuf::from(format!(
+                "net/services/{}/infra/{}/containers.tf",
+                service.name,
+                self.name(),
+            )),
+        };
+
+        Ok(vec![service_fragment])
     }
 }

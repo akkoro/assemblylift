@@ -91,7 +91,7 @@ impl Provider for KubernetesProvider {
 
 impl ServiceProvider for KubernetesProvider {
     fn cast_service(&self, service: &Service) -> CastResult<Vec<Fragment>> {
-        if service.registry_id.is_none() {
+        if service.container_registry.is_none() {
             return Err(CastError(format!(
                 "service `{}` requires registry_id to be set",
                 service.name.clone()

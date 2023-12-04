@@ -14,7 +14,7 @@ provider {{this.name}} {
 terraform {
     required_providers {
         docker = {
-            source  = "kreuzwerker/docker"
+            source = "kreuzwerker/docker"
         }
     }
 }
@@ -30,6 +30,10 @@ terraform {
 
 {{#each services}}
 {{> (lookup this.api.domain.provider "name") 
+project_name=../project.name 
+}}
+
+{{> (lookup this.container_registry.provider "name") 
 project_name=../project.name 
 }}
 
