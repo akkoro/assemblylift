@@ -24,14 +24,13 @@ pub struct RubyFunction {
 impl RubyFunction {
     pub fn new(function: &Function, project: Rc<Project>) -> Self {
         let service_name = function.service_name.clone();
-        let net_path = project
-            .net_dir()
+        let net_dir = project.net_dir();
+        let net_path = net_dir
             .service_dir(&service_name.clone())
             .function_dir(function.name.clone())
             .to_str()
             .unwrap()
             .to_string();
-        let net_dir = project.net_dir();
         std::fs::create_dir_all(PathBuf::from(&net_path))
             .expect(&*format!("unable to create path {}", &net_path));
         Self {

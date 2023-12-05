@@ -7,10 +7,13 @@ use serde::{Deserialize, Serialize};
 use crate::{
     concat_cast,
     context::{Function, Service},
-    snake_case, CastError, CastResult, ContentType, Fragment, Options,
+    snake_case, CastResult, ContentType, Fragment, Options,
 };
 
-use super::{ApiProvider, DnsProvider, FunctionProvider, Provider, ServiceProvider, ContainerRegistryProvider};
+use super::{
+    ApiProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, Provider,
+    ServiceProvider,
+};
 
 pub fn provider_name() -> String {
     "aws-lambda".into()
@@ -88,7 +91,10 @@ impl Provider for AwsLambdaProvider {
     }
 
     fn as_container_registry_provider(&self) -> Result<&dyn ContainerRegistryProvider> {
-        Err(anyhow!("{} is not a ContainerRegistryProvider", self.name()))
+        Err(anyhow!(
+            "{} is not a ContainerRegistryProvider",
+            self.name()
+        ))
     }
 }
 

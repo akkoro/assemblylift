@@ -8,12 +8,13 @@ pub mod kubernetes;
 pub mod route53;
 
 use crate::{
-    context::{Domain, Function, Service, Registry},
+    context::{Domain, Function, Service},
     CastResult, Fragment, Options,
 };
 
 use self::{
-    api_gateway::ApiGatewayProvider, aws_lambda::AwsLambdaProvider, ecr::EcrProvider, kubernetes::KubernetesProvider, route53::Route53Provider, gloo::GlooProvider,
+    api_gateway::ApiGatewayProvider, aws_lambda::AwsLambdaProvider, ecr::EcrProvider,
+    gloo::GlooProvider, kubernetes::KubernetesProvider, route53::Route53Provider,
 };
 
 #[typetag::serde(tag = "provider")]

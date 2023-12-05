@@ -10,7 +10,9 @@ use crate::{
     snake_case, CastResult, ContentType, Fragment, Options,
 };
 
-use super::{ApiProvider, DnsProvider, FunctionProvider, ServiceProvider, ContainerRegistryProvider};
+use super::{
+    ApiProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, ServiceProvider,
+};
 
 pub fn provider_name() -> String {
     "route53".into()
@@ -78,7 +80,10 @@ impl Provider for Route53Provider {
     }
 
     fn as_container_registry_provider(&self) -> Result<&dyn ContainerRegistryProvider> {
-        Err(anyhow!("{} is not a ContainerRegistryProvider", self.name()))
+        Err(anyhow!(
+            "{} is not a ContainerRegistryProvider",
+            self.name()
+        ))
     }
 }
 

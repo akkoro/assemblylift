@@ -4,9 +4,12 @@ use anyhow::{anyhow, Result};
 use handlebars::Handlebars;
 use serde::{Deserialize, Serialize};
 
-use crate::{Options, context::Service, CastResult, Fragment, snake_case, ContentType};
+use crate::{context::Service, snake_case, CastResult, ContentType, Fragment, Options};
 
-use super::{ApiProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, Provider, ServiceProvider};
+use super::{
+    ApiProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, Provider,
+    ServiceProvider,
+};
 
 pub fn provider_name() -> String {
     "ecr".into()

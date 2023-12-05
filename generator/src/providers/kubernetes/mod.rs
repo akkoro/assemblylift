@@ -22,8 +22,6 @@ pub fn platform_name() -> String {
     "kubernetes".into()
 }
 
-// TODO K8s (all service providers?) should advertise the container registries it is compatible with
-
 #[derive(Serialize, Deserialize)]
 pub struct KubernetesProvider {
     #[serde(default = "provider_name")]
@@ -134,6 +132,34 @@ impl ServiceProvider for KubernetesProvider {
 
 impl FunctionProvider for KubernetesProvider {
     fn cast_function(&self, function: &Function, service_name: &str) -> CastResult<Vec<Fragment>> {
-        todo!()
+        let mut hbs = Handlebars::new();
+        hbs.register_helper("snake_case", Box::new(snake_case));
+        hbs.register_template_string("root", include_str!("templates/function_impl.tf.handlebars"))
+            .unwrap();
+        hbs.register_template_string("dockerfile", include_str!("templates/function.dockerfile.handlebars"))
+            .unwrap();
+
+        let tf_fragment = Fragment {
+            content_type: ContentType::HCL,
+            content: hbs.render("root", &function.as_json().unwrap()).unwrap(),
+            write_path: PathBuf::from(format!(
+                "net/services/{}/infra/{}/functions/{}/infra/function.tf",
+                service_name,
+                self.name(),
+                function.name,
+            )),
+        };
+
+        let dockerfile_fragment = Fragment {
+            content_type: ContentType::Dockerfile,
+            content: hbs.render("dockerfile", &function.as_json().unwrap()).unwrap(),
+            write_path: PathBuf::from(format!(
+                "net/services/{}/functions/{}/Dockerfile",
+                service_name,
+                function.name,
+            )),
+        };
+
+        Ok(vec![tf_fragment, dockerfile_fragment])
     }
 }

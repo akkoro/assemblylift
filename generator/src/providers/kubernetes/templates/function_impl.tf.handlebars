@@ -1,0 +1,68 @@
+variable project_name {
+    type = string
+}
+
+variable project_path {
+    type = string
+}
+
+variable service_name {
+    type = string
+}
+
+variable function_name {
+    type = string
+}
+
+variable handler_name {
+    type = string
+}
+
+terraform {
+    required_providers {
+        kubernetes = {
+          source  = "hashicorp/kubernetes"
+          version = ">= 2.24.0"
+        }
+
+        docker = {
+            source  = "kreuzwerker/docker"
+            version = ">= 3.0.2"
+        }
+    }
+}
+
+{{#if has_ruby}}
+data archive_file rubysrc {
+    type        = "zip"
+    source_dir  = "${var.project_path}/net/services/${var.service_name}/functions/${var.function_name}/rubysrc"
+    output_path = "${var.project_path}/net/services/${var.service_name}/functions/${var.function_name}/rubysrc.zip"
+}
+{{/if}}
+
+resource random_id image_src {
+    byte_length = 8
+    keepers = {
+        dockerfile_hash = filebase64sha256("${var.project_path}/net/services/${var.service_name}/functions/${var.function_name}/Dockerfile")
+        wasm_hash       = filebase64sha256("${var.project_path}/net/services/${var.service_name}/functions/${var.function_name}/${var.handler_name}")
+        {{#if has_ruby}}rubysrc_hash    = data.archive_file.rubysrc.output_sha{{/if}}
+    }
+}
+
+resource docker_registry_image function_image {
+    provider      = docker
+    name          = docker_image.function_image.name
+    keep_remotely = true
+}
+
+resource docker_image function_image {
+    provider = docker
+    name = "${var.repository_url}:${random_id.image_src.hex}"
+
+    build {
+        context      = "${var.project_path}/net/services/${var.service_name}"
+        dockerfile   = "functions/${var.function_name}/Dockerfile"
+        pull_parent  = true
+        force_remove = true
+    }
+}

@@ -5,7 +5,7 @@ use handlebars::Handlebars;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    context::Service, snake_case, CastResult, ContentType, Fragment, Options, providers::kubernetes,
+    context::Service, providers::kubernetes, snake_case, CastResult, ContentType, Fragment, Options,
 };
 
 use super::{

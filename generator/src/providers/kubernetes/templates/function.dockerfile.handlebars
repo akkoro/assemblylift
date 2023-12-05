@@ -1,0 +1,8 @@
+FROM public.ecr.aws/akkoro/assemblylift/hyper-alpine:{{base_image_version}}
+ENV ASML_WASM_MODULE_NAME {{handler_name}}
+ENV ASML_FUNCTION_COORDINATES {{coordinates}}
+ENV ASML_FUNCTION_PRECOMPILED {{precompiled}}
+ENV ASML_FUNCTION_ENV {{runtime_environment}}
+ADD ./functions/{{function_name}}/{{handler_name}} /opt/assemblylift/projects/{{project_name}}/services/{{service_name}}/{{handler_name}}
+{{#if is_ruby}}COPY ./ruby-wasm32-wasi /usr/bin/ruby-wasm32-wasi
+COPY ./functions/{{function_name}}/rubysrc/* /usr/bin/ruby-wasm32-wasi/src/{{/if}}

@@ -161,7 +161,6 @@ impl Context {
                 ctx_functions.push(Function {
                     name: function.name.clone(),
                     service_name: service.name.clone(),
-                    registry: function.registry.clone().unwrap_or("ecr".to_string()),
                     language: language.clone(),
                     // TODO this should not be inferred at context level
                     handler_name: match language.clone().as_str() {
@@ -549,7 +548,6 @@ impl Service {
 pub struct Function {
     pub name: String,
     pub service_name: String,
-    pub registry: String,
     pub language: String,
     pub handler_name: String,
     pub runtime_environment: String,
