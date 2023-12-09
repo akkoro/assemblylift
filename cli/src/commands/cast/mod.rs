@@ -72,7 +72,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             lang => panic!("unsupported function language: {}", lang),
         };
         castable_function.compile(wasi_snapshot_preview1.clone().to_vec());
-        if function.precompile {
+        if function.precompiled {
             // TODO set target triple
             castable_function.precompile(None);
         }

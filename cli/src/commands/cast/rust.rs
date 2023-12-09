@@ -36,7 +36,7 @@ impl RustFunction {
             service_name,
             function_name: function.name.clone(),
             net_path,
-            enable_precompile: function.precompile,
+            enable_precompile: function.precompiled,
             mode: "release".to_string(),
             target: "wasm32-wasi".to_string(),
             cpu_compat_mode: function.cpu_compat_mode.clone(),

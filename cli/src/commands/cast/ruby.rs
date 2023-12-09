@@ -38,7 +38,7 @@ impl RubyFunction {
             service_name,
             function_name: function.name.clone(),
             net_dir,
-            enable_precompile: function.precompile,
+            enable_precompile: function.precompiled,
             cpu_compat_mode: function.cpu_compat_mode.clone(),
         }
     }

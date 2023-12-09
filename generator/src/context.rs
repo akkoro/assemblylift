@@ -157,10 +157,19 @@ impl Context {
                 };
                 // FIXME language should not be optional at context level
                 let language = function.language.clone().unwrap_or("rust".to_string());
+                let environment_variables = function
+                    .environment
+                    .clone()
+                    .unwrap_or(StringMap::<String>::new())
+                    .iter()
+                    .map(|e| (format!("__ASML_{}", e.0.clone()), e.1.clone()))
+                    .collect::<StringMap<String>>();
 
                 ctx_functions.push(Function {
                     name: function.name.clone(),
                     service_name: service.name.clone(),
+                    project_name: project.name.clone(),
+                    coordinates: format!("{}.{}.{}", &project.name, &service.name, &function.name),
                     language: language.clone(),
                     // TODO this should not be inferred at context level
                     handler_name: match language.clone().as_str() {
@@ -170,17 +179,19 @@ impl Context {
                     },
                     // TODO this should not be inferred at context level
                     runtime_environment: match language.as_str() {
-                        "rust" => "native-lambda",
-                        "ruby" => "ruby-lambda",
+                        "rust" => "native",
+                        "ruby" => "ruby",
                         _ => return Err("default".into()),
                     }.into(),
+                    // FIXME don't hardcode
+                    runtime_version: "0.4.0-beta.0".into(),
                     size: function.size_mb.unwrap_or(1024u16),
                     timeout: function.timeout_seconds.unwrap_or(5u16),
                     cpu_compat_mode: function
                         .cpu_compat_mode
                         .clone()
                         .unwrap_or("default".to_string()),
-                    precompile,
+                    precompiled: precompile,
                     http: match &function.clone().http.as_ref() {
                         Some(http) => Some(Http {
                             verb: http.verb.clone(),
@@ -200,7 +211,7 @@ impl Context {
                             },
                         None => None,
                     },
-                    environment_variables: function.environment.clone(),
+                    environment_variables,
                 });
             }
 
@@ -231,6 +242,7 @@ impl Context {
 
             ctx_services.push(Service {
                 name: service.name.clone(),
+                project_name: project.name.clone(),
                 platform: service_platform,
                 provider: service_provider,
                 // TODO validate that API Provider is compatible with Service provider
@@ -523,7 +535,6 @@ impl From<&Domain> for Domain {
 #[derive(Serialize, Deserialize)]
 pub struct Api {
     pub provider: Box<dyn Provider>,
-    // pub domain_name: Option<String>, // TODO replace Domain::services with Api::domain ? Services would need to register all DNS provider templates
     pub domain: Option<Domain>,
     pub is_root: Option<bool>,
 }
@@ -531,6 +542,7 @@ pub struct Api {
 #[derive(Serialize, Deserialize)]
 pub struct Service {
     pub name: String,
+    pub project_name: String,
     pub platform: Platform,
     pub provider: Box<dyn Provider>,
     pub api: Api,
@@ -548,16 +560,19 @@ impl Service {
 pub struct Function {
     pub name: String,
     pub service_name: String,
+    pub project_name: String,
+    pub coordinates: String,
     pub language: String,
     pub handler_name: String,
     pub runtime_environment: String,
-    pub environment_variables: Option<StringMap<String>>,
+    pub runtime_version: String,
+    pub environment_variables: StringMap<String>,
     pub http: Option<Http>,
     pub authorizer: Option<Authorizer>,
     pub size: u16,
     pub timeout: u16,
     pub cpu_compat_mode: String,
-    pub precompile: bool,
+    pub precompiled: bool,
 }
 
 impl Function {

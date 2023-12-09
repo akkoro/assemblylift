@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     context::{Function, Service},
-    snake_case, CastError, CastResult, ContentType, Fragment, Options,
+    snake_case, CastError, CastResult, ContentType, Fragment, Options, concat_cast,
 };
 
 use super::{
@@ -97,16 +97,16 @@ impl ServiceProvider for KubernetesProvider {
         }
         let mut fragments: Vec<Fragment> = Vec::new();
 
-        // let mut function_fragments = service
-        //     .functions
-        //     .iter()
-        //     .map(|function| {
-        //         self.as_function_provider()
-        //             .unwrap()
-        //             .cast_function(function, &service.name)
-        //     })
-        //     .reduce(concat_cast)
-        //     .unwrap()?;
+        let mut function_fragments = service
+            .functions
+            .iter()
+            .map(|function| {
+                self.as_function_provider()
+                    .unwrap()
+                    .cast_function(function, &service.name)
+            })
+            .reduce(concat_cast)
+            .unwrap()?;
 
         let mut hbs = Handlebars::new();
         hbs.register_helper("snake_case", Box::new(snake_case));
@@ -124,7 +124,7 @@ impl ServiceProvider for KubernetesProvider {
         };
 
         fragments.append(&mut vec![service_fragment]);
-        // fragments.append(&mut function_fragments);
+        fragments.append(&mut function_fragments);
 
         Ok(fragments)
     }
