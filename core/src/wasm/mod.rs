@@ -148,98 +148,32 @@ where
         }
 
         match runtime_environment.as_str() {
-            "ruby-lambda" | "ruby-docker" | "ruby-localhost" => builder = builder.inherit_stdio().push_env("RUBY_PLATFORM", "wasm32-wasi").set_args(&["ruby", "/src/handler.rb"]),
+            "ruby" => builder = builder.inherit_stdio().push_env("RUBY_PLATFORM", "wasm32-wasi").set_args(&["ruby", "/src/handler.rb"]),
             _ => (),
         }
 
-        // TODO we could lift the platform-specific path bindings out and just rely on bind_paths
-        match runtime_environment.as_str() {
-            "ruby-docker" => {
-                builder = builder.push_preopened_dir(
-                    Dir::from_std_file(
-                        File::open("/usr/bin/ruby-wasm32-wasi/src").unwrap(),
-                    ),
-                    DirPerms::READ, 
-                    FilePerms::READ,
-                    "/src",
-                );
-                builder = builder.push_preopened_dir(
-                    Dir::from_std_file(
-                        File::open("/usr/bin/ruby-wasm32-wasi/usr").unwrap(),
-                    ),
-                    DirPerms::all(), 
-                    FilePerms::all(),
-                    "/usr",
-                );
-                builder = builder.push_preopened_dir(
-                    Dir::from_std_file(
-                        File::open("/tmp/asmltmp").unwrap(),
-                    ),
-                    DirPerms::all(), 
-                    FilePerms::all(),
-                    "/tmp",
-                );
-            }
-            "ruby-lambda" => {
-                builder = builder.push_preopened_dir(
-                    Dir::from_std_file(
-                        File::open("/tmp/rubysrc").unwrap(),
-                    ),
-                    DirPerms::READ, 
-                    FilePerms::READ,
-                    "/src",
-                );
-                builder = builder.push_preopened_dir(
-                    Dir::from_std_file(
-                        File::open("/tmp/rubyusr").unwrap(),
-                    ),
-                    DirPerms::READ, 
-                    FilePerms::READ,
-                    "/usr",
-                );
-                builder = builder.push_preopened_dir(
-                    Dir::from_std_file(
-                        File::open("/tmp/asmltmp").unwrap(),
-                    ),
-                    DirPerms::all(), 
-                    FilePerms::all(),
-                    "/tmp",
-                );
-            }
-            "ruby-localhost" => {
-                for path in bind_paths {
-                    debug!("binding {} to {}", path.0, path.1);
-                    builder = builder.push_preopened_dir(
-                        Dir::from_std_file(
-                            File::open(path.0).unwrap(),
-                        ),
-                        DirPerms::all(), 
-                        FilePerms::all(),
-                        path.1,
-                    );
-                }
-                builder = builder.push_preopened_dir(
-                    Dir::from_std_file(
-                        File::open("/tmp/asmltmp").unwrap(),
-                    ),
-                    DirPerms::all(), 
-                    FilePerms::all(),
-                    "/tmp",
-                );
-                builder = builder.inherit_stdout();
-                builder = builder.inherit_stderr();
-            }
-            _ => {
-                builder = builder.push_preopened_dir(
-                    Dir::from_std_file(
-                        File::open("/tmp/asmltmp").unwrap(),
-                    ),
-                    DirPerms::all(), 
-                    FilePerms::all(),
-                    "/tmp",
-                );
-            }
+        for path in bind_paths {
+            debug!("binding {} to {}", path.0, path.1);
+            builder = builder.push_preopened_dir(
+                Dir::from_std_file(
+                    File::open(path.0).unwrap(),
+                ),
+                DirPerms::all(), 
+                FilePerms::all(),
+                path.1,
+            );
         }
+        builder = builder.push_preopened_dir(
+            Dir::from_std_file(
+                File::open("/tmp/asmltmp").unwrap(),
+            ),
+            DirPerms::all(), 
+            FilePerms::all(),
+            "/tmp",
+        );
+        builder = builder.inherit_stdout();
+        builder = builder.inherit_stderr();
+
         let mut table = Table::new();
         let wasi = builder.build(&mut table).unwrap();
 
