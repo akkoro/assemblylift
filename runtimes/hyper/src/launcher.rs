@@ -22,6 +22,8 @@ use crate::Status::{Exited, Failure, Success};
 
 pub const INSTALL_DIR: Lazy<String> =
     Lazy::new(|| std::env::var("ASML_INSTALL_DIR").unwrap_or("/opt/assemblylift".to_string()));
+pub const FUNCTION_BIND_PATHS: Lazy<Option<String>> = 
+    Lazy::new(|| std::env::var("ASML_FUNCTION_BIND_PATHS").ok());
 pub const FUNCTION_COORDINATES: Lazy<Option<String>> = 
     Lazy::new(|| std::env::var("ASML_FUNCTION_COORDINATES").ok());
 pub const FUNCTION_PRECOMPILED: Lazy<Option<String>> = 
@@ -173,10 +175,13 @@ async fn launch(
         None => Default::default(),
     };
 
-    let bind_paths: BTreeMap<String, String> = match headers.get("x-assemblylift-function-bind-paths") {
+    let mut bind_paths: BTreeMap<String, String> = match headers.get("x-assemblylift-function-bind-paths") {
         Some(paths) => parse_map(paths),
         None => Default::default(),
     };
+    if let Some(paths) =  FUNCTION_BIND_PATHS.deref() {
+        bind_paths.append(&mut parse_map(paths));
+    }
 
     let runtime_environment = headers.get("x-assemblylift-function-runtime-env").cloned();
     let msg = RunnerMessage {

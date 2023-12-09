@@ -114,7 +114,7 @@ async fn main() -> Result<(), Error> {
     let runtime_environment = std::env::var("ASML_FUNCTION_ENV");
 
     // Copy Ruby env to /tmp
-    if let Ok("ruby-lambda") = runtime_environment.as_deref() {
+    if let Ok("ruby") = runtime_environment.as_deref() {
         let rubysrc_path = "/tmp/rubysrc";
         if !Path::new(&rubysrc_path).exists() {
             fs::create_dir_all(rubysrc_path)
@@ -178,6 +178,10 @@ async fn main() -> Result<(), Error> {
                     .into_iter(),
             );
             let runtime_environment = std::env::var("ASML_FUNCTION_ENV");
+            let bind_paths: Vec<(String, String)> = match runtime_environment.as_deref().ok() {
+                Some("ruby") => vec![("/tmp/rubysrc".into(), "/src".into()), ("/tmp/rubyusr".into(), "/usr".into())],
+                Some(_) | None => Vec::new(),
+            };
             let (status_tx, status_rx) = status_channel::<Status>(1);
             let request_id = &event.context.request_id;
             
@@ -188,7 +192,7 @@ async fn main() -> Result<(), Error> {
                     status_tx.clone(),
                     environment_vars,
                     runtime_environment.clone().unwrap_or("default".to_string()),
-                    Default::default(),
+                    bind_paths,
                     Some(String::from(request_id)),
                     &event.payload.to_string().as_bytes(),
                 )
