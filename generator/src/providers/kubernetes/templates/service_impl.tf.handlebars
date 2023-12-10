@@ -66,4 +66,21 @@ resource kubernetes_secret dockerconfig {
 }
 
 {{#each functions}}
+module asml_function_{{this.name}} {
+    source = "./functions/{{this.name}}/infra"
+
+    project_name        = var.project_name
+    project_path        = var.project_path
+    service_name        = var.service_name
+    function_name       = "{{this.name}}"
+    handler_name        = "{{this.handler_name}}"
+    repository_url      = var.function_urls["{{this.name}}"]
+    
+    {{#if this.environment_variables}}env_vars = {
+        {{#each this.environment_variables}}{{@key}} = "{{this}}",
+        {{/each}}
+    }{{/if}}
+
+    depends_on = [kubernetes_namespace.service_namespace]
+}
 {{/each}}

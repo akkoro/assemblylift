@@ -18,6 +18,15 @@ variable handler_name {
     type = string
 }
 
+variable repository_url {
+    type = string
+}
+
+variable env_vars {
+    type = map(string)
+    default = {}
+}
+
 terraform {
     required_providers {
         kubernetes = {
@@ -64,5 +73,92 @@ resource docker_image function_image {
         dockerfile   = "functions/${var.function_name}/Dockerfile"
         pull_parent  = true
         force_remove = true
+    }
+}
+
+resource kubernetes_deployment deployment {
+    provider   = kubernetes
+    depends_on = [docker_registry_image.function_image]
+    metadata {
+        name      = "${var.function_name}"
+        namespace = "asml-${var.project_name}-${var.service_name}"
+        labels = {
+            asml_function = "${var.function_name}"
+            asml_service  = "${var.service_name}"
+        }
+    }
+
+    spec {
+        replicas = 1
+
+        selector {
+            match_labels = {
+                asml_function = "${var.function_name}"
+                asml_service  = "${var.service_name}"
+            }
+        }
+
+        template {
+            metadata {
+                labels = {
+                    asml_function = "${var.function_name}"
+                    asml_service  = "${var.service_name}"
+                }
+            }
+
+            spec {
+                image_pull_secrets {
+                    name = "registry-credentials"
+                }
+                container {
+                    image = docker_registry_image.function_image.name
+                    name  = "asml-${var.service_name}-${var.function_name}"
+                    port {
+                        container_port = 5543
+                    }
+                    port {
+                        container_port = 13555
+                    }
+                    dynamic "env" {
+                        for_each = var.env_vars
+                        content {
+                            name = env.key
+                            value = env.value
+                        }
+                    }
+                    env {
+                        name  = "ASML_CPU_COMPAT_MODE"
+                        value = "{{this.cpu_compat_mode}}"
+                    }
+                }
+                {{#each iomods}}
+                container {
+                    image = "{{this.image}}"
+                    name  = "{{this.name}}"
+                }
+                {{/each}}
+            }
+        }
+    }
+}
+
+resource kubernetes_service service {
+    provider   = kubernetes
+
+    metadata {
+        name      = "${var.function_name}"
+        namespace = "asml-${var.project_name}-${var.service_name}"
+    }
+
+    spec {
+        selector = {
+            asml_function = "${var.function_name}"
+            asml_service  = "${var.service_name}"
+        }
+        type = "ClusterIP"
+        port {
+            port        = 5543
+            target_port = 5543
+        }
     }
 }

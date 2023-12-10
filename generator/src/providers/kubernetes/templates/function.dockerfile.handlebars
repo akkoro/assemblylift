@@ -1,4 +1,4 @@
-FROM public.ecr.aws/akkoro/assemblylift/hyper-alpine:{{runtime_version}}
+FROM public.ecr.aws/akkoro/assemblylift/hyper-debian:{{runtime_version}}
 ENV ASML_WASM_MODULE_NAME {{handler_name}}
 ENV ASML_FUNCTION_COORDINATES {{coordinates}}
 ENV ASML_FUNCTION_PRECOMPILED {{precompiled}}
