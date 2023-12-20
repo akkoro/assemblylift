@@ -22,6 +22,7 @@ pub trait Provider {
     fn name(&self) -> String;
     fn platform(&self) -> String;
     fn options(&self) -> Options;
+    fn set_option(&mut self, key: &str, value: &str);
     fn boot(&self) -> Result<()>;
     fn is_booted(&self) -> bool;
     fn as_service_provider(&self) -> Result<&dyn ServiceProvider>;
@@ -36,6 +37,7 @@ pub trait ServiceProvider: Provider {
 }
 
 pub trait FunctionProvider: Provider {
+    // TODO service_name arg no longer needed
     fn cast_function(&self, function: &Function, service_name: &str) -> CastResult<Vec<Fragment>>;
 }
 

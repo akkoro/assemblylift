@@ -1,0 +1,86 @@
+variable project_name {
+    type = string
+}
+
+variable project_path {
+    type = string
+}
+
+variable service_name {
+    type = string
+}
+
+terraform {
+    required_providers {
+        kubernetes = {
+            source  = "hashicorp/kubernetes"
+            version = ">= 2.24.0"
+        }
+    }
+}
+
+{{#if this.api.domain}}
+resource kubernetes_manifest certificate {
+    provider = kubernetes
+    manifest = {
+        apiVersion = "cert-manager.io/v1"
+        kind       = "Certificate"
+
+        metadata = {
+            name      = "asml-{{snake_case this.api.domain.dns_name}}"
+            namespace = "asml-${var.project_name}-${var.service_name}"
+        }
+
+        spec = {
+            secretName = "asml-${var.project_name}-${var.service_name}-tls"
+            issuerRef = {
+                kind      = "Issuer"
+                name      = "asml-letsencrypt-staging"
+            }
+            dnsNames = ["{{this.api.domain.dns_name}}"]
+        }
+    }
+}
+{{/if}}
+
+resource kubernetes_manifest gloo_virtualservice {
+    provider = kubernetes
+    manifest = {
+        apiVersion = "gateway.solo.io/v1"
+        kind       = "VirtualService"
+
+        metadata = {
+            name      = var.service_name
+            namespace = "asml-${var.project_name}-${var.service_name}"
+        }
+
+        spec = {
+            virtualHost = {
+                domains = ["{{this.api.provider.options.__cluster_ip}}"{{#if this.api.domain}}, "{{this.api.domain.dns_name}}"{{/if}}]
+                routes = [
+                    {{#each functions}}{
+                        matchers = [
+                            {
+                                exact = "{{this.http.path}}"
+                            }
+                        ]
+                        routeAction = {
+                            single = {
+                                upstream = {
+                                    name      = "asml-${var.project_name}-${var.service_name}-{{this.name}}-5543"
+                                    namespace = "gloo-system"
+                                }
+                            }
+                        }
+                    },
+                {{/each}}]
+            }
+            {{#if this.api.domain}}sslConfig = {
+                secretRef = {
+                    name      = "asml-${var.project_name}-${var.service_name}-tls"
+                    namespace = "asml-${var.project_name}-${var.service_name}"
+                }
+            }{{/if}}
+        }
+    }
+}

@@ -443,6 +443,11 @@ impl Context {
             include_str!("providers/kubernetes/templates/service_inst.tf.handlebars"),
         )
         .unwrap();
+        hbs.register_template_string(
+            &crate::providers::gloo::provider_name(),
+            include_str!("providers/gloo/templates/api_inst.tf.handlebars"),
+        )
+        .unwrap();
 
         let mut ctx_out = vec![Fragment {
             content_type: ContentType::HCL,
@@ -553,6 +558,38 @@ pub struct Service {
 impl Service {
     pub fn as_json(&self) -> anyhow::Result<serde_json::Value> {
         serde_json::to_value(self).map_err(|e| anyhow!(e))
+    }
+}
+
+impl From<&Service> for Service {
+    fn from(value: &Service) -> Self {
+        Self {
+            name: value.name.clone(),
+            project_name: value.project_name.clone(),
+            platform: value.platform.clone(),
+            provider: ProviderFactory::new_provider(
+                &value.provider.name(),
+                value.provider.options().clone(),
+            )
+            .unwrap(),
+            api: Api {
+                provider: ProviderFactory::new_provider(
+                    &value.api.provider.name(),
+                    value.api.provider.options().clone(),
+                )
+                .unwrap(),
+                domain: match value.api.domain.as_ref() {
+                    Some(domain) => Some(domain.into()),
+                    None => None,
+                },
+                is_root: value.api.is_root,
+            },
+            functions: value.functions.clone(),
+            container_registry: match value.container_registry.as_ref() {
+                Some(reg) => Some(reg.into()),
+                None => None,
+            },
+        }
     }
 }
 

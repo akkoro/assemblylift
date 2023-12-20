@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
+use assemblylift_tools::cmctl::CmCtl;
 use handlebars::Handlebars;
 use serde::{Deserialize, Serialize};
 
@@ -55,7 +56,14 @@ impl Provider for KubernetesProvider {
         self.options.clone()
     }
 
+    fn set_option(&mut self, key: &str, value: &str) {
+        self.options.insert(key.into(), value.into()).unwrap();
+    }
+
     fn boot(&self) -> Result<()> {
+        // TODO this is only needed by the DNS provider and only if K8s is in use
+        //      could have boot take a &Context and do it that way
+        CmCtl::default().install();
         Ok(())
     }
 

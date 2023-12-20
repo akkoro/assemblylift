@@ -52,6 +52,10 @@ impl Provider for EcrProvider {
         self.options.clone()
     }
 
+    fn set_option(&mut self, key: &str, value: &str) {
+        self.options.insert(key.into(), value.into()).unwrap();
+    }
+
     fn boot(&self) -> Result<()> {
         Ok(())
     }

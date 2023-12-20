@@ -56,6 +56,10 @@ impl Provider for AwsLambdaProvider {
         self.options.clone()
     }
 
+    fn set_option(&mut self, key: &str, value: &str) {
+        self.options.insert(key.into(), value.into()).unwrap();
+    }
+
     fn boot(&self) -> Result<()> {
         let runtime_url = &*format!(
             "http://public.assemblylift.akkoro.io/runtime/{}/aws-lambda/bootstrap.zip",

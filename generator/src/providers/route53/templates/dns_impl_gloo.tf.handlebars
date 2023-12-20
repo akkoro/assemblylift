@@ -1,0 +1,52 @@
+terraform {
+    required_providers {
+        kubernetes = {
+          source  = "hashicorp/kubernetes"
+          version = ">= 2.24.0"
+        }
+    }
+}
+
+resource kubernetes_manifest cert_issuer {
+    provider = kubernetes
+    manifest = {
+        apiVersion = "cert-manager.io/v1"
+        kind       = "Issuer"
+
+        metadata = {
+            name      = "asml-letsencrypt-staging"
+            namespace = "asml-${var.project_name}-${var.service_name}"
+        }
+
+        spec = {
+            acme = {
+                server = "https://acme-staging-v02.api.letsencrypt.org/directory"
+                email  = "{{this.api.domain.provider.options.cm_acme_email}}"
+
+                privateKeySecretRef = {
+                    name = "asml-letsencrypt-staging"
+                }
+
+                solvers = [
+                    {
+                        dns01 = {
+                            route53 = {
+                                region = "{{this.api.domain.platform.options.region}}"
+                                {{#if this.api.domain.provider.options.cm_aws_credentials}}
+                                accessKeyIDSecretRef = {
+                                    name = "{{this.api.domain.provider.options.cm_aws_credentials}}"
+                                    key  = "aws_access_key_id"
+                                }
+                                secretAccessKeySecretRef = {
+                                    name = "{{this.api.domain.provider.options.cm_aws_credentials}}"
+                                    key  = "aws_secret_access_key"
+                                }
+                                {{/if}}
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     context::{Domain, Service},
-    providers::{api_gateway, Provider},
+    providers::{api_gateway, Provider, gloo},
     snake_case, CastResult, ContentType, Fragment, Options,
 };
 
@@ -53,6 +53,10 @@ impl Provider for Route53Provider {
 
     fn options(&self) -> Options {
         self.options.clone()
+    }
+
+    fn set_option(&mut self, key: &str, value: &str) {
+        self.options.insert(key.into(), value.into()).unwrap();
     }
 
     fn boot(&self) -> Result<()> {
@@ -120,6 +124,11 @@ impl DnsProvider for Route53Provider {
             include_str!("templates/dns_impl_apigw.tf.handlebars"),
         )
         .unwrap();
+        hbs.register_template_string(
+            &gloo::provider_name(),
+            include_str!("templates/dns_impl_gloo.tf.handlebars"),
+        )
+        .unwrap();
 
         let service_fragment = Fragment {
             content_type: ContentType::HCL,
@@ -135,6 +144,6 @@ impl DnsProvider for Route53Provider {
     }
 
     fn supported_api_providers(&self) -> Vec<String> {
-        vec![api_gateway::provider_name()]
+        vec![api_gateway::provider_name(), gloo::provider_name()]
     }
 }
