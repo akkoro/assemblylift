@@ -13,15 +13,10 @@ resource aws_acm_certificate {{snake_case name}} {
     validation_method = "DNS"
 }
 
-resource aws_apigatewayv2_domain_name {{snake_case name}} {
-    provider    = aws
-    domain_name = local.domain_name
-
-    domain_name_configuration {
-        certificate_arn = aws_acm_certificate.{{snake_case name}}.arn
-        endpoint_type   = "REGIONAL"
-        security_policy = "TLS_1_2"
-    }
+resource aws_acm_certificate_validation {{snake_case name}} {
+    provider                = aws
+    certificate_arn         = aws_acm_certificate.{{snake_case name}}.arn
+    validation_record_fqdns = [for record in aws_route53_record.{{snake_case name}}_validation : record.fqdn]
 }
 
 resource aws_route53_record {{snake_case name}}_validation {
@@ -42,17 +37,17 @@ resource aws_route53_record {{snake_case name}}_validation {
     zone_id         = var.zone_id
 }
 
-resource aws_acm_certificate_validation {{snake_case name}} {
-    provider                = aws
-    certificate_arn         = aws_acm_certificate.{{snake_case name}}.arn
-    validation_record_fqdns = [for record in aws_route53_record.{{snake_case name}}_validation : record.fqdn]
-}
-
-resource aws_apigatewayv2_api_mapping {{snake_case name}} {
+resource aws_apigatewayv2_domain_name {{snake_case name}} {
     provider    = aws
-    api_id      = var.api_id
-    domain_name = aws_apigatewayv2_domain_name.{{snake_case name}}.id
-    stage       = "$default"
+    domain_name = local.domain_name
+
+    domain_name_configuration {
+        certificate_arn = aws_acm_certificate.{{snake_case name}}.arn
+        endpoint_type   = "REGIONAL"
+        security_policy = "TLS_1_2"
+    }
+
+    depends_on = [aws_acm_certificate_validation.{{snake_case name}}]
 }
 
 resource aws_route53_record {{snake_case name}} {

@@ -63,12 +63,13 @@ impl Provider for KubernetesProvider {
     fn boot(&self) -> Result<()> {
         // TODO this is only needed by the DNS provider and only if K8s is in use
         //      could have boot take a &Context and do it that way
-        CmCtl::default().install();
+        let kubeconfig = self.options.get("__platform_config_path").unwrap();
+        CmCtl::default_with_config(kubeconfig.into()).install();
         Ok(())
     }
 
     fn is_booted(&self) -> bool {
-        true
+        false // TODO
     }
 
     fn as_service_provider(&self) -> Result<&dyn ServiceProvider> {

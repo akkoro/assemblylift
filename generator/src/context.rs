@@ -1,5 +1,5 @@
-use std::rc::Rc;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use anyhow::anyhow;
 use handlebars::Handlebars;
@@ -182,7 +182,8 @@ impl Context {
                         "rust" => "native",
                         "ruby" => "ruby",
                         _ => return Err("default".into()),
-                    }.into(),
+                    }
+                    .into(),
                     // FIXME don't hardcode
                     runtime_version: "0.4.0-beta.0".into(),
                     size: function.size_mb.unwrap_or(1024u16),
@@ -200,24 +201,19 @@ impl Context {
                         None => None,
                     },
                     authorizer: match function.authorizer_id {
-                        Some(auth_id) => match ctx_authorizers
-                            .iter()
-                            .find(|&a| a.id == auth_id) {
-                                Some(a) => Some(a.clone()),
-                                None => return Err(format!(
-                                    "authorizer with id `{}` not found in assemblylift.toml manifest",
-                                    &auth_id
-                                )),
-                            },
+                        Some(auth_id) => match ctx_authorizers.iter().find(|&a| a.id == auth_id) {
+                            Some(a) => Some(a.clone()),
+                            None => return Err(format!(
+                                "authorizer with id `{}` not found in assemblylift.toml manifest",
+                                &auth_id
+                            )),
+                        },
                         None => None,
                     },
                     environment_variables,
                 });
             }
 
-            let service_provider =
-                ProviderFactory::new_provider(&service_provider.name, service_provider.options)
-                    .unwrap();
             let service_platform = match ctx_platforms
                 .iter()
                 .find(|&p| p.id == service_ref.platform_id)
@@ -230,6 +226,21 @@ impl Context {
                     ))
                 }
             };
+
+            // Inject Service Platform options into Service Provider options
+            let mut svc_provider_options = service_provider.options;
+            svc_provider_options.extend(
+                service_platform
+                    .options
+                    .clone()
+                    .into_iter()
+                    .map(|opt| (format!("__platform_{}", opt.0), opt.1)),
+            );
+            
+            let service_provider =
+                ProviderFactory::new_provider(&service_provider.name, svc_provider_options)
+                    .unwrap();
+            
             // TODO context should eventually have a validate() method to centralize checks like this
             if service_provider.platform() != service_platform.name {
                 return Err(format!(
@@ -240,6 +251,16 @@ impl Context {
                 ));
             }
 
+            // Inject Service Platform options into API Provider options
+            let mut api_provider_options = api_provider.options;
+            api_provider_options.extend(
+                service_platform
+                    .options
+                    .clone()
+                    .into_iter()
+                    .map(|opt| (format!("__platform_{}", opt.0), opt.1)),
+            );
+
             ctx_services.push(Service {
                 name: service.name.clone(),
                 project_name: project.name.clone(),
@@ -249,7 +270,7 @@ impl Context {
                 api: Api {
                     provider: ProviderFactory::new_provider(
                         &api_provider.name,
-                        api_provider.options,
+                        api_provider_options,
                     )
                     .unwrap(),
                     domain: match service_manifest.api.domain_name {
@@ -265,10 +286,12 @@ impl Context {
                 container_registry: match service.registry_id {
                     Some(rid) => match ctx_registries.iter().find(|&r| r.id.eq(&rid)) {
                         Some(registry) => Some(registry.into()),
-                        None => return Err(format!(
-                            "registry with id `{}` not found in assemblylift.toml manifest",
-                            &rid
-                        )),
+                        None => {
+                            return Err(format!(
+                                "registry with id `{}` not found in assemblylift.toml manifest",
+                                &rid
+                            ))
+                        }
                     },
                     None => None,
                 },
@@ -336,7 +359,9 @@ impl Context {
                 };
 
                 let cnr_provider = match &svc.container_registry {
-                    Some(registry) => Some(registry.provider.as_container_registry_provider().unwrap()),
+                    Some(registry) => {
+                        Some(registry.provider.as_container_registry_provider().unwrap())
+                    }
                     None => None,
                 };
                 let cnr_fragments = match cnr_provider {
@@ -345,7 +370,7 @@ impl Context {
                             cnr_provider.boot().map_err(|e| CastError(e.to_string()))?
                         }
                         cnr_provider.cast_service(&svc)
-                    },
+                    }
                     None => Ok(Vec::new()),
                 };
 

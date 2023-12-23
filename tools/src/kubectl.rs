@@ -32,6 +32,10 @@ impl KubeCtl {
         s
     }
 
+    pub fn default_with_config(kubeconfig: String) -> Self {
+        Self::new("kubectl", ".asml/bin", Some(kubeconfig))
+    }
+
     #[allow(dead_code)]
     pub fn apply(&self) -> Result<(), String> {
         println!("Applying kubernetes configuration...");
@@ -140,8 +144,13 @@ impl KubeCtl {
                 a
             })
             .unwrap_or(Default::default());
-        let mut child = self
+        let kubeconfig = match &self.kubeconfig {
+            Some(cfg) => vec![format!("--kubeconfig={}", cfg)],
+            None => Vec::default(),
+        };
+        let child = self
             .command()
+            .args(kubeconfig)
             .args(vec!["get", kind])
             .args(vec!["-n", ns])
             .args(label_args)
@@ -175,8 +184,8 @@ impl Tool for KubeCtl {
 
     fn fetch_url(&self) -> &str {
         #[cfg(target_os = "linux")]
-        return "https://dl.k8s.io/release/v1.27.4/bin/linux/amd64/kubectl";
+        return "https://dl.k8s.io/release/v1.28.2/bin/linux/amd64/kubectl";
         #[cfg(target_os = "macos")]
-        return "https://dl.k8s.io/release/v1.27.4/bin/darwin/amd64/kubectl";
+        return "https://dl.k8s.io/release/v1.28.2/bin/darwin/amd64/kubectl";
     }
 }

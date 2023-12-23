@@ -26,6 +26,10 @@ impl GlooCtl {
         s
     }
 
+    pub fn default_with_config(kubeconfig: String) -> Self {
+        Self::new("glooctl", ".asml/bin", Some(kubeconfig))
+    }
+
     pub fn install_gateway(&self) {
         println!("Installing Gloo API Gateway");
         let mut args = vec!["install", "gateway"];
@@ -67,8 +71,8 @@ impl Tool for GlooCtl {
 
     fn fetch_url(&self) -> &str {
         #[cfg(target_os = "linux")]
-        return "https://github.com/solo-io/gloo/releases/download/v1.11.13/glooctl-linux-amd64";
+        return "https://github.com/solo-io/gloo/releases/download/v1.15.18/glooctl-linux-amd64";
         #[cfg(target_os = "macos")]
-        return "https://github.com/solo-io/gloo/releases/download/v1.11.13/glooctl-darwin-amd64";
+        return "https://github.com/solo-io/gloo/releases/download/v1.15.18/glooctl-darwin-amd64";
     }
 }

@@ -20,28 +20,18 @@ terraform {
 }
 
 {{#if this.api.domain}}
-resource kubernetes_manifest certificate {
-    provider = kubernetes
-    manifest = {
-        apiVersion = "cert-manager.io/v1"
-        kind       = "Certificate"
-
-        metadata = {
-            name      = "asml-{{snake_case this.api.domain.dns_name}}"
-            namespace = "asml-${var.project_name}-${var.service_name}"
-        }
-
-        spec = {
-            secretName = "asml-${var.project_name}-${var.service_name}-tls"
-            issuerRef = {
-                kind      = "Issuer"
-                name      = "asml-letsencrypt-staging"
-            }
-            dnsNames = ["{{this.api.domain.dns_name}}"]
-        }
-    }
+locals {
+  domain_name = "{{#unless this.api.is_root}}${var.service_name}.{{/unless}}{{#unless this.api.domain.map_to_root}}${var.project_name}.{{/unless}}{{this.api.domain.dns_name}}"
 }
 {{/if}}
+
+data kubernetes_service gloo_proxy {
+    provider = kubernetes
+    metadata {
+        name      = "gateway-proxy"
+        namespace = "gloo-system"
+    }
+}
 
 resource kubernetes_manifest gloo_virtualservice {
     provider = kubernetes
@@ -56,7 +46,7 @@ resource kubernetes_manifest gloo_virtualservice {
 
         spec = {
             virtualHost = {
-                domains = ["{{this.api.provider.options.__cluster_ip}}"{{#if this.api.domain}}, "{{this.api.domain.dns_name}}"{{/if}}]
+                domains = [{{#if this.api.domain}}local.domain_name{{else}}data.kubernetes_service.gloo_proxy.status.0.load_balancer.0.ingress.0.ip{{/if}}]
                 routes = [
                     {{#each functions}}{
                         matchers = [
@@ -80,7 +70,41 @@ resource kubernetes_manifest gloo_virtualservice {
                     name      = "asml-${var.project_name}-${var.service_name}-tls"
                     namespace = "asml-${var.project_name}-${var.service_name}"
                 }
+                sniDomains = [local.domain_name]
             }{{/if}}
         }
     }
 }
+{{#if this.api.domain}}
+resource kubernetes_manifest gloo_virtualservice_http {
+    provider = kubernetes
+    manifest = {
+        apiVersion = "gateway.solo.io/v1"
+        kind       = "VirtualService"
+
+        metadata = {
+            name      = "${var.service_name}-http"
+            namespace = "asml-${var.project_name}-${var.service_name}"
+        }
+
+        spec = {
+            virtualHost = {
+                domains = [local.domain_name]
+                routes = [
+                    {
+                        matchers = [
+                            {
+                                prefix = "/"
+                            }
+                        ]
+                        redirectAction = {
+                            hostRedirect = local.domain_name
+                            httpsRedirect = true
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
+{{/if}}

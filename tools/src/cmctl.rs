@@ -6,27 +6,38 @@ use crate::Tool;
 pub struct CmCtl {
     cmd: String,
     path: String,
+    kubeconfig: Option<String>,
 }
 
 impl Default for CmCtl {
     fn default() -> Self {
-        CmCtl::new("cmctl", ".asml/bin")
+        CmCtl::new("cmctl", ".asml/bin", None)
     }
 }
 
 impl CmCtl {
-    pub fn new(name: &str, path: &str) -> Self {
+    pub fn new(name: &str, path: &str, kubeconfig: Option<String>) -> Self {
         let s = Self {
             cmd: name.into(),
             path: path.into(),
+            kubeconfig,
         };
         crate::fetch(&s).unwrap();
         s
     }
 
+    pub fn default_with_config(kubeconfig: String) -> Self {
+        Self::new("cmctl", ".asml/bin", Some(kubeconfig))
+    }
+
     pub fn install(&self) {
         println!("Installing cert-manager");
+        let kubeconfig = match &self.kubeconfig {
+            Some(cfg) => vec!["--kubeconfig", &cfg],
+            None => Vec::default(),
+        };
         self.command()
+            .args(kubeconfig)
             .args(vec!["x", "install"])
             .output()
             .expect("cmctl could not install cert-manager");
@@ -52,8 +63,8 @@ impl Tool for CmCtl {
 
     fn fetch_url(&self) -> &str {
         #[cfg(target_os = "linux")]
-        return "https://github.com/cert-manager/cert-manager/releases/download/v1.12.3/cmctl-linux-amd64.tar.gz";
+        return "https://github.com/cert-manager/cert-manager/releases/download/v1.13.3/cmctl-linux-amd64.tar.gz";
         #[cfg(target_os = "macos")]
-        return "https://github.com/cert-manager/cert-manager/releases/download/v1.12.3/cmctl-darwin-amd64.tar.gz";
+        return "https://github.com/cert-manager/cert-manager/releases/download/v1.13.3/cmctl-darwin-amd64.tar.gz";
     }
 }

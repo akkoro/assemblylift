@@ -4,9 +4,11 @@ module {{snake_case name}}_dns {
     project_name = "{{project_name}}"
     service_name = "{{name}}"
     zone_id      = module.{{snake_case this.api.domain.dns_name}}_dns.zone_id
-    api_id       = module.{{snake_case name}}_api.api_id
 
     providers = {
         {{platform.name}} = {{platform.name}}.{{platform.id}}
+        {{#if (ne this.api.domain.platform.name platform.name)}}{{this.api.domain.platform.name}} = {{this.api.domain.platform.name}}.{{this.api.domain.platform.id}}{{/if}}
     }
+
+    depends_on = [module.{{snake_case name}}_service]
 }

@@ -39,7 +39,8 @@ impl GlooProvider {
     pub fn gloo_proxy_ip(&self) -> Option<String> {
         let mut labels = HashMap::new();
         labels.insert("gloo".to_string(), "gateway-proxy".to_string());
-        let kubectl = KubeCtl::default();
+        let kubectl =
+            KubeCtl::default_with_config(self.options.get("__platform_config_path").unwrap().into());
         let gateways = kubectl
             .get_in_namespace("services", "gloo-system", Some(labels))
             .unwrap();
@@ -76,7 +77,8 @@ impl Provider for GlooProvider {
     }
 
     fn boot(&self) -> Result<()> {
-        Ok(GlooCtl::default().install_gateway())
+        let kubeconfig = self.options.get("__platform_config_path").unwrap();
+        Ok(GlooCtl::default_with_config(kubeconfig.into()).install_gateway())
     }
 
     fn is_booted(&self) -> bool {

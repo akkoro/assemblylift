@@ -9,5 +9,5 @@ module {{snake_case name}}_api {
         {{platform.name}} = {{platform.name}}.{{platform.id}}
     }
 
-    depends_on = [module.{{snake_case name}}_service]
+    depends_on = [module.{{snake_case name}}_service{{#if api.domain}}, module.{{snake_case name}}_dns{{/if}}]
 }
