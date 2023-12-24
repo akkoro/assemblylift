@@ -11,26 +11,6 @@ pub mod toml;
 handlebars_helper!(concat: |s1: String, s2: String| format!("{}{}", s1, s2));
 handlebars_helper!(snake_case: |s: String| s.replace("-", "_").replace(".", "_"));
 
-// fn main() {
-//     let cwd = std::env::current_dir().unwrap();
-//     let mut manifest_path = cwd.clone();
-//     manifest_path.push("assemblylift.toml");
-
-//     // TODO manifest should be returned from Project
-//     let asml_manifest =
-//         toml::asml::Manifest::read(&manifest_path).expect("could not read assemblylift.toml");
-//     let project = Project::new(asml_manifest.project.name.clone(), Some(cwd));
-
-//     let ctx = Context::from_project(project, asml_manifest)
-//         .expect("could not make context from manifest");
-
-//     if let Err(err) = ctx.cast() {
-//         println!("Cast Error: {}", err.0);
-//     } else {
-//         println!("Cast Complete!");
-//     }
-// }
-
 pub type CastResult<T> = std::result::Result<T, CastError>;
 pub type Map<K, V> = std::collections::HashMap<K, V>;
 pub type StringMap<V> = Map<String, V>;

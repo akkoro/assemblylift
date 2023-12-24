@@ -1,9 +1,8 @@
-use std::rc::Rc;
-
+use assemblylift_generator::{
+    projectfs::{self, Project},
+    toml::{asml, service},
+};
 use clap::ArgMatches;
-
-use crate::projectfs::{locate_asml_manifest, Project};
-use crate::transpiler::toml::{asml, service};
 
 pub fn command(matches: Option<&ArgMatches>) {
     let matches = match matches {
@@ -11,7 +10,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         _ => panic!("could not get matches for make command"),
     };
 
-    let manifest = match locate_asml_manifest() {
+    let manifest = match projectfs::locate_asml_manifest() {
         Some(manifest) => manifest,
         None => panic!("could not find assemblylift.toml in tree"),
     };
@@ -108,11 +107,9 @@ pub fn command(matches: Option<&ArgMatches>) {
                 let mut new_service_manifest =
                     service::Manifest::read(&new_service_manifest_file).unwrap();
                 let mut functions = Vec::new();
-                for fun in new_service_manifest.functions().as_ref() {
-                    functions.push(fun.clone());
-                }
+                functions.extend(new_service_manifest.functions());
                 functions.push(to_move);
-                new_service_manifest.api.functions = Rc::new(functions);
+                new_service_manifest.api.functions = functions;
 
                 new_service_manifest.write(new_service_dir.clone()).unwrap()
             }

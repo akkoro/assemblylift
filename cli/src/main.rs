@@ -6,11 +6,7 @@ use crate::commands::{bind, burn, cast, host, init, make, nuke, pack, push, r#mo
 
 mod archive;
 mod commands;
-mod projectfs;
-mod providers;
 mod templates;
-mod tools;
-mod transpiler;
 
 fn main() {
     let app = App::new("asml")

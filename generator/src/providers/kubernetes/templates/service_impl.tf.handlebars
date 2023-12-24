@@ -54,7 +54,6 @@ resource kubernetes_secret dockerconfig {
                 (var.registry_credentials.proxy_endpoint) = {
                     "username" = var.registry_credentials.username
                     "password" = var.registry_credentials.password
-                    "email"    = "assemblylift@akkoro.io"
                     "auth"     = var.registry_credentials.auth_token
                 }
             }
