@@ -1,14 +1,11 @@
-use std::fs::File;
-use std::io::Write;
 use std::path::PathBuf;
 use std::rc::Rc;
-
-use clap::ArgMatches;
 
 use assemblylift_generator::context::Context;
 use assemblylift_generator::projectfs::Project;
 use assemblylift_generator::toml;
 use assemblylift_tools::terraform::Terraform;
+use clap::ArgMatches;
 
 use crate::archive;
 
