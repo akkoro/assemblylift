@@ -112,7 +112,7 @@ impl ServiceProvider for AwsLambdaProvider {
             .map(|function| {
                 self.as_function_provider()
                     .unwrap()
-                    .cast_function(function, &service.name)
+                    .cast_function(function)
             })
             .reduce(concat_cast)
             .unwrap()?;
@@ -140,7 +140,7 @@ impl ServiceProvider for AwsLambdaProvider {
 }
 
 impl FunctionProvider for AwsLambdaProvider {
-    fn cast_function(&self, function: &Function, service_name: &str) -> CastResult<Vec<Fragment>> {
+    fn cast_function(&self, function: &Function) -> CastResult<Vec<Fragment>> {
         let mut fragments: Vec<Fragment> = Vec::new();
 
         let mut hbs = Handlebars::new();
@@ -155,7 +155,7 @@ impl FunctionProvider for AwsLambdaProvider {
             content: hbs.render("root", &function.as_json().unwrap()).unwrap(),
             write_path: PathBuf::from(format!(
                 "net/services/{}/infra/{}/functions/{}/infra/function.tf",
-                service_name,
+                function.service_name,
                 self.name(),
                 function.name,
             )),

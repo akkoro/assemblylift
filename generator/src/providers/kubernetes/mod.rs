@@ -112,7 +112,7 @@ impl ServiceProvider for KubernetesProvider {
             .map(|function| {
                 self.as_function_provider()
                     .unwrap()
-                    .cast_function(function, &service.name)
+                    .cast_function(function)
             })
             .reduce(concat_cast)
             .unwrap()?;
@@ -140,7 +140,7 @@ impl ServiceProvider for KubernetesProvider {
 }
 
 impl FunctionProvider for KubernetesProvider {
-    fn cast_function(&self, function: &Function, service_name: &str) -> CastResult<Vec<Fragment>> {
+    fn cast_function(&self, function: &Function) -> CastResult<Vec<Fragment>> {
         let mut hbs = Handlebars::new();
         hbs.register_helper("snake_case", Box::new(snake_case));
         hbs.register_template_string("root", include_str!("templates/function_impl.tf.handlebars"))
@@ -153,7 +153,7 @@ impl FunctionProvider for KubernetesProvider {
             content: hbs.render("root", &function.as_json().unwrap()).unwrap(),
             write_path: PathBuf::from(format!(
                 "net/services/{}/infra/{}/functions/{}/infra/function.tf",
-                service_name,
+                function.service_name,
                 self.name(),
                 function.name,
             )),
@@ -164,7 +164,7 @@ impl FunctionProvider for KubernetesProvider {
             content: hbs.render("dockerfile", &function.as_json().unwrap()).unwrap(),
             write_path: PathBuf::from(format!(
                 "net/services/{}/functions/{}/Dockerfile",
-                service_name,
+                function.service_name,
                 function.name,
             )),
         };

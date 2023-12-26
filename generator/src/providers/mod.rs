@@ -37,8 +37,7 @@ pub trait ServiceProvider: Provider {
 }
 
 pub trait FunctionProvider: Provider {
-    // TODO service_name arg no longer needed
-    fn cast_function(&self, function: &Function, service_name: &str) -> CastResult<Vec<Fragment>>;
+    fn cast_function(&self, function: &Function) -> CastResult<Vec<Fragment>>;
 }
 
 pub trait ApiProvider: Provider {

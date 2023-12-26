@@ -3,7 +3,6 @@ use std::{fs::File, io::Write, path::PathBuf};
 use handlebars::handlebars_helper;
 
 pub mod context;
-mod drivers;
 pub mod projectfs;
 pub mod providers;
 pub mod toml;
