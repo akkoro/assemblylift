@@ -13,8 +13,8 @@ use crate::{
 };
 
 use super::{
-    ApiProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, Provider,
-    ServiceProvider,
+    GatewayProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, Provider,
+    ServiceProvider, Platform,
 };
 
 pub fn provider_name() -> String {
@@ -26,21 +26,24 @@ pub struct GlooProvider {
     #[serde(default = "provider_name")]
     name: String,
     options: Options,
+    platform: Option<Platform>,
 }
 
 impl GlooProvider {
-    pub fn new(options: Options) -> Box<Self> {
+    pub fn new(options: Options, platform: Option<Platform>) -> Box<Self> {
         Box::new(Self {
             name: provider_name(),
             options,
+            platform,
         })
     }
 
     pub fn gloo_proxy_ip(&self) -> Option<String> {
         let mut labels = HashMap::new();
         labels.insert("gloo".to_string(), "gateway-proxy".to_string());
-        let kubectl =
-            KubeCtl::default_with_config(self.options.get("__platform_config_path").unwrap().into());
+        let kubectl = KubeCtl::default_with_config(
+            self.platform.as_ref().unwrap().options.get("config_path").unwrap().into(),
+        );
         let gateways = kubectl
             .get_in_namespace("services", "gloo-system", Some(labels))
             .unwrap();
@@ -64,8 +67,12 @@ impl Provider for GlooProvider {
         self.name.clone()
     }
 
-    fn platform(&self) -> String {
-        "kubernetes".into()
+    fn platform(&self) -> Option<Platform> {
+        self.platform.clone()
+    }
+
+    fn compatible_platforms(&self) -> Vec<String> {
+        vec!["kubernetes".into()]
     }
 
     fn options(&self) -> Options {
@@ -77,7 +84,7 @@ impl Provider for GlooProvider {
     }
 
     fn boot(&self) -> Result<()> {
-        let kubeconfig = self.options.get("__platform_config_path").unwrap();
+        let kubeconfig = self.platform.as_ref().unwrap().options.get("config_path").unwrap();
         Ok(GlooCtl::default_with_config(kubeconfig.into()).install_gateway())
     }
 
@@ -93,7 +100,7 @@ impl Provider for GlooProvider {
         Err(anyhow!("{} is not a FunctionProvider", self.name()))
     }
 
-    fn as_api_provider(&self) -> Result<&dyn ApiProvider> {
+    fn as_gateway_provider(&self) -> Result<&dyn GatewayProvider> {
         Ok(self)
     }
 
@@ -109,10 +116,10 @@ impl Provider for GlooProvider {
     }
 }
 
-impl ApiProvider for GlooProvider {
+impl GatewayProvider for GlooProvider {
     fn cast_service(&self, service: &Service) -> CastResult<Vec<Fragment>> {
         let mut svc: Service = service.into();
-        svc.api.provider.set_option(
+        svc.gateway.provider.set_option(
             "__cluster_ip",
             &self
                 .gloo_proxy_ip()
@@ -141,7 +148,7 @@ impl ApiProvider for GlooProvider {
         Ok(fragments)
     }
 
-    fn supported_service_providers(&self) -> Vec<String> {
+    fn compatible_service_providers(&self) -> Vec<String> {
         vec![kubernetes::provider_name()]
     }
 }

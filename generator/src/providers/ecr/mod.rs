@@ -4,36 +4,31 @@ use anyhow::{anyhow, Result};
 use handlebars::Handlebars;
 use serde::{Deserialize, Serialize};
 
-use crate::{context::Service, snake_case, CastResult, ContentType, Fragment, Options};
+use crate::{context::Service, snake_case, CastResult, ContentType, Fragment, Options, CastError};
 
 use super::{
-    ApiProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, Provider,
-    ServiceProvider,
+    GatewayProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, Provider,
+    ServiceProvider, Platform,
 };
 
 pub fn provider_name() -> String {
     "ecr".into()
 }
 
-pub fn platform_name() -> String {
-    "*".into()
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct EcrProvider {
     #[serde(default = "provider_name")]
     name: String,
-    #[serde(default = "platform_name")]
-    platform: String,
     options: Options,
+    platform: Option<Platform>,
 }
 
 impl EcrProvider {
-    pub fn new(options: Options) -> Box<Self> {
+    pub fn new(options: Options, platform: Option<Platform>) -> Box<Self> {
         Box::new(Self {
             name: provider_name(),
-            platform: platform_name(),
             options,
+            platform,
         })
     }
 }
@@ -44,8 +39,12 @@ impl Provider for EcrProvider {
         self.name.clone()
     }
 
-    fn platform(&self) -> String {
+    fn platform(&self) -> Option<Platform> {
         self.platform.clone()
+    }
+
+    fn compatible_platforms(&self) -> Vec<String> {
+        vec!["aws".into()]
     }
 
     fn options(&self) -> Options {
@@ -72,8 +71,8 @@ impl Provider for EcrProvider {
         Err(anyhow!("{} is not a FunctionProvider", self.name()))
     }
 
-    fn as_api_provider(&self) -> Result<&dyn ApiProvider> {
-        Err(anyhow!("{} is not a ApiProvider", self.name()))
+    fn as_gateway_provider(&self) -> Result<&dyn GatewayProvider> {
+        Err(anyhow!("{} is not a GatewayProvider", self.name()))
     }
 
     fn as_dns_provider(&self) -> Result<&dyn DnsProvider> {
@@ -87,6 +86,10 @@ impl Provider for EcrProvider {
 
 impl ContainerRegistryProvider for EcrProvider {
     fn cast_service(&self, service: &Service) -> CastResult<Vec<Fragment>> {
+        if self.platform().is_none() {
+            return Err(CastError(format!("ContainerRegistryProvider `{}` requires a Platform", self.name())));
+        }
+        
         let mut hbs = Handlebars::new();
         hbs.register_helper("snake_case", Box::new(snake_case));
         hbs.register_template_string("service", include_str!("templates/ecr_impl.tf.handlebars"))

@@ -6,38 +6,34 @@ use handlebars::Handlebars;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    concat_cast,
     context::{Function, Service},
-    snake_case, CastError, CastResult, ContentType, Fragment, Options, concat_cast,
+    snake_case, CastError, CastResult, ContentType, Fragment, Options,
 };
 
 use super::{
-    ApiProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, Provider,
-    ServiceProvider,
+    GatewayProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, Provider,
+    ServiceProvider, Platform,
 };
 
 pub fn provider_name() -> String {
     "k8s".into()
 }
 
-pub fn platform_name() -> String {
-    "kubernetes".into()
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct KubernetesProvider {
     #[serde(default = "provider_name")]
     name: String,
-    #[serde(default = "platform_name")]
-    platform: String,
     options: Options,
+    platform: Option<Platform>,
 }
 
 impl KubernetesProvider {
-    pub fn new(options: Options) -> Box<Self> {
+    pub fn new(options: Options, platform: Option<Platform>) -> Box<Self> {
         Box::new(Self {
             name: provider_name(),
-            platform: platform_name(),
             options,
+            platform,
         })
     }
 }
@@ -48,8 +44,12 @@ impl Provider for KubernetesProvider {
         self.name.clone()
     }
 
-    fn platform(&self) -> String {
+    fn platform(&self) -> Option<Platform> {
         self.platform.clone()
+    }
+
+    fn compatible_platforms(&self) -> Vec<String> {
+        vec!["kubernetes".into()]
     }
 
     fn options(&self) -> Options {
@@ -63,7 +63,7 @@ impl Provider for KubernetesProvider {
     fn boot(&self) -> Result<()> {
         // TODO this is only needed by the DNS provider and only if K8s is in use
         //      could have boot take a &Context and do it that way
-        let kubeconfig = self.options.get("__platform_config_path").unwrap();
+        let kubeconfig = self.platform.as_ref().unwrap().options.get("config_path").unwrap();
         CmCtl::default_with_config(kubeconfig.into()).install();
         Ok(())
     }
@@ -80,8 +80,8 @@ impl Provider for KubernetesProvider {
         Ok(self)
     }
 
-    fn as_api_provider(&self) -> Result<&dyn ApiProvider> {
-        Err(anyhow!("{} is not a ApiProvider", self.name()))
+    fn as_gateway_provider(&self) -> Result<&dyn GatewayProvider> {
+        Err(anyhow!("{} is not a GatewayProvider", self.name()))
     }
 
     fn as_dns_provider(&self) -> Result<&dyn DnsProvider> {
@@ -109,11 +109,7 @@ impl ServiceProvider for KubernetesProvider {
         let mut function_fragments = service
             .functions
             .iter()
-            .map(|function| {
-                self.as_function_provider()
-                    .unwrap()
-                    .cast_function(function)
-            })
+            .map(|function| self.as_function_provider().unwrap().cast_function(function))
             .reduce(concat_cast)
             .unwrap()?;
 
@@ -143,10 +139,16 @@ impl FunctionProvider for KubernetesProvider {
     fn cast_function(&self, function: &Function) -> CastResult<Vec<Fragment>> {
         let mut hbs = Handlebars::new();
         hbs.register_helper("snake_case", Box::new(snake_case));
-        hbs.register_template_string("root", include_str!("templates/function_impl.tf.handlebars"))
-            .unwrap();
-        hbs.register_template_string("dockerfile", include_str!("templates/function.dockerfile.handlebars"))
-            .unwrap();
+        hbs.register_template_string(
+            "root",
+            include_str!("templates/function_impl.tf.handlebars"),
+        )
+        .unwrap();
+        hbs.register_template_string(
+            "dockerfile",
+            include_str!("templates/function.dockerfile.handlebars"),
+        )
+        .unwrap();
 
         let tf_fragment = Fragment {
             content_type: ContentType::HCL,
@@ -161,11 +163,12 @@ impl FunctionProvider for KubernetesProvider {
 
         let dockerfile_fragment = Fragment {
             content_type: ContentType::Dockerfile,
-            content: hbs.render("dockerfile", &function.as_json().unwrap()).unwrap(),
+            content: hbs
+                .render("dockerfile", &function.as_json().unwrap())
+                .unwrap(),
             write_path: PathBuf::from(format!(
                 "net/services/{}/functions/{}/Dockerfile",
-                function.service_name,
-                function.name,
+                function.service_name, function.name,
             )),
         };
 

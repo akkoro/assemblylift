@@ -21,31 +21,33 @@ terraform {
 {{/if}}
 
 {{#each registries}}
-{{> (concat (lookup this.provider "name") "-root") }}
+{{> (concat (lookup this.provider "name") "-root") platform=this.provider.platform  }}
 {{/each}}
 
 {{#each domains}}
-{{> (concat (lookup this.provider "name") "-root") }}
+{{> (concat (lookup this.provider "name") "-root") platform=this.provider.platform }}
 {{/each}}
 
 {{#each services}}
-{{> (lookup this.api.domain.provider "name") 
+{{> (lookup this.api.domain.provider "name")
+platform=this.provider.platform
 project_name=../project.name 
 }}
 
-{{> (lookup this.container_registry.provider "name") 
+{{> (lookup this.container_registry.provider "name")
+platform=this.container_registry.provider.platform
 project_name=../project.name 
 }}
 
 {{> (lookup this.provider "name") 
-platform=this.platform 
+platform=this.provider.platform
 provider=this.provider 
 project_name=../project.name 
 project_path=../project.path
 }}
 
 {{> (lookup this.api.provider "name") 
-platform=this.platform 
+platform=this.provider.platform
 provider=this.api.provider 
 service_provider=this.provider 
 project_name=../project.name 

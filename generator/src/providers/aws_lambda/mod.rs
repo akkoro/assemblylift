@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    ApiProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, Provider,
+    GatewayProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, Platform, Provider,
     ServiceProvider,
 };
 
@@ -19,25 +19,22 @@ pub fn provider_name() -> String {
     "aws-lambda".into()
 }
 
-pub fn platform_name() -> String {
-    "aws".into()
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct AwsLambdaProvider {
     #[serde(default = "provider_name")]
     name: String,
-    #[serde(default = "platform_name")]
-    platform: String,
+    // #[serde(default = "platform_name")]
+    // platform: String,
     options: Options,
+    platform: Option<Platform>,
 }
 
 impl AwsLambdaProvider {
-    pub fn new(options: Options) -> Box<Self> {
+    pub fn new(options: Options, platform: Option<Platform>) -> Box<Self> {
         Box::new(Self {
             name: provider_name(),
-            platform: platform_name(),
             options,
+            platform,
         })
     }
 }
@@ -48,8 +45,12 @@ impl Provider for AwsLambdaProvider {
         self.name.clone()
     }
 
-    fn platform(&self) -> String {
+    fn platform(&self) -> Option<Platform> {
         self.platform.clone()
+    }
+
+    fn compatible_platforms(&self) -> Vec<String> {
+        vec!["aws".into()]
     }
 
     fn options(&self) -> Options {
@@ -86,8 +87,8 @@ impl Provider for AwsLambdaProvider {
         Ok(self)
     }
 
-    fn as_api_provider(&self) -> Result<&dyn ApiProvider> {
-        Err(anyhow!("{} is not a ApiProvider", self.name()))
+    fn as_gateway_provider(&self) -> Result<&dyn GatewayProvider> {
+        Err(anyhow!("{} is not a GatewayProvider", self.name()))
     }
 
     fn as_dns_provider(&self) -> Result<&dyn DnsProvider> {
@@ -109,11 +110,7 @@ impl ServiceProvider for AwsLambdaProvider {
         let mut function_fragments = service
             .functions
             .iter()
-            .map(|function| {
-                self.as_function_provider()
-                    .unwrap()
-                    .cast_function(function)
-            })
+            .map(|function| self.as_function_provider().unwrap().cast_function(function))
             .reduce(concat_cast)
             .unwrap()?;
 

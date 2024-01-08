@@ -24,30 +24,32 @@ pub struct Project {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Terraform {
-    pub state_bucket_name: String,
-    pub lock_table_name: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Platform {
     pub id: String,
     pub name: String,
     pub options: Options,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Terraform {
+    pub state_bucket_name: String,
+    pub lock_table_name: String,
+}
+
 /* Represents a reference by name to a service (toml::service::Manifest) */
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ServiceRef {
     pub name: String,
-    pub platform_id: String,
+    pub provider: Provider,
+    pub registry_id: Option<String>,
+    pub domain_name: Option<String>,
+    pub is_root: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Registry {
     pub id: String,
     pub provider: Provider,
-    pub platform_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -55,7 +57,6 @@ pub struct Domain {
     pub dns_name: String,
     #[serde(default)]
     pub map_to_root: bool,
-    pub platform_id: String,
     pub provider: Provider,
 }
 
@@ -89,7 +90,14 @@ impl Manifest {
         }
         services.push(ServiceRef {
             name: resource_name.into(),
-            platform_id: self.platforms[0].id.clone(), // TODO parse from optional argument or default to first
+            provider: Provider {
+                name: todo!(),
+                options: todo!(),
+                platform_id: todo!(),
+            },
+            registry_id: None,
+            domain_name: todo!(),
+            is_root: todo!(),
         });
         self.services = services;
     }
@@ -108,7 +116,11 @@ impl Manifest {
             if svc.name == old_name {
                 services.push(ServiceRef {
                     name: new_name.into(),
-                    platform_id: svc.platform_id,
+                    provider: svc.provider,
+                    registry_id: svc.registry_id,
+                    domain_name: svc.domain_name,
+                    is_root: svc.is_root,
+
                 });
             } else {
                 services.push(svc);

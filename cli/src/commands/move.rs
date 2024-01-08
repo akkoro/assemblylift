@@ -59,7 +59,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             let mut service_manifest_file = service_dir.clone();
             service_manifest_file.push("service.toml");
             let mut service_manifest = service::Manifest::read(&service_manifest_file).unwrap();
-            service_manifest.rename(&*new_name.clone());
+            // service_manifest.rename(&*new_name.clone());
             service_manifest.write(service_dir.clone()).unwrap();
         }
 
@@ -93,7 +93,8 @@ pub fn command(matches: Option<&ArgMatches>) {
             service_manifest.rename_function(old_function, new_function);
             if old_service != new_service {
                 let to_move = service_manifest
-                    .functions()
+                    .functions
+                    .clone()
                     .iter()
                     .find(|f| f.name == new_function)
                     .unwrap()
@@ -107,9 +108,9 @@ pub fn command(matches: Option<&ArgMatches>) {
                 let mut new_service_manifest =
                     service::Manifest::read(&new_service_manifest_file).unwrap();
                 let mut functions = Vec::new();
-                functions.extend(new_service_manifest.functions());
+                functions.extend(new_service_manifest.functions.clone());
                 functions.push(to_move);
-                new_service_manifest.api.functions = functions;
+                new_service_manifest.functions = functions;
 
                 new_service_manifest.write(new_service_dir.clone()).unwrap()
             }

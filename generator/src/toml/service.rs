@@ -8,10 +8,10 @@ use super::StringMap;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Manifest {
-    service: Service,
-    #[serde(default)]
-    pub api: Api,
-    iomod: Option<Iomod>,
+    pub gateway: Gateway,
+    #[serde(skip_serializing_if = "Vec::is_empty", default = "Default::default")]
+    pub functions: Functions,
+    pub iomod: Option<Iomod>,
 }
 
 impl Manifest {
@@ -27,13 +27,13 @@ impl Manifest {
         std::fs::write(path, Into::<String>::into(self.clone()))
     }
 
-    pub fn service(&self) -> Service {
-        self.service.clone()
-    }
+    // pub fn service(&self) -> Service {
+    //     self.service.clone()
+    // }
 
-    pub fn functions(&self) -> Functions {
-        self.api.functions.clone()
-    }
+    // pub fn functions(&self) -> Functions {
+    //     self.functions.clone()
+    // }
 
     pub fn iomods(&self) -> Iomods {
         match &self.iomod {
@@ -42,19 +42,19 @@ impl Manifest {
         }
     }
 
-    pub fn rename(&mut self, new_name: &str) {
-        let svc = self.service.clone();
-        let new_svc = Service {
-            name: new_name.to_string(),
-            registry_id: svc.registry_id.clone(),
-            provider: svc.provider.clone(),
-        };
-        self.service = new_svc;
-    }
+    // pub fn rename(&mut self, new_name: &str) {
+    //     let svc = self.service.clone();
+    //     let new_svc = Service {
+    //         name: new_name.to_string(),
+    //         registry_id: svc.registry_id.clone(),
+    //         provider: svc.provider.clone(),
+    //     };
+    //     self.service = new_svc;
+    // }
 
     pub fn add_function(&mut self, resource_name: &str, language: &str) {
         let mut functions = Vec::new();
-        for fun in self.functions() {
+        for fun in &self.functions {
             functions.push(fun.clone());
         }
         let fun = Function {
@@ -70,20 +70,20 @@ impl Manifest {
             environment: None,
         };
         functions.push(fun);
-        self.api.functions = functions;
+        self.functions = functions;
     }
 
     pub fn remove_function(&mut self, resource_name: &str) {
         let mut functions = Vec::new();
-        for svc in self.functions().iter().filter(|f| f.name != resource_name) {
+        for svc in self.functions.iter().filter(|f| f.name != resource_name) {
             functions.push(svc.clone());
         }
-        self.api.functions = functions;
+        self.functions = functions;
     }
 
     pub fn rename_function(&mut self, old_name: &str, new_name: &str) {
         let mut to_rename = self
-            .functions()
+            .functions
             .iter()
             .find(|f| f.name == old_name)
             .unwrap()
@@ -91,11 +91,11 @@ impl Manifest {
         to_rename.name = new_name.into();
         self.remove_function(old_name);
         let mut functions = Vec::new();
-        for fun in self.functions() {
+        for fun in &self.functions {
             functions.push(fun.clone());
         }
         functions.push(to_rename);
-        self.api.functions = functions;
+        self.functions = functions;
     }
 }
 
@@ -118,20 +118,8 @@ pub type Functions = Vec<Function>;
 pub type Iomods = Vec<Dependency>;
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct Service {
-    pub name: String,
-    pub registry_id: Option<String>,
+pub struct Gateway {
     pub provider: Provider,
-}
-
-// TODO is API block necessary? could all live in Service
-#[derive(Serialize, Deserialize, Clone, Default)]
-pub struct Api {
-    pub provider: Provider,
-    pub domain_name: Option<String>,
-    pub is_root: Option<bool>,
-    #[serde(skip_serializing_if = "Vec::is_empty", default = "Default::default")]
-    pub functions: Functions,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

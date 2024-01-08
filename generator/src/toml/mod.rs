@@ -10,4 +10,5 @@ pub struct Provider {
     pub name: String,
     #[serde(skip_serializing_if = "StringMap::is_empty", default)]
     pub options: StringMap<String>,
+    pub platform_id: Option<String>,
 }

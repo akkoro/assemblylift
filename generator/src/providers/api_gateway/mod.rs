@@ -9,8 +9,8 @@ use crate::{
 };
 
 use super::{
-    ApiProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, Provider,
-    ServiceProvider,
+    GatewayProvider, ContainerRegistryProvider, DnsProvider, FunctionProvider, Provider,
+    ServiceProvider, Platform,
 };
 
 pub fn provider_name() -> String {
@@ -22,13 +22,15 @@ pub struct ApiGatewayProvider {
     #[serde(default = "provider_name")]
     name: String,
     options: Options,
+    platform: Option<Platform>,
 }
 
 impl ApiGatewayProvider {
-    pub fn new(options: Options) -> Box<Self> {
+    pub fn new(options: Options, platform: Option<Platform>) -> Box<Self> {
         Box::new(Self {
             name: provider_name(),
             options,
+            platform,
         })
     }
 }
@@ -39,8 +41,12 @@ impl Provider for ApiGatewayProvider {
         self.name.clone()
     }
 
-    fn platform(&self) -> String {
-        "aws".into()
+    fn platform(&self) -> Option<Platform> {
+        self.platform.clone()
+    }
+
+    fn compatible_platforms(&self) -> Vec<String> {
+        vec!["aws".into()]
     }
 
     fn options(&self) -> Options {
@@ -67,7 +73,7 @@ impl Provider for ApiGatewayProvider {
         Err(anyhow!("{} is not a FunctionProvider", self.name()))
     }
 
-    fn as_api_provider(&self) -> Result<&dyn ApiProvider> {
+    fn as_gateway_provider(&self) -> Result<&dyn GatewayProvider> {
         Ok(self)
     }
 
@@ -83,7 +89,7 @@ impl Provider for ApiGatewayProvider {
     }
 }
 
-impl ApiProvider for ApiGatewayProvider {
+impl GatewayProvider for ApiGatewayProvider {
     fn cast_service(&self, service: &Service) -> CastResult<Vec<Fragment>> {
         let mut fragments: Vec<Fragment> = Vec::new();
 
@@ -107,7 +113,7 @@ impl ApiProvider for ApiGatewayProvider {
         Ok(fragments)
     }
 
-    fn supported_service_providers(&self) -> Vec<String> {
+    fn compatible_service_providers(&self) -> Vec<String> {
         vec![aws_lambda::provider_name()]
     }
 }

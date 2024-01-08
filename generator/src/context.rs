@@ -6,8 +6,10 @@ use handlebars::Handlebars;
 use serde::{Deserialize, Serialize};
 
 use super::projectfs::Project as ProjectFs;
-use super::*;
-use crate::providers::{Provider, ProviderFactory};
+use crate::providers::{Platform, Provider, ProviderFactory};
+use crate::{
+    concat, concat_cast, snake_case, toml, CastError, CastResult, ContentType, Fragment, StringMap,
+};
 
 // NOTE The Context structure should provide everything at each level needed to cast to HCL, meaning
 // there may be duplication that is not present in the TOML spec. The Context is IMMUTABLE so this should not be an issue,
@@ -38,40 +40,56 @@ impl Context {
         let mut ctx_services: Vec<Service> = Vec::new();
         let mut ctx_iomods: Vec<Iomod> = Vec::new();
 
-        let ctx_platforms: Vec<Platform> = manifest
-            .platforms
-            .iter()
-            .map(|p| Platform {
-                id: p.id.clone(),
-                name: p.name.clone(),
-                options: p.options.clone(),
-            })
-            .collect();
+        let ctx_platforms: Vec<Platform> = manifest.platforms.iter().map(Platform::from).collect();
+
+        fn find_platform(platforms: Vec<Platform>, pid: &str) -> Result<Platform, String> {
+            platforms.into_iter().find(|p| p.id.eq(pid)).ok_or(format!(
+                "platform with id `{}` not found in assemblylift.toml manifest",
+                pid
+            ))
+        }
+
+        fn validate_provider_platform(
+            provider: &Box<dyn Provider>,
+            platform: Option<Platform>,
+        ) -> Result<(), String> {
+            match platform {
+                Some(platform) => match provider.compatible_platforms().contains(&platform.name)
+                    || provider.compatible_platforms().contains(&"*".into())
+                {
+                    true => Ok(()),
+                    false => Err(format!(
+                        "Provider `{}` is incompatible with Platform `{}`. Requires one of {:?}",
+                        &provider.name(),
+                        &platform.name,
+                        provider.compatible_platforms(),
+                    )),
+                },
+                None => Ok(()),
+            }
+        }
 
         let ctx_registries: Vec<Registry> = manifest
             .registries()
             .iter()
-            .map(|r| {
-                let platform = match &r.platform_id {
-                    Some(pid) => match ctx_platforms.iter().find(|&p| p.id.eq(pid)) {
-                        Some(p) => Some(p.clone()),
-                        None => {
-                            return Err(format!(
-                                "platform with id `{}` not found in assemblylift.toml manifest",
-                                pid,
-                            ))
-                        }
-                    },
+            .map(|reg| {
+                let platform = match reg.provider.platform_id.as_deref() {
+                    Some(pid) => Some(find_platform(ctx_platforms.clone(), pid)?),
                     None => None,
                 };
+
+                let provider = ProviderFactory::new_provider(
+                    &reg.provider.name,
+                    reg.provider.options.clone(),
+                    platform.clone(),
+                )
+                .unwrap();
+
+                validate_provider_platform(&provider, platform)?;
+
                 Ok(Registry {
-                    id: r.id.clone(),
-                    provider: ProviderFactory::new_provider(
-                        &r.provider.name,
-                        r.provider.options.clone(),
-                    )
-                    .unwrap(),
-                    platform,
+                    id: reg.id.clone(),
+                    provider,
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
@@ -80,31 +98,23 @@ impl Context {
             .domains()
             .iter()
             .map(|domain| {
-                let platform = match ctx_platforms.iter().find(|&p| p.id == domain.platform_id) {
-                    Some(p) => Platform {
-                        id: p.id.clone(),
-                        name: p.name.clone(),
-                        options: p.options.clone(),
-                    },
-                    None => {
-                        return Err(format!(
-                            "platform with id `{}` not found in assemblylift.toml manifest",
-                            domain.platform_id
-                        ))
-                    }
+                let platform = match domain.provider.platform_id.as_deref() {
+                    Some(pid) => Some(find_platform(ctx_platforms.clone(), pid)?),
+                    None => None,
                 };
+
                 let provider = ProviderFactory::new_provider(
                     &domain.provider.name,
                     domain.provider.options.clone(),
+                    platform.clone(),
                 )
                 .unwrap();
 
-                // TODO validate provider's supported platform matches selected platform
+                validate_provider_platform(&provider, platform)?;
 
                 Ok(Domain {
                     dns_name: domain.dns_name.clone(),
                     map_to_root: domain.map_to_root,
-                    platform,
                     provider,
                 })
             })
@@ -135,17 +145,17 @@ impl Context {
             })
             .collect();
 
-        for service_ref in &*manifest.services {
+        for service_ref in manifest.services {
             let mut service_path = project.service_dir(service_ref.name.clone()).dir();
             service_path.push("service.toml");
             let service_manifest = toml::service::Manifest::read(&service_path).unwrap();
 
-            let service = service_manifest.service();
-            let functions = service_manifest.functions();
+            // let service = service_manifest.service();
+            let functions = service_manifest.functions.clone();
             let iomods = service_manifest.iomods();
 
-            let service_provider = service.provider;
-            let api_provider = service_manifest.api.provider;
+            let service_provider = service_ref.clone().provider;
+            let gateway_provider = service_manifest.gateway.provider;
 
             let mut ctx_functions: Vec<Function> = Vec::new();
             for function in functions {
@@ -167,9 +177,12 @@ impl Context {
 
                 ctx_functions.push(Function {
                     name: function.name.clone(),
-                    service_name: service.name.clone(),
+                    service_name: service_ref.name.clone(),
                     project_name: project.name.clone(),
-                    coordinates: format!("{}.{}.{}", &project.name, &service.name, &function.name),
+                    coordinates: format!(
+                        "{}.{}.{}",
+                        &project.name, &service_ref.name, &function.name
+                    ),
                     language: language.clone(),
                     // TODO this should not be inferred at context level
                     handler_name: match language.clone().as_str() {
@@ -203,10 +216,12 @@ impl Context {
                     authorizer: match function.authorizer_id {
                         Some(auth_id) => match ctx_authorizers.iter().find(|&a| a.id == auth_id) {
                             Some(a) => Some(a.clone()),
-                            None => return Err(format!(
+                            None => {
+                                return Err(format!(
                                 "authorizer with id `{}` not found in assemblylift.toml manifest",
                                 &auth_id
-                            )),
+                            ))
+                            }
                         },
                         None => None,
                     },
@@ -214,76 +229,67 @@ impl Context {
                 });
             }
 
-            let service_platform = match ctx_platforms
-                .iter()
-                .find(|&p| p.id == service_ref.platform_id)
-            {
-                Some(p) => p.clone(),
-                None => {
-                    return Err(format!(
-                        "platform with id `{}` not found in assemblylift.toml manifest",
-                        service_ref.platform_id
-                    ))
-                }
-            };
-
-            // Inject Service Platform options into Service Provider options
-            let mut svc_provider_options = service_provider.options;
-            svc_provider_options.extend(
-                service_platform
-                    .options
-                    .clone()
-                    .into_iter()
-                    .map(|opt| (format!("__platform_{}", opt.0), opt.1)),
-            );
-            
-            let service_provider =
-                ProviderFactory::new_provider(&service_provider.name, svc_provider_options)
-                    .unwrap();
-            
-            // TODO context should eventually have a validate() method to centralize checks like this
-            if service_provider.platform() != service_platform.name {
+            if service_ref.provider.platform_id.is_none() {
                 return Err(format!(
-                    "service provider `{}` is not compatible with platform `{}`; requires `{}`",
-                    service_provider.name(),
-                    service_platform.name,
-                    service_provider.platform()
+                    "service `{}` has no defined platform_id",
+                    &service_ref.name
+                ));
+            }
+            
+            let service_platform = Some(find_platform(
+                ctx_platforms.clone(),
+                &service_ref.provider.platform_id.unwrap(),
+            )?);
+
+            let service_provider = ProviderFactory::new_provider(
+                &service_provider.name,
+                service_provider.options,
+                service_platform.clone(),
+            )
+            .unwrap();
+
+            validate_provider_platform(&service_provider, service_platform)?;
+
+            let gateway_platform = service_provider.platform();
+            if gateway_provider.platform_id.is_some() {
+                return Err("gateway providers cannot currently define platform independent of service provider".into());
+            }
+            // let gateway_platform = match gateway_provider.platform_id {
+            //     Some(pid) => Some(find_platform(ctx_platforms.clone(), &pid)?),
+            //     None => service_provider.platform(),
+            // };
+
+            let gateway_provider = ProviderFactory::new_provider(
+                &gateway_provider.name,
+                gateway_provider.options,
+                gateway_platform.clone(),
+            )
+            .unwrap();
+
+            validate_provider_platform(&gateway_provider, gateway_platform)?;
+
+            let gateway_compatible_service_providers = gateway_provider
+                .as_gateway_provider()
+                .unwrap()
+                .compatible_service_providers();
+            if !gateway_compatible_service_providers.contains(&service_provider.name()) {
+                return Err(format!(
+                    "Gateway Provider `{}` is incompatible with Service Provider `{}`. Requires one of {:?}",
+                    &gateway_provider.name(),
+                    &service_provider.name(),
+                    gateway_compatible_service_providers,
                 ));
             }
 
-            // Inject Service Platform options into API Provider options
-            let mut api_provider_options = api_provider.options;
-            api_provider_options.extend(
-                service_platform
-                    .options
-                    .clone()
-                    .into_iter()
-                    .map(|opt| (format!("__platform_{}", opt.0), opt.1)),
-            );
-
             ctx_services.push(Service {
-                name: service.name.clone(),
+                name: service_ref.name.clone(),
                 project_name: project.name.clone(),
-                platform: service_platform,
                 provider: service_provider,
-                // TODO validate that API Provider is compatible with Service provider
-                api: Api {
-                    provider: ProviderFactory::new_provider(
-                        &api_provider.name,
-                        api_provider_options,
-                    )
-                    .unwrap(),
-                    domain: match service_manifest.api.domain_name {
-                        Some(service_domain) => ctx_domains
-                            .iter()
-                            .find(|&d| d.dns_name.eq(&service_domain))
-                            .map(|d| d.into()),
-                        None => None,
-                    },
-                    is_root: service_manifest.api.is_root,
+                gateway: Gateway {
+                    provider: gateway_provider,
                 },
                 functions: ctx_functions,
-                container_registry: match service.registry_id {
+                container_registry: match service_ref.registry_id {
                     Some(rid) => match ctx_registries.iter().find(|&r| r.id.eq(&rid)) {
                         Some(registry) => Some(registry.into()),
                         None => {
@@ -295,6 +301,14 @@ impl Context {
                     },
                     None => None,
                 },
+                domain: match service_ref.domain_name {
+                    Some(service_domain) => ctx_domains
+                        .iter()
+                        .find(|&d| d.dns_name.eq(&service_domain))
+                        .map(|d| d.into()),
+                    None => None,
+                },
+                is_root: service_ref.is_root,
             });
 
             for iomod in iomods {
@@ -302,7 +316,7 @@ impl Context {
                 let name = coords.get(2).unwrap();
                 ctx_iomods.push(Iomod {
                     name: name.to_string(),
-                    service_name: service.name.clone(),
+                    service_name: service_ref.name.clone(),
                     coordinates: iomod.coordinates.clone(),
                     version: iomod.version.clone(),
                 });
@@ -341,19 +355,21 @@ impl Context {
             .services
             .iter()
             .map(|svc| {
-                let api_provider = svc.api.provider.as_api_provider().unwrap();
-                if !api_provider.is_booted() {
-                    api_provider.boot().map_err(|e| CastError(e.to_string()))?
+                let gateway_provider = svc.gateway.provider.as_gateway_provider().unwrap();
+                if !gateway_provider.is_booted() {
+                    gateway_provider
+                        .boot()
+                        .map_err(|e| CastError(e.to_string()))?
                 }
-                let api_fragments = match api_provider
-                    .supported_service_providers()
+                let api_fragments = match gateway_provider
+                    .compatible_service_providers()
                     .iter()
                     .find(|&p| p.eq(&svc.provider.name()))
                 {
-                    Some(_) => api_provider.cast_service(&svc),
+                    Some(_) => gateway_provider.cast_service(&svc),
                     None => Err(CastError(format!(
-                        "API provider `{}` is not compatible with Service provider `{}`",
-                        api_provider.name(),
+                        "Gateway provider `{}` is not compatible with Service provider `{}`",
+                        gateway_provider.name(),
                         svc.provider.name(),
                     ))),
                 };
@@ -374,13 +390,13 @@ impl Context {
                     None => Ok(Vec::new()),
                 };
 
-                let dns_fragments = match &svc.api.domain {
+                let dns_fragments = match &svc.domain {
                     Some(domain) => {
                         let dns_provider = domain.provider.as_dns_provider().unwrap();
                         match dns_provider
-                            .supported_api_providers()
+                            .compatible_api_providers()
                             .iter()
-                            .find(|&p| p.eq(&api_provider.name()))
+                            .find(|&p| p.eq(&gateway_provider.name()))
                         {
                             Some(_) => {
                                 if !dns_provider.is_booted() {
@@ -391,7 +407,7 @@ impl Context {
                             None => Err(CastError(format!(
                                 "DNS provider `{}` is not compatible with API provider `{}`",
                                 dns_provider.name(),
-                                api_provider.name(),
+                                gateway_provider.name(),
                             ))),
                         }
                     }
@@ -505,28 +521,22 @@ pub struct Terraform {
     pub lock_table_name: String,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct Platform {
-    pub id: String,
-    pub name: String,
-    pub options: StringMap<String>,
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct Registry {
     pub id: String,
     pub provider: Box<dyn Provider>,
-    pub platform: Option<Platform>,
+    // pub platform: Option<Platform>,
 }
 
 impl From<&Registry> for Registry {
     fn from(value: &Registry) -> Self {
         Self {
             id: value.id.clone(),
-            platform: value.platform.clone(),
+            // platform: value.platform.clone(),
             provider: ProviderFactory::new_provider(
                 &value.provider.name(),
                 value.provider.options().clone(),
+                value.provider.platform().clone(),
             )
             .unwrap(),
         }
@@ -537,7 +547,7 @@ impl From<&Registry> for Registry {
 pub struct Domain {
     pub dns_name: String,
     pub map_to_root: bool,
-    pub platform: Platform,
+    // pub platform: Platform,
     pub provider: Box<dyn Provider>,
 }
 
@@ -552,10 +562,11 @@ impl From<&Domain> for Domain {
         Self {
             dns_name: value.dns_name.clone(),
             map_to_root: value.map_to_root.clone(),
-            platform: value.platform.clone(),
+            // platform: value.platform.clone(),
             provider: ProviderFactory::new_provider(
                 &value.provider.name(),
                 value.provider.options().clone(),
+                value.provider.platform().clone(),
             )
             .unwrap(),
         }
@@ -563,21 +574,20 @@ impl From<&Domain> for Domain {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Api {
+pub struct Gateway {
     pub provider: Box<dyn Provider>,
-    pub domain: Option<Domain>,
-    pub is_root: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Service {
     pub name: String,
     pub project_name: String,
-    pub platform: Platform,
     pub provider: Box<dyn Provider>,
-    pub api: Api,
+    pub gateway: Gateway,
     pub functions: Vec<Function>,
     pub container_registry: Option<Registry>,
+    pub domain: Option<Domain>,
+    pub is_root: Option<bool>,
 }
 
 impl Service {
@@ -591,29 +601,31 @@ impl From<&Service> for Service {
         Self {
             name: value.name.clone(),
             project_name: value.project_name.clone(),
-            platform: value.platform.clone(),
+            // platform: value.platform.clone(),
             provider: ProviderFactory::new_provider(
                 &value.provider.name(),
                 value.provider.options().clone(),
+                value.provider.platform().clone(),
             )
             .unwrap(),
-            api: Api {
+            gateway: Gateway {
                 provider: ProviderFactory::new_provider(
-                    &value.api.provider.name(),
-                    value.api.provider.options().clone(),
+                    &value.gateway.provider.name(),
+                    value.gateway.provider.options().clone(),
+                    value.gateway.provider.platform().clone(),
                 )
                 .unwrap(),
-                domain: match value.api.domain.as_ref() {
-                    Some(domain) => Some(domain.into()),
-                    None => None,
-                },
-                is_root: value.api.is_root,
             },
             functions: value.functions.clone(),
             container_registry: match value.container_registry.as_ref() {
                 Some(reg) => Some(reg.into()),
                 None => None,
             },
+            domain: match value.domain.as_ref() {
+                Some(domain) => Some(domain.into()),
+                None => None,
+            },
+            is_root: value.is_root,
         }
     }
 }
