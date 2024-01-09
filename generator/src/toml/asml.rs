@@ -9,6 +9,7 @@ use crate::Options;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Manifest {
     pub project: Project,
+    #[serde(skip_serializing_if = "Vec::is_empty", default = "Default::default")]
     pub platforms: Vec<Platform>,
     #[serde(skip_serializing_if = "Vec::is_empty", default = "Default::default")]
     pub services: Vec<ServiceRef>,
@@ -91,13 +92,13 @@ impl Manifest {
         services.push(ServiceRef {
             name: resource_name.into(),
             provider: Provider {
-                name: todo!(),
-                options: todo!(),
-                platform_id: todo!(),
+                name: "my-provider".into(),
+                options: Default::default(),
+                platform_id: None
             },
             registry_id: None,
-            domain_name: todo!(),
-            is_root: todo!(),
+            domain_name: None,
+            is_root: None,
         });
         self.services = services;
     }

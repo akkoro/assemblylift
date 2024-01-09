@@ -42,10 +42,11 @@ impl Context {
 
         let ctx_platforms: Vec<Platform> = manifest.platforms.iter().map(Platform::from).collect();
 
-        fn find_platform(platforms: Vec<Platform>, pid: &str) -> Result<Platform, String> {
-            platforms.into_iter().find(|p| p.id.eq(pid)).ok_or(format!(
-                "platform with id `{}` not found in assemblylift.toml manifest",
-                pid
+        fn find_platform(platforms: Vec<Platform>, platform_id: &str, resource_id: &str) -> Result<Platform, String> {
+            platforms.into_iter().find(|p| p.id.eq(platform_id)).ok_or(format!(
+                "platform with id `{}` not found in assemblylift.toml manifest when casting provider for `{}`",
+                platform_id,
+                resource_id,
             ))
         }
 
@@ -74,7 +75,7 @@ impl Context {
             .iter()
             .map(|reg| {
                 let platform = match reg.provider.platform_id.as_deref() {
-                    Some(pid) => Some(find_platform(ctx_platforms.clone(), pid)?),
+                    Some(pid) => Some(find_platform(ctx_platforms.clone(), pid, &reg.id)?),
                     None => None,
                 };
 
@@ -99,7 +100,7 @@ impl Context {
             .iter()
             .map(|domain| {
                 let platform = match domain.provider.platform_id.as_deref() {
-                    Some(pid) => Some(find_platform(ctx_platforms.clone(), pid)?),
+                    Some(pid) => Some(find_platform(ctx_platforms.clone(), pid, &domain.dns_name)?),
                     None => None,
                 };
 
@@ -239,6 +240,7 @@ impl Context {
             let service_platform = Some(find_platform(
                 ctx_platforms.clone(),
                 &service_ref.provider.platform_id.unwrap(),
+                &service_ref.name
             )?);
 
             let service_provider = ProviderFactory::new_provider(
@@ -301,6 +303,7 @@ impl Context {
                     },
                     None => None,
                 },
+                // TODO lift and validate against gateway provider
                 domain: match service_ref.domain_name {
                     Some(service_domain) => ctx_domains
                         .iter()
@@ -361,18 +364,7 @@ impl Context {
                         .boot()
                         .map_err(|e| CastError(e.to_string()))?
                 }
-                let api_fragments = match gateway_provider
-                    .compatible_service_providers()
-                    .iter()
-                    .find(|&p| p.eq(&svc.provider.name()))
-                {
-                    Some(_) => gateway_provider.cast_service(&svc),
-                    None => Err(CastError(format!(
-                        "Gateway provider `{}` is not compatible with Service provider `{}`",
-                        gateway_provider.name(),
-                        svc.provider.name(),
-                    ))),
-                };
+                let api_fragments = gateway_provider.cast_service(&svc);
 
                 let cnr_provider = match &svc.container_registry {
                     Some(registry) => {
@@ -525,14 +517,12 @@ pub struct Terraform {
 pub struct Registry {
     pub id: String,
     pub provider: Box<dyn Provider>,
-    // pub platform: Option<Platform>,
 }
 
 impl From<&Registry> for Registry {
     fn from(value: &Registry) -> Self {
         Self {
             id: value.id.clone(),
-            // platform: value.platform.clone(),
             provider: ProviderFactory::new_provider(
                 &value.provider.name(),
                 value.provider.options().clone(),
@@ -547,7 +537,6 @@ impl From<&Registry> for Registry {
 pub struct Domain {
     pub dns_name: String,
     pub map_to_root: bool,
-    // pub platform: Platform,
     pub provider: Box<dyn Provider>,
 }
 
@@ -562,7 +551,6 @@ impl From<&Domain> for Domain {
         Self {
             dns_name: value.dns_name.clone(),
             map_to_root: value.map_to_root.clone(),
-            // platform: value.platform.clone(),
             provider: ProviderFactory::new_provider(
                 &value.provider.name(),
                 value.provider.options().clone(),
@@ -601,7 +589,6 @@ impl From<&Service> for Service {
         Self {
             name: value.name.clone(),
             project_name: value.project_name.clone(),
-            // platform: value.platform.clone(),
             provider: ProviderFactory::new_provider(
                 &value.provider.name(),
                 value.provider.options().clone(),
