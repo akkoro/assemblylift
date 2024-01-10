@@ -29,7 +29,7 @@ terraform {
 {{/each}}
 
 {{#each services}}
-{{> (lookup this.api.domain.provider "name")
+{{> (lookup this.domain.provider "name")
 platform=this.provider.platform
 project_name=../project.name 
 }}
@@ -46,9 +46,9 @@ project_name=../project.name
 project_path=../project.path
 }}
 
-{{> (lookup this.api.provider "name") 
+{{> (lookup this.gateway.provider "name") 
 platform=this.provider.platform
-provider=this.api.provider 
+provider=this.gateway.provider 
 service_provider=this.provider 
 project_name=../project.name 
 project_path=../project.path 

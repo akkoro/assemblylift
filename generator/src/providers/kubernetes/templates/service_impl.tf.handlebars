@@ -64,7 +64,7 @@ resource kubernetes_secret dockerconfig {
     depends_on = [kubernetes_namespace.service_namespace]
 }
 
-{{#if this.api.domain}}
+{{#if this.domain}}
 resource kubernetes_manifest cert_issuer {
     provider = kubernetes
     manifest = {
@@ -72,30 +72,30 @@ resource kubernetes_manifest cert_issuer {
         kind       = "ClusterIssuer"
 
         metadata = {
-            name = "asml-${var.project_name}-${var.service_name}-letsencrypt-staging"
+            name = "asml-${var.project_name}-${var.service_name}-letsencrypt"
         }
 
         spec = {
             acme = {
-                server = "https://acme-staging-v02.api.letsencrypt.org/directory"
-                email  = "{{this.api.domain.provider.options.cm_acme_email}}"
+                server = "{{#if (eq this.domain.provider.options.cm_letsencrypt_env "staging")}}https://acme-staging-v02.api.letsencrypt.org/directory{{else}}https://acme-v02.api.letsencrypt.org/directory{{/if}}"
+                email  = "{{this.domain.provider.options.cm_acme_email}}"
 
                 privateKeySecretRef = {
-                    name = "asml-letsencrypt-staging"
+                    name = "asml-letsencrypt"
                 }
 
                 solvers = [
                     {
                         dns01 = {
                             route53 = {
-                                region = "{{this.api.domain.platform.options.region}}"
-                                {{#if this.api.domain.provider.options.cm_aws_credentials}}
+                                region = "{{this.domain.provider.platform.options.region}}"
+                                {{#if this.domain.provider.options.cm_aws_credentials}}
                                 accessKeyIDSecretRef = {
-                                    name = "{{this.api.domain.provider.options.cm_aws_credentials}}"
+                                    name = "{{this.domain.provider.options.cm_aws_credentials}}"
                                     key  = "aws_access_key_id"
                                 }
                                 secretAccessKeySecretRef = {
-                                    name = "{{this.api.domain.provider.options.cm_aws_credentials}}"
+                                    name = "{{this.domain.provider.options.cm_aws_credentials}}"
                                     key  = "aws_secret_access_key"
                                 }
                                 {{/if}}

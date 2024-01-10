@@ -1,13 +1,13 @@
 module {{snake_case name}}_dns {
-    source = "./services/{{name}}/infra/{{this.api.domain.provider.name}}"
+    source = "./services/{{name}}/infra/{{this.domain.provider.name}}"
     
     project_name = "{{project_name}}"
     service_name = "{{name}}"
-    zone_id      = module.{{snake_case this.api.domain.dns_name}}_dns.zone_id
+    zone_id      = module.{{snake_case this.domain.dns_name}}_dns.zone_id
 
     providers = {
         {{platform.name}} = {{platform.name}}.{{platform.id}}
-        {{#if (ne this.api.domain.platform.name platform.name)}}{{this.api.domain.platform.name}} = {{this.api.domain.platform.name}}.{{this.api.domain.platform.id}}{{/if}}
+        {{#if (ne this.domain.provider.platform.name platform.name)}}{{this.domain.provider.platform.name}} = {{this.domain.provider.platform.name}}.{{this.domain.provider.platform.id}}{{/if}}
     }
 
     depends_on = [module.{{snake_case name}}_service]

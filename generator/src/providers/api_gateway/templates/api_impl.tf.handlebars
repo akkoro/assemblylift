@@ -35,11 +35,11 @@ resource aws_apigatewayv2_stage default {
     auto_deploy = true
 }
 
-{{#if this.api.domain}}
+{{#if this.domain}}
 resource aws_apigatewayv2_api_mapping {{snake_case name}} {
     provider    = aws
     api_id      = aws_apigatewayv2_api.http_api.id
-    domain_name = "{{#unless this.api.is_root}}${var.service_name}.{{/unless}}{{#unless this.api.domain.map_to_root}}${var.project_name}.{{/unless}}{{this.api.domain.dns_name}}"
+    domain_name = "{{#unless this.is_root}}${var.service_name}.{{/unless}}{{#unless this.domain.map_to_root}}${var.project_name}.{{/unless}}{{this.domain.dns_name}}"
     stage       = aws_apigatewayv2_stage.default.name
 }
 {{/if}}

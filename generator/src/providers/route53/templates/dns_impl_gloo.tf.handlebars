@@ -27,7 +27,7 @@ resource kubernetes_manifest certificate {
             secretName = "asml-${var.project_name}-${var.service_name}-tls"
             issuerRef = {
                 kind      = "ClusterIssuer"
-                name      = "asml-${var.project_name}-${var.service_name}-letsencrypt-staging"
+                name      = "asml-${var.project_name}-${var.service_name}-letsencrypt"
             }
             dnsNames = [local.domain_name]
         }

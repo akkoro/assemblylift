@@ -11,7 +11,7 @@ variable zone_id {
 }
 
 locals {
-  domain_name = "{{#unless this.api.is_root}}${var.service_name}.{{/unless}}{{#unless this.api.domain.map_to_root}}${var.project_name}.{{/unless}}{{this.api.domain.dns_name}}"
+  domain_name = "{{#unless this.is_root}}${var.service_name}.{{/unless}}{{#unless this.domain.map_to_root}}${var.project_name}.{{/unless}}{{this.domain.dns_name}}"
 }
 
-{{> (lookup this.api.provider "name") }}
+{{> (lookup this.gateway.provider "name") }}
