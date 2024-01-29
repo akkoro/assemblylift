@@ -104,6 +104,7 @@ impl ServiceProvider for KubernetesProvider {
                 service.name.clone()
             )));
         }
+        
         let mut fragments: Vec<Fragment> = Vec::new();
 
         let mut function_fragments = service

@@ -68,7 +68,7 @@ pub trait GatewayProvider: Provider {
 pub trait DnsProvider: Provider {
     fn cast_domain(&self, domain: &Domain) -> CastResult<Vec<Fragment>>;
     fn cast_service(&self, service: &Service) -> CastResult<Vec<Fragment>>;
-    fn compatible_api_providers(&self) -> Vec<String>;
+    fn compatible_gateway_providers(&self) -> Vec<String>;
 }
 
 pub trait ContainerRegistryProvider: Provider {

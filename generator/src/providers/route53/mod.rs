@@ -142,7 +142,7 @@ impl DnsProvider for Route53Provider {
         Ok(vec![service_fragment])
     }
 
-    fn compatible_api_providers(&self) -> Vec<String> {
+    fn compatible_gateway_providers(&self) -> Vec<String> {
         vec![api_gateway::provider_name(), gloo::provider_name()]
     }
 }

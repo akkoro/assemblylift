@@ -284,6 +284,7 @@ impl Context {
             }
 
             ctx_services.push(Service {
+                id: format!("{}_{}", service_ref.name.clone(), service_provider.platform().unwrap().id),
                 name: service_ref.name.clone(),
                 project_name: project.name.clone(),
                 provider: service_provider,
@@ -326,6 +327,8 @@ impl Context {
             }
         }
 
+        // TODO validate that IDs are unique
+
         Ok(Context {
             project: Project {
                 name: manifest.project.name.clone(),
@@ -358,13 +361,13 @@ impl Context {
             .services
             .iter()
             .map(|svc| {
-                let gateway_provider = svc.gateway.provider.as_gateway_provider().unwrap();
-                if !gateway_provider.is_booted() {
-                    gateway_provider
+                let gwy_provider = svc.gateway.provider.as_gateway_provider().unwrap();
+                if !gwy_provider.is_booted() {
+                    gwy_provider
                         .boot()
                         .map_err(|e| CastError(e.to_string()))?
                 }
-                let api_fragments = gateway_provider.cast_service(&svc);
+                let gwy_fragments = gwy_provider.cast_service(&svc);
 
                 let cnr_provider = match &svc.container_registry {
                     Some(registry) => {
@@ -386,9 +389,9 @@ impl Context {
                     Some(domain) => {
                         let dns_provider = domain.provider.as_dns_provider().unwrap();
                         match dns_provider
-                            .compatible_api_providers()
+                            .compatible_gateway_providers()
                             .iter()
-                            .find(|&p| p.eq(&gateway_provider.name()))
+                            .find(|&p| p.eq(&gwy_provider.name()))
                         {
                             Some(_) => {
                                 if !dns_provider.is_booted() {
@@ -399,7 +402,7 @@ impl Context {
                             None => Err(CastError(format!(
                                 "DNS provider `{}` is not compatible with API provider `{}`",
                                 dns_provider.name(),
-                                gateway_provider.name(),
+                                gwy_provider.name(),
                             ))),
                         }
                     }
@@ -413,7 +416,7 @@ impl Context {
                 let svc_fragments = svc_provider.cast_service(&svc);
 
                 let mut out = Vec::new();
-                out.append(&mut api_fragments?);
+                out.append(&mut gwy_fragments?);
                 out.append(&mut cnr_fragments?);
                 out.append(&mut dns_fragments?);
                 out.append(&mut svc_fragments?);
@@ -568,6 +571,7 @@ pub struct Gateway {
 
 #[derive(Serialize, Deserialize)]
 pub struct Service {
+    pub id: String,
     pub name: String,
     pub project_name: String,
     pub provider: Box<dyn Provider>,
@@ -587,6 +591,7 @@ impl Service {
 impl From<&Service> for Service {
     fn from(value: &Service) -> Self {
         Self {
+            id: value.id.clone(),
             name: value.name.clone(),
             project_name: value.project_name.clone(),
             provider: ProviderFactory::new_provider(
