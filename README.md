@@ -2,7 +2,6 @@
   <img width="600" src="./docs/AssemblyLift_logo.png"/>
   <br/>
   <br/>
-  <img src="https://github.com/akkoro/assemblylift/workflows/AssemblyLift%20CI/badge.svg"/>
   <img src="https://img.shields.io/discord/901946190667595786"/>
   <br/>
   AssemblyLift is an open source platform that gives you a fast & ergonomic way to build cloud-native services on a predictable, 
@@ -90,8 +89,3 @@ You can follow [@akkorocorp](https://twitter.com/akkorocorp/) on Twitter.
 
 The AssemblyLift source code is licensed under [Hippocratic License 2.1](/LICENSE.md).  
 The AssemblyLift CLI delegates some tasks to [HashiCorp Terraform](https://terraform.io), which is licensed under [Mozilla Public License 2.0](https://www.mozilla.org/en-US/MPL/2.0/).
-
------
-
-AssemblyLift is made in [Canada's far north-east](https://en.wikipedia.org/wiki/Newfoundland_and_Labrador) 🇨🇦 and is made possible by 
-our contributors and supporters around the world 🌐

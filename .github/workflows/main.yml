@@ -100,13 +100,13 @@ jobs:
       - name: 'Get Version'
         run: echo "ASML_VERSION=$(cat ./cli/Cargo.toml | grep version -m 1 | awk '{print $3}' | sed 's/\"//g')" >> $GITHUB_ENV
       - name: 'Build Image'
-        run: docker build -t assemblylift/hyper-alpine . --file docker/asml-hyper-alpine
+        run: docker build -t assemblylift/hyper-debian . --file docker/asml-hyper-debian
       - name: 'Add ECR Tag'
-        run: docker tag assemblylift/hyper-alpine public.ecr.aws/akkoro/assemblylift/hyper-alpine:latest && docker tag public.ecr.aws/akkoro/assemblylift/hyper-alpine:latest public.ecr.aws/akkoro/assemblylift/hyper-alpine:$ASML_VERSION
+        run: docker tag assemblylift/hyper-debian public.ecr.aws/akkoro/assemblylift/hyper-debian:latest && docker tag public.ecr.aws/akkoro/assemblylift/hyper-debian:latest public.ecr.aws/akkoro/assemblylift/hyper-debian:$ASML_VERSION
       - name: 'ECR Login'
         run: aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/akkoro
       - name: 'Push to ECR @ akkoro-public'
-        run: docker push --all-tags public.ecr.aws/akkoro/assemblylift/hyper-alpine
+        run: docker push --all-tags public.ecr.aws/akkoro/assemblylift/hyper-debian
 
   build-asml-darwin:
     name: asml - Darwin
