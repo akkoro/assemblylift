@@ -7,7 +7,7 @@ on:
 jobs:
 
   build-lambda-default:
-    name: 'AWS Lambda Default Runtime'
+    name: 'AWS Lambda Runtime'
     runs-on: ubuntu-latest
     steps:
     - name: 'Configure AWS Credentials'
