@@ -3,26 +3,37 @@ extern crate assemblylift_core_guest_macros;
 use std::collections::HashMap;
 use std::fmt;
 
+pub use direct_executor;
 use serde::{Deserialize, Serialize};
+pub use wit_bindgen;
 
+pub use assemblylift::akkoro::assemblylift::asml_io;
+pub use assemblylift::akkoro::assemblylift::asml_rt;
 pub use assemblylift_core_guest_macros::handler;
+pub use command::wasi;
 
-extern "C" {
-    fn __asml_abi_runtime_log(ptr: *const u8, len: usize);
-    fn __asml_abi_runtime_success(ptr: *const u8, len: usize);
-}
+pub mod assemblylift;
+pub mod command;
+pub mod jwt;
+pub mod opa;
+pub mod secrets;
 
 pub struct FunctionContext {
-    pub input: String,
+    pub input: Vec<u8>,
 }
 
+// TODO success and failure should take bytes as args, not string
 impl FunctionContext {
     pub fn log(message: String) {
-        unsafe { __asml_abi_runtime_log(message.as_ptr(), message.len()) }
+        asml_rt::log(asml_rt::LogLevel::Info, clap::crate_name!(), &message)
     }
 
     pub fn success(response: String) {
-        unsafe { __asml_abi_runtime_success(response.as_ptr(), response.len()) }
+        asml_rt::success(response.as_bytes())
+    }
+
+    pub fn failure(response: String) {
+        asml_rt::failure(response.as_bytes())
     }
 }
 

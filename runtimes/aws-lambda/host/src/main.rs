@@ -6,40 +6,46 @@ use std::io::{BufReader, Read};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process;
-use std::sync::{Arc, Mutex};
 
 use clap::crate_version;
-use crossbeam_channel::bounded;
-use once_cell::sync::Lazy;
-use tokio::sync::mpsc;
+use lambda_runtime::{run, service_fn, Error, LambdaEvent};
+use tracing::{error, info, Level};
+use tracing_subscriber::FmtSubscriber;
 use zip;
 
-use assemblylift_core::wasm::Wasmtime;
+use assemblylift_core::wasm::{status_channel, Wasmtime};
+use assemblylift_core_iomod::registry::registry_channel;
 use assemblylift_core_iomod::{package::IomodManifest, registry};
-use runtime::AwsLambdaRuntime;
 
-use crate::abi::LambdaAbi;
+use crate::abi::{Abi, Status};
 
 mod abi;
-mod runtime;
-
-pub static LAMBDA_RUNTIME: Lazy<AwsLambdaRuntime> = Lazy::new(|| AwsLambdaRuntime::new());
-pub static LAMBDA_REQUEST_ID: Lazy<Mutex<RefCell<String>>> =
-    Lazy::new(|| Mutex::new(RefCell::new(String::new())));
 
 #[tokio::main]
-async fn main() {
-    println!(
+async fn main() -> Result<(), Error> {
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::DEBUG)
+        .with_target(false)
+        .with_ansi(false)
+        .without_time()
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
+    info!(
         "Starting AssemblyLift AWS Lambda runtime v{}",
         crate_version!()
     );
 
-    let registry_channel = mpsc::channel(32);
-    let tx = registry_channel.0.clone();
-    let rx = registry_channel.1;
-    registry::spawn_registry(rx).unwrap();
+    let module_path = env::var("LAMBDA_TASK_ROOT").unwrap();
+    let handler_name = env::var("_HANDLER").unwrap();
+    let (registry_tx, registry_rx) = registry_channel(32);
+    registry::spawn_registry(registry_rx).unwrap();
 
-    // load plugins from runtime dir, which should contain merged contents of Lambda layers
+    // Mapped to /tmp inside the WASM module
+    fs::create_dir_all("/tmp/asmltmp").expect("could not create /tmp/asmltmp");
+
+    // Load IOmod packages from /opt, which should contain merged contents of Lambda layers
     if let Ok(rd) = fs::read_dir("/opt") {
         for entry in rd {
             let entry = entry.unwrap();
@@ -84,8 +90,9 @@ async fn main() {
                                             "unable to create directory {:?}",
                                             path_prefix
                                         ));
-                                        let mut entrypoint_file = File::create(path)
-                                            .expect(&*format!("unable to create file at {:?}", path));
+                                        let mut entrypoint_file = File::create(path).expect(
+                                            &*format!("unable to create file at {:?}", path),
+                                        );
                                         std::io::copy(&mut entrypoint_binary, &mut entrypoint_file)
                                             .expect("unable to copy entrypoint");
                                         let mut perms: fs::Permissions =
@@ -102,17 +109,12 @@ async fn main() {
                 }
             }
         }
-    } else {
-        println!("WARN Could not find dir /opt/iomod");
     }
 
-    let module_path = env::var("LAMBDA_TASK_ROOT").unwrap();
-    let handler_name = env::var("_HANDLER").unwrap();
+    let runtime_environment = std::env::var("ASML_FUNCTION_ENV");
 
-    // Mapped to /tmp inside the WASM module
-    fs::create_dir_all("/tmp/asmltmp").expect("could not create /tmp/asmltmp");
-
-    if let Ok("ruby-lambda") = env::var("ASML_FUNCTION_ENV").as_deref() {
+    // Copy Ruby env to /tmp
+    if let Ok("ruby") = runtime_environment.as_deref() {
         let rubysrc_path = "/tmp/rubysrc";
         if !Path::new(&rubysrc_path).exists() {
             fs::create_dir_all(rubysrc_path)
@@ -152,50 +154,76 @@ async fn main() {
         );
     }
 
-    let (status_sender, _status_receiver) = bounded::<()>(1);
+    let mut full_path = PathBuf::from(&module_path);
+    full_path.push(&handler_name);
+    let wasmtime = RefCell::new(
+        Wasmtime::<Abi, Status>::new_from_path(Path::new(full_path.as_path()))
+            .expect("could not create wasm runtime from module path"),
+    );
 
-    tokio::task::LocalSet::new().run_until(async move {
-        let mut full_path = PathBuf::from(&module_path);
-        full_path.push(&handler_name);
-        let wasmtime = Arc::new(Mutex::new(
-            Wasmtime::<LambdaAbi, ()>::new_from_path(Path::new(full_path.as_path()))
-                .expect("could not create WASM runtime from module path")
-        ));
-
-        while let Ok(event) = LAMBDA_RUNTIME.get_next_event().await {
-            {
-                let ref_cell = LAMBDA_REQUEST_ID.lock().unwrap();
-                if ref_cell.borrow().clone() == event.request_id.clone() {
-                    continue;
-                }
-                ref_cell.replace(event.request_id.clone());
-            }
-
-            let (instance, mut store) = wasmtime
-                .lock()
-                .unwrap()
-                .link_module(tx.clone(), status_sender.clone())
+    let wasmtime_ref = &wasmtime;
+    let registry_tx_ref = &registry_tx;
+    run(service_fn(
+        move |event: LambdaEvent<serde_json::Value>| async move {
+            // Environment vars prefixed with __ASML_ are defined in the function definition;
+            // the prefix indicates that they are to be mapped to the function environment.
+            // In a single-function environment (Lambda or Docker), these are the only function env-vars;
+            // in a multi-function environment, these are global across all functions and function-specific
+            // vars are passed thru the runner request from the launcher.
+            let environment_vars: Vec<(String, String)> = Vec::from_iter(
+                std::env::vars()
+                    .into_iter()
+                    .filter(|e| e.0.starts_with("__ASML_"))
+                    .map(|e| (e.0.replace("__ASML_", ""), e.1))
+                    .into_iter(),
+            );
+            let runtime_environment = std::env::var("ASML_FUNCTION_ENV");
+            let bind_paths: Vec<(String, String)> = match runtime_environment.as_deref().ok() {
+                Some("ruby") => vec![("/tmp/rubysrc".into(), "/src".into()), ("/tmp/rubyusr".into(), "/usr".into())],
+                Some(_) | None => Vec::new(),
+            };
+            let (status_tx, status_rx) = status_channel::<Status>(1);
+            let request_id = &event.context.request_id;
+            
+            let (command, mut store) = wasmtime_ref
+                .borrow_mut()
+                .link_wasi_component(
+                    registry_tx_ref.clone(),
+                    status_tx.clone(),
+                    environment_vars,
+                    runtime_environment.clone().unwrap_or("default".to_string()),
+                    bind_paths,
+                    Some(String::from(request_id)),
+                    &event.payload.to_string().as_bytes(),
+                )
+                .await
                 .expect("could not link wasm module");
 
-            wasmtime
-                .lock()
-                .unwrap()
-                .initialize_function_input_buffer(&mut store, &event.event_body.into_bytes())
-                .expect("could not initialize input buffer");
-
-            let wasmtime = wasmtime.clone();
-            tokio::task::spawn_local(async move {
-                // env.clone().threader.lock().unwrap().__reset_memory();
-
-                match wasmtime.lock().unwrap().start(&mut store, instance) {
-                    Ok(result) => println!("SUCCESS: handler returned {:?}", result),
-                    Err(error) => println!("ERROR: {}", error.to_string()),
+            return match wasmtime_ref
+                .borrow_mut()
+                .run_component(
+                    command,
+                    &mut store,
+                )
+                .await
+            {
+                Ok(_) => {
+                    info!("handler for event {} returned OK", request_id);
+                    match status_rx.recv() {
+                        Ok(status) => match status {
+                            Status::Success(s) => Ok(s.1),
+                            Status::Failure(s) => Err(Error::from(s.1.to_string())),
+                        },
+                        Err(err) => Err(Error::from(err)),
+                    }
                 }
-            })
-            .await
-            .unwrap();
-            // std::mem::drop(env.clone().threader);
-        }
-    })
-    .await;
+                Err(err) => {
+                    error!("event id {}: {}", &request_id, err.to_string());
+                    Err(Error::from(err))
+                }
+            };
+        },
+    ))
+    .await?;
+    Ok(())
 }

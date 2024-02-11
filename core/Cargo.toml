@@ -1,6 +1,6 @@
 [package]
 name = "assemblylift-core"
-version = "0.4.0-alpha.12"
+version = "0.4.0-beta.0"
 description = "AssemblyLift core library"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"
@@ -10,14 +10,41 @@ readme = "README.md"
 
 [dependencies]
 anyhow = "1.0"
+base64 = "0.21"
+bincode = "1.3"
 crossbeam-channel = "0.5"
 itertools = "0.10"
 once_cell = "1.4"
-tokio = "1.4"
-z85 = "3"
+opa = { version = "0.10.0-dev", git = "https://github.com/dotxlem/opa-rs.git", rev = "19f4836" }
+regex = "1.7"
+reqwest = { version = "0.11", features = ["blocking", "json"] }
+ring = "0.16"
+serde = "1"
+serde_json = "1"
+tokio = { version = "1.4", features = ["full"] }
+tracing = "0.1"
+uuid = { version = "1.3", features = ["v4", "fast-rng"] }
 
-wasmtime = "4.0"
-wasmtime-wasi = "4.0"
+#assemblylift-wasi-host = { git = "https://github.com/bytecodealliance/preview2-prototyping.git", rev = "4e84fc2", package = "host" }
+#assemblylift-wasi-common = { git = "https://github.com/bytecodealliance/preview2-prototyping.git", rev = "4e84fc2", package = "wasi-common" }
+#assemblylift-wasi-cap-std-sync = { git = "https://github.com/bytecodealliance/preview2-prototyping.git", rev = "4e84fc2", package = "wasi-cap-std-sync" }
+wasmtime = { version = "11.0", features = ["default", "component-model"] }
+wasmtime-wasi = { version = "11.0", features = ["preview2"] }
+#wasmtime = { git = "https://github.com/bytecodealliance/wasmtime.git", package = "wasmtime", rev = "a330867" } 
+#wasmtime-wasi = { git = "https://github.com/bytecodealliance/wasmtime.git", package = "wasmtime-wasi", rev = "a330867" }
+#wasm-encoder = "0.29"
+wasm-encoder = { git = "https://github.com/bytecodealliance/wasm-tools.git", package = "wasm-encoder", rev = "0263c2f" }
+#wasm-tools = "1.0"
+wit-tools = { git = "https://github.com/bytecodealliance/wasm-tools.git", package = "wasm-tools", rev = "0263c2f" }
+wat = "1.0"
+wast = "60.0"
+#wit-component = "0.11.0"
+wit-component = { git = "https://github.com/bytecodealliance/wasm-tools.git", package = "wit-component", rev = "0263c2f" }
+#wit-parser = "0.8.0"
+wit-parser = { git = "https://github.com/bytecodealliance/wasm-tools.git", package = "wit-parser", rev = "0263c2f" }
 
-assemblylift-core-io-common = { version = "0.3", path = "./io/common" }
-assemblylift-core-iomod = { version = "0.4.0-alpha.10", path = "./iomod" }
+assemblylift-core-iomod = { path = "./iomod" }
+
+[dev-dependencies]
+tokio = {version = "1", features = ["macros", "rt-multi-thread"]}
+tokio-test = "0.4"

@@ -1,0 +1,52 @@
+terraform {
+    required_providers {
+        aws = {
+            source  = "hashicorp/aws"
+            version = "~> 5.0"
+        }
+
+        kubernetes = {
+          source  = "hashicorp/kubernetes"
+          version = ">= 2.24.0"
+        }
+    }
+}
+
+resource kubernetes_manifest certificate {
+    provider = kubernetes
+    manifest = {
+        apiVersion = "cert-manager.io/v1"
+        kind       = "Certificate"
+
+        metadata = {
+            name      = local.domain_name
+            namespace = "asml-${var.project_name}-${var.service_name}"
+        }
+
+        spec = {
+            secretName = "asml-${var.project_name}-${var.service_name}-tls"
+            issuerRef = {
+                kind      = "ClusterIssuer"
+                name      = "asml-${var.project_name}-${var.service_name}-letsencrypt"
+            }
+            dnsNames = [local.domain_name]
+        }
+    }
+}
+
+data kubernetes_service gloo_proxy {
+    provider = kubernetes
+    metadata {
+        name      = "gateway-proxy"
+        namespace = "gloo-system"
+    }
+}
+
+resource aws_route53_record record {
+    provider = aws
+    zone_id  = var.zone_id
+    name     = local.domain_name
+    type     = "A"
+    ttl      = "300"
+    records  = [data.kubernetes_service.gloo_proxy.status.0.load_balancer.0.ingress.0.ip]
+}

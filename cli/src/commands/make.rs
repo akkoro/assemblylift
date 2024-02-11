@@ -1,15 +1,13 @@
+use assemblylift_generator::projectfs::{self, Project};
+use assemblylift_generator::toml::{asml, service};
 use clap::ArgMatches;
 use handlebars::to_json;
 use serde_json::value::{Map, Value as Json};
-use std::rc::Rc;
 
-use crate::projectfs::{locate_asml_manifest, Project};
 use crate::templates::project::{
     RUBY_FUNCTION_DOCUMENTS, RUST_FUNCTION_DOCUMENTS, SERVICE_DOCUMENTS,
 };
 use crate::templates::write_documents;
-use crate::transpiler::toml::asml::ServiceRef;
-use crate::transpiler::toml::{asml, service};
 
 pub fn command(matches: Option<&ArgMatches>) {
     let matches = match matches {
@@ -17,7 +15,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         _ => panic!("could not get matches for make command"),
     };
 
-    let manifest = match locate_asml_manifest() {
+    let manifest = match projectfs::locate_asml_manifest() {
         Some(manifest) => manifest,
         None => panic!("could not find assemblylift.toml in tree"),
     };

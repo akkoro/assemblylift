@@ -1,0 +1,20 @@
+package akkoro:opa
+
+interface module {
+    enum policy-error {
+        invalid-wasm,
+        no-entrypoint,
+    }
+
+    record policy {
+        id: string,
+        entrypoints: list<string>,
+    }
+
+    new-policy: func(bytes: list<u8>) -> result<policy, policy-error>
+    eval: func(id: string, data: string, input: string) -> string
+}
+
+world opa {
+   import module 
+}

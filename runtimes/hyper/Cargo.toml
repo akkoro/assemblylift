@@ -1,21 +1,33 @@
 [package]
 name = "assemblylift-hyper-runtime"
-version = "0.4.0-alpha.12"
+version = "0.4.0-beta.0"
 edition = "2021"
+
+[[bin]]
+name = "assemblylift-hyper-runtime"
+path = "src/main.rs"
+
+[lib]
+path = "src/lib.rs"
 
 [dependencies]
 anyhow = "1"
 base64 = "0.13"
-clap = { version = "3.1", features = ["cargo"] }
+chrono = "0.4"
+clap = { version = "4", features = ["cargo"] }
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
 hyper = { version = "0.14", features = ["full"] }
+once_cell = "1"
 serde = "1"
 serde_json = "1"
+timer = "0.2"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
-tracing-subscriber = "0.2.0"
+tracing-subscriber = "0.3"
+url = "2.3"
 zip = "0.6"
 
-assemblylift-core = { version = "0.4.0-alpha.12", path = "../../core" }
-assemblylift-core-iomod = { version = "0.4.0-alpha.0", path = "../../core/iomod" }
+assemblylift-core = { version = "0.4.0-beta.0", path = "../../core" }
+assemblylift-core-iomod = { version = "0.4.0-beta.0", path = "../../core/iomod" }
+assemblylift-wasi-secrets-in-memory = { path = "../../runtimes/components/wasi-secrets/in-memory" }

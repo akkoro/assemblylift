@@ -1,20 +1,20 @@
 [workspace]
+resolver = "2"
 members = [
     "runtimes/aws-lambda/host",
     "runtimes/aws-lambda/guest",
     "runtimes/hyper",
-#    "runtimes/kubelet",
-#    "runtimes/openfaas",
+    "runtimes/components/wasi-secrets/in-memory",
 #    "builtin/functions/verify-macaroon",
+    "generator",
+    "tools",
     "core",
     "core/guest",
     "core/guest/macros",
     "core/iomod",
     "core/iomod/guest",
-    "core/io",
     "core/io/guest",
     "core/io/common",
-    "cli",
-#     "ayo-test/services/ayo-service/ayo-function"
+    "cli"
 ]
 exclude = ["examples"]

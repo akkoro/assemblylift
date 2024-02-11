@@ -15,8 +15,29 @@ net/
 static ASSEMBLYLIFT_TOML: &str = r#"[project]
 name = "{{project_name}}"
 
+# Platforms define an environment in which to deploy providers.
+# [[platforms]]
+# id = "my-id" # A unique identifier for this platform
+# name = "platform-name" # Name of the platform, one of "aws" or "kubernetes"
+# options = {} # Map of options to pass to the platform
+
 [[services]]
-name = "{{default_service_name}}"
+name = "{{default_service_name}}" # Must correspond to a service in the services/ directory
+provider = { name = "my-provider", platform_id = "my-id" } # `platform_id` is the `id` of one of the platforms defined above
+# registry_id = "my-registry-id" # Optional; needed for Service providers which deploy using containers
+# domain_name = "my.example-domain.com" # Optional; needed if deploying service with a Domain name
+
+# [[registries]]
+# id = "my-registry-id"
+# provider = { name = "my-provider", platform_id = "my-id" }
+
+# [[domains]]
+# dns_name = "my.example-domain.com" # An existing hosted zone with the DNS Provider specified
+# [domains.provider]
+# name = "my-provider"
+# platform_id = "my-id"
+# options = {} # Map of options to pass to the provider
+
 "#;
 
 pub static ROOT_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| {
@@ -32,11 +53,14 @@ pub static ROOT_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| {
     ]))
 });
 
-static SERVICE_TOML: &str = r#"[service]
-name = "{{service_name}}"
-[service.provider]
-name = "aws-lambda" # or "k8s" for kubernetes
-options = { aws_region = "us-east-1" }
+static SERVICE_TOML: &str = r#"[gateway]
+provider = { name = "{{service_name}}" }
+
+#[[functions]]
+#name = "rusty-fn" # Must correspond to a function in the service's functions/ directory
+#language = "rust" # Kind of source code for function; one of "rust" or "ruby"
+#http = { verb = "GET", path = "/rustyfn" } # HTTP route to the function from the Service's Gateway
+#environment = { var1 = "val1" } # Map of environment variables to pass to the function
 "#;
 
 pub static SERVICE_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| {
@@ -52,21 +76,22 @@ version = "0.0.0"
 edition = "2021"
 
 [dependencies]
-base64 = "0.13"
-direct-executor = "0.3.0"
 serde = "1"
 serde_json = "1"
-asml_core = { version = "0.4.0-alpha", package = "assemblylift-core-guest" }
-assemblylift_core_io_guest = { version = "0.4.0-alpha", package = "assemblylift-core-io-guest" }
+assemblylift-core-guest = { version = "0.4.0-beta" }
+# You can omit core-io-guest if you will not be using IOmods in your function
+assemblylift-core-io-guest = { version = "0.4.0-beta" }
 "#;
 
-static FUNCTION_MAIN_RS: &str = r#"use asml_core::*;
+static FUNCTION_MAIN_RS: &str = r#"use assemblylift_core_guest::*;
 
 #[handler]
 async fn main() {
     // `ctx` is a value injected by the `handler` attribute macro
-    let event: serde_json::Value = serde_json::from_str(&ctx.input)
-        .expect("could not parse function input as JSON");
+    let event: serde_json::Value = match serde_json::from_slice(&ctx.input) {
+        Ok(val) => val,
+        Err(err) => return FunctionContext::failure(format!("could not parse function input as JSON: {}", err.to_string()));
+    };
 
     FunctionContext::success("\"Function returned OK!\"".to_string());
 }

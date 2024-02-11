@@ -1,0 +1,17 @@
+terraform {
+    required_providers {
+        aws = {
+            source  = "hashicorp/aws"
+            version = "~> 5.0"
+        }
+    }
+}
+
+data aws_route53_zone {{snake_case dns_name}} {
+    provider = aws
+    name     = "{{dns_name}}"
+}
+
+output zone_id {
+    value = data.aws_route53_zone.{{snake_case dns_name}}.zone_id  
+}

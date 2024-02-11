@@ -1,0 +1,41 @@
+package akkoro:assemblylift
+
+interface asml-io {
+  type ioid = u32
+  
+  enum io-error {
+    coords-not-found,
+    invalid-coords,
+    invalid-ioid,
+  }
+
+  enum poll-error {
+    not-ready,
+    invalid-ioid,
+  }
+
+  invoke: func(path: string, input: string) -> result<ioid, io-error>
+  poll: func(ioid: ioid) -> result<list<u8>, poll-error>
+}
+
+interface asml-rt {
+  type bytes = list<u8>
+
+  enum log-level {
+    debug,
+    trace,
+    info,
+    warn,
+    error
+  }
+
+  success: func(response: bytes)
+  failure: func(response: bytes)
+  log: func(level: log-level, context: string, message: string)
+  get-input: func() -> list<u8>
+}
+
+world assemblylift {
+  import asml-io
+  import asml-rt
+}

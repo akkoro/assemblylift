@@ -1,6 +1,6 @@
 [package]
 name = "assemblylift-core-guest-macros"
-version = "0.4.0-alpha.0"
+version = "0.4.0-beta.0"
 description = "Procedural macros for assemblylift-core-guest"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
 edition = "2018"

@@ -1,17 +1,12 @@
 extern crate serde_json;
 
-use clap::{App, AppSettings, Arg, crate_version};
+use clap::{crate_version, App, AppSettings, Arg};
 
-use crate::commands::{bind, burn, cast, init, make, nuke, pack, push, r#move, user};
+use crate::commands::{bind, burn, cast, host, init, make, nuke, pack, push, r#move, user};
 
 mod archive;
 mod commands;
-mod projectfs;
-mod providers;
 mod templates;
-mod terraform;
-mod tools;
-mod transpiler;
 
 fn main() {
     let app = App::new("asml")
@@ -124,6 +119,10 @@ fn main() {
                     App::new("login")
                         .about("Login to the IOmod registry")
                 ),
+        )
+        .subcommand(
+            App::new("host")
+                .about("Spawn a local development server")
         );
     let matches = app.setting(AppSettings::ArgRequiredElseHelp).get_matches();
 
@@ -138,6 +137,7 @@ fn main() {
         ("pack", matches) => pack::command(matches),
         ("push", matches) => push::command(matches),
         ("user", matches) => user::command(matches),
+        ("host", matches) => host::command(matches),
         (cmd, _) => println!("Invalid subcommand `{}`. Try `asml help` for options.", cmd),
     }
 }

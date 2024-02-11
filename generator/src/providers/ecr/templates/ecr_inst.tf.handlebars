@@ -1,0 +1,10 @@
+module {{snake_case name}}_container_registry {
+    source = "./services/{{name}}/infra/{{container_registry.provider.name}}"
+
+    project_name = "{{project_name}}"
+    service_name = "{{name}}"
+
+    providers = {
+        {{platform.name}} = {{platform.name}}.{{platform.id}}
+    }
+}

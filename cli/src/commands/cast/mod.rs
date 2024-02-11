@@ -1,70 +1,34 @@
+use std::path::PathBuf;
 use std::fs;
 use std::fs::read_to_string;
 use std::io::{Read, Write};
-use std::path::PathBuf;
-use std::str::FromStr;
+use std::rc::Rc;
 
+use assemblylift_generator::context::Context;
+use assemblylift_generator::projectfs::Project;
+use assemblylift_generator::toml;
+use assemblylift_tools::terraform::Terraform;
 use clap::ArgMatches;
-use path_abs::PathInfo;
-use registry_common::models::GetIomodAtResponse;
-use reqwest;
 use sha2::{Digest, Sha256};
 use sha2::digest::FixedOutput;
 
 use crate::archive;
-use crate::projectfs::Project;
-use crate::terraform;
-use crate::transpiler::context::Context;
-use crate::transpiler::{toml, Castable};
+
+use self::ruby::RubyFunction;
+use self::rust::RustFunction;
 
 mod ruby;
 mod rust;
 
-mod lang {
-    use std::path::PathBuf;
-    use std::rc::Rc;
-
-    use crate::cast::{ruby, rust};
-    use crate::projectfs::Project;
-    use crate::transpiler::toml::service::Function;
-
-    pub fn compile(
-        project: Rc<Project>,
-        service_name: &str,
-        function: &Function,
-    ) -> Result<PathBuf, String> {
-        let function_name = function.name.clone();
-        let function_artifact_path = format!("./net/services/{}/{}", service_name, function_name);
-        std::fs::create_dir_all(PathBuf::from(function_artifact_path.clone())).expect(&*format!(
-            "unable to create path {}",
-            function_artifact_path
-        ));
-
-        match function.language.clone() {
-            Some(lang) => match lang.as_str() {
-                "rust" => {
-                    let mx = rust::compile(project, service_name, function);
-                    match mx {
-                        Ok(wasm_path) => Ok(wasm_path),
-                        Err(e) => Err(e.to_string()),
-                    }
-                }
-                "ruby" => {
-                    let mx = ruby::compile(project, service_name, function);
-                    match mx {
-                        Ok(wasm_path) => Ok(wasm_path),
-                        Err(e) => Err(e.to_string()),
-                    }
-                }
-                _ => panic!("unsupported language"),
-            },
-            None => Err("no language specified".into()),
-        }
-    }
+pub trait CastableFunction {
+    fn compile(&self, wasi_snapshot_preview1: Vec<u8>) -> Result<PathBuf, String>;
+    fn compose(&self);
+    fn precompile(&self, target: Option<&str>);
+    fn artifact_path(&self) -> PathBuf;
 }
 
 pub fn command(matches: Option<&ArgMatches>) {
-    use std::rc::Rc;
+    let tf = Terraform::default();
 
     let _matches = match matches {
         Some(matches) => matches,
@@ -76,99 +40,100 @@ pub fn command(matches: Option<&ArgMatches>) {
     let mut manifest_path = cwd.clone();
     manifest_path.push("assemblylift.toml");
 
-    let asml_manifest = match toml::asml::Manifest::read(&manifest_path) {
-        Ok(manifest) => manifest,
-        Err(e) => panic!("could not read assemblylift.toml: {}", e),
-    };
+    let asml_manifest =
+        toml::asml::Manifest::read(&manifest_path).expect("could not read assemblylift.toml");
+    let project = Project::new(asml_manifest.project.name.clone(), Some(cwd));
 
-    let project = Rc::new(Project::new(asml_manifest.project.name.clone(), Some(cwd)));
+    let ctx = Rc::new(
+        Context::from_project(project.clone(), asml_manifest)
+            .expect("could not make context from manifest"),
+    );
 
-    // Fetch the latest terraform binary to the project directory
-    terraform::fetch(&*project.dir());
+    let wasi_snapshot_preview1 = include_bytes!("wasm/wasi_snapshot_preview1.command.wasm");
 
-    let services = asml_manifest.services.clone();
-    for service_ref in services.as_ref() {
-        let mut service_toml = project.service_dir(service_ref.name.clone()).dir();
-        service_toml.push("service.toml");
-        let service_manifest = toml::service::Manifest::read(&service_toml).unwrap();
-        let service_name = service_manifest.service().name.clone();
+    // Compile WASM & package function
+    let functions = ctx
+        .services
+        .iter()
+        .map(|s| s.functions.clone())
+        .flatten()
+        .collect::<Vec<_>>();
+    for function in functions {
+        let function_name = function.name.clone();
+        let function_artifact_path = project
+            .net_dir()
+            .service_dir(&function.service_name.clone())
+            .function_dir(function.name.clone())
+            .into_os_string()
+            .into_string()
+            .unwrap();
 
-        let functions = service_manifest.functions();
-        for function in functions.as_ref() {
-            let function_name = function.name.clone();
-            let function_artifact_path =
-                format!("./net/services/{}/{}", service_name, function_name);
+        let castable_function: Box<dyn CastableFunction> = match function.language.clone().as_str()
+        {
+            "rust" => Box::new(RustFunction::new(&function, project.clone())),
+            "ruby" => Box::new(RubyFunction::new(&function, project.clone())),
+            lang => panic!("unsupported function language: {}", lang),
+        };
+        if let Err(e) = castable_function.compile(wasi_snapshot_preview1.clone().to_vec()) {
+            return println!("Error compiling function {}: {}", function_name, e);
+        }
+        if function.precompiled {
+            // TODO set target triple
+            castable_function.precompile(None);
+        }
 
-            match lang::compile(project.clone(), &service_name, function) {
-                Ok(wasm_path) => {
-                    let mut function_dirs = vec![wasm_path.clone()];
-                    if let Some("ruby") = function.language.clone().as_deref() {
-                        function_dirs.push(PathBuf::from(format!(
-                            "{}/rubysrc",
-                            &function_artifact_path
-                        )));
-                    }
-
-                    // TODO zip not needed w/ container functions
-                    archive::zip_dirs(
-                        function_dirs,
-                        format!("{}/{}.zip", function_artifact_path.clone(), &function_name),
-                        Vec::new(),
-                    )
-                    .expect("unable to zip function artifacts");
-
-                    {
-                        let ctx = Rc::new(
-                            Context::from_project(project.clone(), asml_manifest.clone())
-                                .expect("could not make context from manifest"),
-                        );
-                        let artifacts = ctx
-                            .cast(ctx.clone(), None)
-                            .expect("could not cast assemblylift context");
-
-                        // todo: serialize to string only if the file is not out of date
-                        for artifact in artifacts {
-                            let path = artifact.write_path;
-                            let mut file = match fs::File::create(path.clone()) {
-                                Err(why) => panic!(
-                                    "couldn't create file {}: {}",
-                                    path.clone(),
-                                    why.to_string()
-                                ),
-                                Ok(file) => file,
-                            };
-
-                            // if the artifact and the file are the same, we dont want to serialize file to string
-                            // so after we compare the hashes and if they are the same, we serialize to string.
-                            let artifact_content = artifact.content.as_bytes();
-                            let mut artifact_hasher = Sha256::new();
-                            artifact_hasher.update(artifact_content);
-                            let artifact_hash_result = artifact_hasher.finalize_fixed();
-
-
-                            let mut file_content_hash = Sha256::new();
-                            let file_content = read_to_string(path.clone()).expect("could not read file");
-                            file_content_hash.update(file_content.as_bytes());
-                            let file_content_hash_result = file_content_hash.finalize_fixed();
-
-                            if artifact_hash_result != file_content_hash_result {
-                                println!("📄 > Skipping {}", path.clone());
-                                continue;
-                            }
-
-                            file.write_all(artifact_content)
-                                .expect("could not write artifact");
-                            println!("📄 > Wrote {}", path.clone());
-                        }
-
-                        terraform::commands::init();
-                        terraform::commands::plan();
-                    }
-                }
-                Err(e) => {
-                    println!("Error compiling function {}: {}", function_name, e);
-                }
+        // Function archive is only needed for Lambda at this time
+        if ctx
+            .service(&function.service_name)
+            .unwrap()
+            .provider
+            .name()
+            .eq(&assemblylift_generator::providers::aws_lambda::provider_name())
+        {
+            let mut function_dirs = vec![castable_function.artifact_path()];
+            if "ruby" == function.language.clone().as_str() {
+                function_dirs.push(PathBuf::from(format!(
+                    "{}/rubysrc",
+                    &function_artifact_path
+                )));
             }
+            archive::zip_dirs(
+                function_dirs,
+                format!("{}/{}.zip", function_artifact_path.clone(), &function.name),
+                Vec::new(),
+            )
+            .expect("unable to zip function artifacts");
         }
     }
+
+    // Cast Context to artifacts
+    {
+        let fragments = ctx.cast().expect("could not cast assemblylift context");
+        for fragment in fragments {
+            let path = fragment.write_path;
+
+            // if the artifact and the file are the same, we dont want to serialize file to string
+            // so after we compare the hashes and if they are the same, we serialize to string.
+            let artifact_content = fragment.content.as_bytes();
+            let mut artifact_hasher = Sha256::new();
+            artifact_hasher.update(artifact_content);
+            let artifact_hash_result = artifact_hasher.finalize_fixed();
+
+
+            let mut file_content_hash = Sha256::new();
+            let file_content = read_to_string(path.clone()).expect("could not read file");
+            file_content_hash.update(file_content.as_bytes());
+            let file_content_hash_result = file_content_hash.finalize_fixed();
+
+            if artifact_hash_result != file_content_hash_result {
+                println!("📄 > Skipping {}", path.clone());
+                continue;
+            }
+
+            fragment.write().expect("could not write fragment");
+        }
+    }
+
+    tf.init();
+    tf.plan();
 }

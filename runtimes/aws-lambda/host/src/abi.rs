@@ -1,23 +1,49 @@
-use assemblylift_core::abi::RuntimeAbi;
-use assemblylift_core::Caller;
-use assemblylift_core::wasm::{State, Wasmtime};
+use assemblylift_core::wasm::StatusTx;
+use assemblylift_core::{KeysAbi, RuntimeAbi, SecretsAbi};
+use assemblylift_wasi_secrets_in_memory::InMemorySecrets;
 
-pub type Status = ();
+#[derive(Clone)]
+pub enum Status {
+    Success((Option<String>, serde_json::Value)),
+    Failure((Option<String>, serde_json::Value)),
+}
 
-pub struct LambdaAbi;
+pub struct Abi;
 
-impl RuntimeAbi<Status> for LambdaAbi {
-    fn log(mut caller: Caller<'_, State<Status>>, ptr: u32, len: u32) {
-        let s = Wasmtime::<Self, Status>::ptr_to_string(&mut caller, ptr, len).unwrap();
-        println!("LOG: {}", s);
+impl KeysAbi for Abi {
+    fn encrypt(id: String, plaintext: Vec<u8>) -> anyhow::Result<Vec<u8>> {
+        InMemorySecrets::encrypt(id, plaintext)
     }
 
-    fn success(mut caller: Caller<'_, State<Status>>, ptr: u32, len: u32) {
-        let lambda_runtime = &crate::LAMBDA_RUNTIME;
-        let response = Wasmtime::<Self, Status>::ptr_to_string(&mut caller, ptr, len).unwrap();
+    fn decrypt(id: String, ciphertext: Vec<u8>) -> anyhow::Result<Vec<u8>> {
+        InMemorySecrets::decrypt(id, ciphertext)
+    }
+}
 
-        let respond = lambda_runtime.respond(response);
-        let state = caller.data_mut();
-        state.threader.clone().lock().unwrap().spawn(respond);
+impl SecretsAbi for Abi {
+    fn get_secret(id: String) -> anyhow::Result<Vec<u8>> {
+        // TODO detect secret manager from id, e.g. AWS should be an ARN
+        //      may need to enforce prefixes for other managers e.g. vault/adfuuid-deadb33f-adfd
+        InMemorySecrets::get_secret(id)
+    }
+
+    fn set_secret(id: String, value: Vec<u8>, key_id: Option<String>) -> anyhow::Result<()> {
+        InMemorySecrets::set_secret(id, value, key_id)
+    }
+}
+
+impl RuntimeAbi<Status> for Abi {
+    fn success(status_tx: StatusTx<Status>, response: Vec<u8>, request_id: Option<String>) {
+        let response = serde_json::from_slice(response.as_slice()).unwrap();
+        status_tx
+            .send(Status::Success((request_id, response)))
+            .unwrap();
+    }
+
+    fn failure(status_tx: StatusTx<Status>, response: Vec<u8>, request_id: Option<String>) {
+        let response = serde_json::from_slice(response.as_slice()).unwrap();
+        status_tx
+            .send(Status::Failure((request_id, response)))
+            .unwrap();
     }
 }

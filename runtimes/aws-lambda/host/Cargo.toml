@@ -1,9 +1,9 @@
 [package]
 name = "assemblylift-awslambda-host"
-version = "0.4.0-alpha.10"
+version = "0.4.0-beta.0"
 description = "AssemblyLift AWS Lambda runtime"
 authors = ["Akkoro and the AssemblyLift contributors <assemblylift@akkoro.io>"]
-edition = "2018"
+edition = "2021"
 license-file = "../../../LICENSE.md"
 repository = "https://github.com/akkoro/assemblylift"
 readme = "README.md"
@@ -13,14 +13,16 @@ name = "bootstrap"
 path = "src/main.rs"
 
 [dependencies]
-tokio = { version = "1.4", features = ["macros", "sync", "rt", "rt-multi-thread"] }
-once_cell = "1.4"
+anyhow = "1"
 clap = { version = "3.0", features = ["cargo"] }
-crossbeam-channel = "0.5"
-reqwest = { version = "0.11", features = ["blocking"] }
+lambda_runtime = "0.8"
+serde_json = "1"
 toml = "0.5"
+tokio = { version = "1.4", features = ["macros", "sync", "rt", "rt-multi-thread"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
 zip = "0.6"
 
-assemblylift_core = { version = "0.4.0-alpha.10", package = "assemblylift-core", path = "../../../core" }
-assemblylift_core_iomod = { version = "0.4.0-alpha.0", package = "assemblylift-core-iomod", path = "../../../core/iomod" }
-assemblylift_core_io_common = { version = "0.3", package = "assemblylift-core-io-common", path = "../../../core/io/common" }
+assemblylift_core = { version = "0.4.0-beta.0", package = "assemblylift-core", path = "../../../core" }
+assemblylift_core_iomod = { version = "0.4.0-beta.0", package = "assemblylift-core-iomod", path = "../../../core/iomod" }
+assemblylift-wasi-secrets-in-memory = { path = "../../../runtimes/components/wasi-secrets/in-memory" }

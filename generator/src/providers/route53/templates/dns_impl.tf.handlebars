@@ -1,0 +1,17 @@
+variable project_name {
+  type = string
+}
+
+variable service_name {
+  type = string
+}
+
+variable zone_id {
+  type = string
+}
+
+locals {
+  domain_name = "{{#unless this.is_root}}${var.service_name}.{{/unless}}{{#unless this.domain.map_to_root}}${var.project_name}.{{/unless}}{{this.domain.dns_name}}"
+}
+
+{{> (lookup this.gateway.provider "name") }}
