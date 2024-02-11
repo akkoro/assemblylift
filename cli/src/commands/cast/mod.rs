@@ -110,7 +110,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     {
         let fragments = ctx.cast().expect("could not cast assemblylift context");
         for fragment in fragments {
-            let path = fragment.write_path;
+            let path = fragment.write_path.clone();
 
             // if the artifact and the file are the same, we dont want to serialize file to string
             // so after we compare the hashes and if they are the same, we serialize to string.
@@ -126,7 +126,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             let file_content_hash_result = file_content_hash.finalize_fixed();
 
             if artifact_hash_result != file_content_hash_result {
-                println!("📄 > Skipping {}", path.clone());
+                println!("📄 > Skipping {}", path.display());
                 continue;
             }
 

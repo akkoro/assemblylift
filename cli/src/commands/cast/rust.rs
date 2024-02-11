@@ -98,7 +98,7 @@ impl CastableFunction for RustFunction {
         if cargo_build.status.code().unwrap() != 0 {
             return Err(format!(
                 "Unable to compile function {}:\n{}",
-                function_name, build_log
+                &self.function_name, build_log
             ));
         }
 
@@ -118,7 +118,7 @@ impl CastableFunction for RustFunction {
             if e.kind() == std::io::ErrorKind::NotFound {
                 return Err(format!(
                     "Unable to find compiled function at {}",
-                    copy_from.clone()
+                    move_from.clone()
                 ));
             }
             return Err(format!(
