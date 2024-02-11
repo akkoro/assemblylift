@@ -10,7 +10,7 @@ use crate::archive::unzip;
 use crate::projectfs::Project;
 use crate::transpiler::toml::service::Function;
 
-pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> PathBuf {
+pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) -> Result<PathBuf, String> {
     let function_name = function.name.clone();
     let service_artifact_path = format!("./net/services/{}", service_name);
     let function_artifact_path = format!("./net/services/{}/{}", service_name, function_name);
@@ -79,14 +79,15 @@ pub fn compile(project: Rc<Project>, service_name: &str, function: &Function) ->
         false => format!("{}/ruby.wasm", function_artifact_path.clone()),
     };
     let copy_result = std::fs::copy(ruby_wasmu.clone(), copy_to.clone());
-    if copy_result.is_err() {
-        println!(
-            "ERROR COPY from={} to={}",
-            ruby_wasmu.as_path().display(),
-            copy_to.clone()
-        );
-        panic!("{:?}", copy_result.err());
+    match copy_result {
+        Ok(_) => println!("Copied ruby.wasm.bin to function artifact directory"),
+        Err(e) => {
+            return Err(format!(
+                "Could not copy ruby.wasm.bin to function artifact directory: {}",
+                e
+            ))
+        }
     }
 
-    PathBuf::from(copy_to)
+    Ok(PathBuf::from(copy_to))
 }

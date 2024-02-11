@@ -31,13 +31,11 @@ toml = "0.5"
 walkdir = "2.3"
 z85 = "3"
 zip = "0.6"
-
 wasmtime = "4.0"
-
 assemblylift-core = { version = "0.4.0-alpha.12", path = "../core" }
 assemblylift-core-iomod = { version = "0.4.0-alpha.0", path = "../core/iomod" }
-
 registry_common = { version = "0.1", package = "asml-iomod-registry-common" }
+sha2 = "0.10.7"
 
 [dependencies.reqwest]
 version = "0.11"

@@ -5,3 +5,7 @@ bootstrap
 bootstrap.zip
 *_capnp.rs
 .idea/
+ayo-test
+
+# for future use, ignore folders that match pattern: dev-test.*
+dev-test.*
