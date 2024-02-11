@@ -1,8 +1,9 @@
+use assemblylift_generator::{
+    projectfs::{self, Project},
+    toml::{asml, service},
+};
 use clap::ArgMatches;
 use dialoguer::Confirm;
-
-use crate::projectfs::{locate_asml_manifest, Project};
-use crate::transpiler::toml::{asml, service};
 
 pub fn command(matches: Option<&ArgMatches>) {
     let matches = match matches {
@@ -10,7 +11,7 @@ pub fn command(matches: Option<&ArgMatches>) {
         _ => panic!("could not get matches for make command"),
     };
 
-    let manifest = match locate_asml_manifest() {
+    let manifest = match projectfs::locate_asml_manifest() {
         Some(manifest) => manifest,
         None => panic!("could not find assemblylift.toml in tree"),
     };

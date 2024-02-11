@@ -1,0 +1,110 @@
+variable project_name {
+    type = string
+}
+
+variable project_path {
+    type = string
+}
+
+variable service_name {
+    type = string
+}
+
+terraform {
+    required_providers {
+        kubernetes = {
+            source  = "hashicorp/kubernetes"
+            version = ">= 2.24.0"
+        }
+    }
+}
+
+{{#if this.domain}}
+locals {
+  domain_name = "{{#unless this.is_root}}${var.service_name}.{{/unless}}{{#unless this.domain.map_to_root}}${var.project_name}.{{/unless}}{{this.domain.dns_name}}"
+}
+{{/if}}
+
+data kubernetes_service gloo_proxy {
+    provider = kubernetes
+    metadata {
+        name      = "gateway-proxy"
+        namespace = "gloo-system"
+    }
+}
+
+resource kubernetes_manifest gloo_virtualservice {
+    provider = kubernetes
+    manifest = {
+        apiVersion = "gateway.solo.io/v1"
+        kind       = "VirtualService"
+
+        metadata = {
+            name      = var.service_name
+            namespace = "asml-${var.project_name}-${var.service_name}"
+        }
+
+        spec = {
+            virtualHost = {
+                domains = [{{#if this.domain}}local.domain_name{{else}}data.kubernetes_service.gloo_proxy.status.0.load_balancer.0.ingress.0.ip{{/if}}]
+                routes = [
+                    {{#each functions}}{
+                        matchers = [
+                            {
+                                exact = "{{this.http.path}}"
+                            }
+                        ]
+                        routeAction = {
+                            single = {
+                                upstream = {
+                                    name      = "asml-${var.project_name}-${var.service_name}-{{this.name}}-5543"
+                                    namespace = "gloo-system"
+                                }
+                            }
+                        }
+                    },
+                {{/each}}]
+            }
+            {{#if this.domain}}sslConfig = {
+                secretRef = {
+                    name      = "asml-${var.project_name}-${var.service_name}-tls"
+                    namespace = "asml-${var.project_name}-${var.service_name}"
+                }
+                sniDomains = [local.domain_name]
+            }{{/if}}
+        }
+    }
+}
+{{#if this.domain}}
+resource kubernetes_manifest gloo_virtualservice_http {
+    provider = kubernetes
+    manifest = {
+        apiVersion = "gateway.solo.io/v1"
+        kind       = "VirtualService"
+
+        metadata = {
+            name      = "${var.service_name}-http"
+            namespace = "asml-${var.project_name}-${var.service_name}"
+        }
+
+        spec = {
+            virtualHost = {
+                domains = [local.domain_name]
+                routes = [
+                    {
+                        matchers = [
+                            {
+                                prefix = "/"
+                            }
+                        ]
+                        redirectAction = {
+                            hostRedirect = local.domain_name
+                            httpsRedirect = true
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
+{{/if}}

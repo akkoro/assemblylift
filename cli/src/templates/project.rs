@@ -15,8 +15,29 @@ net/
 static ASSEMBLYLIFT_TOML: &str = r#"[project]
 name = "{{project_name}}"
 
+# Platforms define an environment in which to deploy providers.
+# [[platforms]]
+# id = "my-id" # A unique identifier for this platform
+# name = "platform-name" # Name of the platform, one of "aws" or "kubernetes"
+# options = {} # Map of options to pass to the platform
+
 [[services]]
-name = "{{default_service_name}}"
+name = "{{default_service_name}}" # Must correspond to a service in the services/ directory
+provider = { name = "my-provider", platform_id = "my-id" } # `platform_id` is the `id` of one of the platforms defined above
+# registry_id = "my-registry-id" # Optional; needed for Service providers which deploy using containers
+# domain_name = "my.example-domain.com" # Optional; needed if deploying service with a Domain name
+
+# [[registries]]
+# id = "my-registry-id"
+# provider = { name = "my-provider", platform_id = "my-id" }
+
+# [[domains]]
+# dns_name = "my.example-domain.com" # An existing hosted zone with the DNS Provider specified
+# [domains.provider]
+# name = "my-provider"
+# platform_id = "my-id"
+# options = {} # Map of options to pass to the provider
+
 "#;
 
 pub static ROOT_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| {
@@ -32,11 +53,14 @@ pub static ROOT_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| {
     ]))
 });
 
-static SERVICE_TOML: &str = r#"[service]
-name = "{{service_name}}"
-[service.provider]
-name = "aws-lambda" # or "k8s" for kubernetes
-options = { aws_region = "us-east-1" }
+static SERVICE_TOML: &str = r#"[gateway]
+provider = { name = "{{service_name}}" }
+
+#[[functions]]
+#name = "rusty-fn" # Must correspond to a function in the service's functions/ directory
+#language = "rust" # Kind of source code for function; one of "rust" or "ruby"
+#http = { verb = "GET", path = "/rustyfn" } # HTTP route to the function from the Service's Gateway
+#environment = { var1 = "val1" } # Map of environment variables to pass to the function
 "#;
 
 pub static SERVICE_DOCUMENTS: Lazy<Arc<Vec<Document>>> = Lazy::new(|| {

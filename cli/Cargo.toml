@@ -40,7 +40,9 @@ wasmtime = "11.0"
 
 assemblylift-core = { version = "0.4.0-beta.0", path = "../core" }
 assemblylift-core-iomod = { version = "0.4.0-beta.0", path = "../core/iomod" }
+assemblylift-generator = { path = "../generator" }
 assemblylift-hyper-runtime = { version = "0.4.0-beta.0", path = "../runtimes/hyper" }
+assemblylift-tools = { path = "../tools" }
 
 registry_common = { version = "0.1", package = "asml-iomod-registry-common" }
 

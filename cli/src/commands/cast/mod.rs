@@ -1,18 +1,16 @@
-use std::fs;
-use std::io::Write;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use assemblylift_generator::context::Context;
+use assemblylift_generator::projectfs::Project;
+use assemblylift_generator::toml;
+use assemblylift_tools::terraform::Terraform;
 use clap::ArgMatches;
 
 use crate::archive;
-use crate::commands::cast::rust::RustFunction;
-use crate::projectfs::Project;
-use crate::tools::terraform::Terraform;
-use crate::transpiler::context::Context;
-use crate::transpiler::{toml, Castable};
 
 use self::ruby::RubyFunction;
+use self::rust::RustFunction;
 
 mod ruby;
 mod rust;
@@ -39,7 +37,7 @@ pub fn command(matches: Option<&ArgMatches>) {
 
     let asml_manifest =
         toml::asml::Manifest::read(&manifest_path).expect("could not read assemblylift.toml");
-    let project = Rc::new(Project::new(asml_manifest.project.name.clone(), Some(cwd)));
+    let project = Project::new(asml_manifest.project.name.clone(), Some(cwd));
 
     let ctx = Rc::new(
         Context::from_project(project.clone(), asml_manifest)
@@ -49,7 +47,12 @@ pub fn command(matches: Option<&ArgMatches>) {
     let wasi_snapshot_preview1 = include_bytes!("wasm/wasi_snapshot_preview1.command.wasm");
 
     // Compile WASM & package function
-    let functions = ctx.functions.as_slice();
+    let functions = ctx
+        .services
+        .iter()
+        .map(|s| s.functions.clone())
+        .flatten()
+        .collect::<Vec<_>>();
     for function in functions {
         let function_artifact_path = project
             .net_dir()
@@ -61,12 +64,12 @@ pub fn command(matches: Option<&ArgMatches>) {
 
         let castable_function: Box<dyn CastableFunction> = match function.language.clone().as_str()
         {
-            "rust" => Box::new(RustFunction::new(&function)),
-            "ruby" => Box::new(RubyFunction::new(&function)),
+            "rust" => Box::new(RustFunction::new(&function, project.clone())),
+            "ruby" => Box::new(RubyFunction::new(&function, project.clone())),
             lang => panic!("unsupported function language: {}", lang),
         };
         castable_function.compile(wasi_snapshot_preview1.clone().to_vec());
-        if function.precompile {
+        if function.precompiled {
             // TODO set target triple
             castable_function.precompile(None);
         }
@@ -76,8 +79,8 @@ pub fn command(matches: Option<&ArgMatches>) {
             .service(&function.service_name)
             .unwrap()
             .provider
-            .name
-            .eq(crate::providers::AWS_LAMBDA_PROVIDER_NAME)
+            .name()
+            .eq(&assemblylift_generator::providers::aws_lambda::provider_name())
         {
             let mut function_dirs = vec![castable_function.artifact_path()];
             if "ruby" == function.language.clone().as_str() {
@@ -97,19 +100,9 @@ pub fn command(matches: Option<&ArgMatches>) {
 
     // Cast Context to artifacts
     {
-        let artifacts = ctx
-            .cast(ctx.clone(), None)
-            .expect("could not cast assemblylift context");
-        for artifact in artifacts {
-            let path = artifact.write_path;
-            let mut file = match fs::File::create(path.clone()) {
-                Err(why) => panic!("couldn't create file {}: {}", path.clone(), why.to_string()),
-                Ok(file) => file,
-            };
-
-            file.write_all(artifact.content.as_bytes())
-                .expect("could not write artifact");
-            println!("📄 > Wrote {}", path.clone());
+        let fragments = ctx.cast().expect("could not cast assemblylift context");
+        for fragment in fragments {
+            fragment.write().expect("could not write fragment");
         }
     }
 

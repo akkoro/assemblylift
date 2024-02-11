@@ -5,9 +5,10 @@ use std::rc::Rc;
 use path_abs::PathInfo;
 
 use assemblylift_core::wasm;
+use assemblylift_generator::context::Function;
+use assemblylift_generator::projectfs::{NetDir, Project};
 
 use crate::archive::unzip;
-use crate::projectfs::{NetDir, Project};
 
 use super::CastableFunction;
 
@@ -21,25 +22,23 @@ pub struct RubyFunction {
 }
 
 impl RubyFunction {
-    pub fn new(function: &crate::transpiler::context::Function) -> Self {
+    pub fn new(function: &Function, project: Rc<Project>) -> Self {
         let service_name = function.service_name.clone();
-        let net_path = function
-            .project
-            .net_dir()
+        let net_dir = project.net_dir();
+        let net_path = net_dir
             .service_dir(&service_name.clone())
             .function_dir(function.name.clone())
             .to_str()
             .unwrap()
             .to_string();
-        let net_dir = function.project.net_dir();
         std::fs::create_dir_all(PathBuf::from(&net_path))
             .expect(&*format!("unable to create path {}", &net_path));
         Self {
-            project: function.project.clone(),
+            project: project.clone(),
             service_name,
             function_name: function.name.clone(),
             net_dir,
-            enable_precompile: function.precompile,
+            enable_precompile: function.precompiled,
             cpu_compat_mode: function.cpu_compat_mode.clone(),
         }
     }
@@ -49,14 +48,8 @@ impl CastableFunction for RubyFunction {
     fn compile(&self, wasi_snapshot_preview1: Vec<u8>) {
         let function_name = &self.function_name;
         let service_name = &self.service_name;
-        let service_net_dir = self
-            .net_dir
-            .service_dir(&service_name.clone());
-        let service_artifact_path = service_net_dir
-            .dir()
-            .to_str()
-            .unwrap()
-            .to_string();
+        let service_net_dir = self.net_dir.service_dir(&service_name.clone());
+        let service_artifact_path = service_net_dir.dir().to_str().unwrap().to_string();
         let function_artifact_path = service_net_dir
             .function_dir(function_name.clone())
             .to_str()
@@ -95,10 +88,11 @@ impl CastableFunction for RubyFunction {
 
         if !Path::new(&format!("{}/ruby-wasm32-wasi", service_artifact_path)).exists() {
             let mut zip = Vec::new();
-            let url = "http://public.assemblylift.akkoro.io/runtime/ruby/3.3.0-dev/ruby-wasm32-wasi.zip";
+            let url =
+                "http://public.assemblylift.akkoro.io/runtime/ruby/3.3.0-dev/ruby-wasm32-wasi.zip";
             println!("Fetching Ruby runtime archive from {}...", url);
-            let mut response = reqwest::blocking::get(url)
-                .expect("could not fetch ruby runtime zip");
+            let mut response =
+                reqwest::blocking::get(url).expect("could not fetch ruby runtime zip");
             response.read_to_end(&mut zip).unwrap();
             unzip(&zip, &service_artifact_path).unwrap();
         }
@@ -112,7 +106,10 @@ impl CastableFunction for RubyFunction {
         if Path::new(&ruby_bin).exists() {
             std::fs::rename(ruby_bin.clone(), ruby_wasm.clone()).unwrap();
         }
-        let copy_to = format!("{}/{}.component.wasm", &function_artifact_path, &function_name);
+        let copy_to = format!(
+            "{}/{}.component.wasm",
+            &function_artifact_path, &function_name
+        );
         let copy_result = std::fs::copy(ruby_wasm.clone(), copy_to.clone());
         if copy_result.is_err() {
             println!(

@@ -1,10 +1,13 @@
 [workspace]
+resolver = "2"
 members = [
     "runtimes/aws-lambda/host",
     "runtimes/aws-lambda/guest",
     "runtimes/hyper",
     "runtimes/components/wasi-secrets/in-memory",
 #    "builtin/functions/verify-macaroon",
+    "generator",
+    "tools",
     "core",
     "core/guest",
     "core/guest/macros",

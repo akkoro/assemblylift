@@ -1,0 +1,13 @@
+module {{snake_case name}}_api {
+    source = "./services/{{name}}/infra/{{provider.name}}"
+
+    project_name = "{{project_name}}"
+    project_path = "{{project_path}}"
+    service_name = "{{name}}"
+
+    providers = {
+        {{platform.name}} = {{platform.name}}.{{platform.id}}
+    }
+
+    depends_on = [module.{{snake_case name}}_service{{#if api.domain}}, module.{{snake_case name}}_dns{{/if}}]
+}

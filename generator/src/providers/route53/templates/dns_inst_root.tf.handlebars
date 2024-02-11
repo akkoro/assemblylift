@@ -1,0 +1,7 @@
+module {{snake_case dns_name}}_dns {
+    source = "./infra/{{{provider.name}}}/{{dns_name}}"
+
+    providers = {
+        {{platform.name}} = {{platform.name}}.{{platform.id}}
+    }
+}

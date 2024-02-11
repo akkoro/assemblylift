@@ -1,13 +1,11 @@
 use std::process;
 
+use assemblylift_generator::projectfs::Project;
 use clap::ArgMatches;
 use handlebars::to_json;
 use serde_json::value::{Map, Value as Json};
 
-use crate::projectfs::Project;
-use crate::templates::project::{
-    ROOT_DOCUMENTS, RUBY_FUNCTION_DOCUMENTS, RUST_FUNCTION_DOCUMENTS, SERVICE_DOCUMENTS,
-};
+use crate::templates::project::{ROOT_DOCUMENTS, SERVICE_DOCUMENTS};
 use crate::templates::write_documents;
 
 pub fn command(matches: Option<&ArgMatches>) {
