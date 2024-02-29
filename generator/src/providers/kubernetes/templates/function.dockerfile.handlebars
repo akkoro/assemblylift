@@ -3,9 +3,9 @@ ENV ASML_WASM_MODULE_NAME {{handler_name}}
 ENV ASML_FUNCTION_COORDINATES {{coordinates}}
 ENV ASML_FUNCTION_PRECOMPILED {{precompiled}}
 ENV ASML_FUNCTION_ENV {{runtime_environment}}
-ADD ./functions/{{name}}/{{handler_name}} /opt/assemblylift/projects/{{project_name}}/services/{{service_name}}/{{handler_name}}
-{{#if has_ruby}}
+ADD ./services/{{service_name}}/functions/{{name}}/{{handler_name}} /opt/assemblylift/projects/{{project_name}}/services/{{service_name}}/{{handler_name}}
+{{#if (eq language "ruby")}}
 ENV ASML_FUNCTION_BIND_PATHS /usr/bin/ruby-wasm32-wasi/src=/src,/usr/bin/ruby-wasm32-wasi/usr=/usr
-COPY ./ruby-wasm32-wasi /usr/bin/ruby-wasm32-wasi
-COPY ./functions/{{name}}/rubysrc/* /usr/bin/ruby-wasm32-wasi/src/
+COPY ./runtime/ruby/3.3.0-dev/ruby-wasm32-wasi /usr/bin/ruby-wasm32-wasi
+COPY ./services/{{service_name}}/functions/{{name}}/rubysrc/* /usr/bin/ruby-wasm32-wasi/src/
 {{/if}}

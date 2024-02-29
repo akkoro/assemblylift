@@ -186,11 +186,12 @@ impl Context {
                     ),
                     language: language.clone(),
                     // TODO this should not be inferred at context level
-                    handler_name: match language.clone().as_str() {
-                        "rust" => format!("{}.component.{}", function.name.clone(), ext),
-                        "ruby" => format!("ruby.component.{}", ext),
-                        _ => "handler.wasm.bin".into(),
-                    },
+                    // handler_name: match language.clone().as_str() {
+                    //     "rust" => format!("{}.component.{}", function.name.clone(), ext),
+                    //     "ruby" => format!("ruby.component.{}", ext),
+                    //     _ => "handler.wasm.bin".into(),
+                    // },
+                    handler_name: format!("{}.component.{}", function.name.clone(), ext),
                     // TODO this should not be inferred at context level
                     runtime_environment: match language.as_str() {
                         "rust" => "native",
@@ -291,7 +292,7 @@ impl Context {
                 gateway: Gateway {
                     provider: gateway_provider,
                 },
-                functions: ctx_functions,
+                functions: ctx_functions.clone(),
                 container_registry: match service_ref.registry_id {
                     Some(rid) => match ctx_registries.iter().find(|&r| r.id.eq(&rid)) {
                         Some(registry) => Some(registry.into()),
@@ -313,6 +314,7 @@ impl Context {
                     None => None,
                 },
                 is_root: service_ref.is_root,
+                has_ruby: ctx_functions.clone().iter().find(|&f| f.language.eq("ruby")).is_some(),
             });
 
             for iomod in iomods {
@@ -424,7 +426,7 @@ impl Context {
                 Ok(out)
             })
             .reduce(concat_cast)
-            .unwrap()?;
+            .unwrap_or(Ok(Vec::new()))?;
 
         let mut dns_out = self
             .domains
@@ -437,7 +439,7 @@ impl Context {
                     .cast_domain(&domain)
             })
             .reduce(concat_cast)
-            .unwrap()?;
+            .unwrap_or(Ok(Vec::new()))?;
 
         let mut hbs = Handlebars::new();
         hbs.register_helper("concat", Box::new(concat));
@@ -580,6 +582,7 @@ pub struct Service {
     pub container_registry: Option<Registry>,
     pub domain: Option<Domain>,
     pub is_root: Option<bool>,
+    pub has_ruby: bool,
 }
 
 impl Service {
@@ -618,6 +621,7 @@ impl From<&Service> for Service {
                 None => None,
             },
             is_root: value.is_root,
+            has_ruby: value.has_ruby,
         }
     }
 }

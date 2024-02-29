@@ -43,10 +43,10 @@ resource aws_lambda_layer_version asml_runtime {
 {{#if has_ruby}}resource aws_lambda_layer_version asml_ruby {
     provider = aws
 
-    filename   = "${var.project_path}/.asml/runtime/${var.service_name}-ruby.zip"
+    filename   = "${var.project_path}/net/runtime/ruby/3.3.0-dev/ruby-wasm32-wasi.zip"
     layer_name = "asml-${var.project_name}-${var.service_name}-ruby"
 
-    source_code_hash = filebase64sha256("${var.project_path}/.asml/runtime/${var.service_name}-ruby.zip")
+    source_code_hash = filebase64sha256("${var.project_path}/net/runtime/ruby/3.3.0-dev/ruby-wasm32-wasi.zip")
 }{{/if}}
 
 {{#if has_large_payloads}}resource aws_s3_bucket asml_functions {

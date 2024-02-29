@@ -388,10 +388,15 @@ where
                 key_set
             },
         };
+
+        tracing::debug!("JWT token={}", &token);
         
         let jwt = match key_set.verify(&token) {
             Ok(jwt) => jwt,
-            Err(_err) => return Ok(Err(jwt::decoder::JwtError::InvalidToken)),
+            Err(err) => {
+                tracing::error!("{}", err.to_string());
+                return Ok(Err(jwt::decoder::JwtError::InvalidToken))
+            },
         };
         
         Ok(Ok(jwt::decoder::VerifyResult { valid: jwt.valid().unwrap_or(false) }))

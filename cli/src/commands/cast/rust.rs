@@ -8,6 +8,8 @@ use assemblylift_generator::projectfs::Project;
 
 use crate::commands::cast::CastableFunction;
 
+use super::CompileStatus;
+
 pub struct RustFunction {
     project: Rc<Project>,
     service_name: String,
@@ -71,7 +73,7 @@ impl RustFunction {
 }
 
 impl CastableFunction for RustFunction {
-    fn compile(&self, wasi_snapshot_preview1: Vec<u8>) -> Result<PathBuf, String> {
+    fn compile(&self, wasi_snapshot_preview1: Vec<u8>) -> Result<CompileStatus, String> {
         let manifest_path = PathBuf::from(format!(
             "{}/Cargo.toml",
             self.project
@@ -94,7 +96,6 @@ impl CastableFunction for RustFunction {
             .unwrap();
 
         let build_log = std::str::from_utf8(&cargo_build.stderr).unwrap();
-        std::io::stderr().write_all(&cargo_build.stderr).unwrap();
         if cargo_build.status.code().unwrap() != 0 {
             return Err(format!(
                 "Unable to compile function {}:\n{}",
@@ -102,59 +103,35 @@ impl CastableFunction for RustFunction {
             ));
         }
 
-        let move_from = self.source_wasm_path();
-        let move_to = format!(
-            "{}/{}.component.wasm",
-            self.net_path.clone(),
-            &self.function_name
-        );
-        let move_result = std::fs::copy(move_from.clone(), move_to.clone());
-        if let Err(e) = move_result {
-            println!(
-                "ERROR move from={} to={}",
-                move_from.clone(),
-                move_to.clone()
-            );
-            if e.kind() == std::io::ErrorKind::NotFound {
-                return Err(format!(
-                    "Unable to find compiled function at {}",
-                    move_from.clone()
-                ));
-            }
-            return Err(format!(
-                "Unable to copy compiled function from {} to {}",
-                move_from.clone(),
-                move_to.clone()
-            ));
-        }
-
+        let mut component_path = PathBuf::from(self.source_wasm_path());
+        component_path.set_extension("component.wasm");
         {
-            let module = std::fs::read(move_to.clone()).unwrap();
+            let module = std::fs::read(self.source_wasm_path()).unwrap();
             let component = wasm::make_wasi_component(module, wasi_snapshot_preview1.as_slice())
                 .expect("unable to make component of the provided module");
-            std::fs::write(move_to.clone(), component).unwrap();
+            std::fs::write(component_path.clone(), component).unwrap();
         }
 
-        Ok(PathBuf::from(&move_to))
+        Ok(CompileStatus { wasm_path: component_path.clone(), changed: true })
     }
 
     fn compose(&self) {
         todo!()
     }
 
-    // TODO projectfs should handle mapping the precompiled bin path
     fn precompile(&self, target: Option<&str>) {
         println!("⚡️ > Precompiling function `{}`...", &self.function_name);
-        let path = format!("{}/{}.component.wasm", &self.net_path, &self.function_name);
+        let mut path = PathBuf::from(self.source_wasm_path());
+        path.set_extension("component.wasm");
         let bytes = wasm::precompile(
             Path::new(&path),
             &target.unwrap_or("x86_64-linux-gnu"),
             &self.cpu_compat_mode.clone(),
         )
         .unwrap();
-        let out_path = format!("{}.bin", path);
-        std::fs::write(&out_path, bytes).unwrap();
-        println!("📄 > Wrote {}", &out_path);
+        path.set_extension("wasm.bin");
+        std::fs::write(&path, bytes).unwrap();
+        println!("📄 > Wrote {}", path.to_str().unwrap());
     }
 
     fn artifact_path(&self) -> PathBuf {

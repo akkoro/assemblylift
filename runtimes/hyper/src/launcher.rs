@@ -142,7 +142,7 @@ async fn launch(
             false => match PathBuf::from("./assemblylift.toml").exists() {
                 true => Url::from_str(
                     format!(
-                        "file://{}/net/services/{}/{}/{}.component.{}",
+                        "file://{}/net/services/{}/functions/{}/{}.component.{}",
                         std::env::current_dir().unwrap().to_str().unwrap(),
                         coordinates[1],
                         coordinates[2],

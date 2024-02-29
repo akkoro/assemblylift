@@ -75,7 +75,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                 .interact()
                 .unwrap()
             {
-                let service_dir = &*project.service_dir(function_name[0].into()).dir().clone();
+                let service_dir = project.service_dir(function_name[0].into()).dir().clone();
                 let mut manifest_file = service_dir.clone();
                 manifest_file.push("service.toml");
                 let mut service_manifest = service::Manifest::read(&manifest_file).unwrap();

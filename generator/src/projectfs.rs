@@ -10,20 +10,20 @@ use super::toml;
 #[derive(Serialize, Deserialize)]
 pub struct Project {
     pub name: String,
-    project_path: Box<PathBuf>,
-    service_path: Box<PathBuf>,
+    project_path: PathBuf,
+    service_path: PathBuf,
 }
 
 pub struct ServiceDir {
-    dir: Box<PathBuf>, // FIXME why is this boxed??
+    dir: PathBuf, // FIXME why is this boxed??
 }
 
 impl ServiceDir {
-    pub fn new(dir: Box<PathBuf>) -> Self {
+    pub fn new(dir: PathBuf) -> Self {
         ServiceDir { dir }
     }
 
-    pub fn dir(&self) -> Box<PathBuf> {
+    pub fn dir(&self) -> PathBuf {
         self.dir.clone()
     }
 
@@ -37,11 +37,11 @@ impl ServiceDir {
 }
 
 pub struct NetDir {
-    dir: Box<PathBuf>,
+    dir: PathBuf,
 }
 
 impl NetDir {
-    pub fn new(project_path: Box<PathBuf>) -> Self {
+    pub fn new(project_path: PathBuf) -> Self {
         let mut net_path = project_path;
         net_path.push("net");
         Self { dir: net_path }
@@ -53,7 +53,14 @@ impl NetDir {
             self.dir.clone().into_os_string().into_string().unwrap(),
             name
         ));
-        ServiceDir::new(Box::new(path))
+        ServiceDir::new(path)
+    }
+
+    pub fn runtime_dir(&self) -> PathBuf {
+        PathBuf::from(&*format!(
+            "{}/runtime",
+            self.dir.clone().into_os_string().into_string().unwrap(),
+        ))
     }
 }
 
@@ -67,13 +74,13 @@ impl Project {
                         path.clone().into_os_string().into_string().unwrap()
                     ));
                 }
-                Box::new(PathBuf::from(
+                PathBuf::from(
                     PathAbs::from(
                         PathDir::new(path.clone())
                             .expect(&*format!("couldn't make PathDir for {:?}", path.clone())),
                     )
                     .as_path(),
-                ))
+                )
             }
 
             None => {
@@ -82,9 +89,9 @@ impl Project {
                     fs::create_dir(path.clone())
                         .expect(&*format!("could not create dir {}", path.clone()));
                 }
-                Box::new(PathBuf::from(
+                PathBuf::from(
                     PathAbs::from(PathDir::new(path.clone()).unwrap()).as_path(),
-                ))
+                )
             }
         };
 
@@ -95,9 +102,9 @@ impl Project {
         if !Path::exists(path.as_ref()) {
             fs::create_dir(path.clone()).expect(&*format!("could not create dir {}", path.clone()));
         }
-        let service_path = Box::new(PathBuf::from(
+        let service_path = PathBuf::from(
             PathAbs::from(PathDir::new(path.clone()).unwrap()).as_path(),
-        ));
+        );
 
         Rc::new(Self {
             name,
@@ -116,14 +123,14 @@ impl Project {
                 .unwrap(),
             name
         ));
-        ServiceDir::new(Box::new(path))
+        ServiceDir::new(path)
     }
 
     pub fn net_dir(&self) -> NetDir {
         NetDir::new(self.project_path.clone())
     }
 
-    pub fn dir(&self) -> Box<PathBuf> {
+    pub fn dir(&self) -> PathBuf {
         self.project_path.clone()
     }
 }

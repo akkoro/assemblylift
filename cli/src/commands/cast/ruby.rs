@@ -8,10 +8,12 @@ use path_abs::PathInfo;
 use assemblylift_core::wasm;
 use assemblylift_generator::context::Function;
 use assemblylift_generator::projectfs::{NetDir, Project};
+use sha2::{Digest, Sha256};
+use sha2::digest::FixedOutput;
 
 use crate::archive::unzip;
 
-use super::CastableFunction;
+use super::{CastableFunction, CompileStatus};
 
 pub struct RubyFunction {
     project: Rc<Project>,
@@ -20,6 +22,7 @@ pub struct RubyFunction {
     net_dir: NetDir,
     enable_precompile: bool,
     cpu_compat_mode: String,
+    ruby_version: String,
 }
 
 impl RubyFunction {
@@ -41,12 +44,13 @@ impl RubyFunction {
             net_dir,
             enable_precompile: function.precompiled,
             cpu_compat_mode: function.cpu_compat_mode.clone(),
+            ruby_version: "3.3.0-dev".into(),
         }
     }
 }
 
 impl CastableFunction for RubyFunction {
-    fn compile(&self, wasi_snapshot_preview1: Vec<u8>) -> Result<PathBuf, String> {
+    fn compile(&self, wasi_snapshot_preview1: Vec<u8>) -> Result<CompileStatus, String> {
         let function_name = &self.function_name;
         let service_name = &self.service_name;
         let service_net_dir = self.net_dir.service_dir(&service_name.clone());
@@ -87,47 +91,66 @@ impl CastableFunction for RubyFunction {
         }
         copy_entries(&function_dir, &PathBuf::from(rubysrc_path));
 
-        if !Path::new(&format!("{}/ruby-wasm32-wasi", service_artifact_path)).exists() {
+        let mut ruby_changed = false;
+
+        let ruby_runtime_path = format!("{}/ruby/{}", self.project.net_dir().runtime_dir().to_str().unwrap(), self.ruby_version);
+        std::fs::create_dir_all(&ruby_runtime_path).unwrap();
+        if !Path::new(&format!("{}/ruby-wasm32-wasi", ruby_runtime_path)).exists() {
             let mut zip = Vec::new();
             let url =
-                "http://public.assemblylift.akkoro.io/runtime/ruby/3.3.0-dev/ruby-wasm32-wasi.zip";
+                format!("http://public.assemblylift.akkoro.io/runtime/ruby/{}/ruby-wasm32-wasi.zip", self.ruby_version);
             println!("Fetching Ruby runtime archive from {}...", url);
             let mut response =
                 reqwest::blocking::get(url).expect("could not fetch ruby runtime zip");
             response.read_to_end(&mut zip).unwrap();
-            unzip(&zip, &service_artifact_path).unwrap();
+            std::fs::write(format!("{}/ruby-wasm32-wasi.zip", &ruby_runtime_path), &zip).unwrap();
+            unzip(&zip, &ruby_runtime_path).unwrap();
+
+            ruby_changed = true;
         }
 
         let ruby_bin = PathBuf::from(format!(
             "{}/ruby-wasm32-wasi/usr/local/bin/ruby",
-            service_artifact_path
+            ruby_runtime_path,
         ));
         let mut ruby_wasm = ruby_bin.clone();
         ruby_wasm.set_extension("wasm");
         if Path::new(&ruby_bin).exists() {
             std::fs::rename(ruby_bin.clone(), ruby_wasm.clone()).unwrap();
         }
-        let copy_to = format!(
-            "{}/{}.component.wasm",
-            &function_artifact_path, &function_name
+        let component_wasm = format!(
+            "{}.component.wasm",
+            &ruby_bin.to_string_lossy(),
         );
-        let copy_result = std::fs::copy(ruby_wasm.clone(), copy_to.clone());
-        if let Err(e) = copy_result {
-            return Err(format!(
-                "Could not copy ruby.wasm.bin to function artifact directory: {}",
-                e
-            ))
-        }
 
         {
-            let module = std::fs::read(copy_to.clone()).unwrap();
+            let module = std::fs::read(ruby_wasm.clone()).unwrap();
             let embedded = wasm::embed_asml_wit(module).expect("unable to embed assemblylift WIT");
             let component = wasm::make_wasi_component(embedded, wasi_snapshot_preview1.as_slice())
                 .expect("unable to make component of the provided module");
-            std::fs::write(copy_to.clone(), component).unwrap();
+
+            if !ruby_changed {
+                if !Path::new(&component_wasm).exists() {  
+                    ruby_changed = true;
+                } else {
+                    let artifact_content = std::fs::read(component_wasm.clone()).unwrap();
+                    let mut artifact_hasher = Sha256::new();
+                    artifact_hasher.update(artifact_content);
+                    let artifact_hash = artifact_hasher.finalize_fixed();
+
+                    let mut component_hasher = Sha256::new();
+                    component_hasher.update(component.clone());
+                    let component_hash = component_hasher.finalize_fixed();
+                    if artifact_hash != component_hash {
+                        ruby_changed = true;
+                    }
+                }
+            }
+
+            std::fs::write(component_wasm.clone(), component.clone()).unwrap();
         }
 
-        Ok(PathBuf::from(copy_to))
+        Ok(CompileStatus { wasm_path: PathBuf::from(&component_wasm), changed: ruby_changed })
     }
 
     fn compose(&self) {
@@ -139,12 +162,12 @@ impl CastableFunction for RubyFunction {
         println!("⚡️ > Precompiling function `{}`...", &self.function_name);
         let net_path = self
             .net_dir
-            .service_dir(&self.service_name.clone())
-            .function_dir(self.function_name.clone())
+            .runtime_dir()
             .to_str()
             .unwrap()
             .to_string();
-        let path = format!("{}/{}.component.wasm", &net_path, &self.function_name);
+        let ruby_runtime_path = format!("{}/ruby/{}", net_path, self.ruby_version);
+        let path = format!("{}/ruby-wasm32-wasi/usr/local/bin/ruby.component.wasm", &ruby_runtime_path);
         let bytes = wasm::precompile(
             Path::new(&path),
             &target.unwrap_or("x86_64-linux-gnu"),

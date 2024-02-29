@@ -52,8 +52,8 @@ variable iomod_layer_arn {
 }
 
 variable ruby_layer_arn {
-    type = string
-    default = ""
+    type    = string
+    default = null
 }
 
 terraform {
@@ -63,6 +63,10 @@ terraform {
             version = "~> 5.0"
         }
     }
+}
+
+locals {
+    layers = var.ruby_layer_arn == null ? [var.runtime_layer_arn] : [var.runtime_layer_arn, var.ruby_layer_arn]
 }
 
 {{#if has_large_payload}}resource aws_s3_object asml_function_payload {
@@ -96,7 +100,7 @@ resource aws_lambda_function asml_function {
       }, var.env_vars)
     }
 
-    layers = [var.runtime_layer_arn{{#if has_iomods}}, var.iomod_layer_arn{{/if}}{{#if has_ruby}}, var.ruby_layer_arn{{/if}}]
+    layers = local.layers
 
     source_code_hash = filebase64sha256("${var.project_path}/net/services/${var.service_name}/functions/${var.function_name}/${var.function_name}.zip")
 }

@@ -31,7 +31,7 @@ pub fn command(matches: Option<&ArgMatches>) {
             "default_service_name".to_string(),
             to_json(default_service_name.to_string()),
         );
-        write_documents(&*project.dir(), (*ROOT_DOCUMENTS).clone().as_ref(), data);
+        write_documents(&project.dir(), (*ROOT_DOCUMENTS).clone().as_ref(), data);
     }
 
     {

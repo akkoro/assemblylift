@@ -40,7 +40,7 @@ pub fn command(matches: Option<&ArgMatches>) {
     match resource_type {
         Some("service") => {
             let old_name = resource_from.unwrap().to_string();
-            let old_dir = &*project.service_dir(old_name.clone()).dir().clone();
+            let old_dir = project.service_dir(old_name.clone()).dir().clone();
             let new_name = resource_to.unwrap().to_string();
             let mut new_dir = old_dir.clone();
             new_dir.pop();
@@ -55,7 +55,7 @@ pub fn command(matches: Option<&ArgMatches>) {
 
             // TODO this (find & read a service toml) is duped a few times;
             //      could be moved to a fn in ProjectFs
-            let service_dir = &*project.service_dir(new_name.clone()).dir().clone();
+            let service_dir = project.service_dir(new_name.clone()).dir().clone();
             let mut service_manifest_file = service_dir.clone();
             service_manifest_file.push("service.toml");
             let mut service_manifest = service::Manifest::read(&service_manifest_file).unwrap();
@@ -86,7 +86,7 @@ pub fn command(matches: Option<&ArgMatches>) {
 
             // rename function,
             // if old_service != new_service then remove_function from old and add_function to new
-            let service_dir = &*project.service_dir(String::from(old_service)).dir().clone();
+            let service_dir = project.service_dir(String::from(old_service)).dir().clone();
             let mut service_manifest_file = service_dir.clone();
             service_manifest_file.push("service.toml");
             let mut service_manifest = service::Manifest::read(&service_manifest_file).unwrap();
@@ -102,7 +102,7 @@ pub fn command(matches: Option<&ArgMatches>) {
                 service_manifest.remove_function(new_function);
 
                 let new_service_dir =
-                    &*project.service_dir(String::from(new_service)).dir().clone();
+                    project.service_dir(String::from(new_service)).dir().clone();
                 let mut new_service_manifest_file = new_service_dir.clone();
                 new_service_manifest_file.push("service.toml");
                 let mut new_service_manifest =
