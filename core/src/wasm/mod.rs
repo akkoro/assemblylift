@@ -9,13 +9,13 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, Context};
 use wasmtime_wasi::sync::Dir;
 use wasmtime_wasi::preview2;
-use wasmtime_wasi::preview2::{DirPerms, FilePerms, Table, WasiView};
+use wasmtime_wasi::preview2::{DirPerms, FilePerms, WasiView};
 pub use crossbeam_channel::bounded as status_channel;
 use once_cell::sync::Lazy;
 use tracing::debug;
 use uuid::Uuid;
 use wasmtime::{component, AsContextMut, AsContext};
-use wasmtime::component::Component;
+use wasmtime::component::{Component, ResourceTable};
 use wasmtime::{Config, Engine, Store};
 use wit_component::{ComponentEncoder, StringEncoding};
 use wasm_encoder::{Encode, Section};
@@ -80,7 +80,7 @@ where
                 Ok((engine, component))
             }
             _ => {
-                return Err(anyhow!(
+                Err(anyhow!(
                     "invalid module extension; must be .wasm or .wasm.bin"
                 ))
             }
@@ -125,13 +125,13 @@ where
         request_id: Option<String>,
         input: &[u8],
     ) -> anyhow::Result<(
-        preview2::wasi::command::Command,
+        preview2::command::Command,
         Store<AsmlComponentFunctionState<R, S>>,
     )> {
         let threader = Arc::new(Mutex::new(Threader::new(registry_tx)));
         let mut linker: component::Linker<AsmlComponentFunctionState<R, S>> = component::Linker::new(&self.engine);
 
-        wasmtime_wasi::preview2::wasi::command::add_to_linker(&mut linker)
+        wasmtime_wasi::preview2::command::add_to_linker(&mut linker)
             .expect("could not link wasi runtime component");
         asml_wit::Assemblylift::add_to_linker(&mut linker, |s| s)
             .expect("could not link assemblylift runtime component");
@@ -142,19 +142,19 @@ where
         secrets_wit::Secrets::add_to_linker(&mut linker, |s| s)
             .expect("could not link secrets runtime component");
 
-        let mut builder = preview2::WasiCtxBuilder::new();
+        let mut builder = &mut preview2::WasiCtxBuilder::new();
         for e in environment_vars {
-            builder = builder.push_env(&*e.0, &*e.1);
+            builder = builder.env(&*e.0, &*e.1);
         }
 
         match runtime_environment.as_str() {
-            "ruby" => builder = builder.inherit_stdio().push_env("RUBY_PLATFORM", "wasm32-wasi").set_args(&["ruby", "/src/handler.rb"]),
+            "ruby" => builder = builder.inherit_stdio().env("RUBY_PLATFORM", "wasm32-wasi").args(&["ruby", "/src/handler.rb"]),
             _ => (),
         }
 
         for path in bind_paths {
             debug!("binding {} to {}", path.0, path.1);
-            builder = builder.push_preopened_dir(
+            builder = builder.preopened_dir(
                 Dir::from_std_file(
                     File::open(path.0).unwrap(),
                 ),
@@ -163,7 +163,7 @@ where
                 path.1,
             );
         }
-        builder = builder.push_preopened_dir(
+        builder = builder.preopened_dir(
             Dir::from_std_file(
                 File::open("/tmp/asmltmp").unwrap(),
             ),
@@ -174,8 +174,8 @@ where
         builder = builder.inherit_stdout();
         builder = builder.inherit_stderr();
 
-        let mut table = Table::new();
-        let wasi = builder.build(&mut table).unwrap();
+        let table = ResourceTable::new();
+        let wasi = builder.build();
 
         let state = AsmlComponentFunctionState {
             function_input: input.to_vec(),
@@ -190,7 +190,7 @@ where
         };
         let mut store = Store::new(&self.engine, state);
 
-        match wasmtime_wasi::preview2::wasi::command::Command::instantiate_async(
+        match wasmtime_wasi::preview2::command::Command::instantiate_async(
             &mut store,
             &self.component,
             &linker,
@@ -204,18 +204,18 @@ where
 
     pub async fn run_component<CTX>(
         &mut self,
-        wasi: wasmtime_wasi::preview2::wasi::command::Command,
+        wasi: wasmtime_wasi::preview2::command::Command,
         mut store: CTX,
     ) -> anyhow::Result<()>
     where
         CTX: AsContextMut,
         <CTX as AsContext>::Data: std::marker::Send,
     {
-        wasi.call_run(
-            &mut store,
-        )
-        .await?
-        .map_err(|()| anyhow::anyhow!("command returned with failing exit status"))
+        wasi
+            .wasi_cli_run()
+            .call_run(&mut store)
+            .await?
+            .map_err(|()| anyhow::anyhow!("command returned with failing exit status"))
     }
 }
 
@@ -231,7 +231,7 @@ where
     request_id: Option<String>,
     cache: Arc<Mutex<Cache>>,
     wasi: preview2::WasiCtx,
-    table: Table,
+    table: ResourceTable,
     _phantom: std::marker::PhantomData<R>,
 }
 
@@ -240,21 +240,21 @@ where
     R: RuntimeAbi<S> + Send + 'static,
     S: Clone + Send + Sized + 'static,
 {
-    fn table(&self) -> &wasmtime_wasi::preview2::Table {
-        &self.table
-    }
-
-    fn table_mut(&mut self) -> &mut wasmtime_wasi::preview2::Table {
+    fn table(&mut self) -> &mut ResourceTable {
         &mut self.table
     }
 
-    fn ctx(&self) -> &preview2::WasiCtx {
-        &self.wasi
-    }
+    // fn table_mut(&mut self) -> &mut wasmtime_wasi::preview2::Table {
+    //     &mut self.table
+    // }
 
-    fn ctx_mut(&mut self) -> &mut preview2::WasiCtx {
+    fn ctx(&mut self) -> &mut preview2::WasiCtx {
         &mut self.wasi
     }
+
+    // fn ctx_mut(&mut self) -> &mut preview2::WasiCtx {
+    //     &mut self.wasi
+    // }
 }
 
 impl<R, S> asml_io::Host for AsmlComponentFunctionState<R, S>
@@ -435,7 +435,7 @@ pub fn precompile(module_path: &Path, target: &str, mode: &str) -> anyhow::Resul
     let is_component = file_path.contains(".component.");
     println!("Precompiling WASM to {}...", file_path.clone());
 
-    let wasm_bytes = match std::fs::read(module_path.clone()) {
+    let wasm_bytes = match std::fs::read(module_path) {
         Ok(bytes) => bytes,
         Err(err) => return Err(err.into()),
     };
@@ -488,7 +488,7 @@ fn new_engine(target: Option<&str>, cpu_compat_mode: Option<&str>) -> anyhow::Re
 }
 
 pub fn make_wasi_component(module: Vec<u8>, preview1: &[u8]) -> anyhow::Result<Vec<u8>> {
-    println!("Encoding WASM Module as Component...");
+    println!("Encoding WASM Module as Component [{} bytes]...", module.len());
     let mut encoder = ComponentEncoder::default().validate(true).module(&module)?;
 
     encoder = encoder.adapter("wasi_snapshot_preview1", preview1)?;

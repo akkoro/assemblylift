@@ -1,4 +1,4 @@
-package akkoro:opa
+package akkoro:opa;
 
 interface module {
     enum policy-error {
@@ -11,10 +11,10 @@ interface module {
         entrypoints: list<string>,
     }
 
-    new-policy: func(bytes: list<u8>) -> result<policy, policy-error>
-    eval: func(id: string, data: string, input: string) -> string
+    new-policy: func(bytes: list<u8>) -> result<policy, policy-error>;
+    eval: func(id: string, data: string, input: string) -> string;
 }
 
 world opa {
-   import module 
+   import module;
 }
