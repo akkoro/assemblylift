@@ -10,10 +10,10 @@ pub use wit_bindgen;
 pub use assemblylift::akkoro::assemblylift::asml_io;
 pub use assemblylift::akkoro::assemblylift::asml_rt;
 pub use assemblylift_core_guest_macros::handler;
-pub use command::wasi;
+// pub use command::wasi;
 
 pub mod assemblylift;
-pub mod command;
+// pub mod command;
 pub mod jwt;
 pub mod opa;
 pub mod secrets;
@@ -29,11 +29,11 @@ impl FunctionContext {
     }
 
     pub fn success(response: String) {
-        asml_rt::success(response.as_bytes())
+        asml_rt::success(&response.as_bytes().to_vec())
     }
 
     pub fn failure(response: String) {
-        asml_rt::failure(response.as_bytes())
+        asml_rt::failure(&response.as_bytes().to_vec())
     }
 }
 

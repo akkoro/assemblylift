@@ -1,4 +1,4 @@
-package akkoro:jwt
+package akkoro:jwt;
 
 interface decoder {
     enum jwt-error {
@@ -15,9 +15,9 @@ interface decoder {
         valid: bool,
     }
 
-    decode-verify: func(token: string, jwks: string, params: validation-params) -> result<verify-result, jwt-error>
+    decode-verify: func(token: string, jwks: string, params: validation-params) -> result<verify-result, jwt-error>;
 }
 
 world jwt {
-    import decoder
+    import decoder;
 }
